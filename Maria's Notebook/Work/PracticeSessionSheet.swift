@@ -32,8 +32,7 @@ struct PracticeSessionSheet: View {
     // Individual notes per student (optional)
     @State private var individualNotes: [UUID: String] = [:]
     @State private var individualUnderstandingLevels: [UUID: Int] = [:]
-    @State private var showIndividualNotes: Bool = false
-    
+
     // Student selection sheet
     @State private var showStudentSelector: Bool = false
     
@@ -229,11 +228,6 @@ struct PracticeSessionSheet: View {
         }
     }
 
-    // Legacy property for backward compatibility
-    private var suggestedStudents: [Student] {
-        orderedStudents.map { $0.student }
-    }
-    
     private var selectedStudents: [Student] {
         allStudents
             .filter { selectedStudentIDs.contains($0.id) }
@@ -320,90 +314,14 @@ struct PracticeSessionSheet: View {
     @ViewBuilder
     private var presentationContextSection: some View {
         if let lesson = relatedLesson {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "book.closed.fill")
-                        .foregroundStyle(.indigo)
-                        .font(.system(size: 16))
-                    Text("Lesson Context")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    // Lesson info
-                    HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(lesson.name)
-                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                            
-                            if !lesson.subject.isEmpty || !lesson.group.isEmpty {
-                                HStack(spacing: 6) {
-                                    if !lesson.subject.isEmpty {
-                                        Text(lesson.subject)
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    
-                                    if !lesson.subject.isEmpty && !lesson.group.isEmpty {
-                                        Text("•")
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    
-                                    if !lesson.group.isEmpty {
-                                        Text(lesson.group)
-                                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.indigo.opacity(0.08))
-                    )
-                    
-                    // Presentation info if available
-                    if let presentation = relatedPresentation {
-                        HStack(spacing: 8) {
-                            Image(systemName: presentation.isPresented ? "calendar.badge.checkmark" : "calendar")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.indigo)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(presentation.isPresented ? "Presented" : "Scheduled")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                
-                                if let date = presentation.presentedAt ?? presentation.scheduledFor {
-                                    Text(date.formatted(date: .abbreviated, time: .omitted))
-                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            
-                            Spacer()
-                        }
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.indigo.opacity(0.05))
-                        )
-                    }
-                }
-            }
+            LessonContextCard(lesson: lesson, presentation: relatedPresentation)
         }
     }
     
     private var dateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Practice Date")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-            
+            PracticeSectionHeader(title: "Practice Date")
+
             DatePicker(
                 "Date",
                 selection: $selectedDate,
@@ -417,12 +335,10 @@ struct PracticeSessionSheet: View {
     private var currentlyPracticingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Students")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-                
+                PracticeSectionHeader(title: "Students")
+
                 Spacer()
-                
+
                 Button {
                     showStudentSelector = true
                 } label: {
@@ -439,44 +355,18 @@ struct PracticeSessionSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
             ForEach(selectedStudents) { student in
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.system(size: 16))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                        
+                SelectedStudentRow(
+                    student: student,
+                    workTitle: selectedWorkItems.first(where: { $0.studentID == student.id.uuidString })?.title,
+                    showRemoveButton: selectedStudents.count > 1,
+                    onRemove: {
+                        selectedStudentIDs.remove(student.id)
                         if let work = selectedWorkItems.first(where: { $0.studentID == student.id.uuidString }) {
-                            Text(work.title)
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                                .foregroundStyle(.secondary)
+                            selectedWorkItemIDs.remove(work.id)
                         }
                     }
-                    
-                    Spacer()
-                    
-                    if selectedStudents.count > 1 {
-                        Button {
-                            selectedStudentIDs.remove(student.id)
-                            if let work = selectedWorkItems.first(where: { $0.studentID == student.id.uuidString }) {
-                                selectedWorkItemIDs.remove(work.id)
-                            }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 16))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.green.opacity(0.1))
                 )
             }
         }
@@ -485,30 +375,8 @@ struct PracticeSessionSheet: View {
     private var studentSelectorSheet: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Search bar
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 14))
+                StudentSelectorSearchBar(searchText: $searchText)
 
-                    TextField("Search students...", text: $searchText)
-                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                        .textFieldStyle(.plain)
-
-                    if !searchText.isEmpty {
-                        Button {
-                            searchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 16))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(12)
-                .background(Color.primary.opacity(0.05))
-                
                 Divider()
                 
                 ScrollView {
@@ -633,93 +501,29 @@ struct PracticeSessionSheet: View {
     
     private var sharedNotesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Session Notes")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-            
-            TextField("Add session notes...", text: $sharedNotes, axis: .vertical)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                .lineLimit(5...10)
-                .textFieldStyle(.plain)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                )
+            PracticeSectionHeader(title: "Session Notes")
+
+            StyledNotesTextField(placeholder: "Add session notes...", text: $sharedNotes, lineLimit: 5...10)
         }
     }
 
     private var qualityMetricsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Session Quality")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
+            PracticeSectionHeader(title: "Session Quality")
 
-            // Practice Quality
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Engagement Level")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+            RatingLevelSelector(
+                label: "Engagement Level",
+                selectedLevel: $practiceQuality,
+                color: .blue,
+                levelLabels: qualityLabel
+            )
 
-                HStack(spacing: 12) {
-                    ForEach(1...5, id: \.self) { level in
-                        Button {
-                            practiceQuality = (practiceQuality == level) ? nil : level
-                        } label: {
-                            Circle()
-                                .fill(Color.blue.opacity(practiceQuality == level ? 1.0 : 0.2))
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Text("\(level)")
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(practiceQuality == level ? .white : .blue)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if let quality = practiceQuality {
-                        Text(qualityLabel(for: quality))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // Independence Level
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Independence Level")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 12) {
-                    ForEach(1...5, id: \.self) { level in
-                        Button {
-                            independenceLevel = (independenceLevel == level) ? nil : level
-                        } label: {
-                            Circle()
-                                .fill(Color.green.opacity(independenceLevel == level ? 1.0 : 0.2))
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Text("\(level)")
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(independenceLevel == level ? .white : .green)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if let independence = independenceLevel {
-                        Text(independenceLabel(for: independence))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
+            RatingLevelSelector(
+                label: "Independence Level",
+                selectedLevel: $independenceLevel,
+                color: .green,
+                levelLabels: independenceLabel
+            )
         }
     }
 
@@ -747,46 +551,28 @@ struct PracticeSessionSheet: View {
 
     private var optionalFieldsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Duration toggle
-            Toggle(isOn: $hasDuration) {
-                Text("Track Duration")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+            OptionalFieldToggle(title: "Track Duration", isEnabled: $hasDuration) {
+                HStack {
+                    Text("Duration (minutes)")
+                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Stepper("\(durationMinutes) min", value: $durationMinutes, in: 5...300, step: 5)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                }
+                .onChange(of: durationMinutes) { _, newValue in
+                    duration = TimeInterval(newValue * 60)
+                }
             }
             .onChange(of: hasDuration) { _, newValue in
                 if !newValue {
                     duration = nil
                 }
             }
-            
-            if hasDuration {
-                HStack {
-                    Text("Duration (minutes)")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    Stepper("\(durationMinutes) min", value: $durationMinutes, in: 5...300, step: 5)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                }
-                .padding(.leading, 24)
-                .onChange(of: durationMinutes) { _, newValue in
-                    duration = TimeInterval(newValue * 60)
-                }
-            }
-            
-            // Location toggle
-            Toggle(isOn: $hasLocation) {
-                Text("Add Location")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-            }
-            .onChange(of: hasLocation) { _, newValue in
-                if !newValue {
-                    location = ""
-                }
-            }
-            
-            if hasLocation {
+
+            OptionalFieldToggle(title: "Add Location", isEnabled: $hasLocation) {
                 TextField("Location (e.g., Small table, Outside)", text: $location)
                     .font(.system(size: AppTheme.FontSize.body, design: .rounded))
                     .textFieldStyle(.plain)
@@ -795,16 +581,18 @@ struct PracticeSessionSheet: View {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.primary.opacity(0.05))
                     )
-                    .padding(.leading, 24)
+            }
+            .onChange(of: hasLocation) { _, newValue in
+                if !newValue {
+                    location = ""
+                }
             }
         }
     }
     
     private var individualNotesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Individual Student Notes")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
+            PracticeSectionHeader(title: "Individual Student Notes")
 
             ForEach(selectedStudents) { student in
                 individualStudentCard(for: student)
@@ -815,59 +603,25 @@ struct PracticeSessionSheet: View {
     @ViewBuilder
     private func individualStudentCard(for student: Student) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Student name
             Text(StudentFormatter.displayName(for: student))
                 .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
 
-            // Understanding level picker
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Understanding")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+            StudentUnderstandingSelector(level: Binding(
+                get: { individualUnderstandingLevels[student.id] ?? 3 },
+                set: { individualUnderstandingLevels[student.id] = $0 }
+            ))
 
-                HStack(spacing: 8) {
-                    ForEach(1...5, id: \.self) { level in
-                        Button {
-                            individualUnderstandingLevels[student.id] = level
-                        } label: {
-                            Circle()
-                                .fill(understandingColor(for: level).opacity(
-                                    (individualUnderstandingLevels[student.id] ?? 3) >= level ? 1.0 : 0.2
-                                ))
-                                .frame(width: 24, height: 24)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    Spacer()
-
-                    Text(understandingLabel(for: individualUnderstandingLevels[student.id] ?? 3))
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // Notes
             VStack(alignment: .leading, spacing: 6) {
                 Text("Notes")
                     .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
 
-                TextField("Add notes for \(StudentFormatter.displayName(for: student))...", text: Binding(
-                    get: { individualNotes[student.id] ?? "" },
-                    set: { individualNotes[student.id] = $0 }
-                ), axis: .vertical)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                .lineLimit(3...8)
-                .textFieldStyle(.plain)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                StyledNotesTextField(
+                    placeholder: "Add notes for \(StudentFormatter.displayName(for: student))...",
+                    text: Binding(
+                        get: { individualNotes[student.id] ?? "" },
+                        set: { individualNotes[student.id] = $0 }
+                    )
                 )
             }
         }
@@ -876,17 +630,6 @@ struct PracticeSessionSheet: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.primary.opacity(0.04))
         )
-    }
-
-    private func understandingColor(for level: Int) -> Color {
-        switch level {
-        case 1: return .red
-        case 2: return .orange
-        case 3: return .yellow
-        case 4: return .green
-        case 5: return .blue
-        default: return .gray
-        }
     }
 
     private func understandingLabel(for level: Int) -> String {
@@ -899,49 +642,15 @@ struct PracticeSessionSheet: View {
         default: return ""
         }
     }
-    
+
     private var bottomBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                dismiss()
-            } label: {
-                Text("Cancel")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(0.05))
-                    )
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Button {
-                saveSession()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("Save Session")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(canSave ? Color.accentColor : Color.gray)
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!canSave)
-        }
-        .padding(16)
+        PracticeSessionBottomBar(
+            canSave: canSave,
+            onCancel: { dismiss() },
+            onSave: { saveSession() }
+        )
     }
-    
+
     // MARK: - Helper Methods
     
     private func setupInitialState() {

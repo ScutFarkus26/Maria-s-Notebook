@@ -377,7 +377,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 
                 VStack(spacing: 8) {
                     ForEach(workItems) { work in
-                        workItemRow(work)
+                        WorkItemCompactRow(work: work, modelContext: modelContext)
                     }
                 }
                 
@@ -394,7 +394,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                         .foregroundStyle(.purple)
                         
                         ForEach(practiceSessions.prefix(3)) { session in
-                            practiceSessionRow(session)
+                            PracticeSessionCompactRow(session: session)
                         }
                         
                         if practiceSessions.count > 3 {
@@ -412,99 +412,6 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 }
             }
         }
-    }
-    
-    @ViewBuilder
-    private func workItemRow(_ work: WorkModel) -> some View {
-        HStack(spacing: 12) {
-            // Status indicator
-            ZStack {
-                Circle()
-                    .fill(work.status.color.opacity(0.15))
-                    .frame(width: 36, height: 36)
-                
-                Image(systemName: work.status.iconName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(work.status.color)
-            }
-            
-            VStack(alignment: .leading, spacing: 3) {
-                Text(work.title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary)
-                
-                HStack(spacing: 6) {
-                    if let student = work.fetchStudent(from: modelContext) {
-                        Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    if let kind = work.kind {
-                        Text("•")
-                            .foregroundStyle(.tertiary)
-                        Text(kind.rawValue)
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            // Status badge
-            Text(work.status.rawValue.capitalized)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
-                .foregroundStyle(work.status.color)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(work.status.color.opacity(0.12))
-                )
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
-    }
-    
-    @ViewBuilder
-    private func practiceSessionRow(_ session: PracticeSession) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: session.isGroupSession ? "person.2" : "person")
-                .font(.system(size: 12))
-                .foregroundStyle(.purple)
-            
-            Text(session.date.formatted(date: .abbreviated, time: .omitted))
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                .foregroundStyle(.secondary)
-            
-            if let duration = session.durationFormatted {
-                Text("•")
-                    .foregroundStyle(.tertiary)
-                Text(duration)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            Text("\(session.participantCount) \(session.participantCount == 1 ? "student" : "students")")
-                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.purple.opacity(0.08))
-        )
     }
 
     @ViewBuilder
@@ -528,9 +435,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 if note.category != .general {
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(categoryColor(for: note.category))
+                            .fill(NoteCategoryHelpers.color(for: note.category))
                             .frame(width: 6, height: 6)
-                        Text(note.category.rawValue.capitalized)
+                        Text(NoteCategoryHelpers.label(for: note.category))
                             .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
                     }
                     .foregroundStyle(.secondary)
@@ -538,7 +445,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     .padding(.vertical, 4)
                     .background(
                         Capsule()
-                            .fill(categoryColor(for: note.category).opacity(0.1))
+                            .fill(NoteCategoryHelpers.color(for: note.category).opacity(0.1))
                     )
                 }
 
@@ -576,17 +483,6 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         }
     }
 
-    private func categoryColor(for category: NoteCategory) -> Color {
-        switch category {
-        case .general: return .gray
-        case .behavioral: return .orange
-        case .academic: return .blue
-        case .social: return .green
-        case .emotional: return .pink
-        case .health: return .red
-        case .attendance: return .teal
-        }
-    }
 
     @MainActor
     private func reloadNotes() {

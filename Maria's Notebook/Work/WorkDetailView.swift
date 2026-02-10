@@ -109,58 +109,30 @@ struct WorkDetailView: View {
             VStack(spacing: 12) {
                 // Top row: Action buttons
                 HStack(spacing: 12) {
-                    Button {
+                    IconActionButton(
+                        icon: "trash",
+                        color: .red,
+                        backgroundColor: Color.red.opacity(0.1)
+                    ) {
                         viewModel.showDeleteAlert = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.red)
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.red.opacity(0.1))
-                            )
                     }
-                    .buttonStyle(.plain)
                     
-                    Button {
+                    RoundedActionButton(
+                        title: "Add Practice",
+                        icon: "person.2.fill",
+                        color: .blue
+                    ) {
                         viewModel.showPracticeSessionSheet = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Add Practice")
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                        }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue)
-                        )
                     }
-                    .buttonStyle(.plain)
                     
                     if showRepresentButton {
-                        Button {
+                        RoundedActionButton(
+                            title: "Re-present",
+                            icon: "arrow.clockwise",
+                            color: .purple
+                        ) {
                             showingRepresentSheet = true
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 12, weight: .medium))
-                                Text("Re-present")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.purple)
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                     
                     Spacer()
@@ -463,22 +435,11 @@ struct WorkDetailView: View {
             if let work = viewModel.work {
                 let orderedSteps = work.orderedSteps
                 if orderedSteps.isEmpty {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "checklist")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.tertiary)
-                            Text("No steps yet")
-                                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                                .foregroundStyle(.secondary)
-                            Text("Add steps to track progress")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.vertical, 16)
-                        Spacer()
-                    }
+                    EmptyStateView(
+                        icon: "checklist",
+                        title: "No steps yet",
+                        subtitle: "Add steps to track progress"
+                    )
                 } else {
                     VStack(spacing: 8) {
                         ForEach(orderedSteps) { step in
@@ -662,7 +623,7 @@ struct WorkDetailView: View {
             VStack(spacing: 16) {
                 // Top row: Sessions and Time
                 HStack(spacing: 16) {
-                    statBox(
+                    MetricStatBox(
                         value: "\(stats.totalSessions)",
                         label: stats.totalSessions == 1 ? "Session" : "Sessions",
                         icon: "calendar",
@@ -670,7 +631,7 @@ struct WorkDetailView: View {
                     )
 
                     if let totalTime = stats.totalDuration {
-                        statBox(
+                        MetricStatBox(
                             value: totalTime,
                             label: "Practice Time",
                             icon: "clock",
@@ -683,7 +644,7 @@ struct WorkDetailView: View {
                 if stats.avgQuality != nil || stats.avgIndependence != nil {
                     HStack(spacing: 16) {
                         if let avgQuality = stats.avgQuality {
-                            qualityMetricBox(
+                            QualityMetricBox(
                                 level: avgQuality,
                                 label: "Avg Quality",
                                 icon: "star.fill",
@@ -692,7 +653,7 @@ struct WorkDetailView: View {
                         }
 
                         if let avgIndependence = stats.avgIndependence {
-                            qualityMetricBox(
+                            QualityMetricBox(
                                 level: avgIndependence,
                                 label: "Avg Independence",
                                 icon: "figure.walk",
@@ -711,7 +672,7 @@ struct WorkDetailView: View {
 
                         FlowLayout(spacing: 6) {
                             ForEach(stats.topBehaviors, id: \.self) { behavior in
-                                behaviorPill(behavior)
+                                BehaviorPill(behavior: behavior)
                             }
                         }
                     }
@@ -726,7 +687,7 @@ struct WorkDetailView: View {
 
                         HStack(spacing: 12) {
                             if stats.needsReteaching > 0 {
-                                actionItemBox(
+                                ActionItemBox(
                                     count: stats.needsReteaching,
                                     label: "Needs Reteaching",
                                     icon: "arrow.counterclockwise",
@@ -735,7 +696,7 @@ struct WorkDetailView: View {
                             }
 
                             if stats.upcomingCheckIns > 0 {
-                                actionItemBox(
+                                ActionItemBox(
                                     count: stats.upcomingCheckIns,
                                     label: "Check-ins Scheduled",
                                     icon: "calendar.badge.clock",
@@ -833,11 +794,11 @@ struct WorkDetailView: View {
                     if presentation.needsPractice || presentation.needsAnotherPresentation || !presentation.followUpWork.isEmpty {
                         VStack(spacing: 8) {
                             if presentation.needsPractice {
-                                flagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)
+                                FlagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)
                             }
-                            
+
                             if presentation.needsAnotherPresentation {
-                                flagRow(icon: "repeat", text: "Needs Re-presentation", color: .red)
+                                FlagRow(icon: "repeat", text: "Needs Re-presentation", color: .red)
                             }
                             
                             if !presentation.followUpWork.isEmpty {
@@ -917,26 +878,6 @@ struct WorkDetailView: View {
         }
     }
     
-    @ViewBuilder
-    private func flagRow(icon: String, text: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(color)
-            
-            Text(text)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-            
-            Spacer()
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(color.opacity(0.08))
-        )
-    }
-    
     @ViewBuilder private func notesSection() -> some View {
         DetailSectionCard(
             title: "Notes",
@@ -952,22 +893,11 @@ struct WorkDetailView: View {
             }
         ) {
             if viewModel.workModelNotes.isEmpty {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "note.text")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.tertiary)
-                        Text("No notes yet")
-                            .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                            .foregroundStyle(.secondary)
-                        Text("Add notes to track progress")
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.vertical, 16)
-                    Spacer()
-                }
+                EmptyStateView(
+                    icon: "note.text",
+                    title: "No notes yet",
+                    subtitle: "Add notes to track progress"
+                )
             } else {
                 VStack(spacing: 10) {
                     ForEach(viewModel.workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
@@ -986,22 +916,7 @@ struct WorkDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 8) {
-                if note.category != .general {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(categoryColor(for: note.category))
-                            .frame(width: 6, height: 6)
-                        Text(note.category.rawValue.capitalized)
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(categoryColor(for: note.category).opacity(0.1))
-                    )
-                }
+                CategoryBadge(category: note.category)
 
                 Text(note.createdAt, style: .date)
                     .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
@@ -1039,18 +954,6 @@ struct WorkDetailView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
-    }
-
-    private func categoryColor(for category: NoteCategory) -> Color {
-        switch category {
-        case .general: return .gray
-        case .behavioral: return .orange
-        case .academic: return .blue
-        case .social: return .green
-        case .emotional: return .pink
-        case .health: return .red
-        case .attendance: return .purple
-        }
     }
 
 
@@ -1114,110 +1017,6 @@ struct WorkDetailView: View {
         stats.upcomingCheckIns = practiceSessions.filter { $0.checkInScheduledFor != nil }.count
 
         return stats
-    }
-
-    @ViewBuilder
-    private func statBox(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(color)
-
-                Text(value)
-                    .font(.system(size: AppTheme.FontSize.titleMedium, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-            }
-
-            Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.08))
-        )
-    }
-
-    @ViewBuilder
-    private func qualityMetricBox(level: Double, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(color)
-
-            HStack(spacing: 4) {
-                ForEach(1...5, id: \.self) { index in
-                    Circle()
-                        .fill(color.opacity(level >= Double(index) ? 1.0 : 0.2))
-                        .frame(width: 8, height: 8)
-                }
-            }
-
-            Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.08))
-        )
-    }
-
-    @ViewBuilder
-    private func behaviorPill(_ behavior: String) -> some View {
-        let color = behaviorColor(for: behavior)
-
-        Text(behavior)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-            .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(color.opacity(0.15))
-            )
-    }
-
-    private func behaviorColor(for behavior: String) -> Color {
-        switch behavior {
-        case "Breakthrough!": return .green
-        case "Struggled": return .orange
-        case "Needs reteaching": return .red
-        case "Ready for check-in", "Ready for assessment": return .blue
-        case "Asked for help": return .purple
-        case "Helped peer": return .teal
-        default: return .gray
-        }
-    }
-
-    @ViewBuilder
-    private func actionItemBox(count: Int, label: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(color)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(count)")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-
-                Text(label)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(color.opacity(0.1))
-        )
     }
 
     private func save() {
@@ -1313,60 +1112,6 @@ struct WorkDetailView: View {
         return viewModel.relatedLesson?.name ?? "Lesson"
     }
 
-}
-
-// MARK: - Detail Section Card
-
-/// Reusable card component for detail view sections
-private struct DetailSectionCard<Content: View, Trailing: View>: View {
-    let title: String
-    let icon: String
-    let accentColor: Color
-    let trailing: () -> Trailing
-    let content: () -> Content
-
-    init(
-        title: String,
-        icon: String,
-        accentColor: Color,
-        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
-        @ViewBuilder content: @escaping () -> Content
-    ) {
-        self.title = title
-        self.icon = icon
-        self.accentColor = accentColor
-        self.trailing = trailing
-        self.content = content
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Header
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(accentColor)
-
-                Text(title)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-
-                Spacer()
-
-                trailing()
-            }
-
-            content()
-        }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(0.02))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
-    }
 }
 
 // MARK: - Sheet Presentation Extension

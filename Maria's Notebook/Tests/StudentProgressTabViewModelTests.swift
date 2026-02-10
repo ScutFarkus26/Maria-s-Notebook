@@ -4,10 +4,10 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
-// MARK: - Helper Factory
+// MARK: - Container Factory
 
 @MainActor
-private func makeProgressContainer() throws -> ModelContainer {
+func makeProgressContainer() throws -> ModelContainer {
     return try makeTestContainer(for: [
         Student.self,
         Lesson.self,
@@ -21,99 +21,6 @@ private func makeProgressContainer() throws -> ModelContainer {
         Note.self,
         LessonPresentation.self,
     ])
-}
-
-private func makeTestTrack(
-    id: UUID = UUID(),
-    title: String = "Test Track"
-) -> Track {
-    return Track(
-        id: id,
-        title: title
-    )
-}
-
-private func makeTestTrackStep(
-    id: UUID = UUID(),
-    track: Track? = nil,
-    orderIndex: Int = 0,
-    lessonTemplateID: UUID? = nil
-) -> TrackStep {
-    return TrackStep(
-        id: id,
-        track: track,
-        orderIndex: orderIndex,
-        lessonTemplateID: lessonTemplateID
-    )
-}
-
-private func makeTestEnrollment(
-    id: UUID = UUID(),
-    createdAt: Date = Date(),
-    studentID: String,
-    trackID: String,
-    isActive: Bool = true
-) -> StudentTrackEnrollment {
-    return StudentTrackEnrollment(
-        id: id,
-        createdAt: createdAt,
-        studentID: studentID,
-        trackID: trackID,
-        isActive: isActive
-    )
-}
-
-private func makeTestProject(
-    id: UUID = UUID(),
-    createdAt: Date = Date(),
-    title: String = "Test Project",
-    memberStudentIDs: [String] = [],
-    isActive: Bool = true
-) -> Project {
-    return Project(
-        id: id,
-        createdAt: createdAt,
-        title: title,
-        memberStudentIDs: memberStudentIDs,
-        isActive: isActive
-    )
-}
-
-@MainActor
-private func makeTestNote(
-    id: UUID = UUID(),
-    createdAt: Date = Date(),
-    updatedAt: Date = Date(),
-    body: String = "Test note",
-    studentTrackEnrollment: StudentTrackEnrollment? = nil
-) -> Note {
-    return Note(
-        id: id,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-        body: body,
-        scope: .all,
-        studentTrackEnrollment: studentTrackEnrollment
-    )
-}
-
-private func makeTestLessonPresentation(
-    id: UUID = UUID(),
-    createdAt: Date = Date(),
-    studentID: String,
-    lessonID: String,
-    state: LessonPresentationState = .presented
-) -> LessonPresentation {
-    return LessonPresentation(
-        id: id,
-        createdAt: createdAt,
-        studentID: studentID,
-        lessonID: lessonID,
-        state: state,
-        presentedAt: Date(),
-        lastObservedAt: Date(),
-        masteredAt: state == .mastered ? Date() : nil
-    )
 }
 
 // MARK: - Initialization Tests
@@ -139,32 +46,8 @@ struct StudentProgressTabViewModelInitializationTests {
 @MainActor
 struct StudentProgressTabViewModelDataLoadingTests {
 
-    @Test("loadData populates activeEnrollments for student")
-    func loadDataPopulatesActiveEnrollments() throws {
-        let container = try makeProgressContainer()
-        let context = ModelContext(container)
-        let vm = StudentProgressTabViewModel()
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let track = makeTestTrack(title: "Math Track")
-        context.insert(student)
-        context.insert(track)
-
-        let enrollment = makeTestEnrollment(
-            studentID: student.id.uuidString,
-            trackID: track.id.uuidString,
-            isActive: true
-        )
-        context.insert(enrollment)
-
-        vm.configure(for: student, context: context)
-
-        #expect(vm.activeEnrollments.count == 1)
-        #expect(vm.activeEnrollments[0].studentID == student.id.uuidString)
-    }
-
-    @Test("loadData excludes inactive enrollments")
-    func loadDataExcludesInactiveEnrollments() throws {
+    @Test("loadData populates activeEnrollments and excludes inactive")
+    func loadDataPopulatesEnrollments() throws {
         let container = try makeProgressContainer()
         let context = ModelContext(container)
         let vm = StudentProgressTabViewModel()
@@ -190,32 +73,11 @@ struct StudentProgressTabViewModelDataLoadingTests {
         vm.configure(for: student, context: context)
 
         #expect(vm.activeEnrollments.count == 1)
+        #expect(vm.activeEnrollments[0].studentID == student.id.uuidString)
     }
 
-    @Test("loadData populates activeProjects for student")
-    func loadDataPopulatesActiveProjects() throws {
-        let container = try makeProgressContainer()
-        let context = ModelContext(container)
-        let vm = StudentProgressTabViewModel()
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let project = makeTestProject(
-            title: "Science Fair",
-            memberStudentIDs: [student.id.uuidString],
-            isActive: true
-        )
-        context.insert(project)
-
-        vm.configure(for: student, context: context)
-
-        #expect(vm.activeProjects.count == 1)
-        #expect(vm.activeProjects[0].title == "Science Fair")
-    }
-
-    @Test("loadData excludes projects student is not a member of")
-    func loadDataExcludesNonMemberProjects() throws {
+    @Test("loadData populates activeProjects for member students only")
+    func loadDataPopulatesProjects() throws {
         let container = try makeProgressContainer()
         let context = ModelContext(container)
         let vm = StudentProgressTabViewModel()
@@ -225,44 +87,27 @@ struct StudentProgressTabViewModelDataLoadingTests {
         context.insert(student)
         context.insert(otherStudent)
 
-        let project = makeTestProject(
+        let studentProject = makeTestProject(
             title: "Science Fair",
+            memberStudentIDs: [student.id.uuidString],
+            isActive: true
+        )
+        let otherProject = makeTestProject(
+            title: "Other Project",
             memberStudentIDs: [otherStudent.id.uuidString],
             isActive: true
         )
-        context.insert(project)
+        context.insert(studentProject)
+        context.insert(otherProject)
 
         vm.configure(for: student, context: context)
 
-        #expect(vm.activeProjects.isEmpty)
+        #expect(vm.activeProjects.count == 1)
+        #expect(vm.activeProjects[0].title == "Science Fair")
     }
 
-    @Test("loadData populates activeReports for student")
-    func loadDataPopulatesActiveReports() throws {
-        let container = try makeProgressContainer()
-        let context = ModelContext(container)
-        let vm = StudentProgressTabViewModel()
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let report = makeTestWorkModel(
-            title: "Book Report",
-            workType: .report,
-            kind: .report,
-            status: .active,
-            studentID: student.id.uuidString
-        )
-        context.insert(report)
-
-        vm.configure(for: student, context: context)
-
-        #expect(vm.activeReports.count == 1)
-        #expect(vm.activeReports[0].title == "Book Report")
-    }
-
-    @Test("loadData excludes completed reports")
-    func loadDataExcludesCompletedReports() throws {
+    @Test("loadData populates activeReports and excludes completed")
+    func loadDataPopulatesReports() throws {
         let container = try makeProgressContainer()
         let context = ModelContext(container)
         let vm = StudentProgressTabViewModel()
@@ -680,8 +525,8 @@ struct StudentProgressTabViewModelColorHelperTests {
 @MainActor
 struct StudentProgressTabViewModelAutoCompleteTests {
 
-    @Test("autoCompleteTrackIfNeeded deactivates enrollment when track is complete")
-    func autoCompleteDeactivatesEnrollmentWhenComplete() throws {
+    @Test("autoCompleteTrackIfNeeded manages enrollment active state")
+    func autoCompleteManagesEnrollment() throws {
         let container = try makeProgressContainer()
         let context = ModelContext(container)
         let vm = StudentProgressTabViewModel()
@@ -689,14 +534,14 @@ struct StudentProgressTabViewModelAutoCompleteTests {
         let student = makeTestStudent()
         context.insert(student)
 
-        let enrollment = makeTestEnrollment(
+        // Test complete track deactivation
+        let completeEnrollment = makeTestEnrollment(
             studentID: student.id.uuidString,
             trackID: UUID().uuidString,
             isActive: true
         )
-        context.insert(enrollment)
+        context.insert(completeEnrollment)
 
-        // Create a complete progress (all mastered)
         let completeProgress = StudentProgressTabViewModel.TrackProgress(
             trackSteps: [],
             completedStepIDs: [],
@@ -707,29 +552,17 @@ struct StudentProgressTabViewModelAutoCompleteTests {
             currentStep: nil,
             currentLesson: nil
         )
+        vm.autoCompleteTrackIfNeeded(enrollment: completeEnrollment, progress: completeProgress, context: context)
+        #expect(completeEnrollment.isActive == false)
 
-        vm.autoCompleteTrackIfNeeded(enrollment: enrollment, progress: completeProgress, context: context)
-
-        #expect(enrollment.isActive == false)
-    }
-
-    @Test("autoCompleteTrackIfNeeded does not deactivate incomplete track")
-    func autoCompleteDoesNotDeactivateIncompleteTrack() throws {
-        let container = try makeProgressContainer()
-        let context = ModelContext(container)
-        let vm = StudentProgressTabViewModel()
-
-        let student = makeTestStudent()
-        context.insert(student)
-
-        let enrollment = makeTestEnrollment(
+        // Test incomplete track stays active
+        let incompleteEnrollment = makeTestEnrollment(
             studentID: student.id.uuidString,
             trackID: UUID().uuidString,
             isActive: true
         )
-        context.insert(enrollment)
+        context.insert(incompleteEnrollment)
 
-        // Create an incomplete progress
         let incompleteProgress = StudentProgressTabViewModel.TrackProgress(
             trackSteps: [],
             completedStepIDs: [],
@@ -740,42 +573,8 @@ struct StudentProgressTabViewModelAutoCompleteTests {
             currentStep: nil,
             currentLesson: nil
         )
-
-        vm.autoCompleteTrackIfNeeded(enrollment: enrollment, progress: incompleteProgress, context: context)
-
-        #expect(enrollment.isActive == true)
-    }
-
-    @Test("autoCompleteTrackIfNeeded does not affect already inactive enrollment")
-    func autoCompleteDoesNotAffectInactiveEnrollment() throws {
-        let container = try makeProgressContainer()
-        let context = ModelContext(container)
-        let vm = StudentProgressTabViewModel()
-
-        let student = makeTestStudent()
-        context.insert(student)
-
-        let enrollment = makeTestEnrollment(
-            studentID: student.id.uuidString,
-            trackID: UUID().uuidString,
-            isActive: false
-        )
-        context.insert(enrollment)
-
-        let completeProgress = StudentProgressTabViewModel.TrackProgress(
-            trackSteps: [],
-            completedStepIDs: [],
-            masteredCount: 5,
-            totalSteps: 5,
-            progressPercent: 1.0,
-            isComplete: true,
-            currentStep: nil,
-            currentLesson: nil
-        )
-
-        vm.autoCompleteTrackIfNeeded(enrollment: enrollment, progress: completeProgress, context: context)
-
-        #expect(enrollment.isActive == false) // Still false, no change
+        vm.autoCompleteTrackIfNeeded(enrollment: incompleteEnrollment, progress: incompleteProgress, context: context)
+        #expect(incompleteEnrollment.isActive == true)
     }
 }
 

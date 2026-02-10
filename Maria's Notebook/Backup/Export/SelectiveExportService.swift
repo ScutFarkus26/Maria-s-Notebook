@@ -154,30 +154,16 @@ public final class SelectiveExportService {
         }
 
         // Build envelope
-        let envelope = BackupEnvelope(
-            formatVersion: BackupFile.formatVersion,
-            createdAt: Date(),
-            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
-            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-            device: ProcessInfo.processInfo.hostName,
-            manifest: BackupManifest(
-                entityCounts: counts,
-                sha256: sha,
-                notes: "Selective export",
-                compression: BackupFile.compressionAlgorithm
-            ),
-            payload: nil,
+        let envelope = BackupServiceHelpers.buildEnvelope(
             encryptedPayload: finalEncrypted,
-            compressedPayload: finalCompressed
+            compressedPayload: finalCompressed,
+            entityCounts: counts,
+            sha256: sha,
+            notes: "Selective export"
         )
 
         progress(0.8, "Writing backup file…")
-        let envBytes = try encoder.encode(envelope)
-
-        if FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
-        }
-        try envBytes.write(to: url, options: .atomic)
+        try BackupServiceHelpers.writeBackupFile(envelope: envelope, to: url, encoder: encoder)
 
         progress(1.0, "Selective export complete")
 
@@ -365,113 +351,23 @@ public final class SelectiveExportService {
     ) throws -> (BackupPayload, [String: Int]) {
         var counts: [String: Int] = [:]
 
-        // Helper to check if entity type is included
         func shouldInclude(_ type: EntityType) -> Bool {
             filter.entityTypes?.contains(type) ?? true
         }
 
-        // Helper to check if date is in range
-        func isInDateRange(_ date: Date?) -> Bool {
-            guard let range = filter.dateRange, let d = date else { return true }
-            return range.contains(d)
-        }
-
         progress(0.1, "Collecting students…")
-
-        // Collect students
-        var studentDTOs: [StudentDTO] = []
-        if shouldInclude(.students) {
-            let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
-            let filtered: [Student]
-            if let studentIDs = filter.studentIDs {
-                filtered = allStudents.filter { studentIDs.contains($0.id) }
-            } else {
-                filtered = allStudents
-            }
-
-            studentDTOs = filtered.map { s in
-                let level: StudentDTO.Level = (s.level == .upper) ? .upper : .lower
-                return StudentDTO(
-                    id: s.id,
-                    firstName: s.firstName,
-                    lastName: s.lastName,
-                    birthday: s.birthday,
-                    dateStarted: s.dateStarted,
-                    level: level,
-                    nextLessons: s.nextLessonUUIDs,
-                    manualOrder: s.manualOrder,
-                    createdAt: nil,
-                    updatedAt: nil
-                )
-            }
-        }
+        let studentDTOs: [StudentDTO] = shouldInclude(.students) ? collectStudents(modelContext: modelContext, filter: filter) : []
         counts["Student"] = studentDTOs.count
 
         progress(0.2, "Collecting lessons…")
-
-        // Collect lessons
-        var lessonDTOs: [LessonDTO] = []
-        if shouldInclude(.lessons) {
-            let allLessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
-            lessonDTOs = allLessons.map { l in
-                LessonDTO(
-                    id: l.id,
-                    name: l.name,
-                    subject: l.subject,
-                    group: l.group,
-                    orderInGroup: l.orderInGroup,
-                    subheading: l.subheading,
-                    writeUp: l.writeUp,
-                    createdAt: nil,
-                    updatedAt: nil,
-                    pagesFileRelativePath: l.pagesFileRelativePath
-                )
-            }
-        }
+        let lessonDTOs: [LessonDTO] = shouldInclude(.lessons) ? collectLessons(modelContext: modelContext) : []
         counts["Lesson"] = lessonDTOs.count
 
         progress(0.3, "Collecting student lessons…")
-
-        // Collect student lessons
-        var studentLessonDTOs: [StudentLessonDTO] = []
-        if shouldInclude(.studentLessons) {
-            let allSL = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
-            let filtered = allSL.filter { sl in
-                // Filter by student
-                if let studentIDs = filter.studentIDs {
-                    guard sl.resolvedStudentIDs.contains(where: { studentIDs.contains($0) }) else {
-                        return false
-                    }
-                }
-                // Filter by date
-                return isInDateRange(sl.createdAt)
-            }
-
-            studentLessonDTOs = filtered.compactMap { sl in
-                guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { return nil }
-                return StudentLessonDTO(
-                    id: sl.id,
-                    lessonID: lessonIDUUID,
-                    studentIDs: sl.resolvedStudentIDs,
-                    createdAt: sl.createdAt,
-                    scheduledFor: sl.scheduledFor,
-                    givenAt: sl.givenAt,
-                    isPresented: sl.isPresented,
-                    notes: sl.notes,
-                    needsPractice: sl.needsPractice,
-                    needsAnotherPresentation: sl.needsAnotherPresentation,
-                    followUpWork: sl.followUpWork,
-                    studentGroupKey: nil
-                )
-            }
-        }
+        let studentLessonDTOs: [StudentLessonDTO] = shouldInclude(.studentLessons) ? collectStudentLessons(modelContext: modelContext, filter: filter) : []
         counts["StudentLesson"] = studentLessonDTOs.count
 
         progress(0.5, "Collecting other entities…")
-
-        // Collect remaining entities with similar filtering...
-        // (Simplified for brevity - would include all entity types with proper filtering)
-
         let noteDTOs: [NoteDTO] = shouldInclude(.notes) ? collectNotes(modelContext: modelContext, filter: filter) : []
         counts["Note"] = noteDTOs.count
 
@@ -488,7 +384,6 @@ public final class SelectiveExportService {
         counts["WorkCompletionRecord"] = workCompletionDTOs.count
 
         progress(0.7, "Collecting projects…")
-
         let projectDTOs: [ProjectDTO] = shouldInclude(.projects) ? collectProjects(modelContext: modelContext, filter: filter) : []
         counts["Project"] = projectDTOs.count
 
@@ -508,20 +403,14 @@ public final class SelectiveExportService {
         counts["ProjectWeekRoleAssignment"] = projectWeekAssignDTOs.count
 
         progress(0.9, "Collecting preferences…")
-
-        let preferences: PreferencesDTO
-        if shouldInclude(.preferences) {
-            preferences = BackupPreferencesService.buildPreferencesDTO()
-        } else {
-            preferences = PreferencesDTO(values: [:])
-        }
+        let preferences: PreferencesDTO = shouldInclude(.preferences) ? BackupPreferencesService.buildPreferencesDTO() : PreferencesDTO(values: [:])
 
         let payload = BackupPayload(
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
             studentLessons: studentLessonDTOs,
-            lessonAssignments: [], // Selective export doesn't include lesson assignments yet
+            lessonAssignments: [],
             workPlanItems: [],
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,
@@ -544,275 +433,112 @@ public final class SelectiveExportService {
         return (payload, counts)
     }
 
+    private func collectStudents(modelContext: ModelContext, filter: ExportFilter) -> [StudentDTO] {
+        let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
+        let filtered = filter.studentIDs != nil ? allStudents.filter { filter.studentIDs!.contains($0.id) } : allStudents
+        return BackupServiceHelpers.toDTOs(filtered)
+    }
+
+    private func collectLessons(modelContext: ModelContext) -> [LessonDTO] {
+        let allLessons = (try? modelContext.fetch(FetchDescriptor<Lesson>())) ?? []
+        return BackupServiceHelpers.toDTOs(allLessons)
+    }
+
+    private func collectStudentLessons(modelContext: ModelContext, filter: ExportFilter) -> [StudentLessonDTO] {
+        let allSL = (try? modelContext.fetch(FetchDescriptor<StudentLesson>())) ?? []
+        let filtered = allSL.filter { sl in
+            if let studentIDs = filter.studentIDs {
+                guard sl.resolvedStudentIDs.contains(where: { studentIDs.contains($0) }) else { return false }
+            }
+            if let range = filter.dateRange {
+                if let date = sl.createdAt {
+                    return range.contains(date)
+                }
+            }
+            return true
+        }
+        return BackupServiceHelpers.toDTOs(filtered)
+    }
+
     // MARK: - Collection Helpers
 
     private func collectNotes(modelContext: ModelContext, filter: ExportFilter) -> [NoteDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<Note>())) ?? []
-        let filtered = all.filter { n in
-            if let range = filter.dateRange {
-                return range.contains(n.createdAt)
-            }
-            return true
-        }
-
-        return filtered.map { n in
-            let scopeString: String
-            if let data = try? JSONEncoder().encode(n.scope) {
-                scopeString = String(data: data, encoding: .utf8) ?? "{}"
-            } else {
-                scopeString = "{}"
-            }
-            return NoteDTO(
-                id: n.id,
-                createdAt: n.createdAt,
-                updatedAt: n.updatedAt,
-                body: n.body,
-                isPinned: n.isPinned,
-                scope: scopeString,
-                lessonID: n.lesson?.id,
-                imagePath: n.imagePath
-            )
-        }
+        let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.createdAt }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     // Removed: collectPresentations - Presentations are no longer exported; LessonAssignment is used instead
 
     private func collectNonSchoolDays(modelContext: ModelContext, filter: ExportFilter) -> [NonSchoolDayDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<NonSchoolDay>())) ?? []
-        let filtered = all.filter { d in
-            if let range = filter.dateRange {
-                return range.contains(d.date)
-            }
-            return true
-        }
-        return filtered.map { NonSchoolDayDTO(id: $0.id, date: $0.date, reason: $0.reason) }
+        let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectSchoolDayOverrides(modelContext: ModelContext, filter: ExportFilter) -> [SchoolDayOverrideDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<SchoolDayOverride>())) ?? []
-        let filtered = all.filter { o in
-            if let range = filter.dateRange {
-                return range.contains(o.date)
-            }
-            return true
-        }
-        return filtered.map { SchoolDayOverrideDTO(id: $0.id, date: $0.date, note: $0.note) }
+        let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectAttendance(modelContext: ModelContext, filter: ExportFilter) -> [AttendanceRecordDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<AttendanceRecord>())) ?? []
-        let filtered = all.filter { a in
-            // Filter by student
-            if let studentIDs = filter.studentIDs {
-                guard let sid = UUID(uuidString: a.studentID), studentIDs.contains(sid) else {
-                    return false
-                }
-            }
-            // Filter by date
-            if let range = filter.dateRange {
-                return range.contains(a.date)
-            }
-            return true
-        }
-
-        return filtered.compactMap { a in
-            guard let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
-            return AttendanceRecordDTO(
-                id: a.id,
-                studentID: studentIDUUID,
-                date: a.date,
-                status: a.status.rawValue,
-                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
-                note: a.note
-            )
-        }
+        var filtered = BackupServiceHelpers.filterByStudents(all, studentIDs: filter.studentIDs) { UUID(uuidString: $0.studentID) }
+        filtered = BackupServiceHelpers.filterByDateRange(filtered, dateRange: filter.dateRange) { $0.date }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectWorkCompletions(modelContext: ModelContext, filter: ExportFilter) -> [WorkCompletionRecordDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<WorkCompletionRecord>())) ?? []
-        let filtered = all.filter { r in
-            // Filter by student
-            if let studentIDs = filter.studentIDs {
-                guard let sid = UUID(uuidString: r.studentID), studentIDs.contains(sid) else {
-                    return false
-                }
-            }
-            // Filter by date
-            if let range = filter.dateRange {
-                return range.contains(r.completedAt)
-            }
-            return true
-        }
-
-        return filtered.compactMap { r in
-            guard let workIDUUID = UUID(uuidString: r.workID),
-                  let studentIDUUID = UUID(uuidString: r.studentID) else { return nil }
-            return WorkCompletionRecordDTO(
-                id: r.id,
-                workID: workIDUUID,
-                studentID: studentIDUUID,
-                completedAt: r.completedAt,
-                note: r.note
-            )
-        }
+        var filtered = BackupServiceHelpers.filterByStudents(all, studentIDs: filter.studentIDs) { UUID(uuidString: $0.studentID) }
+        filtered = BackupServiceHelpers.filterByDateRange(filtered, dateRange: filter.dateRange) { $0.completedAt }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjects(modelContext: ModelContext, filter: ExportFilter) -> [ProjectDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
-        let filtered: [Project]
-        if let projectIDs = filter.projectIDs {
-            filtered = all.filter { projectIDs.contains($0.id) }
-        } else {
-            filtered = all
-        }
-
-        return filtered.map { c in
-            ProjectDTO(
-                id: c.id,
-                createdAt: c.createdAt,
-                title: c.title,
-                bookTitle: c.bookTitle,
-                memberStudentIDs: c.memberStudentIDs
-            )
-        }
+        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { $0.id }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectTemplates(modelContext: ModelContext, filter: ExportFilter) -> [ProjectAssignmentTemplateDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<ProjectAssignmentTemplate>())) ?? []
-        let filtered: [ProjectAssignmentTemplate]
-        if let projectIDs = filter.projectIDs {
-            filtered = all.filter { t in
-                guard let pid = UUID(uuidString: t.projectID) else { return false }
-                return projectIDs.contains(pid)
-            }
-        } else {
-            filtered = all
-        }
-
-        return filtered.compactMap { t in
-            guard let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
-            return ProjectAssignmentTemplateDTO(
-                id: t.id,
-                createdAt: t.createdAt,
-                projectID: projectIDUUID,
-                title: t.title,
-                instructions: t.instructions,
-                isShared: t.isShared,
-                defaultLinkedLessonID: t.defaultLinkedLessonID
-            )
-        }
+        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectSessions(modelContext: ModelContext, filter: ExportFilter) -> [ProjectSessionDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<ProjectSession>())) ?? []
-        let filtered: [ProjectSession]
-        if let projectIDs = filter.projectIDs {
-            filtered = all.filter { s in
-                guard let pid = UUID(uuidString: s.projectID) else { return false }
-                return projectIDs.contains(pid)
-            }
-        } else {
-            filtered = all
-        }
-
-        return filtered.compactMap { s in
-            guard let projectIDUUID = UUID(uuidString: s.projectID) else { return nil }
-            let templateWeekIDUUID = s.templateWeekID.flatMap { UUID(uuidString: $0) }
-            return ProjectSessionDTO(
-                id: s.id,
-                createdAt: s.createdAt,
-                projectID: projectIDUUID,
-                meetingDate: s.meetingDate,
-                chapterOrPages: s.chapterOrPages,
-                notes: s.notes,
-                agendaItemsJSON: s.agendaItemsJSON,
-                templateWeekID: templateWeekIDUUID
-            )
-        }
+        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectRoles(modelContext: ModelContext, filter: ExportFilter) -> [ProjectRoleDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<ProjectRole>())) ?? []
-        let filtered: [ProjectRole]
-        if let projectIDs = filter.projectIDs {
-            filtered = all.filter { r in
-                guard let pid = UUID(uuidString: r.projectID) else { return false }
-                return projectIDs.contains(pid)
-            }
-        } else {
-            filtered = all
-        }
-
-        return filtered.compactMap { r in
-            guard let projectIDUUID = UUID(uuidString: r.projectID) else { return nil }
-            return ProjectRoleDTO(
-                id: r.id,
-                createdAt: r.createdAt,
-                projectID: projectIDUUID,
-                title: r.title,
-                summary: r.summary,
-                instructions: r.instructions
-            )
-        }
+        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectWeeks(modelContext: ModelContext, filter: ExportFilter) -> [ProjectTemplateWeekDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
-        let filtered: [ProjectTemplateWeek]
-        if let projectIDs = filter.projectIDs {
-            filtered = all.filter { w in
-                guard let pid = UUID(uuidString: w.projectID) else { return false }
-                return projectIDs.contains(pid)
-            }
-        } else {
-            filtered = all
-        }
-
-        return filtered.compactMap { w in
-            guard let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
-            return ProjectTemplateWeekDTO(
-                id: w.id,
-                createdAt: w.createdAt,
-                projectID: projectIDUUID,
-                weekIndex: w.weekIndex,
-                readingRange: w.readingRange,
-                agendaItemsJSON: w.agendaItemsJSON,
-                linkedLessonIDsJSON: w.linkedLessonIDsJSON,
-                workInstructions: w.workInstructions
-            )
-        }
+        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+        return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectWeekAssignments(modelContext: ModelContext, filter: ExportFilter) -> [ProjectWeekRoleAssignmentDTO] {
         let all = (try? modelContext.fetch(FetchDescriptor<ProjectWeekRoleAssignment>())) ?? []
 
-        // Get project week IDs from included projects
-        var includedWeekIDs: Set<String>?
         if let projectIDs = filter.projectIDs {
             let weeks = (try? modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
-            includedWeekIDs = Set(weeks.filter { w in
+            let includedWeekIDs = Set(weeks.filter { w in
                 guard let pid = UUID(uuidString: w.projectID) else { return false }
                 return projectIDs.contains(pid)
             }.map { $0.id.uuidString })
+            let filtered = all.filter { includedWeekIDs.contains($0.weekID) }
+            return BackupServiceHelpers.toDTOs(filtered)
         }
 
-        let filtered: [ProjectWeekRoleAssignment]
-        if let weekIDs = includedWeekIDs {
-            filtered = all.filter { weekIDs.contains($0.weekID) }
-        } else {
-            filtered = all
-        }
-
-        return filtered.compactMap { a in
-            guard let weekIDUUID = UUID(uuidString: a.weekID),
-                  let roleIDUUID = UUID(uuidString: a.roleID) else { return nil }
-            return ProjectWeekRoleAssignmentDTO(
-                id: a.id,
-                createdAt: a.createdAt,
-                weekID: weekIDUUID,
-                studentID: a.studentID,
-                roleID: roleIDUUID
-            )
-        }
+        return BackupServiceHelpers.toDTOs(all)
     }
 }

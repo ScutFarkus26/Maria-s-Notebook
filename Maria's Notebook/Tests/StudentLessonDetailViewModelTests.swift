@@ -4,32 +4,35 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
-// MARK: - Helper Factory
+// MARK: - Test Context Setup
 
 @MainActor
-private func makeDetailContainer() throws -> ModelContainer {
-    return try makeTestContainer(for: [
-        Student.self,
-        Lesson.self,
-        StudentLesson.self,
-        LessonPresentation.self,
-        WorkModel.self,
-        WorkParticipantEntity.self,
-        WorkCheckIn.self,
-        WorkPlanItem.self,
-        Track.self,
-        TrackStep.self,
-        StudentTrackEnrollment.self,
-        GroupTrack.self,
-        Note.self,
-    ])
-}
+private struct ViewModelTestContext {
+    let container: ModelContainer
+    let context: ModelContext
+    let saveCoordinator: SaveCoordinator
 
-@MainActor
-private func makeTestSaveCoordinator() -> SaveCoordinator {
-    let coordinator = SaveCoordinator()
-    coordinator.suppressAlerts = true
-    return coordinator
+    static func make() throws -> ViewModelTestContext {
+        let container = try makeTestContainer(for: [
+            Student.self, Lesson.self, StudentLesson.self, LessonPresentation.self,
+            WorkModel.self, WorkParticipantEntity.self, WorkCheckIn.self,
+            WorkPlanItem.self, Track.self, TrackStep.self, StudentTrackEnrollment.self,
+            GroupTrack.self, Note.self,
+        ])
+        let context = ModelContext(container)
+        let coordinator = SaveCoordinator()
+        coordinator.suppressAlerts = true
+        return ViewModelTestContext(container: container, context: context, saveCoordinator: coordinator)
+    }
+
+    func makeViewModel(for studentLesson: StudentLesson, autoFocusLessonPicker: Bool = false) -> StudentLessonDetailViewModel {
+        return StudentLessonDetailViewModel(
+            studentLesson: studentLesson,
+            modelContext: context,
+            saveCoordinator: saveCoordinator,
+            autoFocusLessonPicker: autoFocusLessonPicker
+        )
+    }
 }
 
 // MARK: - Initialization Tests
@@ -40,29 +43,19 @@ struct StudentLessonDetailViewModelInitializationTests {
 
     @Test("ViewModel initializes with StudentLesson values")
     func initializesWithStudentLessonValues() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let lesson = makeTestLesson(name: "Addition")
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(lesson)
-        context.insert(student)
+        tc.context.insert(lesson)
+        tc.context.insert(student)
 
         let scheduledDate = TestCalendar.date(year: 2025, month: 3, day: 15)
         let studentLesson = makeTestStudentLesson(
-            lessonID: lesson.id,
-            studentIDs: [student.id],
-            scheduledFor: scheduledDate,
-            notes: "Test notes"
+            lessonID: lesson.id, studentIDs: [student.id],
+            scheduledFor: scheduledDate, notes: "Test notes"
         )
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.editingLessonID == lesson.id)
         #expect(vm.scheduledFor == scheduledDate)
@@ -72,18 +65,10 @@ struct StudentLessonDetailViewModelInitializationTests {
 
     @Test("ViewModel initializes UI state to defaults")
     func initializesUIStateToDefaults() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.showLessonPicker == false)
         #expect(vm.showAssignmentComposer == false)
@@ -95,19 +80,10 @@ struct StudentLessonDetailViewModelInitializationTests {
 
     @Test("ViewModel initializes with autoFocusLessonPicker")
     func initializesWithAutoFocusLessonPicker() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator,
-            autoFocusLessonPicker: true
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson, autoFocusLessonPicker: true)
 
         #expect(vm.showLessonPicker == true)
     }
@@ -121,24 +97,15 @@ struct StudentLessonDetailViewModelLessonObjectTests {
 
     @Test("lessonObject returns correct lesson from list")
     func lessonObjectReturnsCorrectLesson() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let lesson1 = makeTestLesson(name: "Addition")
         let lesson2 = makeTestLesson(name: "Subtraction")
-        context.insert(lesson1)
-        context.insert(lesson2)
+        tc.context.insert(lesson1)
+        tc.context.insert(lesson2)
 
         let studentLesson = makeTestStudentLesson(lessonID: lesson1.id)
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
-
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
         let result = vm.lessonObject(from: [lesson1, lesson2])
 
         #expect(result?.id == lesson1.id)
@@ -147,21 +114,11 @@ struct StudentLessonDetailViewModelLessonObjectTests {
 
     @Test("lessonObject returns nil when not found")
     func lessonObjectReturnsNilWhenNotFound() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(lessonID: UUID())
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
-
-        let otherLesson = makeTestLesson(name: "Other")
-        let result = vm.lessonObject(from: [otherLesson])
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
+        let result = vm.lessonObject(from: [makeTestLesson(name: "Other")])
 
         #expect(result == nil)
     }
@@ -175,64 +132,29 @@ struct StudentLessonDetailViewModelNextLessonTests {
 
     @Test("nextLessonInGroup returns nil when current lesson not found")
     func nextLessonInGroupReturnsNilWhenCurrentNotFound() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(lessonID: UUID())
-        context.insert(studentLesson)
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
-
-        let result = vm.nextLessonInGroup(from: [])
-
-        #expect(result == nil)
+        #expect(vm.nextLessonInGroup(from: []) == nil)
     }
 
     @Test("nextLessonInGroup returns next lesson in same group")
     func nextLessonInGroupReturnsNextInGroup() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
+        let tc = try ViewModelTestContext.make()
+        let lessons = [
+            makeTestLesson(name: "Addition", subject: "Math", group: "Operations", orderInGroup: 1),
+            makeTestLesson(name: "Subtraction", subject: "Math", group: "Operations", orderInGroup: 2),
+            makeTestLesson(name: "Multiplication", subject: "Math", group: "Operations", orderInGroup: 3)
+        ]
+        lessons.forEach { tc.context.insert($0) }
 
-        let lesson1 = makeTestLesson(
-            name: "Addition",
-            subject: "Math",
-            group: "Operations",
-            orderInGroup: 1
-        )
-        let lesson2 = makeTestLesson(
-            name: "Subtraction",
-            subject: "Math",
-            group: "Operations",
-            orderInGroup: 2
-        )
-        let lesson3 = makeTestLesson(
-            name: "Multiplication",
-            subject: "Math",
-            group: "Operations",
-            orderInGroup: 3
-        )
-        context.insert(lesson1)
-        context.insert(lesson2)
-        context.insert(lesson3)
+        let studentLesson = makeTestStudentLesson(lessonID: lessons[0].id)
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
-        let studentLesson = makeTestStudentLesson(lessonID: lesson1.id)
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
-
-        let result = vm.nextLessonInGroup(from: [lesson1, lesson2, lesson3])
-
-        #expect(result?.id == lesson2.id)
+        #expect(vm.nextLessonInGroup(from: lessons)?.id == lessons[1].id)
     }
 }
 
@@ -244,54 +166,30 @@ struct StudentLessonDetailViewModelMoveStudentsTests {
 
     @Test("studentsToMove is initially empty")
     func studentsToMoveIsInitiallyEmpty() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.studentsToMove.isEmpty)
     }
 
     @Test("movedStudentNames is initially empty")
     func movedStudentNamesIsInitiallyEmpty() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.movedStudentNames.isEmpty)
     }
 
     @Test("showMovedBanner is initially false")
     func showMovedBannerIsInitiallyFalse() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.showMovedBanner == false)
     }
@@ -305,54 +203,30 @@ struct StudentLessonDetailViewModelNotesAutosaveTests {
 
     @Test("notesDirty is initially false")
     func notesDirtyIsInitiallyFalse() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(notes: "Original notes")
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.notesDirty == false)
     }
 
     @Test("originalNotes stores initial notes value")
     func originalNotesStoresInitialValue() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(notes: "Original notes")
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.originalNotes == "Original notes")
     }
 
     @Test("Changing notes sets notesDirty to true")
     func changingNotesSetsDirtyFlag() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(notes: "Original")
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.notes = "Changed notes"
 
@@ -361,18 +235,10 @@ struct StudentLessonDetailViewModelNotesAutosaveTests {
 
     @Test("Setting notes to same value does not set dirty flag")
     func settingNotesToSameValueDoesNotSetDirty() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(notes: "Same notes")
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.notes = "Same notes"
 
@@ -381,18 +247,10 @@ struct StudentLessonDetailViewModelNotesAutosaveTests {
 
     @Test("flushNotesAutosaveIfNeeded updates model when dirty")
     func flushNotesAutosaveUpdatesModelWhenDirty() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(notes: "Original")
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.notes = "Updated notes"
         vm.flushNotesAutosaveIfNeeded()
@@ -404,18 +262,10 @@ struct StudentLessonDetailViewModelNotesAutosaveTests {
 
     @Test("flushNotesAutosaveIfNeeded does nothing when not dirty")
     func flushNotesAutosaveDoesNothingWhenNotDirty() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(notes: "Original")
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.flushNotesAutosaveIfNeeded()
 
@@ -431,82 +281,49 @@ struct StudentLessonDetailViewModelMasteryStateTests {
 
     @Test("masteryState defaults to .presented")
     func masteryStateDefaultsToPresented() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.masteryState == .presented)
     }
 
     @Test("masteryState loads .mastered from existing LessonPresentation")
     func masteryStateLoadsMasteredFromExisting() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let student = makeTestStudent()
         let lesson = makeTestLesson()
-        context.insert(student)
-        context.insert(lesson)
+        tc.context.insert(student)
+        tc.context.insert(lesson)
 
-        let studentLesson = makeTestStudentLesson(
-            lessonID: lesson.id,
-            studentIDs: [student.id]
-        )
-        context.insert(studentLesson)
+        let studentLesson = makeTestStudentLesson(lessonID: lesson.id, studentIDs: [student.id])
+        tc.context.insert(studentLesson)
 
-        // Create mastered LessonPresentation
         let lp = LessonPresentation(
-            studentID: student.id.uuidString,
-            lessonID: lesson.id.uuidString,
-            presentationID: nil,
-            state: .mastered,
-            presentedAt: Date(),
-            lastObservedAt: Date(),
-            masteredAt: Date()
+            studentID: student.id.uuidString, lessonID: lesson.id.uuidString,
+            presentationID: nil, state: .mastered,
+            presentedAt: Date(), lastObservedAt: Date(), masteredAt: Date()
         )
-        context.insert(lp)
-        try context.save()
+        tc.context.insert(lp)
+        try tc.context.save()
 
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.masteryState == .mastered)
     }
 
     @Test("masteryState can be changed")
     func masteryStateCanBeChanged() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.masteryState = .mastered
-
         #expect(vm.masteryState == .mastered)
 
         vm.masteryState = .practicing
-
         #expect(vm.masteryState == .practicing)
     }
 }
@@ -519,36 +336,20 @@ struct StudentLessonDetailViewModelIsPresentedStateTests {
 
     @Test("isPresented reflects StudentLesson state")
     func isPresentedReflectsStudentLessonState() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(isPresented: true)
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.isPresented == true)
     }
 
     @Test("isPresented can be toggled")
     func isPresentedCanBeToggled() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson(isPresented: false)
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.isPresented = true
 
@@ -564,37 +365,21 @@ struct StudentLessonDetailViewModelNeedsAnotherPresentationTests {
 
     @Test("needsAnotherPresentation reflects StudentLesson state")
     func needsAnotherPresentationReflectsState() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
         studentLesson.needsAnotherPresentation = true
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.needsAnotherPresentation == true)
     }
 
     @Test("needsAnotherPresentation can be changed")
     func needsAnotherPresentationCanBeChanged() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         vm.needsAnotherPresentation = true
 
@@ -610,56 +395,32 @@ struct StudentLessonDetailViewModelDateTests {
 
     @Test("scheduledFor reflects StudentLesson state")
     func scheduledForReflectsState() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let date = TestCalendar.date(year: 2025, month: 6, day: 15)
         let studentLesson = makeTestStudentLesson(scheduledFor: date)
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.scheduledFor == date)
     }
 
     @Test("givenAt reflects StudentLesson state")
     func givenAtReflectsState() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let date = TestCalendar.date(year: 2025, month: 6, day: 20)
         let studentLesson = makeTestStudentLesson(givenAt: date)
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.givenAt == date)
     }
 
     @Test("scheduledFor can be modified")
     func scheduledForCanBeModified() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         let newDate = TestCalendar.date(year: 2025, month: 7, day: 1)
         vm.scheduledFor = newDate
@@ -669,18 +430,10 @@ struct StudentLessonDetailViewModelDateTests {
 
     @Test("givenAt can be modified")
     func givenAtCanBeModified() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let studentLesson = makeTestStudentLesson()
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         let newDate = TestCalendar.date(year: 2025, month: 7, day: 10)
         vm.givenAt = newDate
@@ -697,23 +450,15 @@ struct StudentLessonDetailViewModelStudentSelectionTests {
 
     @Test("selectedStudentIDs reflects StudentLesson state")
     func selectedStudentIDsReflectsState() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
-        context.insert(student1)
-        context.insert(student2)
+        tc.context.insert(student1)
+        tc.context.insert(student2)
 
         let studentLesson = makeTestStudentLesson(studentIDs: [student1.id, student2.id])
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         #expect(vm.selectedStudentIDs.count == 2)
         #expect(vm.selectedStudentIDs.contains(student1.id))
@@ -722,21 +467,13 @@ struct StudentLessonDetailViewModelStudentSelectionTests {
 
     @Test("selectedStudentIDs can be modified")
     func selectedStudentIDsCanBeModified() throws {
-        let container = try makeDetailContainer()
-        let context = ModelContext(container)
-        let saveCoordinator = makeTestSaveCoordinator()
-
+        let tc = try ViewModelTestContext.make()
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student1)
+        tc.context.insert(student1)
 
         let studentLesson = makeTestStudentLesson(studentIDs: [student1.id])
-        context.insert(studentLesson)
-
-        let vm = StudentLessonDetailViewModel(
-            studentLesson: studentLesson,
-            modelContext: context,
-            saveCoordinator: saveCoordinator
-        )
+        tc.context.insert(studentLesson)
+        let vm = tc.makeViewModel(for: studentLesson)
 
         let newStudentID = UUID()
         vm.selectedStudentIDs.insert(newStudentID)

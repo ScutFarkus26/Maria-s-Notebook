@@ -100,173 +100,31 @@ enum DataCleanupService {
         }
     }
 
-    // MARK: - Deduplication
+    // MARK: - Deduplication (Deprecated - use generic deduplicate() instead)
 
-    /// Removes duplicate Student records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps the most recently modified instance (by modifiedAt) and deletes the duplicates.
-    /// Returns the number of duplicate students removed.
     @discardableResult
     static func deduplicateStudents(using context: ModelContext) -> Int {
-        let fetch = FetchDescriptor<Student>()
-        let allStudents = context.safeFetch(fetch)
-
-        // Group by ID
-        var studentsByID: [UUID: [Student]] = [:]
-        for student in allStudents {
-            studentsByID[student.id, default: []].append(student)
-        }
-
-        var deletedCount = 0
-
-        // For each group with duplicates, keep the most recently modified and delete the rest
-        for (_, students) in studentsByID where students.count > 1 {
-            // Sort by modifiedAt descending - keep the most recently modified
-            let sorted = students.sorted { $0.modifiedAt > $1.modifiedAt }
-            for duplicate in sorted.dropFirst() {
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        if deletedCount > 0 {
-            context.safeSave()
-        }
-
-        return deletedCount
+        deduplicate(Student.self, using: context)
     }
 
-    /// Removes duplicate Project records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps the most recently modified instance (by modifiedAt) and deletes the duplicates.
-    /// Returns the number of duplicate projects removed.
     @discardableResult
     static func deduplicateProjects(using context: ModelContext) -> Int {
-        let fetch = FetchDescriptor<Project>()
-        let allProjects = context.safeFetch(fetch)
-
-        // Group by ID
-        var projectsByID: [UUID: [Project]] = [:]
-        for project in allProjects {
-            projectsByID[project.id, default: []].append(project)
-        }
-
-        var deletedCount = 0
-
-        // For each group with duplicates, keep the most recently modified and delete the rest
-        for (_, projects) in projectsByID where projects.count > 1 {
-            // Sort by modifiedAt descending - keep the most recently modified
-            let sorted = projects.sorted { $0.modifiedAt > $1.modifiedAt }
-            for duplicate in sorted.dropFirst() {
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        if deletedCount > 0 {
-            context.safeSave()
-        }
-
-        return deletedCount
+        deduplicate(Project.self, using: context)
     }
 
-    /// Removes duplicate ProjectRole records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps one instance of each role and deletes the duplicates.
-    /// Returns the number of duplicate roles removed.
     @discardableResult
     static func deduplicateProjectRoles(using context: ModelContext) -> Int {
-        let fetch = FetchDescriptor<ProjectRole>()
-        let allRoles = context.safeFetch(fetch)
-
-        // Group by ID
-        var rolesByID: [UUID: [ProjectRole]] = [:]
-        for role in allRoles {
-            rolesByID[role.id, default: []].append(role)
-        }
-
-        var deletedCount = 0
-
-        // For each group with duplicates, keep one and delete the rest
-        for (_, roles) in rolesByID where roles.count > 1 {
-            // Keep the first one (arbitrary, but consistent), delete the rest
-            for duplicate in roles.dropFirst() {
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        if deletedCount > 0 {
-            context.safeSave()
-        }
-
-        return deletedCount
+        deduplicate(ProjectRole.self, using: context)
     }
 
-    /// Removes duplicate Lesson records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps the first instance (arbitrary, but consistent) and deletes the duplicates.
-    /// Returns the number of duplicate lessons removed.
     @discardableResult
     static func deduplicateLessons(using context: ModelContext) -> Int {
-        let fetch = FetchDescriptor<Lesson>()
-        let allLessons = context.safeFetch(fetch)
-
-        // Group by ID
-        var lessonsByID: [UUID: [Lesson]] = [:]
-        for lesson in allLessons {
-            lessonsByID[lesson.id, default: []].append(lesson)
-        }
-
-        var deletedCount = 0
-
-        // For each group with duplicates, keep one and delete the rest
-        for (_, lessons) in lessonsByID where lessons.count > 1 {
-            // Keep the first one (arbitrary, but consistent), delete the rest
-            for duplicate in lessons.dropFirst() {
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        if deletedCount > 0 {
-            context.safeSave()
-        }
-
-        return deletedCount
+        deduplicate(Lesson.self, using: context)
     }
 
-    /// Removes duplicate AttendanceRecord records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    /// Keeps the first instance and deletes the duplicates.
-    /// Returns the number of duplicate records removed.
     @discardableResult
     static func deduplicateAttendanceRecords(using context: ModelContext) -> Int {
-        let fetch = FetchDescriptor<AttendanceRecord>()
-        let allRecords = context.safeFetch(fetch)
-
-        // Group by ID
-        var recordsByID: [UUID: [AttendanceRecord]] = [:]
-        for record in allRecords {
-            recordsByID[record.id, default: []].append(record)
-        }
-
-        var deletedCount = 0
-
-        // For each group with duplicates, keep one and delete the rest
-        for (_, records) in recordsByID where records.count > 1 {
-            // Keep the first one (arbitrary, but consistent), delete the rest
-            for duplicate in records.dropFirst() {
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-        }
-
-        if deletedCount > 0 {
-            context.safeSave()
-        }
-
-        return deletedCount
+        deduplicate(AttendanceRecord.self, using: context)
     }
 
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
@@ -497,41 +355,49 @@ enum DataCleanupService {
         return deletedCount
     }
 
+    // MARK: - Merge Helpers
+
+    private static func mergeRelationship<T: Identifiable>(
+        from source: [T]?,
+        to destination: inout [T]?,
+        setter: (T) -> Void
+    ) where T.ID == UUID {
+        guard let sourceItems = source, !sourceItems.isEmpty else { return }
+        if destination == nil { destination = [] }
+        var existingIDs = Set((destination ?? []).map { $0.id })
+        for item in sourceItems {
+            setter(item)
+            if existingIDs.insert(item.id).inserted {
+                destination?.append(item)
+            }
+        }
+    }
+
     // MARK: - Strong Deduplication (Data-Preserving Merges)
 
     @discardableResult
     static func deduplicateStudentsStrong(using context: ModelContext) -> Int {
-        deduplicate(Student.self, using: context) { canonical, duplicate in
-            mergeStudent(canonical: canonical, duplicate: duplicate)
-        }
+        deduplicate(Student.self, using: context, merge: mergeStudent)
     }
 
     @discardableResult
     static func deduplicateLessonsStrong(using context: ModelContext) -> Int {
-        deduplicate(Lesson.self, using: context) { canonical, duplicate in
-            mergeLesson(canonical: canonical, duplicate: duplicate)
-        }
+        deduplicate(Lesson.self, using: context, merge: mergeLesson)
     }
 
     @discardableResult
     static func deduplicateLessonPresentationsStrong(using context: ModelContext) -> Int {
-        deduplicate(LessonPresentation.self, using: context) { canonical, duplicate in
-            mergeLessonPresentation(canonical: canonical, duplicate: duplicate)
-        }
+        deduplicate(LessonPresentation.self, using: context, merge: mergeLessonPresentation)
     }
 
     @discardableResult
     static func deduplicateWorkModelsStrong(using context: ModelContext) -> Int {
-        deduplicate(WorkModel.self, using: context) { canonical, duplicate in
-            mergeWorkModel(canonical: canonical, duplicate: duplicate)
-        }
+        deduplicate(WorkModel.self, using: context, merge: mergeWorkModel)
     }
 
     @discardableResult
     static func deduplicateNotesStrong(using context: ModelContext) -> Int {
-        deduplicate(Note.self, using: context) { canonical, duplicate in
-            mergeNote(canonical: canonical, duplicate: duplicate)
-        }
+        deduplicate(Note.self, using: context, merge: mergeNote)
     }
 
     private static func mergeStudent(canonical: Student, duplicate: Student) {
@@ -544,21 +410,10 @@ enum DataCleanupService {
         if canonical.nextLessons.isEmpty {
             canonical.nextLessons = duplicate.nextLessons
         } else if !duplicate.nextLessons.isEmpty {
-            let merged = Set(canonical.nextLessons).union(duplicate.nextLessons)
-            canonical.nextLessons = Array(merged)
+            canonical.nextLessons = Array(Set(canonical.nextLessons).union(duplicate.nextLessons))
         }
 
-        let duplicateDocs = duplicate.documents ?? []
-        if !duplicateDocs.isEmpty {
-            if canonical.documents == nil { canonical.documents = [] }
-            var existingIDs = Set((canonical.documents ?? []).map { $0.id })
-            for doc in duplicateDocs {
-                doc.student = canonical
-                if existingIDs.insert(doc.id).inserted {
-                    canonical.documents?.append(doc)
-                }
-            }
-        }
+        mergeRelationship(from: duplicate.documents, to: &canonical.documents, setter: { $0.student = canonical })
     }
 
     private static func mergeLesson(canonical: Lesson, duplicate: Lesson) {
@@ -574,41 +429,9 @@ enum DataCleanupService {
         if canonical.personalKindRaw == nil { canonical.personalKindRaw = duplicate.personalKindRaw }
         if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
 
-        let duplicateNotes = duplicate.notes ?? []
-        if !duplicateNotes.isEmpty {
-            if canonical.notes == nil { canonical.notes = [] }
-            var existingIDs = Set((canonical.notes ?? []).map { $0.id })
-            for note in duplicateNotes {
-                note.lesson = canonical
-                if existingIDs.insert(note.id).inserted {
-                    canonical.notes?.append(note)
-                }
-            }
-        }
-
-        let duplicateStudentLessons = duplicate.studentLessons ?? []
-        if !duplicateStudentLessons.isEmpty {
-            if canonical.studentLessons == nil { canonical.studentLessons = [] }
-            var existingIDs = Set((canonical.studentLessons ?? []).map { $0.id })
-            for studentLesson in duplicateStudentLessons {
-                studentLesson.lesson = canonical
-                if existingIDs.insert(studentLesson.id).inserted {
-                    canonical.studentLessons?.append(studentLesson)
-                }
-            }
-        }
-
-        let duplicateAssignments = duplicate.lessonAssignments ?? []
-        if !duplicateAssignments.isEmpty {
-            if canonical.lessonAssignments == nil { canonical.lessonAssignments = [] }
-            var existingIDs = Set((canonical.lessonAssignments ?? []).map { $0.id })
-            for assignment in duplicateAssignments {
-                assignment.lesson = canonical
-                if existingIDs.insert(assignment.id).inserted {
-                    canonical.lessonAssignments?.append(assignment)
-                }
-            }
-        }
+        mergeRelationship(from: duplicate.notes, to: &canonical.notes, setter: { $0.lesson = canonical })
+        mergeRelationship(from: duplicate.studentLessons, to: &canonical.studentLessons, setter: { $0.lesson = canonical })
+        mergeRelationship(from: duplicate.lessonAssignments, to: &canonical.lessonAssignments, setter: { $0.lesson = canonical })
     }
 
     private static func mergeLessonPresentation(canonical: LessonPresentation, duplicate: LessonPresentation) {
@@ -640,66 +463,21 @@ enum DataCleanupService {
         if canonical.sourceContextID == nil { canonical.sourceContextID = duplicate.sourceContextID }
         if canonical.legacyStudentLessonID == nil { canonical.legacyStudentLessonID = duplicate.legacyStudentLessonID }
 
-        let duplicateParticipants = duplicate.participants ?? []
-        if !duplicateParticipants.isEmpty {
-            if canonical.participants == nil { canonical.participants = [] }
-            var existingIDs = Set((canonical.participants ?? []).map { $0.id })
-            for participant in duplicateParticipants {
-                participant.work = canonical
-                if existingIDs.insert(participant.id).inserted {
-                    canonical.participants?.append(participant)
-                }
-            }
-        }
-
-        let duplicateCheckIns = duplicate.checkIns ?? []
-        if !duplicateCheckIns.isEmpty {
-            if canonical.checkIns == nil { canonical.checkIns = [] }
-            var existingIDs = Set((canonical.checkIns ?? []).map { $0.id })
-            for checkIn in duplicateCheckIns {
-                checkIn.work = canonical
-                checkIn.workID = canonical.id.uuidString
-                if existingIDs.insert(checkIn.id).inserted {
-                    canonical.checkIns?.append(checkIn)
-                }
-            }
-        }
-
-        let duplicateSteps = duplicate.steps ?? []
-        if !duplicateSteps.isEmpty {
-            if canonical.steps == nil { canonical.steps = [] }
-            var existingIDs = Set((canonical.steps ?? []).map { $0.id })
-            for step in duplicateSteps {
-                step.work = canonical
-                if existingIDs.insert(step.id).inserted {
-                    canonical.steps?.append(step)
-                }
-            }
-        }
-
-        let duplicateNotes = duplicate.unifiedNotes ?? []
-        if !duplicateNotes.isEmpty {
-            if canonical.unifiedNotes == nil { canonical.unifiedNotes = [] }
-            var existingIDs = Set((canonical.unifiedNotes ?? []).map { $0.id })
-            for note in duplicateNotes {
-                note.work = canonical
-                if existingIDs.insert(note.id).inserted {
-                    canonical.unifiedNotes?.append(note)
-                }
-            }
-        }
+        mergeRelationship(from: duplicate.participants, to: &canonical.participants, setter: { $0.work = canonical })
+        mergeRelationship(from: duplicate.checkIns, to: &canonical.checkIns, setter: { $0.work = canonical; $0.workID = canonical.id.uuidString })
+        mergeRelationship(from: duplicate.steps, to: &canonical.steps, setter: { $0.work = canonical })
+        mergeRelationship(from: duplicate.unifiedNotes, to: &canonical.unifiedNotes, setter: { $0.work = canonical })
     }
 
     private static func mergeNote(canonical: Note, duplicate: Note) {
         if canonical.body.isEmpty { canonical.body = duplicate.body }
         if !canonical.isPinned && duplicate.isPinned { canonical.isPinned = true }
         if !canonical.includeInReport && duplicate.includeInReport { canonical.includeInReport = true }
-        if canonical.imagePath == nil || canonical.imagePath?.isEmpty == true {
-            canonical.imagePath = duplicate.imagePath
-        }
+        if canonical.imagePath == nil || canonical.imagePath?.isEmpty == true { canonical.imagePath = duplicate.imagePath }
         if canonical.reportedBy == nil { canonical.reportedBy = duplicate.reportedBy }
         if canonical.reporterName == nil { canonical.reporterName = duplicate.reporterName }
 
+        // Merge relationships (parent entities)
         if canonical.lesson == nil { canonical.lesson = duplicate.lesson }
         if canonical.work == nil { canonical.work = duplicate.work }
         if canonical.studentLesson == nil { canonical.studentLesson = duplicate.studentLesson }
@@ -715,18 +493,7 @@ enum DataCleanupService {
         if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }
         if canonical.studentTrackEnrollment == nil { canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment }
 
-        let duplicateLinks = duplicate.studentLinks ?? []
-        if !duplicateLinks.isEmpty {
-            if canonical.studentLinks == nil { canonical.studentLinks = [] }
-            var existingIDs = Set((canonical.studentLinks ?? []).map { $0.id })
-            for link in duplicateLinks {
-                link.note = canonical
-                link.noteID = canonical.id.uuidString
-                if existingIDs.insert(link.id).inserted {
-                    canonical.studentLinks?.append(link)
-                }
-            }
-        }
+        mergeRelationship(from: duplicate.studentLinks, to: &canonical.studentLinks, setter: { $0.note = canonical; $0.noteID = canonical.id.uuidString })
     }
 
     // MARK: - Deduplicate All Models

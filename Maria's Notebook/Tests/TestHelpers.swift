@@ -183,6 +183,83 @@ func makeTestGroupTrack(
     )
 }
 
+/// Creates a test Track with sensible defaults
+func makeTestTrack(
+    id: UUID = UUID(),
+    title: String = "Test Track"
+) -> Track {
+    return Track(id: id, title: title)
+}
+
+/// Creates a test TrackStep with sensible defaults
+func makeTestTrackStep(
+    id: UUID = UUID(),
+    track: Track? = nil,
+    orderIndex: Int = 0,
+    lessonTemplateID: UUID? = nil
+) -> TrackStep {
+    return TrackStep(
+        id: id,
+        track: track,
+        orderIndex: orderIndex,
+        lessonTemplateID: lessonTemplateID
+    )
+}
+
+/// Creates a test StudentTrackEnrollment with sensible defaults
+func makeTestEnrollment(
+    id: UUID = UUID(),
+    createdAt: Date = Date(),
+    studentID: String,
+    trackID: String,
+    isActive: Bool = true
+) -> StudentTrackEnrollment {
+    return StudentTrackEnrollment(
+        id: id,
+        createdAt: createdAt,
+        studentID: studentID,
+        trackID: trackID,
+        isActive: isActive
+    )
+}
+
+/// Creates a test Project with sensible defaults
+func makeTestProject(
+    id: UUID = UUID(),
+    createdAt: Date = Date(),
+    title: String = "Test Project",
+    memberStudentIDs: [String] = [],
+    isActive: Bool = true
+) -> Project {
+    return Project(
+        id: id,
+        createdAt: createdAt,
+        title: title,
+        memberStudentIDs: memberStudentIDs,
+        isActive: isActive
+    )
+}
+
+/// Creates a test LessonPresentation with sensible defaults
+func makeTestLessonPresentation(
+    id: UUID = UUID(),
+    createdAt: Date = Date(),
+    studentID: String,
+    lessonID: String,
+    state: LessonPresentationState = .presented
+) -> LessonPresentation {
+    return LessonPresentation(
+        id: id,
+        createdAt: createdAt,
+        studentID: studentID,
+        lessonID: lessonID,
+        state: state,
+        presentedAt: Date(),
+        lastObservedAt: Date(),
+        masteredAt: state == .mastered ? Date() : nil
+    )
+}
+
 // MARK: - Assertion Helpers
 
 /// Asserts that two dates are equal when normalized to start of day

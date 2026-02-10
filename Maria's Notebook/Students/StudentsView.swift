@@ -166,25 +166,15 @@ struct StudentsView<WorkloadContent: View>: View {
         return deduplicated
     }
     
-    // Temporary helper to check for duplicate IDs
+    #if DEBUG
+    // Temporary helper to check for duplicate IDs (debug only)
     private func checkForDuplicateIDs(in students: [Student]) {
-        var seenIDs: Set<UUID> = []
-        var duplicates: [UUID] = []
-        
-        for student in students {
-            if seenIDs.contains(student.id) {
-                duplicates.append(student.id)
-            } else {
-                seenIDs.insert(student.id)
-            }
-        }
-
-        if !duplicates.isEmpty {
-            #if DEBUG
-            print("found duplicate ID: \(duplicates)")
-            #endif
+        let uniqueIDs = Set(students.map { $0.id })
+        if uniqueIDs.count != students.count {
+            print("Warning: Found \(students.count - uniqueIDs.count) duplicate student ID(s)")
         }
     }
+    #endif
 
     // MARK: - Body
 
@@ -445,18 +435,6 @@ struct StudentsView<WorkloadContent: View>: View {
             }
     }
 
-    // MARK: - Sidebar Content
-    
-    private var sidebarContent: some View {
-        NavigationStack {
-            rosterListContent
-                .navigationTitle("Students")
-#if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-#endif
-        }
-        .listStyle(.sidebar)
-    }
     
     // MARK: - Three-Pane Layout Content
     
@@ -464,13 +442,19 @@ struct StudentsView<WorkloadContent: View>: View {
         VStack(spacing: 0) {
             // Sort and Filter controls at the top
             if mode == .roster {
-                rosterSortFilterControls
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(.bar)
+                SortFilterControls(
+                    sortOrderRaw: $studentsSortOrderRaw,
+                    filterRaw: $studentsFilterRaw,
+                    effectiveSortOrder: effectiveSortOrder,
+                    selectedFilter: selectedFilter,
+                    showEditButton: effectiveSortOrder == .manual
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.bar)
                 Divider()
             }
-            
+
             // Student list
             NavigationStack {
                 rosterListContent
@@ -493,132 +477,25 @@ struct StudentsView<WorkloadContent: View>: View {
                     .navigationBarTitleDisplayMode(.inline)
 #endif
             } else {
-                ContentUnavailableView {
-                    Label("Select a Student", systemImage: "person.circle")
-                } description: {
-                    Text("Choose a student from the list to view their details.")
-                }
+                SelectStudentEmptyState()
             }
         }
     }
     
-    private var rosterSortFilterControls: some View {
-        HStack(spacing: 12) {
-            // Sort Order Picker
-            Menu {
-                Button {
-                    withAnimation { studentsSortOrderRaw = "alphabetical" }
-                } label: {
-                    Label("A–Z", systemImage: "textformat.abc")
-                    if effectiveSortOrder == .alphabetical {
-                        Image(systemName: "checkmark")
-                    }
-                }
-                Button {
-                    withAnimation { studentsSortOrderRaw = "manual" }
-                } label: {
-                    Label("Manual", systemImage: "arrow.up.arrow.down")
-                    if effectiveSortOrder == .manual {
-                        Image(systemName: "checkmark")
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.arrow.down")
-                    Text("Sort")
-                }
-                .font(.system(size: 13, weight: .medium))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            
-            // Filter Picker
-            Menu {
-                Button {
-                    withAnimation { studentsFilterRaw = "all" }
-                } label: {
-                    Label("All", systemImage: "person.3.fill")
-                    if selectedFilter == .all {
-                        Image(systemName: "checkmark")
-                    }
-                }
-                Button {
-                    withAnimation { studentsFilterRaw = "presentNow" }
-                } label: {
-                    Label("Present Now", systemImage: "checkmark.circle.fill")
-                    if selectedFilter == .presentNow {
-                        Image(systemName: "checkmark")
-                    }
-                }
-                Button {
-                    withAnimation { studentsFilterRaw = "upper" }
-                } label: {
-                    Label("Upper", systemImage: "circle.fill")
-                    if selectedFilter == .upper {
-                        Image(systemName: "checkmark")
-                    }
-                }
-                Button {
-                    withAnimation { studentsFilterRaw = "lower" }
-                } label: {
-                    Label("Lower", systemImage: "circle.fill")
-                    if selectedFilter == .lower {
-                        Image(systemName: "checkmark")
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text("Filter")
-                }
-                .font(.system(size: 13, weight: .medium))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            
-            Spacer()
-            
-            // Edit button (only show in manual sort mode, iOS only)
-            #if os(iOS)
-            if effectiveSortOrder == .manual {
-                EditButton()
-                    .controlSize(.small)
-            }
-            #endif
-        }
-    }
     
     // MARK: - Mode Picker Content (for ViewHeader)
 
     private var modePickerContent: some View {
-        Picker("Mode", selection: $mode) {
-            Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-            Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
-            Label("Ages", systemImage: "calendar").tag(StudentMode.age)
-            Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-            Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-            Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        StudentModePicker(mode: $mode)
     }
 
     // MARK: - Add Student Button (for ViewHeader)
 
     private var addStudentButton: some View {
-        Button {
-            showingAddStudent = true
-        } label: {
-            Label("Add Student", systemImage: "plus.circle.fill")
-        }
-        .keyboardShortcut("n", modifiers: [.command])
-        .contextMenu {
-            Button {
-                showingStudentCSVImporter = true
-            } label: {
-                Label("Import Students from CSV…", systemImage: "arrow.down.doc")
-            }
-        }
+        AddStudentButton(
+            onAddStudent: { showingAddStudent = true },
+            onImportCSV: { showingStudentCSVImporter = true }
+        )
     }
 
     // MARK: - iOS-Only Toolbar Content
@@ -646,11 +523,7 @@ struct StudentsView<WorkloadContent: View>: View {
             // Add Student button for iPhone
             if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAddStudent = true
-                    } label: {
-                        Label("Add Student", systemImage: "plus.circle.fill")
-                    }
+                    addStudentButton
                 }
             }
         } else {
@@ -734,19 +607,7 @@ struct StudentsView<WorkloadContent: View>: View {
         // Add Student button (show in roster/age/birthday/lastLesson modes)
         if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddStudent = true
-                } label: {
-                    Label("Add Student", systemImage: "plus.circle.fill")
-                }
-                .keyboardShortcut("n", modifiers: [.command])
-                .contextMenu {
-                    Button {
-                        showingStudentCSVImporter = true
-                    } label: {
-                        Label("Import Students from CSV…", systemImage: "arrow.down.doc")
-                    }
-                }
+                addStudentButton
             }
         }
     }
@@ -758,18 +619,7 @@ struct StudentsView<WorkloadContent: View>: View {
     private var rosterGridContent: some View {
         Group {
             if filteredStudents.isEmpty {
-                ContentUnavailableView {
-                    Label("No students yet", systemImage: "person.3")
-                } description: {
-                    Text("Click the plus button to add your first student.")
-                } actions: {
-                    Button {
-                        showingAddStudent = true
-                    } label: {
-                        Label("Add Student", systemImage: "plus.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+                NoStudentsEmptyState(onAddStudent: { showingAddStudent = true })
             } else {
                 StudentsCardsGridView(
                     students: filteredStudents,
@@ -785,6 +635,7 @@ struct StudentsView<WorkloadContent: View>: View {
                         // Reordering not supported in grid view modes
                     }
                 )
+                #if DEBUG
                 .onAppear {
                     checkForDuplicateIDs(in: filteredStudents)
                 }
@@ -797,6 +648,7 @@ struct StudentsView<WorkloadContent: View>: View {
                 .onChange(of: effectiveSortOrder) {
                     checkForDuplicateIDs(in: filteredStudents)
                 }
+                #endif
             }
         }
         .overlay {
@@ -811,18 +663,7 @@ struct StudentsView<WorkloadContent: View>: View {
     private var rosterListContent: some View {
         Group {
             if filteredStudents.isEmpty {
-                ContentUnavailableView {
-                    Label("No students yet", systemImage: "person.3")
-                } description: {
-                    Text("Click the plus button to add your first student.")
-                } actions: {
-                    Button {
-                        showingAddStudent = true
-                    } label: {
-                        Label("Add Student", systemImage: "plus.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+                NoStudentsEmptyState(onAddStudent: { showingAddStudent = true })
             } else {
                 List(selection: $selectedStudentID) {
                     ForEach(filteredStudents, id: \.id) { student in
@@ -858,27 +699,6 @@ struct StudentsView<WorkloadContent: View>: View {
         }
     }
     
-    // MARK: - Detail Content
-    
-    private var detailContent: some View {
-        Group {
-            if let id = selectedStudentID, let student = uniqueStudents.first(where: { $0.id == id }) {
-                HStack(alignment: .top, spacing: 0) {
-                    StudentDetailView(student: student)
-                        .frame(maxWidth: 700)
-                        .id(student.id) // <--- Force recreation when student changes
-                    Spacer()
-                }
-            } else {
-                ContentUnavailableView {
-                    Label("Select a Student", systemImage: "person.circle")
-                } description: {
-                    Text("Choose a student from the list to view their details.")
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 
     // MARK: - Logic Helpers
     
@@ -926,15 +746,6 @@ struct StudentsView<WorkloadContent: View>: View {
         try? modelContext.save()
     }
     
-    private func selectedFilterRawAssignment(for filter: StudentsFilter) {
-        switch filter {
-        case .upper: studentsFilterRaw = "upper"
-        case .lower: studentsFilterRaw = "lower"
-        case .presentNow: studentsFilterRaw = "presentNow"
-        case .all: studentsFilterRaw = "all"
-        }
-    }
-
     // MARK: - Navigation and Lifecycle Helpers
     
     private func handleNavigationDestinationChange(_ destination: AppRouter.NavigationDestination?) {

@@ -4,38 +4,50 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
+// MARK: - Test Context Setup
+
+@MainActor
+private struct WorkTestContext {
+    let container: ModelContainer
+    let context: ModelContext
+
+    static func make() throws -> WorkTestContext {
+        let container = try makeTestContainer(for: [
+            WorkModel.self, WorkParticipantEntity.self, WorkCheckIn.self,
+            Student.self, Lesson.self, StudentLesson.self, Note.self,
+        ])
+        return WorkTestContext(container: container, context: ModelContext(container))
+    }
+
+    func makeWork(title: String = "Test Work", workType: WorkModel.WorkType = .practice) -> WorkModel {
+        let work = WorkModel(title: title, workType: workType)
+        context.insert(work)
+        return work
+    }
+
+    func makeParticipant(for work: WorkModel, studentID: UUID, completedAt: Date? = nil) -> WorkParticipantEntity {
+        let participant = WorkParticipantEntity(studentID: studentID, completedAt: completedAt, work: work)
+        context.insert(participant)
+        return participant
+    }
+}
+
 // MARK: - Work-Student Relationship Tests
 
 @Suite("Work-Student Relationship Tests", .serialized)
 @MainActor
 struct WorkStudentRelationshipTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            Note.self,
-        ])
-    }
-
     @Test("WorkModel tracks single participant")
     func tracksSingleParticipant() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
+        tc.context.insert(student)
 
         let work = WorkModel(title: "Math Practice", workType: .practice)
-        let participant = WorkParticipantEntity(studentID: student.id, completedAt: nil, work: work)
-        work.participants = [participant]
-        context.insert(work)
-
-        try context.save()
+        work.participants = [WorkParticipantEntity(studentID: student.id, completedAt: nil, work: work)]
+        tc.context.insert(work)
+        try tc.context.save()
 
         #expect(work.participants?.count == 1)
         #expect(work.participants?.first?.studentID == student.id.uuidString)
@@ -43,45 +55,37 @@ struct WorkStudentRelationshipTests {
 
     @Test("WorkModel tracks multiple participants")
     func tracksMultipleParticipants() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
-        let student3 = makeTestStudent(firstName: "Charlie", lastName: "Clark")
-        context.insert(student1)
-        context.insert(student2)
-        context.insert(student3)
+        let tc = try WorkTestContext.make()
+        let students = [
+            makeTestStudent(firstName: "Alice", lastName: "Anderson"),
+            makeTestStudent(firstName: "Bob", lastName: "Brown"),
+            makeTestStudent(firstName: "Charlie", lastName: "Clark")
+        ]
+        students.forEach { tc.context.insert($0) }
 
         let work = WorkModel(title: "Group Project", workType: .research)
-        let p1 = WorkParticipantEntity(studentID: student1.id, completedAt: nil, work: work)
-        let p2 = WorkParticipantEntity(studentID: student2.id, completedAt: nil, work: work)
-        let p3 = WorkParticipantEntity(studentID: student3.id, completedAt: nil, work: work)
-        work.participants = [p1, p2, p3]
-        context.insert(work)
-
-        try context.save()
+        work.participants = students.map { WorkParticipantEntity(studentID: $0.id, completedAt: nil, work: work) }
+        tc.context.insert(work)
+        try tc.context.save()
 
         #expect(work.participants?.count == 3)
     }
 
     @Test("Participant completion tracked individually")
     func participantCompletionTrackedIndividually() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
-        context.insert(student1)
-        context.insert(student2)
+        tc.context.insert(student1)
+        tc.context.insert(student2)
 
         let work = WorkModel(title: "Practice", workType: .practice)
-        let p1 = WorkParticipantEntity(studentID: student1.id, completedAt: Date(), work: work)
-        let p2 = WorkParticipantEntity(studentID: student2.id, completedAt: nil, work: work)
-        work.participants = [p1, p2]
-        context.insert(work)
-
-        try context.save()
+        work.participants = [
+            WorkParticipantEntity(studentID: student1.id, completedAt: Date(), work: work),
+            WorkParticipantEntity(studentID: student2.id, completedAt: nil, work: work)
+        ]
+        tc.context.insert(work)
+        try tc.context.save()
 
         #expect(work.isStudentCompleted(student1.id) == true)
         #expect(work.isStudentCompleted(student2.id) == false)
@@ -89,16 +93,12 @@ struct WorkStudentRelationshipTests {
 
     @Test("markStudent adds participant if not exists")
     func markStudentAddsParticipant() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let student = makeTestStudent()
+        tc.context.insert(student)
 
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
+        let work = tc.makeWork()
         work.participants = []
-        context.insert(work)
-
         work.markStudent(student.id, completedAt: Date())
 
         #expect(work.participants?.count == 1)
@@ -107,40 +107,35 @@ struct WorkStudentRelationshipTests {
 
     @Test("markStudent updates existing participant")
     func markStudentUpdatesExisting() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let student = makeTestStudent()
+        tc.context.insert(student)
 
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
-        let participant = WorkParticipantEntity(studentID: student.id, completedAt: nil, work: work)
+        let work = tc.makeWork()
+        let participant = tc.makeParticipant(for: work, studentID: student.id)
         work.participants = [participant]
-        context.insert(work)
 
         #expect(work.isStudentCompleted(student.id) == false)
 
         work.markStudent(student.id, completedAt: Date())
 
         #expect(work.isStudentCompleted(student.id) == true)
-        #expect(work.participants?.count == 1) // Should not add duplicate
+        #expect(work.participants?.count == 1)
     }
 
     @Test("participant(for:) returns correct participant")
     func participantForReturnsCorrect() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let student1 = makeTestStudent()
+        let student2 = makeTestStudent()
+        tc.context.insert(student1)
+        tc.context.insert(student2)
 
-        let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
-        context.insert(student1)
-        context.insert(student2)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
-        let p1 = WorkParticipantEntity(studentID: student1.id, completedAt: nil, work: work)
-        let p2 = WorkParticipantEntity(studentID: student2.id, completedAt: Date(), work: work)
-        work.participants = [p1, p2]
-        context.insert(work)
+        let work = tc.makeWork()
+        work.participants = [
+            tc.makeParticipant(for: work, studentID: student1.id),
+            tc.makeParticipant(for: work, studentID: student2.id, completedAt: Date())
+        ]
 
         let foundParticipant = work.participant(for: student2.id)
 
@@ -150,17 +145,11 @@ struct WorkStudentRelationshipTests {
 
     @Test("participant(for:) returns nil for unknown student")
     func participantForReturnsNilForUnknown() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
         work.participants = []
-        context.insert(work)
 
-        let unknownID = UUID()
-        let participant = work.participant(for: unknownID)
-
-        #expect(participant == nil)
+        #expect(work.participant(for: UUID()) == nil)
     }
 }
 
@@ -170,90 +159,65 @@ struct WorkStudentRelationshipTests {
 @MainActor
 struct WorkStatusIntegrationTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-        ])
-    }
-
     @Test("isOpen returns true for work with no participants")
     func isOpenTrueForNoParticipants() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "New Work", workType: .practice)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
         work.participants = []
-        context.insert(work)
 
         #expect(work.isOpen == true)
     }
 
     @Test("isOpen returns true when any participant incomplete")
     func isOpenTrueWhenAnyIncomplete() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
-        let p1 = WorkParticipantEntity(studentID: UUID(), completedAt: Date(), work: work)
-        let p2 = WorkParticipantEntity(studentID: UUID(), completedAt: nil, work: work)
-        work.participants = [p1, p2]
-        context.insert(work)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
+        work.participants = [
+            WorkParticipantEntity(studentID: UUID(), completedAt: Date(), work: work),
+            WorkParticipantEntity(studentID: UUID(), completedAt: nil, work: work)
+        ]
 
         #expect(work.isOpen == true)
     }
 
     @Test("isOpen returns false when all participants complete")
     func isOpenFalseWhenAllComplete() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
-        let p1 = WorkParticipantEntity(studentID: UUID(), completedAt: Date(), work: work)
-        let p2 = WorkParticipantEntity(studentID: UUID(), completedAt: Date(), work: work)
-        work.participants = [p1, p2]
-        context.insert(work)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
+        work.participants = [
+            WorkParticipantEntity(studentID: UUID(), completedAt: Date(), work: work),
+            WorkParticipantEntity(studentID: UUID(), completedAt: Date(), work: work)
+        ]
 
         #expect(work.isOpen == false)
     }
 
     @Test("isOpen returns false when status is complete")
     func isOpenFalseWhenStatusComplete() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let work = WorkModel(title: "Practice", workType: .practice, status: .complete)
-        work.participants = []
-        context.insert(work)
+        tc.context.insert(work)
 
         #expect(work.isOpen == false)
     }
 
     @Test("Work status helpers are consistent")
     func statusHelpersAreConsistent() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
-
-        // Active status
         work.status = .active
         #expect(work.isActive == true)
         #expect(work.isReview == false)
         #expect(work.isComplete == false)
         #expect(work.isIncomplete == true)
 
-        // Review status
         work.status = .review
         #expect(work.isActive == false)
         #expect(work.isReview == true)
         #expect(work.isComplete == false)
         #expect(work.isIncomplete == true)
 
-        // Complete status
         work.status = .complete
         #expect(work.isActive == false)
         #expect(work.isReview == false)
@@ -268,76 +232,52 @@ struct WorkStatusIntegrationTests {
 @MainActor
 struct WorkLessonRelationshipTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Lesson.self,
-            StudentLesson.self,
-            Student.self,
-            Note.self,
-        ])
-    }
-
     @Test("Work links to lesson via lessonID")
     func workLinksToLesson() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
+        tc.context.insert(lesson)
 
         let work = WorkModel(title: "Addition Practice", workType: .practice, lessonID: lesson.id.uuidString)
-        context.insert(work)
-
-        try context.save()
+        tc.context.insert(work)
+        try tc.context.save()
 
         #expect(work.lessonID == lesson.id.uuidString)
     }
 
     @Test("Work links to StudentLesson via studentLessonID")
     func workLinksToStudentLesson() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
+        let tc = try WorkTestContext.make()
+        let lesson = makeTestLesson()
+        let student = makeTestStudent()
+        tc.context.insert(lesson)
+        tc.context.insert(student)
 
         let studentLesson = makeTestStudentLesson(student: student, lesson: lesson, givenAt: Date())
-        context.insert(studentLesson)
+        tc.context.insert(studentLesson)
 
         let work = WorkModel(title: "Addition Practice", workType: .practice, studentLessonID: studentLesson.id)
-        context.insert(work)
-
-        try context.save()
+        tc.context.insert(work)
+        try tc.context.save()
 
         #expect(work.studentLessonID == studentLesson.id)
     }
 
     @Test("Multiple works can reference same lesson")
     func multipleWorksReferenceSameLesson() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let lesson = makeTestLesson()
+        tc.context.insert(lesson)
 
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
+        let works = [
+            WorkModel(title: "Practice 1", workType: .practice, lessonID: lesson.id.uuidString),
+            WorkModel(title: "Practice 2", workType: .practice, lessonID: lesson.id.uuidString),
+            WorkModel(title: "Research", workType: .research, lessonID: lesson.id.uuidString)
+        ]
+        works.forEach { tc.context.insert($0) }
+        try tc.context.save()
 
-        let work1 = WorkModel(title: "Practice 1", workType: .practice, lessonID: lesson.id.uuidString)
-        let work2 = WorkModel(title: "Practice 2", workType: .practice, lessonID: lesson.id.uuidString)
-        let work3 = WorkModel(title: "Research", workType: .research, lessonID: lesson.id.uuidString)
-        context.insert(work1)
-        context.insert(work2)
-        context.insert(work3)
-
-        try context.save()
-
-        #expect(work1.lessonID == lesson.id.uuidString)
-        #expect(work2.lessonID == lesson.id.uuidString)
-        #expect(work3.lessonID == lesson.id.uuidString)
+        #expect(works.allSatisfy { $0.lessonID == lesson.id.uuidString })
     }
 }
 
@@ -347,26 +287,13 @@ struct WorkLessonRelationshipTests {
 @MainActor
 struct WorkCheckInIntegrationTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-        ])
-    }
-
     @Test("addCheckIn creates check-in linked to work")
     func addCheckInCreatesLinkedCheckIn() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
-
-        work.addCheckIn(date: Date(), status: .scheduled, purpose: "Review progress", in: context)
-
-        try context.save()
+        work.addCheckIn(date: Date(), status: .scheduled, purpose: "Review progress", in: tc.context)
+        try tc.context.save()
 
         #expect(work.checkIns?.count == 1)
         #expect(work.checkIns?.first?.work?.id == work.id)
@@ -375,13 +302,10 @@ struct WorkCheckInIntegrationTests {
 
     @Test("scheduleCheckIn returns created check-in")
     func scheduleCheckInReturnsCreated() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
-
-        let checkIn = work.scheduleCheckIn(on: Date(), purpose: "Follow up", in: context)
+        let checkIn = work.scheduleCheckIn(on: Date(), purpose: "Follow up", in: tc.context)
 
         #expect(checkIn.status == .scheduled)
         #expect(checkIn.purpose == "Follow up")
@@ -390,39 +314,36 @@ struct WorkCheckInIntegrationTests {
 
     @Test("Multiple check-ins can be added to work")
     func multipleCheckInsCanBeAdded() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
+        let dates = [
+            TestCalendar.date(year: 2025, month: 3, day: 10),
+            TestCalendar.date(year: 2025, month: 3, day: 15),
+            TestCalendar.date(year: 2025, month: 3, day: 20)
+        ]
+        let purposes = ["Initial check", "Mid-point review", "Final review"]
+        let statuses: [WorkCheckInStatus] = [.completed, .completed, .scheduled]
 
-        let date1 = TestCalendar.date(year: 2025, month: 3, day: 10)
-        let date2 = TestCalendar.date(year: 2025, month: 3, day: 15)
-        let date3 = TestCalendar.date(year: 2025, month: 3, day: 20)
-
-        work.addCheckIn(date: date1, status: .completed, purpose: "Initial check", in: context)
-        work.addCheckIn(date: date2, status: .completed, purpose: "Mid-point review", in: context)
-        work.addCheckIn(date: date3, status: .scheduled, purpose: "Final review", in: context)
-
-        try context.save()
+        for (i, date) in dates.enumerated() {
+            work.addCheckIn(date: date, status: statuses[i], purpose: purposes[i], in: tc.context)
+        }
+        try tc.context.save()
 
         #expect(work.checkIns?.count == 3)
     }
 
     @Test("WorkCheckIn status can be updated")
     func checkInStatusCanBeUpdated() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
-
-        let checkIn = work.scheduleCheckIn(on: Date(), purpose: "Review", in: context)
+        let checkIn = work.scheduleCheckIn(on: Date(), purpose: "Review", in: tc.context)
 
         #expect(checkIn.isScheduled == true)
         #expect(checkIn.isCompleted == false)
 
-        checkIn.markCompleted(note: "Good progress", at: Date(), in: context)
+        checkIn.markCompleted(note: "Good progress", at: Date(), in: tc.context)
 
         #expect(checkIn.isScheduled == false)
         #expect(checkIn.isCompleted == true)
@@ -431,17 +352,14 @@ struct WorkCheckInIntegrationTests {
 
     @Test("WorkCheckIn can be rescheduled")
     func checkInCanBeRescheduled() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
         let originalDate = TestCalendar.date(year: 2025, month: 3, day: 10)
         let newDate = TestCalendar.date(year: 2025, month: 3, day: 15)
 
-        let checkIn = work.scheduleCheckIn(on: originalDate, purpose: "Review", in: context)
-        checkIn.reschedule(to: newDate, note: "Moved to next week", in: context)
+        let checkIn = work.scheduleCheckIn(on: originalDate, purpose: "Review", in: tc.context)
+        checkIn.reschedule(to: newDate, note: "Moved to next week", in: tc.context)
 
         let components = Calendar.current.dateComponents([.day], from: checkIn.date)
         #expect(components.day == 15)
@@ -450,14 +368,11 @@ struct WorkCheckInIntegrationTests {
 
     @Test("WorkCheckIn can be skipped")
     func checkInCanBeSkipped() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Practice", workType: .practice)
-        context.insert(work)
-
-        let checkIn = work.scheduleCheckIn(on: Date(), purpose: "Review", in: context)
-        checkIn.skip(note: "Student absent", at: Date(), in: context)
+        let checkIn = work.scheduleCheckIn(on: Date(), purpose: "Review", in: tc.context)
+        checkIn.skip(note: "Student absent", at: Date(), in: tc.context)
 
         #expect(checkIn.status == .skipped)
         #expect(checkIn.note == "Student absent")
@@ -531,15 +446,6 @@ struct WorkModelWorkTypeTests {
 @MainActor
 struct WorkParticipantEntityTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-        ])
-    }
-
     @Test("WorkParticipantEntity initializes correctly")
     func initializesCorrectly() {
         let studentID = UUID()
@@ -563,22 +469,17 @@ struct WorkParticipantEntityTests {
 
     @Test("WorkParticipantEntity persists correctly")
     func persistsCorrectly() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let studentID = UUID()
         let completionDate = TestCalendar.date(year: 2025, month: 3, day: 15)
 
-        let work = WorkModel(title: "Test", workType: .practice)
-        let participant = WorkParticipantEntity(studentID: studentID, completedAt: completionDate, work: work)
+        let work = tc.makeWork()
+        let participant = tc.makeParticipant(for: work, studentID: studentID, completedAt: completionDate)
         work.participants = [participant]
-        context.insert(work)
+        try tc.context.save()
 
-        try context.save()
-
-        // Fetch and filter to avoid UUID predicate issues
         let workDescriptor = FetchDescriptor<WorkModel>()
-        let fetched = try context.fetch(workDescriptor).first { $0.id == work.id }
+        let fetched = try tc.context.fetch(workDescriptor).first { $0.id == work.id }
 
         #expect(fetched?.participants?.count == 1)
         #expect(fetched?.participants?.first?.studentID == studentID.uuidString)
@@ -587,23 +488,18 @@ struct WorkParticipantEntityTests {
 
     @Test("WorkParticipantEntity cascade deletes with work")
     func cascadeDeletesWithWork() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let work = WorkModel(title: "Test", workType: .practice)
-        let participant = WorkParticipantEntity(studentID: UUID(), completedAt: nil, work: work)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
+        let participant = tc.makeParticipant(for: work, studentID: UUID())
         work.participants = [participant]
-        context.insert(work)
-
-        try context.save()
+        try tc.context.save()
 
         let participantID = participant.id
-        context.delete(work)
-        try context.save()
+        tc.context.delete(work)
+        try tc.context.save()
 
-        // Fetch and filter to avoid UUID predicate issues
         let descriptor = FetchDescriptor<WorkParticipantEntity>()
-        let fetched = try context.fetch(descriptor).filter { $0.id == participantID }
+        let fetched = try tc.context.fetch(descriptor).filter { $0.id == participantID }
 
         #expect(fetched.isEmpty)
     }
@@ -615,20 +511,9 @@ struct WorkParticipantEntityTests {
 @MainActor
 struct WorkPersistenceTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-        ])
-    }
-
     @Test("WorkModel persists all fields correctly")
     func persistsAllFieldsCorrectly() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let workID = UUID()
         let studentLessonID = UUID()
         let studentID = UUID()
@@ -637,24 +522,16 @@ struct WorkPersistenceTests {
         let dueAt = TestCalendar.date(year: 2025, month: 3, day: 20)
 
         let work = WorkModel(
-            id: workID,
-            title: "Complex Work",
-            workType: .followUp,
-            studentLessonID: studentLessonID,
-            notes: "Important notes",
-            status: .review,
-            assignedAt: assignedAt,
-            dueAt: dueAt,
-            studentID: studentID.uuidString,
-            lessonID: lessonID.uuidString
+            id: workID, title: "Complex Work", workType: .followUp,
+            studentLessonID: studentLessonID, notes: "Important notes",
+            status: .review, assignedAt: assignedAt, dueAt: dueAt,
+            studentID: studentID.uuidString, lessonID: lessonID.uuidString
         )
-        context.insert(work)
+        tc.context.insert(work)
+        try tc.context.save()
 
-        try context.save()
-
-        // Fetch and filter to avoid UUID predicate issues
         let descriptor = FetchDescriptor<WorkModel>()
-        let fetched = try context.fetch(descriptor).first { $0.id == workID }
+        let fetched = try tc.context.fetch(descriptor).first { $0.id == workID }
 
         #expect(fetched?.title == "Complex Work")
         #expect(fetched?.workType == .followUp)
@@ -667,23 +544,16 @@ struct WorkPersistenceTests {
 
     @Test("WorkModel handles nil optional fields")
     func handlesNilOptionalFields() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let tc = try WorkTestContext.make()
         let work = WorkModel(
-            title: "Simple Work",
-            workType: .practice,
-            studentLessonID: nil,
-            dueAt: nil,
-            completionOutcome: nil
+            title: "Simple Work", workType: .practice,
+            studentLessonID: nil, dueAt: nil, completionOutcome: nil
         )
-        context.insert(work)
+        tc.context.insert(work)
+        try tc.context.save()
 
-        try context.save()
-
-        // Fetch and filter to avoid UUID predicate issues
         let workDescriptor = FetchDescriptor<WorkModel>()
-        let fetched = try context.fetch(workDescriptor).first { $0.id == work.id }
+        let fetched = try tc.context.fetch(workDescriptor).first { $0.id == work.id }
 
         #expect(fetched?.studentLessonID == nil)
         #expect(fetched?.dueAt == nil)
@@ -692,25 +562,20 @@ struct WorkPersistenceTests {
 
     @Test("WorkModel checkIns cascade delete")
     func checkInsCascadeDelete() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let tc = try WorkTestContext.make()
+        let work = tc.makeWork()
 
-        let work = WorkModel(title: "Test", workType: .practice)
-        context.insert(work)
-
-        work.addCheckIn(date: Date(), status: .scheduled, purpose: "Check 1", in: context)
-        work.addCheckIn(date: Date(), status: .scheduled, purpose: "Check 2", in: context)
-
-        try context.save()
+        work.addCheckIn(date: Date(), status: .scheduled, purpose: "Check 1", in: tc.context)
+        work.addCheckIn(date: Date(), status: .scheduled, purpose: "Check 2", in: tc.context)
+        try tc.context.save()
 
         let checkInID = work.checkIns?.first?.id ?? UUID()
 
-        context.delete(work)
-        try context.save()
+        tc.context.delete(work)
+        try tc.context.save()
 
-        // Fetch and filter to avoid UUID predicate issues
         let checkInDescriptor = FetchDescriptor<WorkCheckIn>()
-        let fetched = try context.fetch(checkInDescriptor).filter { $0.id == checkInID }
+        let fetched = try tc.context.fetch(checkInDescriptor).filter { $0.id == checkInID }
 
         #expect(fetched.isEmpty)
     }

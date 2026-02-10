@@ -75,27 +75,27 @@ public final class BackupService {
         let projectWeeks: [ProjectTemplateWeek] = safeFetchInBatches(ProjectTemplateWeek.self, using: modelContext)
         let projectWeekAssignments: [ProjectWeekRoleAssignment] = safeFetchInBatches(ProjectWeekRoleAssignment.self, using: modelContext)
 
-        // Map to DTOs using BackupDTOTransformers
-        let studentDTOs = BackupDTOTransformers.toDTOs(students)
-        let lessonDTOs = BackupDTOTransformers.toDTOs(lessons)
-        let studentLessonDTOs = BackupDTOTransformers.toDTOs(studentLessons)
+        // Map to DTOs using shared helpers
+        let studentDTOs = BackupServiceHelpers.toDTOs(students)
+        let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
+        let studentLessonDTOs = BackupServiceHelpers.toDTOs(studentLessons)
         let lessonAssignmentDTOs = BackupDTOTransformers.toDTOs(lessonAssignments)
-        let workPlanItemDTOs = BackupDTOTransformers.toDTOs(workPlanItems)
-        let noteDTOs = BackupDTOTransformers.toDTOs(notes)
-        let nonSchoolDTOs = BackupDTOTransformers.toDTOs(nonSchoolDays)
-        let schoolOverrideDTOs = BackupDTOTransformers.toDTOs(schoolDayOverrides)
-        let studentMeetingDTOs = BackupDTOTransformers.toDTOs(studentMeetings)
-        let topicDTOs = BackupDTOTransformers.toDTOs(communityTopics)
-        let solutionDTOs = BackupDTOTransformers.toDTOs(proposedSolutions)
-        let attachmentDTOs = BackupDTOTransformers.toDTOs(communityAttachments)
-        let attendanceDTOs = BackupDTOTransformers.toDTOs(attendance)
-        let workCompletionDTOs = BackupDTOTransformers.toDTOs(workCompletions)
-        let projectDTOs = BackupDTOTransformers.toDTOs(projects)
-        let projectTemplateDTOs = BackupDTOTransformers.toDTOs(projectTemplates)
-        let projectSessionDTOs = BackupDTOTransformers.toDTOs(projectSessions)
-        let projectRoleDTOs = BackupDTOTransformers.toDTOs(projectRoles)
-        let projectWeekDTOs = BackupDTOTransformers.toDTOs(projectWeeks)
-        let projectWeekAssignDTOs = BackupDTOTransformers.toDTOs(projectWeekAssignments)
+        let workPlanItemDTOs = BackupServiceHelpers.toDTOs(workPlanItems)
+        let noteDTOs = BackupServiceHelpers.toDTOs(notes)
+        let nonSchoolDTOs = BackupServiceHelpers.toDTOs(nonSchoolDays)
+        let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(schoolDayOverrides)
+        let studentMeetingDTOs = BackupServiceHelpers.toDTOs(studentMeetings)
+        let topicDTOs = BackupServiceHelpers.toDTOs(communityTopics)
+        let solutionDTOs = BackupServiceHelpers.toDTOs(proposedSolutions)
+        let attachmentDTOs = BackupServiceHelpers.toDTOs(communityAttachments)
+        let attendanceDTOs = BackupServiceHelpers.toDTOs(attendance)
+        let workCompletionDTOs = BackupServiceHelpers.toDTOs(workCompletions)
+        let projectDTOs = BackupServiceHelpers.toDTOs(projects)
+        let projectTemplateDTOs = BackupServiceHelpers.toDTOs(projectTemplates)
+        let projectSessionDTOs = BackupServiceHelpers.toDTOs(projectSessions)
+        let projectRoleDTOs = BackupServiceHelpers.toDTOs(projectRoles)
+        let projectWeekDTOs = BackupServiceHelpers.toDTOs(projectWeeks)
+        let projectWeekAssignDTOs = BackupServiceHelpers.toDTOs(projectWeekAssignments)
 
         let preferences = buildPreferencesDTO()
 
@@ -173,25 +173,17 @@ public final class BackupService {
             "ProjectWeekRoleAssignment": projectWeekAssignDTOs.count
         ]
 
-        let env = BackupEnvelope(
-            formatVersion: BackupFile.formatVersion,
-            createdAt: Date(),
-            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
-            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-            device: ProcessInfo.processInfo.hostName,
-            manifest: BackupManifest(entityCounts: counts, sha256: sha, notes: nil, compression: compressionUsed),
+        let env = BackupServiceHelpers.buildEnvelope(
             payload: finalPayload,
             encryptedPayload: finalEncrypted,
-            compressedPayload: finalCompressed
+            compressedPayload: finalCompressed,
+            entityCounts: counts,
+            sha256: sha,
+            notes: nil
         )
 
         progress(BackupProgress.progress(for: .writing), "Writing backup file…")
-        let envBytes = try encoder.encode(env)
-        
-        if FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
-        }
-        try envBytes.write(to: url, options: .atomic)
+        try BackupServiceHelpers.writeBackupFile(envelope: env, to: url, encoder: encoder)
         
         if finalEncrypted != nil {
             try? FileManager.default.setAttributes([
@@ -549,10 +541,6 @@ public final class BackupService {
         // (Implementation preserved)
     }
     
-    private func safeFetch<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> [T] {
-        let descriptor = FetchDescriptor<T>()
-        return (try? context.fetch(descriptor)) ?? []
-    }
     
     private func safeFetchInBatches<T: PersistentModel>(
         _ type: T.Type,
@@ -562,7 +550,6 @@ public final class BackupService {
         var allEntities: [T] = []
         var offset = 0
         while true {
-            // Use autoreleasepool to release intermediate memory during batch processing
             let batch: [T]? = autoreleasepool {
                 var descriptor = FetchDescriptor<T>()
                 descriptor.fetchOffset = offset
@@ -576,39 +563,15 @@ public final class BackupService {
         }
         return allEntities
     }
-    
+
     private func safeFetchInBatchesWithErrorHandling<T: PersistentModel>(
         _ type: T.Type,
         using context: ModelContext,
         batchSize: Int = 1000
     ) -> [T] {
-        var allEntities: [T] = []
-        var offset = 0
-        while true {
-            // Use autoreleasepool to release intermediate memory during batch processing
-            let batch: [T]? = autoreleasepool {
-                var descriptor = FetchDescriptor<T>()
-                descriptor.fetchOffset = offset
-                descriptor.fetchLimit = batchSize
-                return try? context.fetch(descriptor)
-            }
-            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
-            allEntities.append(contentsOf: fetchedBatch)
-            if fetchedBatch.count < batchSize { break }
-            offset += batchSize
-        }
-        return allEntities
+        safeFetchInBatches(type, using: context, batchSize: batchSize)
     }
     
-    private func safeFetchWithErrorHandling<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> [T] {
-        if let results = try? context.fetch(FetchDescriptor<T>()) {
-            return results
-        }
-        #if DEBUG
-        print("BackupService: Warning - Could not fetch \(String(describing: type)). Skipping this entity type.")
-        #endif
-        return []
-    }
 
     private func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
         if type == Student.self {
@@ -763,46 +726,7 @@ public final class BackupService {
         try modelContext.save()
     }
 
-    // MARK: - Payload Deduplication
-
-    /// Removes duplicate records from the backup payload, keeping the first occurrence of each ID.
-    /// This handles backups created from databases that had duplicate records due to CloudKit sync issues.
     private func deduplicatePayload(_ payload: BackupPayload) -> BackupPayload {
-        func uniqueBy<T>(_ items: [T], id: (T) -> UUID) -> [T] {
-            var seen = Set<UUID>()
-            return items.filter { item in
-                let itemId = id(item)
-                if seen.contains(itemId) {
-                    return false
-                }
-                seen.insert(itemId)
-                return true
-            }
-        }
-
-        return BackupPayload(
-            items: payload.items,
-            students: uniqueBy(payload.students) { $0.id },
-            lessons: uniqueBy(payload.lessons) { $0.id },
-            studentLessons: uniqueBy(payload.studentLessons) { $0.id },
-            lessonAssignments: uniqueBy(payload.lessonAssignments) { $0.id },
-            workPlanItems: uniqueBy(payload.workPlanItems) { $0.id },
-            notes: uniqueBy(payload.notes) { $0.id },
-            nonSchoolDays: uniqueBy(payload.nonSchoolDays) { $0.id },
-            schoolDayOverrides: uniqueBy(payload.schoolDayOverrides) { $0.id },
-            studentMeetings: uniqueBy(payload.studentMeetings) { $0.id },
-            communityTopics: uniqueBy(payload.communityTopics) { $0.id },
-            proposedSolutions: uniqueBy(payload.proposedSolutions) { $0.id },
-            communityAttachments: uniqueBy(payload.communityAttachments) { $0.id },
-            attendance: uniqueBy(payload.attendance) { $0.id },
-            workCompletions: uniqueBy(payload.workCompletions) { $0.id },
-            projects: uniqueBy(payload.projects) { $0.id },
-            projectAssignmentTemplates: uniqueBy(payload.projectAssignmentTemplates) { $0.id },
-            projectSessions: uniqueBy(payload.projectSessions) { $0.id },
-            projectRoles: uniqueBy(payload.projectRoles) { $0.id },
-            projectTemplateWeeks: uniqueBy(payload.projectTemplateWeeks) { $0.id },
-            projectWeekRoleAssignments: uniqueBy(payload.projectWeekRoleAssignments) { $0.id },
-            preferences: payload.preferences
-        )
+        BackupPayloadDeduplicator.deduplicate(payload)
     }
 }

@@ -247,44 +247,14 @@ struct StudentLessonDetailContentView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    // 1. Lesson Title & Tags Header
-                    lessonHeaderSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 32)
-                    
-                    // 2. Conditional Lesson Picker
-                    if vm.lessonObject(from: lessons) == nil || vm.showLessonPicker {
-                        lessonPickerSection
-                            .padding(.horizontal, 32)
-                            .padding(.top, 16)
-                    } else {
-                        ChangeLessonControl(showLessonPicker: $vm.showLessonPicker)
-                            .padding(.horizontal, 32)
-                            .padding(.top, 8)
-                    }
-                    
-                    // 3. Student Pills Block
-                    studentPillsSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 20)
-                    
-                    Divider()
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 20)
-                    
-                    // 4. Inbox/Scheduling Status Row
-                    inboxStatusSection
-                        .padding(.horizontal, 32)
-                    
-                    Divider()
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 20)
-                    
-                    // 5. Notes Section
-                    notesSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 24)
-                        .padding(.bottom, 32)
+                    PlanningContentSections(
+                        horizontalPadding: 32,
+                        lessonHeader: { lessonHeaderSection },
+                        lessonPicker: { lessonPickerOrChangeControl(horizontalPadding: 32) },
+                        studentPills: { studentPillsSection },
+                        inboxStatus: { inboxStatusSection },
+                        notes: { notesSection }
+                    )
                     
                     // 6. Progress buttons row
                     progressButtonsRow
@@ -347,110 +317,46 @@ struct StudentLessonDetailContentView: View {
         return AnyView(
             VStack(spacing: 0) {
                 // Header toolbar
-                HStack {
-                    Button {
-                        checkAndExitWorkflowMode()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("Back")
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Spacer()
-                    
-                    Text("\(lessonTitle) Presentation Workflow")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    
-                    Spacer()
-                    
-                    #if os(macOS)
-                    Button {
+                #if os(macOS)
+                WorkflowHeaderBar(
+                    lessonTitle: lessonTitle,
+                    onBack: checkAndExitWorkflowMode,
+                    onComplete: handleWorkflowComplete,
+                    canComplete: canCompleteWorkflow(presentationVM: presentationVM),
+                    onPopOut: {
                         popOutToIndependentWindow(
                             presentationVM: presentationVM,
                             lessonTitle: lessonTitle,
                             lessonID: lessonID,
                             selectedStudents: selectedStudents
                         )
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.forward.square")
-                            Text("Pop Out")
-                        }
                     }
-                    .buttonStyle(.bordered)
-                    .help("Open in independent window")
-                    #endif
-                    
-                    Button("Complete & Save") {
-                        handleWorkflowComplete()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canCompleteWorkflow(presentationVM: presentationVM))
-                }
-                .padding()
-                .background(.bar)
-                
-                Divider()
+                )
+                #else
+                WorkflowHeaderBar(
+                    lessonTitle: lessonTitle,
+                    onBack: checkAndExitWorkflowMode,
+                    onComplete: handleWorkflowComplete,
+                    canComplete: canCompleteWorkflow(presentationVM: presentationVM)
+                )
+                #endif
                 
                 // Three-panel layout
                 GeometryReader { geometry in
                     HStack(spacing: 0) {
                         // Left Panel: Planning View
                         VStack(spacing: 0) {
-                            // Header
-                            VStack(spacing: 8) {
-                                Text("Planning")
-                                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(.bar)
-                            
-                            Divider()
+                            PlanningPanelHeader()
                             
                             ScrollView {
-                                VStack(spacing: 0) {
-                                    // 1. Lesson Title & Tags Header
-                                    lessonHeaderSection
-                                        .padding(.horizontal, 24)
-                                        .padding(.top, 24)
-                                
-                                // 2. Conditional Lesson Picker
-                                if vm.lessonObject(from: lessons) == nil || vm.showLessonPicker {
-                                    lessonPickerSection
-                                        .padding(.horizontal, 24)
-                                        .padding(.top, 16)
-                                } else {
-                                    ChangeLessonControl(showLessonPicker: $vm.showLessonPicker)
-                                        .padding(.horizontal, 24)
-                                        .padding(.top, 8)
-                                }
-                                
-                                // 3. Student Pills Block
-                                studentPillsSection
-                                    .padding(.horizontal, 24)
-                                    .padding(.top, 20)
-                                
-                                Divider()
-                                    .padding(.horizontal, 24)
-                                    .padding(.vertical, 20)
-                                
-                                // 4. Inbox/Scheduling Status Row
-                                inboxStatusSection
-                                    .padding(.horizontal, 24)
-                                
-                                Divider()
-                                    .padding(.horizontal, 24)
-                                    .padding(.vertical, 20)
-                                
-                                // 5. Notes Section
-                                notesSection
-                                    .padding(.horizontal, 24)
-                                    .padding(.top, 24)
-                                    .padding(.bottom, 32)
-                                }
+                                PlanningContentSections(
+                                    horizontalPadding: 24,
+                                    lessonHeader: { lessonHeaderSection },
+                                    lessonPicker: { lessonPickerOrChangeControl(horizontalPadding: 24) },
+                                    studentPills: { studentPillsSection },
+                                    inboxStatus: { inboxStatusSection },
+                                    notes: { notesSection }
+                                )
                             }
                         }
                         .frame(width: geometry.size.width * 0.28)
@@ -555,63 +461,7 @@ struct StudentLessonDetailContentView: View {
         vm.showWorkflowPanel = false
     }
     #endif
-    
-    // MARK: - Workflow Panel View (Embedded)
-    
-    private var workflowPanelView: some View {
-        guard let presentationVM = vm.presentationViewModel else {
-            return AnyView(EmptyView())
-        }
-        
-        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
-        let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
-        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
-        
-        return AnyView(
-            VStack(spacing: 0) {
-                // Header with back button and complete button
-                HStack {
-                    Button {
-                        vm.exitWorkflowMode()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("Back to Planning")
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Spacer()
-                    
-                    Text("Presentation Workflow")
-                        .font(.headline)
-                    
-                    Spacer()
-                    
-                    Button("Complete & Save") {
-                        handleWorkflowComplete()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!presentationVM.canDismiss)
-                }
-                .padding()
-                .background(.bar)
-                
-                Divider()
-                
-                // Embedded workflow panel
-                UnifiedPresentationWorkflowPanel(
-                    presentationViewModel: presentationVM,
-                    students: selectedStudents,
-                    lessonName: lessonTitle,
-                    lessonID: lessonID,
-                    onComplete: { handleWorkflowComplete() },
-                    onCancel: { vm.exitWorkflowMode() },
-                    triggerCompletion: nil
-                )
-            }
-        )
-    }
+
     
     private func handleWorkflowComplete() {
         // Sync state back to detail VM
@@ -715,210 +565,34 @@ struct StudentLessonDetailContentView: View {
     }
     
     @ViewBuilder
-    private var progressButtonsRow: some View {
-        #if os(iOS)
-        if horizontalSizeClass == .compact {
-            // iPhone: Stack buttons vertically
-            HStack(spacing: 8) {
-                Button { selectJustPresented() } label: {
-                    StatePill(
-                        title: "Just Presented",
-                        systemImage: "checkmark.circle.fill",
-                        tint: .green,
-                        active: isJustPresentedActive
-                    )
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-
-                Button { selectPreviouslyPresented() } label: {
-                    StatePill(
-                        title: "Previously",
-                        systemImage: "clock.badge.checkmark",
-                        tint: .green,
-                        active: isPreviouslyPresentedActive
-                    )
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-            }
+    private func lessonPickerOrChangeControl(horizontalPadding: CGFloat) -> some View {
+        if vm.lessonObject(from: lessons) == nil || vm.showLessonPicker {
+            lessonPickerSection
+                .padding(.horizontal, horizontalPadding)
+                .padding(.top, 16)
         } else {
-            // iPad: Original horizontal layout
-            HStack(spacing: 12) {
-                Button { selectJustPresented() } label: {
-                    StatePill(
-                        title: "Just Presented",
-                        systemImage: "checkmark.circle.fill",
-                        tint: .green,
-                        active: isJustPresentedActive
-                    )
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-
-                Button { selectPreviouslyPresented() } label: {
-                    StatePill(
-                        title: "Previously Presented",
-                        systemImage: "clock.badge.checkmark",
-                        tint: .green,
-                        active: isPreviouslyPresentedActive
-                    )
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-            }
+            ChangeLessonControl(showLessonPicker: $vm.showLessonPicker)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.top, 8)
         }
-        #else
-        // macOS: Original horizontal layout
-        HStack(spacing: 12) {
-            Button { selectJustPresented() } label: {
-                StatePill(
-                    title: "Just Presented",
-                    systemImage: "checkmark.circle.fill",
-                    tint: .green,
-                    active: isJustPresentedActive
-                )
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-
-            Button { selectPreviouslyPresented() } label: {
-                StatePill(
-                    title: "Previously Presented",
-                    systemImage: "clock.badge.checkmark",
-                    tint: .green,
-                    active: isPreviouslyPresentedActive
-                )
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-        }
-        #endif
+    }
+    
+    private var progressButtonsRow: some View {
+        ProgressStateRow(
+            onJustPresented: selectJustPresented,
+            onPreviouslyPresented: selectPreviouslyPresented,
+            isJustPresentedActive: isJustPresentedActive,
+            isPreviouslyPresentedActive: isPreviouslyPresentedActive
+        )
     }
     
     private var bottomBar: some View {
-        VStack(spacing: 0) {
-            Divider()
-            Group {
-                #if os(iOS)
-                if horizontalSizeClass == .compact {
-                    // iPhone: Stack buttons vertically for better touch targets
-                    VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            Button(role: .destructive) {
-                                vm.showDeleteAlert = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            .frame(maxWidth: .infinity)
-
-                            Button("Cancel") {
-                                // Cleanup empty drafts if cancelling
-                                if vm.studentLesson.studentIDs.isEmpty {
-                                    modelContext.delete(vm.studentLesson)
-                                    try? modelContext.save()
-                                }
-                                handleDone()
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        
-                        Button("Save") {
-                            vm.save(
-                                studentsAll: studentsAll,
-                                lessons: lessons,
-                                studentLessonsAll: studentLessonsAll,
-                                calendar: calendar
-                            ) {
-                                handleDone()
-                            }
-                        }
-                        .bold()
-                        .buttonStyle(.borderedProminent)
-                        .frame(maxWidth: .infinity)
-                        .disabled(vm.selectedStudentIDs.isEmpty)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                } else {
-                    // iPad: Original horizontal layout
-                    HStack {
-                        Button(role: .destructive) {
-                            vm.showDeleteAlert = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-
-                        Spacer()
-
-                        Button("Cancel") {
-                            // Cleanup empty drafts if cancelling
-                            if vm.studentLesson.studentIDs.isEmpty {
-                                modelContext.delete(vm.studentLesson)
-                                try? modelContext.save()
-                            }
-                            handleDone()
-                        }
-
-                        Button("Save") {
-                            vm.save(
-                                studentsAll: studentsAll,
-                                lessons: lessons,
-                                studentLessonsAll: studentLessonsAll,
-                                calendar: calendar
-                            ) {
-                                handleDone()
-                            }
-                        }
-                        .bold()
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
-                        .disabled(vm.selectedStudentIDs.isEmpty)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                }
-                #else
-                // macOS: Original horizontal layout
-                HStack {
-                    Button(role: .destructive) {
-                        vm.showDeleteAlert = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-
-                    Spacer()
-
-                    Button("Cancel") {
-                        // Cleanup empty drafts if cancelling
-                        if vm.studentLesson.studentIDs.isEmpty {
-                            modelContext.delete(vm.studentLesson)
-                            try? modelContext.save()
-                        }
-                        handleDone()
-                    }
-
-                    Button("Save") {
-                        vm.save(
-                            studentsAll: studentsAll,
-                            lessons: lessons,
-                            studentLessonsAll: studentLessonsAll,
-                            calendar: calendar
-                        ) {
-                            handleDone()
-                        }
-                    }
-                    .bold()
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(vm.selectedStudentIDs.isEmpty)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                #endif
-            }
-            .background(.bar)
-        }
+        StudentLessonBottomBar(
+            onDelete: { vm.showDeleteAlert = true },
+            onCancel: handleCancelWithCleanup,
+            onSave: handleSaveAndDone,
+            isSaveDisabled: vm.selectedStudentIDs.isEmpty
+        )
     }
     
     private var moveStudentsSheet: some View {
@@ -945,42 +619,7 @@ struct StudentLessonDetailContentView: View {
         .presentationSizingFitted()
         #endif
     }
-    
-    private var assignmentComposerSheet: some View {
-        let selected = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
-        let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
-        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
 
-        return UnifiedPresentationWorkflowSheet(
-            students: selected,
-            lessonName: lessonTitle,
-            lessonID: lessonID,
-            onComplete: {
-                // Work items are created by the workflow sheet
-                // Update VM state to mark as presented
-                vm.isPresented = true
-                vm.givenAt = calendar.startOfDay(for: Date())
-                vm.needsAnotherPresentation = false
-                
-                vm.showAssignmentComposer = false
-                vm.save(
-                    studentsAll: studentsAll,
-                    lessons: lessons,
-                    studentLessonsAll: studentLessonsAll,
-                    calendar: calendar
-                ) {
-                    handleDone()
-                }
-            },
-            onCancel: {
-                // Reset status changes if user cancels
-                vm.isPresented = vm.studentLesson.isPresented
-                vm.givenAt = vm.studentLesson.givenAt
-                vm.needsAnotherPresentation = vm.studentLesson.needsAnotherPresentation
-                vm.showAssignmentComposer = false
-            }
-        )
-    }
 
     // MARK: - Helpers & Logic
     
@@ -989,6 +628,26 @@ struct StudentLessonDetailContentView: View {
             onDone()
         } else {
             dismiss()
+        }
+    }
+    
+    private func handleCancelWithCleanup() {
+        // Cleanup empty drafts if cancelling
+        if vm.studentLesson.studentIDs.isEmpty {
+            modelContext.delete(vm.studentLesson)
+            try? modelContext.save()
+        }
+        handleDone()
+    }
+    
+    private func handleSaveAndDone() {
+        vm.save(
+            studentsAll: studentsAll,
+            lessons: lessons,
+            studentLessonsAll: studentLessonsAll,
+            calendar: calendar
+        ) {
+            handleDone()
         }
     }
 
@@ -1037,134 +696,8 @@ struct StudentLessonDetailContentView: View {
     
     // MARK: - Mastery Status Row
 
-    @ViewBuilder
     private var masteryStatusRow: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "star.circle")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 16))
-                Text("Mastery Status")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            #if os(iOS)
-            if horizontalSizeClass == .compact {
-                // iPhone: Use full-width buttons in a vertical stack
-                VStack(spacing: 8) {
-                    Button { vm.masteryState = .presented } label: {
-                        StatePill(
-                            title: "Presented",
-                            systemImage: "eye.fill",
-                            tint: .blue,
-                            active: vm.masteryState == .presented
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-
-                    Button { vm.masteryState = .practicing } label: {
-                        StatePill(
-                            title: "Practicing",
-                            systemImage: "arrow.triangle.2.circlepath",
-                            tint: .purple,
-                            active: vm.masteryState == .practicing
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-
-                    Button { vm.masteryState = .mastered } label: {
-                        StatePill(
-                            title: "Mastered",
-                            systemImage: "checkmark.seal.fill",
-                            tint: .green,
-                            active: vm.masteryState == .mastered
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                }
-            } else {
-                // iPad: Horizontal layout
-                HStack(spacing: 12) {
-                    Button { vm.masteryState = .presented } label: {
-                        StatePill(
-                            title: "Presented",
-                            systemImage: "eye.fill",
-                            tint: .blue,
-                            active: vm.masteryState == .presented
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Button { vm.masteryState = .practicing } label: {
-                        StatePill(
-                            title: "Practicing",
-                            systemImage: "arrow.triangle.2.circlepath",
-                            tint: .purple,
-                            active: vm.masteryState == .practicing
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Button { vm.masteryState = .mastered } label: {
-                        StatePill(
-                            title: "Mastered",
-                            systemImage: "checkmark.seal.fill",
-                            tint: .green,
-                            active: vm.masteryState == .mastered
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
-                }
-            }
-            #else
-            // macOS: Horizontal layout (unchanged)
-            HStack(spacing: 12) {
-                Button { vm.masteryState = .presented } label: {
-                    StatePill(
-                        title: "Presented",
-                        systemImage: "eye.fill",
-                        tint: .blue,
-                        active: vm.masteryState == .presented
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button { vm.masteryState = .practicing } label: {
-                    StatePill(
-                        title: "Practicing",
-                        systemImage: "arrow.triangle.2.circlepath",
-                        tint: .purple,
-                        active: vm.masteryState == .practicing
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button { vm.masteryState = .mastered } label: {
-                    StatePill(
-                        title: "Mastered",
-                        systemImage: "checkmark.seal.fill",
-                        tint: .green,
-                        active: vm.masteryState == .mastered
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-            }
-            #endif
-        }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-        )
+        MasteryStateRow(masteryState: $vm.masteryState)
     }
 
     // MARK: - Progress State Logic
@@ -1216,18 +749,7 @@ struct StudentLessonDetailContentView: View {
         vm.givenAt = nil
         vm.needsAnotherPresentation = true
     }
-    
-    // MARK: - Assignments Logic
 
-    private func createFollowUpAssignments(_ assignments: [PostPresentationAssignmentsSheet.AssignmentEntry]) {
-        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
-        StudentLessonAssignmentService.createFollowUpAssignments(
-            assignments,
-            lessonID: lessonID,
-            studentLessonsAll: studentLessonsAll,
-            modelContext: modelContext
-        )
-    }
 
 
 
@@ -1264,29 +786,5 @@ struct StudentLessonDetailContentView: View {
         vm.showingMoveStudentsSheet = true
     }
 
-    // MARK: - UI Components
-    private struct StatePill: View {
-        let title: String
-        let systemImage: String
-        let tint: Color
-        var active: Bool = false
-        var body: some View {
-            HStack(spacing: 8) {
-                Image(systemName: systemImage)
-                Text(title)
-            }
-            .font(.callout.weight(.semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .foregroundStyle(tint)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(tint.opacity(active ? 0.20 : 0.10))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(tint.opacity(0.35), lineWidth: 1)
-            )
-        }
-    }
+
 }

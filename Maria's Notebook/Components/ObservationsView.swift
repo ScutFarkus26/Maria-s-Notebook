@@ -351,48 +351,18 @@ struct ObservationsView: View {
     }
     
     private func contextText(for note: Note) -> String? {
-        if let lesson = note.lesson {
-            return "Lesson: \(lesson.name)"
-        }
-        if let work = note.work {
-            return "Work: \(work.title)"
-        }
-        if note.lessonAssignment != nil {
-            return "Presentation"
-        }
-        if note.studentLesson != nil {
-            return "Presentation"
-        }
-        if note.work != nil {
-            return "Work: \(note.work?.title ?? "")"
-        }
-        if note.attendanceRecord != nil {
-            return "Attendance"
-        }
-        if note.workCheckIn != nil {
-            return "Check-In"
-        }
-        if note.workCompletionRecord != nil {
-            return "Completion"
-        }
-        if note.workPlanItem != nil {
-            return "Plan"
-        }
-        if note.studentMeeting != nil {
-            return "Meeting"
-        }
-        if note.projectSession != nil {
-            return "Session"
-        }
-        if let communityTopic = note.communityTopic {
-            return "Topic: \(communityTopic.title)"
-        }
-        if note.reminder != nil {
-            return "Reminder"
-        }
-        if note.schoolDayOverride != nil {
-            return "Override"
-        }
+        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
+        if let work = note.work { return "Work: \(work.title)" }
+        if note.lessonAssignment != nil || note.studentLesson != nil { return "Presentation" }
+        if note.attendanceRecord != nil { return "Attendance" }
+        if note.workCheckIn != nil { return "Check-In" }
+        if note.workCompletionRecord != nil { return "Completion" }
+        if note.workPlanItem != nil { return "Plan" }
+        if note.studentMeeting != nil { return "Meeting" }
+        if note.projectSession != nil { return "Session" }
+        if let communityTopic = note.communityTopic { return "Topic: \(communityTopic.title)" }
+        if note.reminder != nil { return "Reminder" }
+        if note.schoolDayOverride != nil { return "Override" }
         return nil
     }
 
@@ -475,45 +445,19 @@ struct ObservationsView: View {
     }
     
     private func contextForNote(_ note: Note) -> UnifiedNoteEditor.NoteContext {
-        if let lesson = note.lesson {
-            return .lesson(lesson)
-        }
-        if let work = note.work {
-            return .work(work)
-        }
-        if let pres = note.lessonAssignment {
-            return .presentation(pres)
-        }
-        if let studentLesson = note.studentLesson {
-            return .studentLesson(studentLesson)
-        }
-        if let attendanceRecord = note.attendanceRecord {
-            return .attendance(attendanceRecord)
-        }
-        if let workCheckIn = note.workCheckIn {
-            return .workCheckIn(workCheckIn)
-        }
-        if let workCompletion = note.workCompletionRecord {
-            return .workCompletion(workCompletion)
-        }
-        if let workPlanItem = note.workPlanItem {
-            return .workPlanItem(workPlanItem)
-        }
-        if let studentMeeting = note.studentMeeting {
-            return .studentMeeting(studentMeeting)
-        }
-        if let projectSession = note.projectSession {
-            return .projectSession(projectSession)
-        }
-        if let communityTopic = note.communityTopic {
-            return .communityTopic(communityTopic)
-        }
-        if let reminder = note.reminder {
-            return .reminder(reminder)
-        }
-        if let schoolDayOverride = note.schoolDayOverride {
-            return .schoolDayOverride(schoolDayOverride)
-        }
+        if let lesson = note.lesson { return .lesson(lesson) }
+        if let work = note.work { return .work(work) }
+        if let pres = note.lessonAssignment { return .presentation(pres) }
+        if let studentLesson = note.studentLesson { return .studentLesson(studentLesson) }
+        if let attendanceRecord = note.attendanceRecord { return .attendance(attendanceRecord) }
+        if let workCheckIn = note.workCheckIn { return .workCheckIn(workCheckIn) }
+        if let workCompletion = note.workCompletionRecord { return .workCompletion(workCompletion) }
+        if let workPlanItem = note.workPlanItem { return .workPlanItem(workPlanItem) }
+        if let studentMeeting = note.studentMeeting { return .studentMeeting(studentMeeting) }
+        if let projectSession = note.projectSession { return .projectSession(projectSession) }
+        if let communityTopic = note.communityTopic { return .communityTopic(communityTopic) }
+        if let reminder = note.reminder { return .reminder(reminder) }
+        if let schoolDayOverride = note.schoolDayOverride { return .schoolDayOverride(schoolDayOverride) }
         return .general
     }
 

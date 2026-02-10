@@ -358,7 +358,7 @@ private struct StudentNotesTimelineList: View {
                                 Button {
                                     batchUpdateCategory(to: category)
                                 } label: {
-                                    Label(category.rawValue.capitalized, systemImage: categoryIcon(for: category))
+                                    Label(NoteCategoryHelpers.label(for: category), systemImage: NoteCategoryHelpers.icon(for: category))
                                 }
                             }
                         } label: {
@@ -398,49 +398,30 @@ private struct StudentNotesTimelineList: View {
 
     // MARK: - Batch Operations
 
-    private func batchDelete() {
+    private func performBatchAction(_ action: (Set<UUID>) -> Void) {
         withAnimation {
-            viewModel.batchDelete(ids: selectedNoteIDs)
+            action(selectedNoteIDs)
             selectedNoteIDs.removeAll()
             isSelecting = false
         }
+    }
+
+    private func batchDelete() {
+        performBatchAction(viewModel.batchDelete(ids:))
     }
 
     private func batchUpdateCategory(to category: NoteCategory) {
-        withAnimation {
-            viewModel.batchUpdateCategory(category, for: selectedNoteIDs)
-            selectedNoteIDs.removeAll()
-            isSelecting = false
-        }
+        performBatchAction { viewModel.batchUpdateCategory(category, for: $0) }
     }
 
     private func batchToggleReportFlag() {
-        withAnimation {
-            viewModel.batchToggleReportFlag(for: selectedNoteIDs)
-            selectedNoteIDs.removeAll()
-            isSelecting = false
-        }
+        performBatchAction(viewModel.batchToggleReportFlag(for:))
     }
 
     private func batchTogglePin() {
-        withAnimation {
-            viewModel.batchTogglePin(for: selectedNoteIDs)
-            selectedNoteIDs.removeAll()
-            isSelecting = false
-        }
+        performBatchAction(viewModel.batchTogglePin(for:))
     }
 
-    private func categoryIcon(for category: NoteCategory) -> String {
-        switch category {
-        case .academic: return "book.fill"
-        case .behavioral: return "hand.raised.fill"
-        case .social: return "person.2.fill"
-        case .emotional: return "heart.fill"
-        case .health: return "cross.fill"
-        case .attendance: return "calendar"
-        case .general: return "note.text"
-        }
-    }
     
     private var canAdd: Bool {
         !newNoteText.trimmed().isEmpty
@@ -683,60 +664,24 @@ private struct CategoryFilterChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: categoryIcon)
+                Image(systemName: NoteCategoryHelpers.icon(for: category))
                     .font(.caption)
-                Text(categoryLabel)
+                Text(NoteCategoryHelpers.label(for: category))
                     .font(.caption)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? categoryColor.opacity(0.2) : Color.primary.opacity(0.06))
+                    .fill(isSelected ? NoteCategoryHelpers.color(for: category).opacity(0.2) : Color.primary.opacity(0.06))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(isSelected ? categoryColor : Color.clear, lineWidth: 1)
+                    .strokeBorder(isSelected ? NoteCategoryHelpers.color(for: category) : Color.clear, lineWidth: 1)
             )
-            .foregroundStyle(isSelected ? categoryColor : .secondary)
+            .foregroundStyle(isSelected ? NoteCategoryHelpers.color(for: category) : .secondary)
         }
         .buttonStyle(.plain)
-    }
-
-    private var categoryLabel: String {
-        switch category {
-        case .academic: return "Academic"
-        case .behavioral: return "Behavioral"
-        case .social: return "Social"
-        case .emotional: return "Emotional"
-        case .health: return "Health"
-        case .attendance: return "Attendance"
-        case .general: return "General"
-        }
-    }
-
-    private var categoryIcon: String {
-        switch category {
-        case .academic: return "book.fill"
-        case .behavioral: return "hand.raised.fill"
-        case .social: return "person.2.fill"
-        case .emotional: return "heart.fill"
-        case .health: return "cross.fill"
-        case .attendance: return "calendar"
-        case .general: return "note.text"
-        }
-    }
-
-    private var categoryColor: Color {
-        switch category {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .purple
-        case .emotional: return .pink
-        case .health: return .red
-        case .attendance: return .green
-        case .general: return .gray
-        }
     }
 }
 

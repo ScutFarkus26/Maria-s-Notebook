@@ -148,30 +148,17 @@ public final class IncrementalBackupService {
         let metadataJSON = try JSONEncoder().encode(metadata)
         let metadataString = String(data: metadataJSON, encoding: .utf8)
 
-        let envelope = BackupEnvelope(
-            formatVersion: BackupFile.formatVersion,
-            createdAt: Date(),
-            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
-            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-            device: ProcessInfo.processInfo.hostName,
-            manifest: BackupManifest(
-                entityCounts: changedCounts,
-                sha256: sha,
-                notes: metadataString,
-                compression: BackupFile.compressionAlgorithm
-            ),
+        let envelope = BackupServiceHelpers.buildEnvelope(
             payload: finalPayload,
             encryptedPayload: finalEncrypted,
-            compressedPayload: finalCompressed
+            compressedPayload: finalCompressed,
+            entityCounts: changedCounts,
+            sha256: sha,
+            notes: metadataString
         )
 
         progress(0.8, "Writing backup file…")
-        let envBytes = try encoder.encode(envelope)
-
-        if FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
-        }
-        try envBytes.write(to: url, options: .atomic)
+        try BackupServiceHelpers.writeBackupFile(envelope: envelope, to: url, encoder: encoder)
 
         // Update last backup tracking
         UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: Keys.lastIncrementalBackupDate)
@@ -181,7 +168,7 @@ public final class IncrementalBackupService {
 
         // Calculate saved bytes (estimate based on total vs changed)
         let estimatedFullSize = backupService.estimateBackupSizeFromCounts(totalCounts)
-        let actualSize = Int64(envBytes.count)
+        let actualSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 ?? 0
         let savedBytes = max(0, estimatedFullSize - actualSize)
 
         return IncrementalBackupResult(
@@ -358,41 +345,28 @@ public final class IncrementalBackupService {
             "ProjectWeekRoleAssignment": mergedProjectWeekAssignments.count
         ]
 
-        let envelope = BackupEnvelope(
-            formatVersion: BackupFile.formatVersion,
-            createdAt: Date(),
-            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
-            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-            device: ProcessInfo.processInfo.hostName,
-            manifest: BackupManifest(
-                entityCounts: counts,
-                sha256: sha,
-                notes: "Consolidated from \(backupURLs.count) incremental backups",
-                compression: BackupFile.compressionAlgorithm
-            ),
-            payload: nil,
+        let envelope = BackupServiceHelpers.buildEnvelope(
             encryptedPayload: finalEncrypted,
-            compressedPayload: finalCompressed
+            compressedPayload: finalCompressed,
+            entityCounts: counts,
+            sha256: sha,
+            notes: "Consolidated from \(backupURLs.count) incremental backups"
         )
 
         progress(0.95, "Writing consolidated backup…")
-        let envBytes = try encoder.encode(envelope)
-
-        if FileManager.default.fileExists(atPath: outputURL.path) {
-            try? FileManager.default.removeItem(at: outputURL)
-        }
-        try envBytes.write(to: outputURL, options: .atomic)
+        try BackupServiceHelpers.writeBackupFile(envelope: envelope, to: outputURL, encoder: encoder)
 
         progress(1.0, "Consolidation complete")
 
         let totalEntities = counts.values.reduce(0, +)
+        let fileSize = try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64 ?? 0
 
         return ConsolidationResult(
             outputURL: outputURL,
             consolidatedBackupCount: backupURLs.count,
             totalEntities: totalEntities,
             entityCounts: counts,
-            fileSize: Int64(envBytes.count),
+            fileSize: fileSize,
             isEncrypted: finalEncrypted != nil
         )
     }
@@ -525,242 +499,26 @@ public final class IncrementalBackupService {
         let projectWeeks: [ProjectTemplateWeek] = fetchFiltered(ProjectTemplateWeek.self)
         let projectWeekAssignments: [ProjectWeekRoleAssignment] = fetchFiltered(ProjectWeekRoleAssignment.self)
 
-        // Convert to DTOs (reusing existing conversion logic patterns)
-        let studentDTOs: [StudentDTO] = students.map { s in
-            let level: StudentDTO.Level = (s.level == .upper) ? .upper : .lower
-            return StudentDTO(
-                id: s.id,
-                firstName: s.firstName,
-                lastName: s.lastName,
-                birthday: s.birthday,
-                dateStarted: s.dateStarted,
-                level: level,
-                nextLessons: s.nextLessonUUIDs,
-                manualOrder: s.manualOrder,
-                createdAt: nil,
-                updatedAt: nil
-            )
-        }
-
-        let lessonDTOs: [LessonDTO] = lessons.map { l in
-            LessonDTO(
-                id: l.id,
-                name: l.name,
-                subject: l.subject,
-                group: l.group,
-                orderInGroup: l.orderInGroup,
-                subheading: l.subheading,
-                writeUp: l.writeUp,
-                createdAt: nil,
-                updatedAt: nil,
-                pagesFileRelativePath: l.pagesFileRelativePath
-            )
-        }
-
-        let studentLessonDTOs: [StudentLessonDTO] = studentLessons.compactMap { sl in
-            guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { return nil }
-            return StudentLessonDTO(
-                id: sl.id,
-                lessonID: lessonIDUUID,
-                studentIDs: sl.resolvedStudentIDs,
-                createdAt: sl.createdAt,
-                scheduledFor: sl.scheduledFor,
-                givenAt: sl.givenAt,
-                isPresented: sl.isPresented,
-                notes: sl.notes,
-                needsPractice: sl.needsPractice,
-                needsAnotherPresentation: sl.needsAnotherPresentation,
-                followUpWork: sl.followUpWork,
-                studentGroupKey: nil
-            )
-        }
-
-        let workPlanItemDTOs: [WorkPlanItemDTO] = workPlanItems.compactMap { w in
-            guard let workIDUUID = UUID(uuidString: w.workID) else { return nil }
-            return WorkPlanItemDTO(
-                id: w.id,
-                workID: workIDUUID,
-                scheduledDate: w.scheduledDate,
-                reason: w.reasonRaw ?? (w.reason?.rawValue ?? ""),
-                note: w.note
-            )
-        }
-
-        let noteDTOs: [NoteDTO] = notes.map { n in
-            let scopeString: String
-            if let data = try? JSONEncoder().encode(n.scope) {
-                scopeString = String(data: data, encoding: .utf8) ?? "{}"
-            } else {
-                scopeString = "{}"
-            }
-            return NoteDTO(
-                id: n.id,
-                createdAt: n.createdAt,
-                updatedAt: n.updatedAt,
-                body: n.body,
-                isPinned: n.isPinned,
-                scope: scopeString,
-                lessonID: n.lesson?.id,
-                imagePath: n.imagePath
-            )
-        }
-
-        let nonSchoolDTOs: [NonSchoolDayDTO] = nonSchoolDays.map { d in
-            NonSchoolDayDTO(id: d.id, date: d.date, reason: d.reason)
-        }
-
-        let schoolOverrideDTOs: [SchoolDayOverrideDTO] = schoolDayOverrides.map { o in
-            SchoolDayOverrideDTO(id: o.id, date: o.date, note: o.note)
-        }
-
-        let studentMeetingDTOs: [StudentMeetingDTO] = studentMeetings.compactMap { m in
-            guard let studentIDUUID = UUID(uuidString: m.studentID) else { return nil }
-            return StudentMeetingDTO(
-                id: m.id,
-                studentID: studentIDUUID,
-                date: m.date,
-                completed: m.completed,
-                reflection: m.reflection,
-                focus: m.focus,
-                requests: m.requests,
-                guideNotes: m.guideNotes
-            )
-        }
-
-        let topicDTOs: [CommunityTopicDTO] = communityTopics.map { t in
-            CommunityTopicDTO(
-                id: t.id,
-                title: t.title,
-                issueDescription: t.issueDescription,
-                createdAt: t.createdAt,
-                addressedDate: t.addressedDate,
-                resolution: t.resolution,
-                raisedBy: t.raisedBy,
-                tags: t.tags
-            )
-        }
-
-        let solutionDTOs: [ProposedSolutionDTO] = proposedSolutions.map { s in
-            ProposedSolutionDTO(
-                id: s.id,
-                topicID: s.topic?.id,
-                title: s.title,
-                details: s.details,
-                proposedBy: s.proposedBy,
-                createdAt: s.createdAt,
-                isAdopted: s.isAdopted
-            )
-        }
-
-        let attachmentDTOs: [CommunityAttachmentDTO] = communityAttachments.map { a in
-            CommunityAttachmentDTO(
-                id: a.id,
-                topicID: a.topic?.id,
-                filename: a.filename,
-                kind: a.kind.rawValue,
-                createdAt: a.createdAt
-            )
-        }
-
-        let attendanceDTOs: [AttendanceRecordDTO] = attendance.compactMap { a in
-            guard let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
-            return AttendanceRecordDTO(
-                id: a.id,
-                studentID: studentIDUUID,
-                date: a.date,
-                status: a.status.rawValue,
-                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
-                note: a.note
-            )
-        }
-
-        let workCompletionDTOs: [WorkCompletionRecordDTO] = workCompletions.compactMap { r in
-            guard let workIDUUID = UUID(uuidString: r.workID),
-                  let studentIDUUID = UUID(uuidString: r.studentID) else { return nil }
-            return WorkCompletionRecordDTO(
-                id: r.id,
-                workID: workIDUUID,
-                studentID: studentIDUUID,
-                completedAt: r.completedAt,
-                note: r.note
-            )
-        }
-
-        let projectDTOs: [ProjectDTO] = projects.map { c in
-            ProjectDTO(
-                id: c.id,
-                createdAt: c.createdAt,
-                title: c.title,
-                bookTitle: c.bookTitle,
-                memberStudentIDs: c.memberStudentIDs
-            )
-        }
-
-        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] = projectTemplates.compactMap { t in
-            guard let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
-            return ProjectAssignmentTemplateDTO(
-                id: t.id,
-                createdAt: t.createdAt,
-                projectID: projectIDUUID,
-                title: t.title,
-                instructions: t.instructions,
-                isShared: t.isShared,
-                defaultLinkedLessonID: t.defaultLinkedLessonID
-            )
-        }
-
-        let projectSessionDTOs: [ProjectSessionDTO] = projectSessions.compactMap { s in
-            guard let projectIDUUID = UUID(uuidString: s.projectID) else { return nil }
-            let templateWeekIDUUID = s.templateWeekID.flatMap { UUID(uuidString: $0) }
-            return ProjectSessionDTO(
-                id: s.id,
-                createdAt: s.createdAt,
-                projectID: projectIDUUID,
-                meetingDate: s.meetingDate,
-                chapterOrPages: s.chapterOrPages,
-                notes: s.notes,
-                agendaItemsJSON: s.agendaItemsJSON,
-                templateWeekID: templateWeekIDUUID
-            )
-        }
-
-        let projectRoleDTOs: [ProjectRoleDTO] = projectRoles.compactMap { r in
-            guard let projectIDUUID = UUID(uuidString: r.projectID) else { return nil }
-            return ProjectRoleDTO(
-                id: r.id,
-                createdAt: r.createdAt,
-                projectID: projectIDUUID,
-                title: r.title,
-                summary: r.summary,
-                instructions: r.instructions
-            )
-        }
-
-        let projectWeekDTOs: [ProjectTemplateWeekDTO] = projectWeeks.compactMap { w in
-            guard let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
-            return ProjectTemplateWeekDTO(
-                id: w.id,
-                createdAt: w.createdAt,
-                projectID: projectIDUUID,
-                weekIndex: w.weekIndex,
-                readingRange: w.readingRange,
-                agendaItemsJSON: w.agendaItemsJSON,
-                linkedLessonIDsJSON: w.linkedLessonIDsJSON,
-                workInstructions: w.workInstructions
-            )
-        }
-
-        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] = projectWeekAssignments.compactMap { a in
-            guard let weekIDUUID = UUID(uuidString: a.weekID),
-                  let roleIDUUID = UUID(uuidString: a.roleID) else { return nil }
-            return ProjectWeekRoleAssignmentDTO(
-                id: a.id,
-                createdAt: a.createdAt,
-                weekID: weekIDUUID,
-                studentID: a.studentID,
-                roleID: roleIDUUID
-            )
-        }
+        // Convert to DTOs using shared helpers
+        let studentDTOs = BackupServiceHelpers.toDTOs(students)
+        let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
+        let studentLessonDTOs = BackupServiceHelpers.toDTOs(studentLessons)
+        let workPlanItemDTOs = BackupServiceHelpers.toDTOs(workPlanItems)
+        let noteDTOs = BackupServiceHelpers.toDTOs(notes)
+        let nonSchoolDTOs = BackupServiceHelpers.toDTOs(nonSchoolDays)
+        let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(schoolDayOverrides)
+        let studentMeetingDTOs = BackupServiceHelpers.toDTOs(studentMeetings)
+        let topicDTOs = BackupServiceHelpers.toDTOs(communityTopics)
+        let solutionDTOs = BackupServiceHelpers.toDTOs(proposedSolutions)
+        let attachmentDTOs = BackupServiceHelpers.toDTOs(communityAttachments)
+        let attendanceDTOs = BackupServiceHelpers.toDTOs(attendance)
+        let workCompletionDTOs = BackupServiceHelpers.toDTOs(workCompletions)
+        let projectDTOs = BackupServiceHelpers.toDTOs(projects)
+        let projectTemplateDTOs = BackupServiceHelpers.toDTOs(projectTemplates)
+        let projectSessionDTOs = BackupServiceHelpers.toDTOs(projectSessions)
+        let projectRoleDTOs = BackupServiceHelpers.toDTOs(projectRoles)
+        let projectWeekDTOs = BackupServiceHelpers.toDTOs(projectWeeks)
+        let projectWeekAssignDTOs = BackupServiceHelpers.toDTOs(projectWeekAssignments)
 
         let lessonAssignmentDTOs: [LessonAssignmentDTO] = lessonAssignments.map { la in
             LessonAssignmentDTO(

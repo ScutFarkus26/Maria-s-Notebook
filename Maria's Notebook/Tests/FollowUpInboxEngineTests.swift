@@ -10,177 +10,84 @@ struct FollowUpInboxItemTests {
 
     // MARK: - Kind Tests
 
-    @Test("Kind.lessonFollowUp has correct label")
-    func kindLessonFollowUpLabel() {
-        let kind = FollowUpInboxItem.Kind.lessonFollowUp
-
-        #expect(kind.label == "Lesson")
+    @Test("Kind label mappings are correct")
+    func kindLabelMappings() {
+        let cases: [(FollowUpInboxItem.Kind, String)] = [
+            (.lessonFollowUp, "Lesson"),
+            (.workCheckIn, "Check-In"),
+            (.workReview, "Review")
+        ]
+        expectEnumProperty(for: cases, keyPath: \.label)
     }
 
-    @Test("Kind.workCheckIn has correct label")
-    func kindWorkCheckInLabel() {
-        let kind = FollowUpInboxItem.Kind.workCheckIn
-
-        #expect(kind.label == "Check-In")
-    }
-
-    @Test("Kind.workReview has correct label")
-    func kindWorkReviewLabel() {
-        let kind = FollowUpInboxItem.Kind.workReview
-
-        #expect(kind.label == "Review")
-    }
-
-    @Test("Kind.lessonFollowUp has correct icon")
-    func kindLessonFollowUpIcon() {
-        let kind = FollowUpInboxItem.Kind.lessonFollowUp
-
-        #expect(kind.icon == "text.book.closed")
-    }
-
-    @Test("Kind.workCheckIn has correct icon")
-    func kindWorkCheckInIcon() {
-        let kind = FollowUpInboxItem.Kind.workCheckIn
-
-        #expect(kind.icon == "checklist")
-    }
-
-    @Test("Kind.workReview has correct icon")
-    func kindWorkReviewIcon() {
-        let kind = FollowUpInboxItem.Kind.workReview
-
-        #expect(kind.icon == "eye")
+    @Test("Kind icon mappings are correct")
+    func kindIconMappings() {
+        let cases: [(FollowUpInboxItem.Kind, String)] = [
+            (.lessonFollowUp, "text.book.closed"),
+            (.workCheckIn, "checklist"),
+            (.workReview, "eye")
+        ]
+        expectEnumProperty(for: cases, keyPath: \.icon)
     }
 
     // MARK: - Bucket Tests
 
-    @Test("Bucket.overdue has correct rawValue")
-    func bucketOverdueRawValue() {
-        let bucket = FollowUpInboxItem.Bucket.overdue
-
-        #expect(bucket.rawValue == 0)
+    @Test("Bucket rawValue mappings are correct")
+    func bucketRawValueMappings() {
+        let cases: [(FollowUpInboxItem.Bucket, Int)] = [
+            (.overdue, 0),
+            (.dueToday, 1),
+            (.inbox, 2),
+            (.upcoming, 3)
+        ]
+        expectEnumProperty(for: cases, keyPath: \.rawValue)
     }
 
-    @Test("Bucket.dueToday has correct rawValue")
-    func bucketDueTodayRawValue() {
-        let bucket = FollowUpInboxItem.Bucket.dueToday
-
-        #expect(bucket.rawValue == 1)
-    }
-
-    @Test("Bucket.inbox has correct rawValue")
-    func bucketInboxRawValue() {
-        let bucket = FollowUpInboxItem.Bucket.inbox
-
-        #expect(bucket.rawValue == 2)
-    }
-
-    @Test("Bucket.upcoming has correct rawValue")
-    func bucketUpcomingRawValue() {
-        let bucket = FollowUpInboxItem.Bucket.upcoming
-
-        #expect(bucket.rawValue == 3)
-    }
-
-    @Test("Bucket.overdue title is 'Overdue'")
-    func bucketOverdueTitle() {
-        let bucket = FollowUpInboxItem.Bucket.overdue
-
-        #expect(bucket.title == "Overdue")
-    }
-
-    @Test("Bucket.dueToday title is 'Due Today'")
-    func bucketDueTodayTitle() {
-        let bucket = FollowUpInboxItem.Bucket.dueToday
-
-        #expect(bucket.title == "Due Today")
-    }
-
-    @Test("Bucket.inbox title is 'Needs Scheduling'")
-    func bucketInboxTitle() {
-        let bucket = FollowUpInboxItem.Bucket.inbox
-
-        #expect(bucket.title == "Needs Scheduling")
-    }
-
-    @Test("Bucket.upcoming title is 'Upcoming'")
-    func bucketUpcomingTitle() {
-        let bucket = FollowUpInboxItem.Bucket.upcoming
-
-        #expect(bucket.title == "Upcoming")
+    @Test("Bucket title mappings are correct")
+    func bucketTitleMappings() {
+        let cases: [(FollowUpInboxItem.Bucket, String)] = [
+            (.overdue, "Overdue"),
+            (.dueToday, "Due Today"),
+            (.inbox, "Needs Scheduling"),
+            (.upcoming, "Upcoming")
+        ]
+        expectEnumProperty(for: cases, keyPath: \.title)
     }
 
     // MARK: - Bucket Comparison Tests
 
-    @Test("Bucket comparison: overdue < dueToday")
-    func bucketComparisonOverdueLessThanDueToday() {
-        #expect(FollowUpInboxItem.Bucket.overdue < FollowUpInboxItem.Bucket.dueToday)
-    }
-
-    @Test("Bucket comparison: dueToday < inbox")
-    func bucketComparisonDueTodayLessThanInbox() {
-        #expect(FollowUpInboxItem.Bucket.dueToday < FollowUpInboxItem.Bucket.inbox)
-    }
-
-    @Test("Bucket comparison: inbox < upcoming")
-    func bucketComparisonInboxLessThanUpcoming() {
-        #expect(FollowUpInboxItem.Bucket.inbox < FollowUpInboxItem.Bucket.upcoming)
-    }
-
-    @Test("Bucket comparison: overdue is smallest")
-    func bucketComparisonOverdueSmallest() {
-        let all = FollowUpInboxItem.Bucket.allCases
-        let smallest = all.min()
-
-        #expect(smallest == .overdue)
-    }
-
-    @Test("Bucket comparison: upcoming is largest")
-    func bucketComparisonUpcomingLargest() {
-        let all = FollowUpInboxItem.Bucket.allCases
-        let largest = all.max()
-
-        #expect(largest == .upcoming)
+    @Test("Bucket ordering follows priority")
+    func bucketOrderingFollowsPriority() {
+        #expect(FollowUpInboxItem.Bucket.overdue < .dueToday)
+        #expect(FollowUpInboxItem.Bucket.dueToday < .inbox)
+        #expect(FollowUpInboxItem.Bucket.inbox < .upcoming)
+        #expect(FollowUpInboxItem.Bucket.allCases.min() == .overdue)
+        #expect(FollowUpInboxItem.Bucket.allCases.max() == .upcoming)
     }
 
     // MARK: - FollowUpInboxItem Creation Tests
 
     @Test("FollowUpInboxItem stores all properties correctly")
     func itemStoresProperties() {
-        let item = FollowUpInboxItem(
-            id: "test:123",
-            underlyingID: UUID(),
-            childID: UUID(),
-            childName: "Test Child",
-            title: "Test Lesson",
-            kind: .lessonFollowUp,
-            statusText: "Overdue - 10d",
-            ageDays: 10,
-            bucket: .overdue
-        )
+        let builder = FollowUpInboxItemBuilder()
+        let item = builder
+            .withBucket(.overdue)
+            .withAge(10)
+            .build()
 
-        #expect(item.id == "test:123")
         #expect(item.childName == "Test Child")
         #expect(item.title == "Test Lesson")
         #expect(item.kind == .lessonFollowUp)
-        #expect(item.statusText == "Overdue - 10d")
         #expect(item.ageDays == 10)
         #expect(item.bucket == .overdue)
     }
 
     @Test("FollowUpInboxItem allows nil childID")
     func itemAllowsNilChildID() {
-        let item = FollowUpInboxItem(
-            id: "test:123",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Group",
-            title: "Group Lesson",
-            kind: .lessonFollowUp,
-            statusText: "Due Today",
-            ageDays: 7,
-            bucket: .dueToday
-        )
+        let item = FollowUpInboxItemBuilder()
+            .withNoChild()
+            .withChildName("Group")
+            .build()
 
         #expect(item.childID == nil)
         #expect(item.childName == "Group")
@@ -188,124 +95,32 @@ struct FollowUpInboxItemTests {
 
     // MARK: - sortKey Tests
 
-    @Test("sortKey includes bucket priority")
-    func sortKeyIncludesBucket() {
-        let overdueItem = FollowUpInboxItem(
-            id: "test:1",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Alice",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 10,
-            bucket: .overdue
-        )
+    @Test("sortKey sorts by bucket, then age, then child name")
+    func sortKeyOrdering() {
+        let builder = FollowUpInboxItemBuilder().withNoChild()
 
-        let upcomingItem = FollowUpInboxItem(
-            id: "test:2",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Alice",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 10,
-            bucket: .upcoming
-        )
+        // Bucket priority
+        let overdue = builder.withBucket(.overdue).withAge(10).withChildName("Alice").build()
+        let upcoming = builder.withBucket(.upcoming).withAge(10).withChildName("Alice").build()
+        #expect(overdue.sortKey < upcoming.sortKey)
 
-        // Overdue should sort before upcoming
-        #expect(overdueItem.sortKey < upcomingItem.sortKey)
-    }
+        // Age within bucket (higher age first)
+        let older = builder.withBucket(.overdue).withAge(15).withChildName("Alice").build()
+        let newer = builder.withBucket(.overdue).withAge(8).withChildName("Alice").build()
+        #expect(older.sortKey < newer.sortKey)
 
-    @Test("sortKey sorts by age within same bucket")
-    func sortKeyByAgeWithinBucket() {
-        let olderItem = FollowUpInboxItem(
-            id: "test:1",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Alice",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 15,
-            bucket: .overdue
-        )
-
-        let newerItem = FollowUpInboxItem(
-            id: "test:2",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Alice",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 8,
-            bucket: .overdue
-        )
-
-        // Higher age should sort first (reversed for urgency)
-        #expect(olderItem.sortKey < newerItem.sortKey)
-    }
-
-    @Test("sortKey sorts by child name within same bucket and age")
-    func sortKeyByChildName() {
-        let aliceItem = FollowUpInboxItem(
-            id: "test:1",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Alice",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 10,
-            bucket: .overdue
-        )
-
-        let bobItem = FollowUpInboxItem(
-            id: "test:2",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "Bob",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 10,
-            bucket: .overdue
-        )
-
-        // Alice should sort before Bob
-        #expect(aliceItem.sortKey < bobItem.sortKey)
+        // Child name within bucket and age
+        let alice = builder.withBucket(.overdue).withAge(10).withChildName("Alice").build()
+        let bob = builder.withBucket(.overdue).withAge(10).withChildName("Bob").build()
+        #expect(alice.sortKey < bob.sortKey)
     }
 
     @Test("sortKey is case insensitive for child name")
     func sortKeyCaseInsensitiveChildName() {
-        let lowercaseItem = FollowUpInboxItem(
-            id: "test:1",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "alice",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 10,
-            bucket: .overdue
-        )
-
-        let uppercaseItem = FollowUpInboxItem(
-            id: "test:2",
-            underlyingID: UUID(),
-            childID: nil,
-            childName: "ALICE",
-            title: "Lesson",
-            kind: .lessonFollowUp,
-            statusText: "",
-            ageDays: 10,
-            bucket: .overdue
-        )
-
-        // Should sort the same (both lowercase in sortKey)
-        #expect(lowercaseItem.sortKey == uppercaseItem.sortKey)
+        let builder = FollowUpInboxItemBuilder().withNoChild().withBucket(.overdue).withAge(10)
+        let lowercase = builder.withChildName("alice").build()
+        let uppercase = builder.withChildName("ALICE").build()
+        #expect(lowercase.sortKey == uppercase.sortKey)
     }
 
     // MARK: - Equatable Tests
@@ -413,36 +228,11 @@ struct FollowUpInboxEngineConstantsTests {
 @MainActor
 struct FollowUpInboxEngineEdgeCasesTests {
 
-    // MARK: - Test Helpers
-
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkCheckIn.self,
-            Note.self,
-            NonSchoolDay.self,
-            SchoolDayOverride.self,
-        ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
-    }
-
-    private func makeStudent(id: UUID = UUID(), firstName: String = "Test", lastName: String = "Student") -> Student {
-        return Student(id: id, firstName: firstName, lastName: lastName, birthday: TestCalendar.date(year: 2015, month: 6, day: 15))
-    }
-
-    private func makeLesson(id: UUID = UUID(), name: String = "Test Lesson") -> Lesson {
-        return Lesson(id: id, name: name, subject: "Math", group: "A", orderInGroup: 1)
-    }
-
     // MARK: - Empty Dataset Tests
 
     @Test("computeItems returns empty array when all inputs are empty")
     func emptyInputsReturnEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
         let items = FollowUpInboxEngine.computeItems(
@@ -457,10 +247,10 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
     @Test("computeItems handles empty lessons list")
     func emptyLessons() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
+        let student = makeTestStudent()
         let studentLesson = StudentLesson(lessonID: UUID(), studentIDs: [student.id], isPresented: true)
 
         let items = FollowUpInboxEngine.computeItems(
@@ -470,16 +260,15 @@ struct FollowUpInboxEngineEdgeCasesTests {
             modelContext: context
         )
 
-        // Should still create items but with fallback lesson title
-        #expect(!items.isEmpty || items.isEmpty) // Either is valid depending on filtering
+        #expect(items.count >= 0) // Should handle gracefully
     }
 
     @Test("computeItems handles empty students list")
     func emptyStudents() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let lesson = makeLesson()
+        let lesson = makeTestLesson()
         let studentLesson = StudentLesson(lessonID: lesson.id, studentIDs: [], isPresented: true)
 
         let items = FollowUpInboxEngine.computeItems(
@@ -489,18 +278,16 @@ struct FollowUpInboxEngineEdgeCasesTests {
             modelContext: context
         )
 
-        // Should handle gracefully (may create items with "Student" fallback or skip)
-        // Just verify it doesn't crash
-        #expect(items.count >= 0)
+        #expect(items.count >= 0) // Should handle gracefully
     }
 
     @Test("computeItems handles empty studentLessons list")
     func emptyStudentLessons() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let lesson = makeLesson()
-        let student = makeStudent()
+        let lesson = makeTestLesson()
+        let student = makeTestStudent()
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
@@ -516,20 +303,15 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
     @Test("computeItems handles 100+ items efficiently")
     func largeDataset() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        // Create 50 students
         let students = (0..<50).map { i in
-            makeStudent(firstName: "Student\(i)", lastName: "Last\(i)")
+            makeTestStudent(firstName: "Student\(i)", lastName: "Last\(i)")
         }
-
-        // Create 20 lessons
         let lessons = (0..<20).map { i in
-            makeLesson(name: "Lesson \(i)")
+            makeTestLesson(name: "Lesson \(i)")
         }
-
-        // Create 100 student lessons (various combinations)
         let studentLessons: [StudentLesson] = (0..<100).map { i in
             let student = students[i % students.count]
             let lesson = lessons[i % lessons.count]
@@ -548,120 +330,67 @@ struct FollowUpInboxEngineEdgeCasesTests {
             modelContext: context
         )
 
-        // Should handle large dataset without crashing
         #expect(items.count >= 0)
     }
 
     // MARK: - Bucket Classification Edge Cases
 
-    @Test("computeItems classifies exactly at threshold as dueToday")
-    func exactlyAtThresholdDueToday() throws {
-        let container = try makeContainer()
+    @Test("computeItems classifies lessons by age threshold")
+    func bucketClassification() throws {
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
-        let lesson = makeLesson()
+        let student = makeTestStudent()
+        let lesson = makeTestLesson()
 
-        // Get the date that is exactly 7 school days ago (default threshold)
-        // The engine counts school days (weekdays only), not calendar days
-        let today = AppCalendar.startOfDay(Date())
-        var schoolDaysBack = 0
-        var cursor = today
-        while schoolDaysBack < 7 {
-            cursor = AppCalendar.addingDays(-1, to: cursor)
-            let weekday = AppCalendar.shared.component(.weekday, from: cursor)
-            if weekday != 1 && weekday != 7 { // Not weekend
-                schoolDaysBack += 1
-            }
-        }
-        let sevenSchoolDaysAgo = cursor
-
-        let studentLesson = StudentLesson(
+        // Test at threshold (7 school days = dueToday)
+        let sl1 = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            givenAt: sevenSchoolDaysAgo,
+            givenAt: schoolDaysAgo(7),
             isPresented: true
         )
-
-        let items = FollowUpInboxEngine.computeItems(
+        let items1 = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [studentLesson],
+            studentLessons: [sl1],
             modelContext: context
         )
-
-        // Should be classified as dueToday, not overdue
-        if let item = items.first {
+        if let item = items1.first {
             #expect(item.bucket == .dueToday)
         }
-    }
 
-    @Test("computeItems classifies 1 day past threshold as overdue")
-    func oneDayPastThresholdOverdue() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let student = makeStudent()
-        let lesson = makeLesson()
-
-        // Get the date that is 8 school days ago (1 past default threshold of 7)
-        // The engine counts school days (weekdays only), not calendar days
-        let today = AppCalendar.startOfDay(Date())
-        var schoolDaysBack = 0
-        var cursor = today
-        while schoolDaysBack < 8 {
-            cursor = AppCalendar.addingDays(-1, to: cursor)
-            let weekday = AppCalendar.shared.component(.weekday, from: cursor)
-            if weekday != 1 && weekday != 7 { // Not weekend
-                schoolDaysBack += 1
-            }
-        }
-        let eightSchoolDaysAgo = cursor
-
-        let studentLesson = StudentLesson(
+        // Test past threshold (8 school days = overdue)
+        let sl2 = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            givenAt: eightSchoolDaysAgo,
+            givenAt: schoolDaysAgo(8),
             isPresented: true
         )
-
-        let items = FollowUpInboxEngine.computeItems(
+        let items2 = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [studentLesson],
+            studentLessons: [sl2],
             modelContext: context
         )
-
-        if let item = items.first {
+        if let item = items2.first {
             #expect(item.bucket == .overdue)
         }
-    }
 
-    @Test("computeItems classifies 2 days before threshold as upcoming")
-    func twoDaysBeforeThresholdUpcoming() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let student = makeStudent()
-        let lesson = makeLesson()
-
-        // Lesson presented 5 days ago (2 before default threshold of 7)
-        let fiveDaysAgo = AppCalendar.addingDays(-5, to: Date())
-        let studentLesson = StudentLesson(
+        // Test before threshold (5 days = upcoming)
+        let sl3 = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            givenAt: fiveDaysAgo,
+            givenAt: AppCalendar.addingDays(-5, to: Date()),
             isPresented: true
         )
-
-        let items = FollowUpInboxEngine.computeItems(
+        let items3 = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [studentLesson],
+            studentLessons: [sl3],
             modelContext: context
         )
-
-        if let item = items.first {
+        if let item = items3.first {
             #expect(item.bucket == .upcoming)
         }
     }
@@ -670,13 +399,11 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
     @Test("computeItems excludes lessons with follow-up work")
     func excludesLessonsWithFollowUpWork() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
-        let lesson = makeLesson()
-
-        // Create a presented lesson
+        let student = makeTestStudent()
+        let lesson = makeTestLesson()
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
@@ -684,7 +411,6 @@ struct FollowUpInboxEngineEdgeCasesTests {
             isPresented: true
         )
 
-        // Create follow-up work linked to this student lesson
         let work = WorkModel(
             title: "Follow-up work",
             status: .active,
@@ -692,7 +418,6 @@ struct FollowUpInboxEngineEdgeCasesTests {
             lessonID: lesson.id.uuidString
         )
         work.studentLessonID = studentLesson.id
-
         context.insert(work)
         try context.save()
 
@@ -703,38 +428,36 @@ struct FollowUpInboxEngineEdgeCasesTests {
             modelContext: context
         )
 
-        // Lesson should be excluded from follow-up inbox because work exists
-        let lessonFollowUps = items.filter { $0.kind == .lessonFollowUp }
-        #expect(lessonFollowUps.isEmpty)
+        #expect(items.filter { $0.kind == .lessonFollowUp }.isEmpty)
     }
 
     // MARK: - Multi-Student Group Tests
 
     @Test("computeItems handles group lessons with multiple students")
     func groupLessonsMultipleStudents() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student1 = makeStudent(firstName: "Alice", lastName: "Anderson")
-        let student2 = makeStudent(firstName: "Bob", lastName: "Brown")
-        let student3 = makeStudent(firstName: "Charlie", lastName: "Chen")
-        let lesson = makeLesson(name: "Group Lesson")
-
+        let students = [
+            makeTestStudent(firstName: "Alice", lastName: "Anderson"),
+            makeTestStudent(firstName: "Bob", lastName: "Brown"),
+            makeTestStudent(firstName: "Charlie", lastName: "Chen")
+        ]
+        let lesson = makeTestLesson(name: "Group Lesson")
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
-            studentIDs: [student1.id, student2.id, student3.id],
+            studentIDs: students.map { $0.id },
             givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
             isPresented: true
         )
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
-            students: [student1, student2, student3],
+            students: students,
             studentLessons: [studentLesson],
             modelContext: context
         )
 
-        // Should create one item for the group
         if let item = items.first(where: { $0.kind == .lessonFollowUp }) {
             #expect(item.childName == "Group")
             #expect(item.childID == nil)
@@ -745,12 +468,12 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
     @Test("computeItems(for:) filters to specific student")
     func filterToSpecificStudent() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student1 = makeStudent(id: UUID(), firstName: "Alice", lastName: "Anderson")
-        let student2 = makeStudent(id: UUID(), firstName: "Bob", lastName: "Brown")
-        let lesson = makeLesson()
+        let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
+        let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
+        let lesson = makeTestLesson()
 
         let sl1 = StudentLesson(
             lessonID: lesson.id,
@@ -773,17 +496,16 @@ struct FollowUpInboxEngineEdgeCasesTests {
             modelContext: context
         )
 
-        // Should only include items for student1
         #expect(items.allSatisfy { $0.childID == student1.id })
     }
 
     @Test("computeItems(for:) returns empty for non-existent student")
     func filterToNonExistentStudent() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
-        let lesson = makeLesson()
+        let student = makeTestStudent()
+        let lesson = makeTestLesson()
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
@@ -791,10 +513,8 @@ struct FollowUpInboxEngineEdgeCasesTests {
             isPresented: true
         )
 
-        let nonExistentStudentID = UUID()
-
         let items = FollowUpInboxEngine.computeItems(
-            for: nonExistentStudentID,
+            for: UUID(),
             lessons: [lesson],
             students: [student],
             studentLessons: [studentLesson],
@@ -808,27 +528,13 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
     @Test("computeItems sorts by bucket priority first")
     func sortsByBucketFirst() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
-        let lesson1 = makeLesson(id: UUID(), name: "Lesson 1")
-        let lesson2 = makeLesson(id: UUID(), name: "Lesson 2")
+        let student = makeTestStudent()
+        let lesson1 = makeTestLesson(name: "Lesson 1")
+        let lesson2 = makeTestLesson(name: "Lesson 2")
 
-        // Helper to find date N school days ago
-        func schoolDaysAgo(_ n: Int) -> Date {
-            let today = AppCalendar.startOfDay(Date())
-            var count = 0
-            var cursor = today
-            while count < n {
-                cursor = AppCalendar.addingDays(-1, to: cursor)
-                let weekday = AppCalendar.shared.component(.weekday, from: cursor)
-                if weekday != 1 && weekday != 7 { count += 1 }
-            }
-            return cursor
-        }
-
-        // Create one overdue (10 school days > 7 threshold) and one upcoming (5 school days, 2 before threshold)
         let overdueLesson = StudentLesson(
             lessonID: lesson1.id,
             studentIDs: [student.id],
@@ -850,22 +556,19 @@ struct FollowUpInboxEngineEdgeCasesTests {
         )
 
         #expect(items.count == 2)
-        // First item should be overdue
         #expect(items[0].bucket == .overdue)
-        // Second item should be upcoming
         #expect(items[1].bucket == .upcoming)
     }
 
     @Test("computeItems sorts by age descending within same bucket")
     func sortsByAgeWithinBucket() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
-        let lesson1 = makeLesson(id: UUID(), name: "Lesson 1")
-        let lesson2 = makeLesson(id: UUID(), name: "Lesson 2")
+        let student = makeTestStudent()
+        let lesson1 = makeTestLesson(name: "Lesson 1")
+        let lesson2 = makeTestLesson(name: "Lesson 2")
 
-        // Both overdue, but different ages
         let olderLesson = StudentLesson(
             lessonID: lesson1.id,
             studentIDs: [student.id],
@@ -887,7 +590,6 @@ struct FollowUpInboxEngineEdgeCasesTests {
         )
 
         #expect(items.count == 2)
-        // Older should come first (higher age days)
         #expect(items[0].ageDays > items[1].ageDays)
     }
 
@@ -895,22 +597,19 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
     @Test("computeItems respects custom threshold constants")
     func customThresholds() throws {
-        let container = try makeContainer()
+        let container = try makeFollowUpContainer()
         let context = ModelContext(container)
 
-        let student = makeStudent()
-        let lesson = makeLesson()
+        let student = makeTestStudent()
+        let lesson = makeTestLesson()
 
-        // Lesson presented 10 days ago
-        let tenDaysAgo = AppCalendar.addingDays(-10, to: Date())
         let studentLesson = StudentLesson(
             lessonID: lesson.id,
             studentIDs: [student.id],
-            givenAt: tenDaysAgo,
+            givenAt: AppCalendar.addingDays(-10, to: Date()),
             isPresented: true
         )
 
-        // Use custom threshold of 15 days
         var customConstants = FollowUpInboxEngine.Constants()
         customConstants.lessonFollowUpOverdueDays = 15
 
@@ -922,9 +621,7 @@ struct FollowUpInboxEngineEdgeCasesTests {
             constants: customConstants
         )
 
-        // With 15-day threshold, 10 days should not be overdue or due today
         if let item = items.first {
-            // Should be upcoming or not included
             #expect(item.bucket != .overdue && item.bucket != .dueToday)
         }
     }

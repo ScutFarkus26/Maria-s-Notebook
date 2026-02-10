@@ -365,277 +365,27 @@ struct UnifiedPostPresentationSheet: View {
     }
 
     private func studentEntryRow(for student: Student) -> some View {
-        let isExpanded = viewModel.expandedStudentIDs.contains(student.id)
-        let entry = viewModel.entries[student.id]
-        let hasContent = !(entry?.observation.isEmpty ?? true) || !(entry?.assignment.isEmpty ?? true)
-
-        return VStack(spacing: 0) {
-            // Header row (always visible)
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    if isExpanded {
-                        viewModel.expandedStudentIDs.remove(student.id)
-                    } else {
-                        viewModel.expandedStudentIDs.insert(student.id)
-                    }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    // Student name
-                    Text(StudentFormatter.displayName(for: student))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    Spacer()
-
-                    // Understanding level indicator
-                    understandingIndicator(for: student.id)
-
-                    // Status indicators
-                    HStack(spacing: 4) {
-                        if hasContent {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.system(size: 14))
-                        }
-
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: isExpanded ? 12 : 8, style: .continuous)
-                        .fill(Color.primary.opacity(isExpanded ? 0.06 : 0.03))
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            // Expanded content
-            if isExpanded {
-                VStack(spacing: 12) {
-                    // Understanding level picker
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Understanding")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 8) {
-                            ForEach(1...5, id: \.self) { level in
-                                Button {
-                                    viewModel.entries[student.id]?.understandingLevel = level
-                                } label: {
-                                    Circle()
-                                        .fill(understandingColor(for: level).opacity(
-                                            (viewModel.entries[student.id]?.understandingLevel ?? 3) >= level ? 1.0 : 0.2
-                                        ))
-                                        .frame(width: 24, height: 24)
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            Spacer()
-
-                            Text(understandingLabel(for: viewModel.entries[student.id]?.understandingLevel ?? 3))
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    // Observation
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Observation")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        TextField("Note about this student...", text: Binding(
-                            get: { viewModel.entries[student.id]?.observation ?? "" },
-                            set: { viewModel.entries[student.id]?.observation = $0 }
-                        ), axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(2...4)
-                    }
-
-                    // Assignment
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Follow-up Work")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        TextField("Assignment for this student...", text: Binding(
-                            get: { viewModel.entries[student.id]?.assignment ?? "" },
-                            set: { viewModel.entries[student.id]?.assignment = $0 }
-                        ), axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(1...3)
-                        
-                        // Suggested work quick-pick buttons
-                        if !suggestedWorkItems.isEmpty && (viewModel.entries[student.id]?.assignment ?? "").isEmpty {
-                            HStack(spacing: 6) {
-                                ForEach(Array(suggestedWorkItems.prefix(3).enumerated()), id: \.offset) { index, suggestion in
-                                    suggestedWorkButton(for: suggestion, studentID: student.id)
-                                }
-                            }
-                        }
-                    }
-
-                    // Schedule
-                    HStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Check-in")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-
-                            let hasCheckIn = viewModel.entries[student.id]?.checkInDate != nil
-                            HStack(spacing: 4) {
-                                Button {
-                                    if hasCheckIn {
-                                        viewModel.entries[student.id]?.checkInDate = nil
-                                    } else {
-                                        viewModel.entries[student.id]?.checkInDate = viewModel.defaultCheckInDate
-                                    }
-                                } label: {
-                                    Image(systemName: hasCheckIn ? "checkmark.square.fill" : "square")
-                                        .foregroundStyle(hasCheckIn ? .blue : .secondary)
-                                }
-                                .buttonStyle(.plain)
-
-                                if hasCheckIn {
-                                    DatePicker("", selection: Binding(
-                                        get: { viewModel.entries[student.id]?.checkInDate ?? viewModel.defaultCheckInDate },
-                                        set: { viewModel.entries[student.id]?.checkInDate = $0 }
-                                    ), displayedComponents: .date)
-                                    .labelsHidden()
-                                }
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Due Date")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-
-                            let hasDue = viewModel.entries[student.id]?.dueDate != nil
-                            HStack(spacing: 4) {
-                                Button {
-                                    if hasDue {
-                                        viewModel.entries[student.id]?.dueDate = nil
-                                    } else {
-                                        viewModel.entries[student.id]?.dueDate = viewModel.defaultDueDate
-                                    }
-                                } label: {
-                                    Image(systemName: hasDue ? "checkmark.square.fill" : "square")
-                                        .foregroundStyle(hasDue ? .blue : .secondary)
-                                }
-                                .buttonStyle(.plain)
-
-                                if hasDue {
-                                    DatePicker("", selection: Binding(
-                                        get: { viewModel.entries[student.id]?.dueDate ?? viewModel.defaultDueDate },
-                                        set: { viewModel.entries[student.id]?.dueDate = $0 }
-                                    ), displayedComponents: .date)
-                                    .labelsHidden()
-                                }
-                            }
-                        }
-
-                        Spacer()
-                    }
-                    
-                    // Unlock Next Lesson
-                    if let nextLesson = findNextLesson(for: student.id) {
-                        Divider()
-                            .padding(.vertical, 8)
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Next Lesson")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                
-                                Spacer()
-                            }
-                            
-                            HStack(spacing: 8) {
-                                Button {
-                                    if viewModel.studentsToUnlock.contains(student.id) {
-                                        viewModel.studentsToUnlock.remove(student.id)
-                                    } else {
-                                        viewModel.studentsToUnlock.insert(student.id)
-                                    }
-                                } label: {
-                                    Image(systemName: viewModel.studentsToUnlock.contains(student.id) ? "checkmark.square.fill" : "square")
-                                        .foregroundStyle(viewModel.studentsToUnlock.contains(student.id) ? .green : .secondary)
-                                }
-                                .buttonStyle(.plain)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Unlock: \(nextLesson.name)")
-                                        .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    
-                                    if viewModel.studentsToUnlock.contains(student.id) {
-                                        Text("Will be unlocked when you click Done")
-                                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                                            .foregroundStyle(.green)
-                                    } else {
-                                        Text("Lesson will remain blocked")
-                                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                        }
-                    }
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .padding(.top, -4)
-            }
-        }
+        PresentationStudentRow(
+            student: student,
+            entry: Binding(
+                get: { viewModel.entries[student.id] ?? StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student)) },
+                set: { viewModel.entries[student.id] = $0 }
+            ),
+            isExpanded: Binding(
+                get: { viewModel.expandedStudentIDs.contains(student.id) },
+                set: { if $0 { viewModel.expandedStudentIDs.insert(student.id) } else { viewModel.expandedStudentIDs.remove(student.id) } }
+            ),
+            suggestedWorkItems: suggestedWorkItems,
+            nextLesson: findNextLesson(for: student.id),
+            isUnlockSelected: Binding(
+                get: { viewModel.studentsToUnlock.contains(student.id) },
+                set: { if $0 { viewModel.studentsToUnlock.insert(student.id) } else { viewModel.studentsToUnlock.remove(student.id) } }
+            ),
+            defaultCheckInDate: viewModel.defaultCheckInDate,
+            defaultDueDate: viewModel.defaultDueDate
+        )
     }
 
-    private func understandingIndicator(for studentID: UUID) -> some View {
-        let level = viewModel.entries[studentID]?.understandingLevel ?? 3
-        return HStack(spacing: 2) {
-            ForEach(1...5, id: \.self) { i in
-                Circle()
-                    .fill(understandingColor(for: level).opacity(i <= level ? 1.0 : 0.2))
-                    .frame(width: 8, height: 8)
-            }
-        }
-    }
-
-    private func understandingColor(for level: Int) -> Color {
-        switch level {
-        case 1: return .red
-        case 2: return .orange
-        case 3: return .yellow
-        case 4: return .green
-        case 5: return .blue
-        default: return .gray
-        }
-    }
-
-    private func understandingLabel(for level: Int) -> String {
-        switch level {
-        case 1: return "Struggling"
-        case 2: return "Needs Support"
-        case 3: return "Developing"
-        case 4: return "Proficient"
-        case 5: return "Mastered"
-        default: return ""
-        }
-    }
-    
     private func findNextLesson(for studentID: UUID) -> Lesson? {
         guard let currentLessonID = lessonID else { return nil }
         guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else { return nil }
@@ -725,31 +475,6 @@ struct UnifiedPostPresentationSheet: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
-    }
-    
-    // MARK: - Helper Views
-    
-    private func suggestedWorkButton(for suggestion: String, studentID: UUID) -> some View {
-        Button {
-            viewModel.entries[studentID]?.assignment = suggestion
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 9))
-                let truncated = suggestion.count > 20 ? String(suggestion.prefix(20)) + "..." : suggestion
-                Text(truncated)
-                    .lineLimit(1)
-            }
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(Color.accentColor.opacity(0.08))
-            )
-            .foregroundStyle(Color.accentColor)
-        }
-        .buttonStyle(.plain)
     }
 }
 

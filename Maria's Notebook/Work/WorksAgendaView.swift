@@ -269,66 +269,11 @@ struct WorksAgendaView: View {
         return "Lesson \(String(lessonID.prefix(6)))"
     }
 
-    private func studentPrintName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-
-    private func statusLabel(for w: WorkModel) -> String {
-        switch w.status {
-        case .active:
-            return "Practice"
-        case .review:
-            return "Follow-Up"
-        case .complete:
-            return "Completed"
-        }
-    }
-
-    private func ageDays(for w: WorkModel) -> Int {
-        let start = AppCalendar.startOfDay(w.createdAt)
-        let now = AppCalendar.startOfDay(Date())
-        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
-        return comps.day ?? 0
-    }
-
-    private func latestNoteDate(for w: WorkModel) -> Date? {
-        let notes = w.unifiedNotes ?? []
-        return notes.map { max($0.updatedAt, $0.createdAt) }.max()
-    }
-
-    private func daysSince(_ date: Date) -> Int {
-        let start = AppCalendar.startOfDay(date)
-        let now = AppCalendar.startOfDay(Date())
-        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
-        return comps.day ?? 0
-    }
-
-    private func needsAttention(for w: WorkModel) -> Bool {
-        // Needs attention if overdue by due date, or last note is 10+ days old.
-        if let due = w.dueAt {
-            let today = AppCalendar.startOfDay(Date())
-            if AppCalendar.startOfDay(due) < today { return true }
-        }
-        if let lastNoteDate = latestNoteDate(for: w) {
-            return daysSince(lastNoteDate) >= 10
-        }
-        let schoolDaysSinceCreated = LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: w.createdAt,
-            asOf: Date(),
-            using: modelContext,
-            calendar: calendar
-        )
-        return schoolDaysSinceCreated >= 10
-    }
-
-    private func makePrintItems(from works: [WorkModel]) -> [WorkPrintItem] {
+    private func makePrintItems(from works: [WorkModel]) -> [WorkPDFRenderer.PrintItem] {
         works.map { w in
             let title = lessonTitle(forLessonID: w.lessonID)
             let student = (UUID(uuidString: w.studentID)).flatMap { studentsByID[$0] }.map(studentPrintName(for:)) ?? "Student"
-            return WorkPrintItem(
+            return WorkPDFRenderer.PrintItem(
                 id: w.id,
                 lessonTitle: title,
                 studentName: student,
@@ -338,6 +283,34 @@ struct WorksAgendaView: View {
                 needsAttention: needsAttention(for: w)
             )
         }
+    }
+
+    private func studentPrintName(for student: Student) -> String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+    }
+
+    private func statusLabel(for w: WorkModel) -> String {
+        switch w.status {
+        case .active: return "Practice"
+        case .review: return "Follow-Up"
+        case .complete: return "Completed"
+        }
+    }
+
+    private func ageDays(for w: WorkModel) -> Int {
+        AppCalendar.shared.dateComponents([.day], from: AppCalendar.startOfDay(w.createdAt), to: AppCalendar.startOfDay(Date())).day ?? 0
+    }
+
+    private func needsAttention(for w: WorkModel) -> Bool {
+        if let due = w.dueAt, AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) { return true }
+        if let lastNoteDate = (w.unifiedNotes ?? []).map({ max($0.updatedAt, $0.createdAt) }).max() {
+            let days = AppCalendar.shared.dateComponents([.day], from: AppCalendar.startOfDay(lastNoteDate), to: AppCalendar.startOfDay(Date())).day ?? 0
+            if days >= 10 { return true }
+        }
+        return LessonAgeHelper.schoolDaysSinceCreation(createdAt: w.createdAt, asOf: Date(), using: modelContext, calendar: calendar) >= 10
     }
 
     // MARK: - Actions
@@ -379,12 +352,12 @@ struct WorksAgendaView: View {
     private func printWorkView() {
         let works = openWorksFiltered()
         let items = makePrintItems(from: works)
-        guard let pdfData = renderWorksPDF(items: items, sortMode: sortMode, searchText: debouncedSearchText) else {
+        guard let pdfData = WorkPDFRenderer.renderPDF(items: items, sortMode: sortMode, searchText: debouncedSearchText) else {
             NSSound.beep()
             return
         }
 
-        let printInfo = configuredPrintInfo()
+        let printInfo = WorkPDFRenderer.configuredPrintInfo()
         if let doc = PDFDocument(data: pdfData),
            let operation = doc.printOperation(for: printInfo, scalingMode: .pageScaleToFit, autoRotate: false) {
             operation.showsPrintPanel = true
@@ -394,7 +367,6 @@ struct WorksAgendaView: View {
     }
 
     private func exportWorkPDF() {
-        // Capture current state BEFORE showing the panel (panel callback runs asynchronously)
         let works = openWorksFiltered()
         let items = makePrintItems(from: works)
         let currentSortMode = sortMode
@@ -407,7 +379,7 @@ struct WorksAgendaView: View {
         panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            guard let pdfData = self.renderWorksPDF(items: items, sortMode: currentSortMode, searchText: currentSearchText) else {
+            guard let pdfData = WorkPDFRenderer.renderPDF(items: items, sortMode: currentSortMode, searchText: currentSearchText) else {
                 NSSound.beep()
                 return
             }
@@ -418,374 +390,7 @@ struct WorksAgendaView: View {
             }
         }
     }
-
-    /// Renders the work items to PDF data using Core Graphics text drawing.
-    /// Compact layout to minimize paper usage while maintaining readability.
-    private func renderWorksPDF(items: [WorkPrintItem], sortMode: WorkAgendaSortMode, searchText: String) -> Data? {
-        // Page setup - tighter margins for more content
-        let pageWidth: CGFloat = 612  // US Letter
-        let pageHeight: CGFloat = 792
-        let margin: CGFloat = 36
-        let contentWidth = pageWidth - (margin * 2)
-
-        // Compact font setup
-        let titleFont = NSFont.boldSystemFont(ofSize: 14)
-        let headerFont = NSFont.boldSystemFont(ofSize: 10)
-        let bodyFont = NSFont.systemFont(ofSize: 9)
-        let smallFont = NSFont.systemFont(ofSize: 8)
-
-        // Colors
-        let blackColor = NSColor.black
-        let grayColor = NSColor(white: 0.35, alpha: 1.0)
-        let lightGrayColor = NSColor(white: 0.6, alpha: 1.0)
-
-        // Group and sort items
-        let sortedItems: [WorkPrintItem] = {
-            switch sortMode {
-            case .lesson:
-                return items.sorted { $0.lessonTitle.localizedCaseInsensitiveCompare($1.lessonTitle) == .orderedAscending }
-            case .student:
-                return items.sorted { $0.studentName.localizedCaseInsensitiveCompare($1.studentName) == .orderedAscending }
-            case .age:
-                return items.sorted { $0.ageDays > $1.ageDays }
-            case .needsAttention:
-                return items.sorted { lhs, rhs in
-                    if lhs.needsAttention != rhs.needsAttention { return lhs.needsAttention && !rhs.needsAttention }
-                    return lhs.ageDays > rhs.ageDays
-                }
-            }
-        }()
-
-        func groupKey(for item: WorkPrintItem) -> String {
-            switch sortMode {
-            case .lesson: return item.lessonTitle
-            case .student: return item.studentName
-            case .age:
-                let days = item.ageDays
-                if days <= 0 { return "Today" }
-                else if days <= 3 { return "1-3 days" }
-                else if days <= 7 { return "4-7 days" }
-                else if days <= 14 { return "8-14 days" }
-                else if days <= 30 { return "15-30 days" }
-                else { return "30+ days" }
-            case .needsAttention:
-                return item.needsAttention ? "Needs Attention" : "Other"
-            }
-        }
-
-        var groupOrder: [String] = []
-        var groups: [String: [WorkPrintItem]] = [:]
-        for item in sortedItems {
-            let key = groupKey(for: item)
-            if groups[key] == nil { groupOrder.append(key); groups[key] = [] }
-            groups[key]?.append(item)
-        }
-
-        // Create PDF data
-        let pdfData = NSMutableData()
-        var mediaBox = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
-
-        guard let consumer = CGDataConsumer(data: pdfData as CFMutableData),
-              let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
-            return nil
-        }
-
-        // Helper to draw text and return its height
-        func drawText(_ text: String, at point: CGPoint, font: NSFont, color: NSColor, maxWidth: CGFloat? = nil) -> CGFloat {
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: color
-            ]
-            let attrString = NSAttributedString(string: text, attributes: attributes)
-            let framesetter = CTFramesetterCreateWithAttributedString(attrString)
-            let fitWidth = maxWidth ?? contentWidth
-            let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
-                framesetter, CFRange(location: 0, length: attrString.length),
-                nil, CGSize(width: fitWidth, height: CGFloat.greatestFiniteMagnitude), nil
-            )
-
-            let path = CGPath(rect: CGRect(x: point.x, y: point.y - suggestedSize.height, width: fitWidth, height: suggestedSize.height + 2), transform: nil)
-            let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: attrString.length), path, nil)
-            CTFrameDraw(frame, context)
-
-            return suggestedSize.height
-        }
-
-        // Helper to draw a single line of text (no wrapping) - more efficient for compact items
-        func drawLine(_ text: String, at point: CGPoint, font: NSFont, color: NSColor) {
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: color
-            ]
-            let attrString = NSAttributedString(string: text, attributes: attributes)
-            let line = CTLineCreateWithAttributedString(attrString)
-            context.textPosition = point
-            CTLineDraw(line, context)
-        }
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .short
-
-        // Start first page
-        var currentPage = 1
-        context.beginPDFPage(nil)
-        var yPosition = pageHeight - margin
-
-        // Compact header: Title and metadata on same area
-        let titleText = "Open Work"
-        yPosition -= drawText(titleText, at: CGPoint(x: margin, y: yPosition), font: titleFont, color: blackColor)
-
-        // Metadata line - all on one line
-        var metaText = "\(dateFormatter.string(from: Date())) • \(sortMode.rawValue) • \(items.count) items"
-        if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-            metaText += " • Filter: \(searchText)"
-        }
-        yPosition -= drawText(metaText, at: CGPoint(x: margin, y: yPosition), font: smallFont, color: grayColor)
-        yPosition -= 8
-
-        // Draw a separator line
-        context.setStrokeColor(lightGrayColor.cgColor)
-        context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: margin, y: yPosition))
-        context.addLine(to: CGPoint(x: pageWidth - margin, y: yPosition))
-        context.strokePath()
-        yPosition -= 6
-
-        // Draw groups
-        for groupName in groupOrder {
-            guard let groupItems = groups[groupName] else { continue }
-
-            // Check if we need a new page
-            if yPosition < margin + 30 {
-                context.endPDFPage()
-                context.beginPDFPage(nil)
-                currentPage += 1
-                yPosition = pageHeight - margin
-            }
-
-            // Compact group header with background
-            let headerHeight: CGFloat = 12
-            context.setFillColor(NSColor(white: 0.92, alpha: 1.0).cgColor)
-            context.fill(CGRect(x: margin, y: yPosition - headerHeight, width: contentWidth, height: headerHeight))
-
-            drawLine("\(groupName) (\(groupItems.count))", at: CGPoint(x: margin + 4, y: yPosition - headerHeight + 3), font: headerFont, color: blackColor)
-            yPosition -= headerHeight + 2
-
-            // Draw items in compact single-line format
-            for item in groupItems {
-                // Check if we need a new page
-                if yPosition < margin + 14 {
-                    context.endPDFPage()
-                    context.beginPDFPage(nil)
-                    currentPage += 1
-                    yPosition = pageHeight - margin
-                }
-
-                // Build compact single-line item: "□ Lesson — Student  |  Status • 5d • Due 2/14"
-                var itemText = "☐ "
-
-                // What to show depends on sort mode - avoid redundancy
-                switch sortMode {
-                case .lesson:
-                    itemText += item.studentName
-                case .student:
-                    itemText += item.lessonTitle
-                default:
-                    itemText += "\(item.lessonTitle) — \(item.studentName)"
-                }
-
-                // Add compact details
-                var details: [String] = []
-                details.append(item.statusLabel)
-                details.append("\(item.ageDays)d")
-                if let due = item.dueAt {
-                    details.append(dateFormatter.string(from: due))
-                }
-                if item.needsAttention {
-                    details.append("⚠")
-                }
-
-                let detailsText = details.joined(separator: " • ")
-
-                // Draw checkbox and name on left, details on right
-                drawLine(itemText, at: CGPoint(x: margin + 6, y: yPosition - 9), font: bodyFont, color: blackColor)
-
-                // Right-align details
-                let detailsAttr: [NSAttributedString.Key: Any] = [.font: smallFont, .foregroundColor: grayColor]
-                let detailsSize = (detailsText as NSString).size(withAttributes: detailsAttr)
-                drawLine(detailsText, at: CGPoint(x: pageWidth - margin - detailsSize.width, y: yPosition - 9), font: smallFont, color: grayColor)
-
-                yPosition -= 12
-            }
-
-            yPosition -= 4 // Small space between groups
-        }
-
-        // Handle empty state
-        if items.isEmpty {
-            yPosition -= drawText("No open work items.", at: CGPoint(x: margin, y: yPosition), font: bodyFont, color: grayColor)
-        }
-
-        context.endPDFPage()
-        context.closePDF()
-
-        return pdfData as Data
-    }
-
-    private func configuredPrintInfo() -> NSPrintInfo {
-        let printInfo = (NSPrintInfo.shared.copy() as? NSPrintInfo) ?? NSPrintInfo.shared
-        printInfo.topMargin = 36
-        printInfo.bottomMargin = 36
-        printInfo.leftMargin = 36
-        printInfo.rightMargin = 36
-        printInfo.horizontalPagination = .fit
-        printInfo.verticalPagination = .automatic
-        printInfo.isHorizontallyCentered = false
-        printInfo.isVerticallyCentered = false
-        return printInfo
-    }
     #endif
-}
-
-fileprivate struct WorkPrintItem: Identifiable {
-    let id: UUID
-    let lessonTitle: String
-    let studentName: String
-    let statusLabel: String
-    let ageDays: Int
-    let dueAt: Date?
-    let needsAttention: Bool
-}
-
-private struct WorksAgendaPrintView: View {
-    let title: String
-    let generatedAt: Date
-    let sortMode: WorkAgendaSortMode
-    let searchText: String
-    let items: [WorkPrintItem]
-
-    // Avoid dynamic system colors in print/PDF output to prevent "white on white" rendering.
-    private var secondaryTextColor: Color { Color(white: 0.35) }
-
-    private var groupedItems: [(key: String, items: [WorkPrintItem])] {
-        var order: [String] = []
-        var buckets: [String: [WorkPrintItem]] = [:]
-        for item in sortedItems {
-            let key = groupKey(for: item)
-            if buckets[key] == nil { order.append(key); buckets[key] = [] }
-            buckets[key]?.append(item)
-        }
-        return order.map { key in (key: key, items: buckets[key] ?? []) }
-    }
-
-    private var sortedItems: [WorkPrintItem] {
-        switch sortMode {
-        case .lesson:
-            return items.sorted { $0.lessonTitle.localizedCaseInsensitiveCompare($1.lessonTitle) == .orderedAscending }
-        case .student:
-            return items.sorted { $0.studentName.localizedCaseInsensitiveCompare($1.studentName) == .orderedAscending }
-        case .age:
-            return items.sorted { $0.ageDays > $1.ageDays }
-        case .needsAttention:
-            return items.sorted { lhs, rhs in
-                if lhs.needsAttention != rhs.needsAttention { return lhs.needsAttention && !rhs.needsAttention }
-                return lhs.ageDays > rhs.ageDays
-            }
-        }
-    }
-
-    private func groupKey(for item: WorkPrintItem) -> String {
-        switch sortMode {
-        case .lesson:
-            return item.lessonTitle
-        case .student:
-            return item.studentName
-        case .age:
-            return ageBucketLabel(forDays: item.ageDays)
-        case .needsAttention:
-            return item.needsAttention ? "Needs Attention" : "Other"
-        }
-    }
-
-    private func ageBucketLabel(forDays days: Int) -> String {
-        if days <= 0 { return "Today" }
-        else if days <= 3 { return "1-3 days" }
-        else if days <= 7 { return "4-7 days" }
-        else if days <= 14 { return "8-14 days" }
-        else if days <= 30 { return "15-30 days" }
-        else { return "30+ days" }
-    }
-
-    private func formattedDate(_ date: Date) -> String {
-        DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
-    }
-
-    private func subtitle(for item: WorkPrintItem) -> String {
-        var parts: [String] = [item.statusLabel, "\(item.ageDays)d"]
-        if let due = item.dueAt {
-            parts.append("Due \(formattedDate(due))")
-        }
-        if item.needsAttention {
-            parts.append("Needs attention")
-        }
-        return parts.joined(separator: " • ")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.black)
-                Text("Generated \(formattedDate(generatedAt))")
-                    .font(.system(size: 10))
-                    .foregroundColor(secondaryTextColor)
-                Text("Sort: \(sortMode.rawValue)  |  Total: \(items.count)")
-                    .font(.system(size: 10))
-                    .foregroundColor(secondaryTextColor)
-                if !searchText.trimmed().isEmpty {
-                    Text("Filter: \(searchText)")
-                        .font(.system(size: 10))
-                        .foregroundColor(secondaryTextColor)
-                }
-            }
-
-            if items.isEmpty {
-                Text("No open work to print.")
-                    .font(.system(size: 11))
-                    .foregroundColor(secondaryTextColor)
-            } else {
-                ForEach(groupedItems, id: \.key) { section in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(section.key) (\(section.items.count))")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.black)
-                            .padding(.vertical, 2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .overlay(Rectangle().frame(height: 1).foregroundColor(secondaryTextColor), alignment: .bottom)
-                        ForEach(section.items) { item in
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("\(item.lessonTitle) - \(item.studentName)")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(.black)
-                                Text(subtitle(for: item))
-                                    .font(.system(size: 9))
-                                    .foregroundColor(secondaryTextColor)
-                            }
-                            .padding(.vertical, 1)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(14)
-        .fixedSize(horizontal: false, vertical: true)
-        // Printing runs in its own context and can inherit dark mode.
-        // Force light colors so text is visible on white paper/preview.
-        .environment(\.colorScheme, .light)
-        .background(Color.white)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
 
 #Preview {

@@ -10,225 +10,58 @@ import SwiftData
 @MainActor
 struct TodayViewModelInitializationTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
-    @Test("TodayViewModel initializes with provided date")
-    func initializesWithProvidedDate() throws {
-        let container = try makeContainer()
+    @Test("TodayViewModel initializes with provided date and normalizes to start of day")
+    func initializationAndNormalization() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15, hour: 14, minute: 30)
         let vm = TodayViewModel(context: context, date: testDate)
 
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: vm.date)
-        #expect(components.year == 2025)
-        #expect(components.month == 3)
-        #expect(components.day == 15)
+        let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: vm.date)
+        #expect(dateComponents.year == 2025)
+        #expect(dateComponents.month == 3)
+        #expect(dateComponents.day == 15)
+
+        let timeComponents = Calendar.current.dateComponents([.hour, .minute, .second], from: vm.date)
+        #expect(timeComponents.hour == 0)
+        #expect(timeComponents.minute == 0)
+        #expect(timeComponents.second == 0)
     }
 
-    @Test("TodayViewModel normalizes date to start of day")
-    func normalizesDateToStartOfDay() throws {
-        let container = try makeContainer()
+    @Test("TodayViewModel has correct default values")
+    func defaultValues() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15, hour: 14, minute: 30)
-        let vm = TodayViewModel(context: context, date: testDate)
-
-        let components = Calendar.current.dateComponents([.hour, .minute, .second], from: vm.date)
-        #expect(components.hour == 0)
-        #expect(components.minute == 0)
-        #expect(components.second == 0)
-    }
-
-    @Test("TodayViewModel defaults to current date")
-    func defaultsToCurrentDate() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
         let vm = TodayViewModel(context: context)
 
         let today = Calendar.current.startOfDay(for: Date())
         #expect(vm.date == today)
-    }
-
-    @Test("TodayViewModel defaults levelFilter to all")
-    func defaultsLevelFilterToAll() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-
         #expect(vm.levelFilter == .all)
-    }
-
-    @Test("TodayViewModel starts with empty outputs")
-    func startsWithEmptyOutputs() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-
-        #expect(vm.todaysLessons.isEmpty)
-        #expect(vm.overdueSchedule.isEmpty)
-        #expect(vm.todaysSchedule.isEmpty)
-        #expect(vm.staleFollowUps.isEmpty)
-    }
-
-    @Test("TodayViewModel starts with empty caches")
-    func startsWithEmptyCaches() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-
-        #expect(vm.studentsByID.isEmpty)
-        #expect(vm.lessonsByID.isEmpty)
+        expectEmptyViewModel(vm)
     }
 }
 
 // MARK: - TodayViewModel displayName Tests
 
-@Suite("TodayViewModel displayName Tests", .serialized)
+@Suite("TodayViewModel Helper Methods Tests", .serialized)
 @MainActor
-struct TodayViewModelDisplayNameTests {
+struct TodayViewModelHelperMethodsTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
-    @Test("displayName returns first name when unique")
-    func returnsFirstNameWhenUnique() throws {
-        let container = try makeContainer()
+    @Test("displayName and lessonName return fallbacks for unknown IDs")
+    func fallbackNamesForUnknownIDs() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
-        let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
-        context.insert(student1)
-        context.insert(student2)
-
         let vm = TodayViewModel(context: context)
-        // Manually populate the cache for testing
-        vm.reload()
 
-        // After reload, we need to manually add to the cache since reload fetches based on lessons
-        // For direct testing of displayName, manually set the cache
-    }
-
-    @Test("displayName returns Student for unknown ID")
-    func returnsStudentForUnknownID() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-        let unknownID = UUID()
-
-        let name = vm.displayName(for: unknownID)
-
-        #expect(name == "Student")
-    }
-}
-
-// MARK: - TodayViewModel lessonName Tests
-
-@Suite("TodayViewModel lessonName Tests", .serialized)
-@MainActor
-struct TodayViewModelLessonNameTests {
-
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
-    @Test("lessonName returns Lesson for unknown ID")
-    func returnsLessonForUnknownID() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-        let unknownID = UUID()
-
-        let name = vm.lessonName(for: unknownID)
-
-        #expect(name == "Lesson")
-    }
-}
-
-// MARK: - TodayViewModel duplicateFirstNames Tests
-
-@Suite("TodayViewModel duplicateFirstNames Tests", .serialized)
-@MainActor
-struct TodayViewModelDuplicateFirstNamesTests {
-
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        #expect(vm.displayName(for: UUID()) == "Student")
+        #expect(vm.lessonName(for: UUID()) == "Lesson")
     }
 
     @Test("duplicateFirstNames is empty when no students")
-    func emptyWhenNoStudents() throws {
-        let container = try makeContainer()
+    func emptyDuplicateFirstNames() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let vm = TodayViewModel(context: context)
 
         #expect(vm.duplicateFirstNames.isEmpty)
@@ -241,56 +74,13 @@ struct TodayViewModelDuplicateFirstNamesTests {
 @MainActor
 struct TodayViewModelAttendanceSummaryComputedTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
-    @Test("attendanceSummary starts with zero counts")
-    func startsWithZeroCounts() throws {
-        let container = try makeContainer()
+    @Test("attendance starts with zero counts and empty lists")
+    func initialAttendanceState() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let vm = TodayViewModel(context: context)
 
-        #expect(vm.attendanceSummary.presentCount == 0)
-        #expect(vm.attendanceSummary.tardyCount == 0)
-        #expect(vm.attendanceSummary.absentCount == 0)
-        #expect(vm.attendanceSummary.leftEarlyCount == 0)
-    }
-
-    @Test("absentToday starts empty")
-    func absentTodayStartsEmpty() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-
-        #expect(vm.absentToday.isEmpty)
-    }
-
-    @Test("leftEarlyToday starts empty")
-    func leftEarlyTodayStartsEmpty() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let vm = TodayViewModel(context: context)
-
-        #expect(vm.leftEarlyToday.isEmpty)
+        expectZeroAttendance(vm)
     }
 }
 
@@ -300,46 +90,23 @@ struct TodayViewModelAttendanceSummaryComputedTests {
 @MainActor
 struct TodayViewModelReloadTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
-    @Test("reload fetches lessons for date")
-    func reloadFetchesLessonsForDate() throws {
-        let container = try makeContainer()
+    @Test("reload fetches lessons for date and populates caches")
+    func reloadFetchesAndPopulates() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
         let nextDate = TestCalendar.date(year: 2025, month: 3, day: 16)
 
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
         let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
+        context.insert(student)
         context.insert(lesson)
 
         let sl = makeTestStudentLesson(student: student, lesson: lesson, scheduledFor: testDate)
-        context.insert(sl)
-
-        // Create one for another date to ensure filtering works
         let slOther = makeTestStudentLesson(student: student, lesson: lesson, scheduledFor: nextDate)
+        context.insert(sl)
         context.insert(slOther)
-
         try context.save()
 
         let vm = TodayViewModel(context: context, date: testDate)
@@ -347,69 +114,19 @@ struct TodayViewModelReloadTests {
 
         #expect(vm.todaysLessons.count == 1)
         #expect(vm.todaysLessons.first?.id == sl.id)
-    }
-
-    @Test("reload populates studentsByID cache")
-    func reloadPopulatesStudentsByID() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
-
-        let sl = makeTestStudentLesson(student: student, lesson: lesson, scheduledFor: testDate)
-        context.insert(sl)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
-        vm.reload()
-
-        #expect(vm.studentsByID[student.id] != nil)
         #expect(vm.studentsByID[student.id]?.firstName == "Alice")
-    }
-
-    @Test("reload populates lessonsByID cache")
-    func reloadPopulatesLessonsByID() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        context.insert(student)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
-
-        let sl = makeTestStudentLesson(student: student, lesson: lesson, scheduledFor: testDate)
-        context.insert(sl)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
-        vm.reload()
-
-        #expect(vm.lessonsByID[lesson.id] != nil)
         #expect(vm.lessonsByID[lesson.id]?.name == "Addition")
     }
 
     @Test("reload handles empty database")
     func reloadHandlesEmptyDatabase() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let vm = TodayViewModel(context: context)
+
         vm.reload()
 
-        #expect(vm.todaysLessons.isEmpty)
-        #expect(vm.studentsByID.isEmpty)
-        #expect(vm.lessonsByID.isEmpty)
+        expectEmptyViewModel(vm)
     }
 }
 
@@ -419,129 +136,55 @@ struct TodayViewModelReloadTests {
 @MainActor
 struct TodayViewModelLevelFilterBehaviorTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
     @Test("levelFilter can be changed")
     func levelFilterCanBeChanged() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let vm = TodayViewModel(context: context)
 
         vm.levelFilter = .lower
         #expect(vm.levelFilter == .lower)
-
         vm.levelFilter = .upper
         #expect(vm.levelFilter == .upper)
-
         vm.levelFilter = .all
         #expect(vm.levelFilter == .all)
     }
 
-    @Test("levelFilter.all shows all lessons")
-    func allShowsAllLessons() throws {
-        let container = try makeContainer()
+    @Test("levelFilter controls which lessons appear")
+    func levelFilterFiltersLessons() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
 
         let lowerStudent = makeTestStudent(firstName: "Alice", lastName: "Anderson", level: .lower)
         let upperStudent = makeTestStudent(firstName: "Bob", lastName: "Brown", level: .upper)
+        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
         context.insert(lowerStudent)
         context.insert(upperStudent)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
         context.insert(lesson)
 
         let sl1 = makeTestStudentLesson(student: lowerStudent, lesson: lesson, scheduledFor: testDate)
         let sl2 = makeTestStudentLesson(student: upperStudent, lesson: lesson, scheduledFor: testDate)
         context.insert(sl1)
         context.insert(sl2)
-
         try context.save()
 
         let vm = TodayViewModel(context: context, date: testDate)
+
+        // Test .all filter
         vm.levelFilter = .all
         vm.reload()
-
         #expect(vm.todaysLessons.count == 2)
-    }
 
-    @Test("levelFilter.lower shows only lower level lessons")
-    func lowerShowsOnlyLowerLessons() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let lowerStudent = makeTestStudent(firstName: "Alice", lastName: "Anderson", level: .lower)
-        let upperStudent = makeTestStudent(firstName: "Bob", lastName: "Brown", level: .upper)
-        context.insert(lowerStudent)
-        context.insert(upperStudent)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
-
-        let sl1 = makeTestStudentLesson(student: lowerStudent, lesson: lesson, scheduledFor: testDate)
-        let sl2 = makeTestStudentLesson(student: upperStudent, lesson: lesson, scheduledFor: testDate)
-        context.insert(sl1)
-        context.insert(sl2)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
+        // Test .lower filter
         vm.levelFilter = .lower
         vm.reload()
-
-        // Only the lower student's lesson should appear
         #expect(vm.todaysLessons.count == 1)
         #expect(vm.todaysLessons.first?.resolvedStudentIDs.contains(lowerStudent.id) == true)
-    }
 
-    @Test("levelFilter.upper shows only upper level lessons")
-    func upperShowsOnlyUpperLessons() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let lowerStudent = makeTestStudent(firstName: "Alice", lastName: "Anderson", level: .lower)
-        let upperStudent = makeTestStudent(firstName: "Bob", lastName: "Brown", level: .upper)
-        context.insert(lowerStudent)
-        context.insert(upperStudent)
-
-        let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
-        context.insert(lesson)
-
-        let sl1 = makeTestStudentLesson(student: lowerStudent, lesson: lesson, scheduledFor: testDate)
-        let sl2 = makeTestStudentLesson(student: upperStudent, lesson: lesson, scheduledFor: testDate)
-        context.insert(sl1)
-        context.insert(sl2)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
+        // Test .upper filter
         vm.levelFilter = .upper
         vm.reload()
-
-        // Only the upper student's lesson should appear
         #expect(vm.todaysLessons.count == 1)
         #expect(vm.todaysLessons.first?.resolvedStudentIDs.contains(upperStudent.id) == true)
     }
@@ -553,28 +196,9 @@ struct TodayViewModelLevelFilterBehaviorTests {
 @MainActor
 struct TodayViewModelDateNavigationTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
     @Test("date change is normalized")
     func dateChangeIsNormalized() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let vm = TodayViewModel(context: context)
@@ -590,7 +214,7 @@ struct TodayViewModelDateNavigationTests {
 
     @Test("nextDayWithLessons finds day with lessons")
     func nextDayWithLessonsFindsDay() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let startDate = TestCalendar.date(year: 2025, month: 3, day: 10)
@@ -616,7 +240,7 @@ struct TodayViewModelDateNavigationTests {
 
     @Test("previousDayWithLessons finds day with lessons")
     func previousDayWithLessonsFindsDay() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let startDate = TestCalendar.date(year: 2025, month: 3, day: 15)
@@ -647,30 +271,10 @@ struct TodayViewModelDateNavigationTests {
 @MainActor
 struct TodayViewModelAttendanceReloadTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            AttendanceRecord.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-            Note.self,
-            Document.self,
-            Reminder.self,
-            CalendarEvent.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
-    }
-
-    @Test("reload computes attendance summary correctly")
-    func reloadComputesAttendanceSummary() throws {
-        let container = try makeContainer()
+    @Test("reload computes attendance summary and tracking lists")
+    func reloadComputesAttendance() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
 
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
@@ -686,49 +290,21 @@ struct TodayViewModelAttendanceReloadTests {
         context.insert(rec1)
         context.insert(rec2)
         context.insert(rec3)
-
         try context.save()
 
         let vm = TodayViewModel(context: context, date: testDate)
         vm.reload()
 
-        // presentCount includes tardy (present + tardy)
-        #expect(vm.attendanceSummary.presentCount == 2)
+        #expect(vm.attendanceSummary.presentCount == 2) // present + tardy
         #expect(vm.attendanceSummary.tardyCount == 1)
         #expect(vm.attendanceSummary.absentCount == 1)
+        #expect(vm.absentToday.contains(student2.id))
     }
 
-    @Test("reload populates absentToday")
-    func reloadPopulatesAbsentToday() throws {
-        let container = try makeContainer()
+    @Test("reload tracks leftEarly status")
+    func reloadTracksLeftEarly() throws {
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
-        let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
-
-        let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
-        let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
-        context.insert(student1)
-        context.insert(student2)
-
-        let rec1 = makeTestAttendanceRecord(studentID: student1.id, date: testDate, status: .absent)
-        let rec2 = makeTestAttendanceRecord(studentID: student2.id, date: testDate, status: .present)
-        context.insert(rec1)
-        context.insert(rec2)
-
-        try context.save()
-
-        let vm = TodayViewModel(context: context, date: testDate)
-        vm.reload()
-
-        #expect(vm.absentToday.count == 1)
-        #expect(vm.absentToday.contains(student1.id))
-    }
-
-    @Test("reload populates leftEarlyToday")
-    func reloadPopulatesLeftEarlyToday() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
 
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
@@ -740,7 +316,6 @@ struct TodayViewModelAttendanceReloadTests {
         let rec2 = makeTestAttendanceRecord(studentID: student2.id, date: testDate, status: .present)
         context.insert(rec1)
         context.insert(rec2)
-
         try context.save()
 
         let vm = TodayViewModel(context: context, date: testDate)
@@ -752,9 +327,8 @@ struct TodayViewModelAttendanceReloadTests {
 
     @Test("attendance summary respects level filter")
     func attendanceSummaryRespectsLevelFilter() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
-
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
 
         let lowerStudent = makeTestStudent(firstName: "Alice", lastName: "Anderson", level: .lower)
@@ -766,14 +340,12 @@ struct TodayViewModelAttendanceReloadTests {
         let rec2 = makeTestAttendanceRecord(studentID: upperStudent.id, date: testDate, status: .present)
         context.insert(rec1)
         context.insert(rec2)
-
         try context.save()
 
         let vm = TodayViewModel(context: context, date: testDate)
         vm.levelFilter = .lower
         vm.reload()
 
-        // Only lower student should be counted
         #expect(vm.attendanceSummary.presentCount == 1)
     }
 }
@@ -805,7 +377,7 @@ struct TodayViewModelCalendarTests {
 
     @Test("setCalendar normalizes date")
     func setCalendarNormalizesDate() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let vm = TodayViewModel(context: context)
@@ -846,7 +418,7 @@ struct TodayViewModelWorkScheduleTests {
 
     @Test("reload fetches work scheduled for today")
     func reloadFetchesWorkScheduledForToday() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let testDate = TestCalendar.date(year: 2025, month: 3, day: 15)
@@ -903,7 +475,7 @@ struct TodayViewModelRecentNotesTests {
 
     @Test("recentNotes starts empty")
     func recentNotesStartsEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let vm = TodayViewModel(context: context)
@@ -913,7 +485,7 @@ struct TodayViewModelRecentNotesTests {
 
     @Test("recentNoteStudentsByID starts empty")
     func recentNoteStudentsByIDStartsEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeTodayViewModelContainer()
         let context = ModelContext(container)
 
         let vm = TodayViewModel(context: context)
