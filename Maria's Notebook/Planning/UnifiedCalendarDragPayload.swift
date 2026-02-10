@@ -27,7 +27,7 @@ public enum UnifiedCalendarDragPayload: Equatable {
         }
     }
     
-    public static func parse(_ s: String) -> UnifiedCalendarDragPayload? {
+    nonisolated public static func parse(_ s: String) -> UnifiedCalendarDragPayload? {
         let trimmed = s.trimmed()
         if trimmed.hasPrefix("STUDENTLESSON:"), let id = UUID(uuidString: String(trimmed.dropFirst(14))) {
             return .studentLesson(id)

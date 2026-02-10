@@ -7,7 +7,7 @@ enum StringNormalization {
     /// Used for duplicate detection and comparison operations.
     /// - Parameter string: The string to normalize
     /// - Returns: The normalized string
-    static func normalizeComponent(_ string: String) -> String {
+    nonisolated static func normalizeComponent(_ string: String) -> String {
         // Trim whitespace and newlines
         let trimmed = string.trimmed()
         // Lowercase

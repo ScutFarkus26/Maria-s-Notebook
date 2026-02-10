@@ -2,14 +2,14 @@ import Foundation
 
 extension Collection where Element: Identifiable, Element.ID == UUID {
     /// Returns an array of UUID strings for all elements in the collection
-    var uuidStrings: [String] {
+    nonisolated var uuidStrings: [String] {
         map { $0.id.uuidString }
     }
 }
 
 extension Sequence where Element: Identifiable, Element.ID == UUID {
     /// Returns an array of UUID strings for all elements in the sequence
-    var uuidStrings: [String] {
+    nonisolated var uuidStrings: [String] {
         map { $0.id.uuidString }
     }
 }

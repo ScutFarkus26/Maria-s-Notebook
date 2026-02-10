@@ -75,18 +75,18 @@ final class CloudKitSyncStatusService {
         }
         lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
-        // Setup network monitoring callbacks
-        networkMonitor.setNetworkChangeHandler { [weak self] isAvailable in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
+        // Setup network monitoring using AsyncStream
+        Task { @MainActor [weak self] in
+            for await isAvailable in networkMonitor.observeNetworkChanges() {
+                guard let self = self else { break }
                 self.handleNetworkChange(isAvailable: isAvailable)
             }
         }
 
-        // Setup iCloud account monitoring callbacks
-        healthCheck.setICloudChangeHandler { [weak self] isAvailable in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
+        // Setup iCloud account monitoring using AsyncStream
+        Task { @MainActor [weak self] in
+            for await isAvailable in healthCheck.observeICloudChanges() {
+                guard let self = self else { break }
                 self.handleICloudAccountChange(isAvailable: isAvailable)
             }
         }

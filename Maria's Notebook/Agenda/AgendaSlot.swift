@@ -205,7 +205,7 @@ struct AgendaSlot: View {
         }
     }
 
-    static func baseDateForSlot(day: Date, period: DayPeriod, calendar: Calendar) -> Date {
+    nonisolated static func baseDateForSlot(day: Date, period: DayPeriod, calendar: Calendar) -> Date {
         let startOfDay = calendar.startOfDay(for: day)
         let hour: Int = (period == .morning) ? 9 : 14
         return calendar.date(byAdding: .hour, value: hour, to: startOfDay) ?? startOfDay
@@ -319,14 +319,18 @@ struct AgendaSlotDropDelegate: DropDelegate {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { 
             return false 
         }
+        
+        // Capture main actor isolated values before entering the closure
+        let currentLessons = getCurrent()
+        let currentFrames = itemFramesProvider()
 
-        provider.loadObject(ofClass: NSString.self) { reading, _ in
+        provider.loadObject(ofClass: NSString.self) { [modelContext, allStudentLessons, calendar, day, period] reading, _ in
             guard let ns = reading as? NSString else { 
                 return 
             }
             let payload = ns as String
 
-            Task { @MainActor in
+            Task { @MainActor [modelContext, allStudentLessons, calendar, day, period] in
                 // First, handle student-to-slot or student-to-inbox payloads
                 if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
                     let parts = payload.split(separator: ":")
@@ -335,11 +339,10 @@ struct AgendaSlotDropDelegate: DropDelegate {
                        let lessonID = UUID(uuidString: String(parts[2])),
                        let studentID = UUID(uuidString: String(parts[3])) {
 
-                        let current = getCurrent()
-                        var ids = current.map { $0.id }
-                        let frames = itemFramesProvider()
+                        var ids = currentLessons.map { $0.id }
+                        let frames = currentFrames
                         let dict: [UUID: CGRect] = Dictionary(
-                            current.compactMap { item -> (UUID, CGRect)? in
+                            currentLessons.compactMap { item -> (UUID, CGRect)? in
                                 if let rect = frames[item.id] { return (item.id, rect) }
                                 return nil
                             },
@@ -401,11 +404,11 @@ struct AgendaSlotDropDelegate: DropDelegate {
 
                 // Fallback: treat as a plain StudentLesson ID and reorder within the slot
                 if let id = UUID(uuidString: payload.trimmed()) {
-                    var ids = getCurrent().map { $0.id }
+                    var ids = currentLessons.map { $0.id }
                     if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
-                    let frames = itemFramesProvider()
+                    let frames = currentFrames
                     let dict: [UUID: CGRect] = Dictionary(
-                        getCurrent().compactMap { item -> (UUID, CGRect)? in
+                        currentLessons.compactMap { item -> (UUID, CGRect)? in
                             if let rect = frames[item.id] { return (item.id, rect) }
                             return nil
                         },

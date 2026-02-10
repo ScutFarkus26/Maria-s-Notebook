@@ -78,7 +78,7 @@ extension UnifiedNoteEditor {
         return !selectedStudentIDs.isEmpty && !bodyText.trimmed().isEmpty
     }
 
-    var cardBackgroundColor: Color {
+    nonisolated var cardBackgroundColor: Color {
         #if os(macOS)
         return Color(nsColor: .windowBackgroundColor)
         #else
@@ -86,7 +86,7 @@ extension UnifiedNoteEditor {
         #endif
     }
 
-    var notesBackgroundColor: Color {
+    nonisolated var notesBackgroundColor: Color {
         #if os(macOS)
         return Color(nsColor: .controlBackgroundColor).opacity(0.5)
         #else

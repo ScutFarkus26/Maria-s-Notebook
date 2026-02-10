@@ -12,11 +12,11 @@ import Foundation
 struct DragPayload {
     static let prefix = "STUDENT_TO_INBOX"
 
-    static func encode(sourceID: UUID, lessonID: UUID, studentID: UUID) -> String {
+    nonisolated static func encode(sourceID: UUID, lessonID: UUID, studentID: UUID) -> String {
         return "\(prefix):\(sourceID.uuidString):\(lessonID.uuidString):\(studentID.uuidString)"
     }
 
-    static func decode(_ string: String) -> (sourceID: UUID, lessonID: UUID, studentID: UUID)? {
+    nonisolated static func decode(_ string: String) -> (sourceID: UUID, lessonID: UUID, studentID: UUID)? {
         let parts = string.split(separator: ":")
         guard parts.count == 4,
               parts[0] == prefix,

@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
-import PDFKit
+@preconcurrency import PDFKit
 #if os(macOS)
 import AppKit
 #elseif os(iOS)

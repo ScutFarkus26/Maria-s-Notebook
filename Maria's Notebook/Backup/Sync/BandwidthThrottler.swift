@@ -165,7 +165,7 @@ public actor BandwidthThrottler {
     /// - Returns: Transfer statistics
     public func transferWithThrottling(
         data: Data,
-        chunkHandler: @escaping (Int, Data) async throws -> Void
+        chunkHandler: @escaping @Sendable (Int, Data) async throws -> Void
     ) async throws -> TransferStats {
         resetStats()
         transferStartTime = Date()

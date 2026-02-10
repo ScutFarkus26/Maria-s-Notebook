@@ -342,7 +342,7 @@ struct GroupTrackService {
     ///   - studentIDs: Array of student UUID strings to enroll
     ///   - modelContext: The model context for database operations
     ///   - saveCoordinator: Optional save coordinator for error handling (uses silent fallback if nil)
-    static func autoEnrollInTrackIfNeeded(
+    @MainActor static func autoEnrollInTrackIfNeeded(
         lesson: Lesson,
         studentIDs: [String],
         modelContext: ModelContext,

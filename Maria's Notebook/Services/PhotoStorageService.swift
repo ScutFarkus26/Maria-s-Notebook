@@ -168,7 +168,7 @@ public enum PhotoStorageService {
     /// Deletes an image file from the photos directory.
     /// - Parameter filename: The filename to delete
     /// - Throws: An error if the file cannot be deleted
-    public static func deleteImage(filename: String) throws {
+    nonisolated public static func deleteImage(filename: String) throws {
         let photosDir = try photosDirectory()
         let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
         

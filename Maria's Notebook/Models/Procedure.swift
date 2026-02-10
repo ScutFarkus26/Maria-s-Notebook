@@ -14,7 +14,7 @@ enum ProcedureCategory: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var icon: String {
+    nonisolated var icon: String {
         switch self {
         case .dailyRoutines: return "sun.horizon"
         case .safety: return "exclamationmark.shield"
@@ -27,7 +27,7 @@ enum ProcedureCategory: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var description: String {
+    nonisolated var description: String {
         switch self {
         case .dailyRoutines: return "Morning arrival, lunch, dismissal, etc."
         case .safety: return "Fire drills, lockdowns, medical emergencies"

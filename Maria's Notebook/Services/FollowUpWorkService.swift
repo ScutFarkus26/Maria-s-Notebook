@@ -90,7 +90,7 @@ struct FollowUpWorkService {
     /// Analyzes a presentation to determine what follow-up actions are needed
     /// - Parameter presentation: The presentation to analyze
     /// - Returns: Follow-up recommendations
-    static func analyzePresentation(_ presentation: Presentation) -> PresentationFollowUp {
+    nonisolated static func analyzePresentation(_ presentation: Presentation) -> PresentationFollowUp {
         var actions: [FollowUpAction] = []
         
         if presentation.needsPractice {
@@ -316,7 +316,7 @@ extension Presentation {
     }
     
     /// Analyzes this presentation for follow-up needs
-    func analyzeFollowUp() -> PresentationFollowUp {
+    nonisolated func analyzeFollowUp() -> PresentationFollowUp {
         FollowUpWorkService.analyzePresentation(self)
     }
     

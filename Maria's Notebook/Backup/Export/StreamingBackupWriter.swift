@@ -78,68 +78,54 @@ public final class StreamingBackupWriter {
         // Phase 2: Stream each entity type in batches with autoreleasepool
         var processedEntities = 0
         
-        // Collect DTOs with parallel processing where possible
-        let (studentDTOs, lessonDTOs, noteDTOs) = try await withThrowingTaskGroup(of: (String, [Any]).self) { group in
-            if configuration.enableParallelProcessing {
-                group.addTask {
-                    let dtos = try await self.streamFetch(Student.self, from: modelContext, progress: { count, type in
-                        processedEntities += count
-                        let prog = 0.05 + (Double(processedEntities) / Double(totalEntities)) * 0.30
-                        progress(prog, "Processing students…", processedEntities, type)
-                    })
-                    return ("students", dtos as [Any])
-                }
-                
-                group.addTask {
-                    let dtos = try await self.streamFetch(Lesson.self, from: modelContext, progress: { count, type in
-                        processedEntities += count
-                        let prog = 0.05 + (Double(processedEntities) / Double(totalEntities)) * 0.30
-                        progress(prog, "Processing lessons…", processedEntities, type)
-                    })
-                    return ("lessons", dtos as [Any])
-                }
-                
-                group.addTask {
-                    let dtos = try await self.streamFetch(Note.self, from: modelContext, progress: { count, type in
-                        processedEntities += count
-                        let prog = 0.05 + (Double(processedEntities) / Double(totalEntities)) * 0.30
-                        progress(prog, "Processing notes…", processedEntities, type)
-                    })
-                    return ("notes", dtos as [Any])
-                }
-                
-                var results: [String: [Any]] = [:]
-                for try await (key, value) in group {
-                    results[key] = value
-                }
-                
-                return (
-                    results["students"] as? [StudentDTO] ?? [],
-                    results["lessons"] as? [LessonDTO] ?? [],
-                    results["notes"] as? [NoteDTO] ?? []
-                )
-            } else {
-                // Sequential processing
-                let s = try await streamFetch(Student.self, from: modelContext, progress: { count, type in
-                    processedEntities += count
-                    progress(0.10, "Processing students…", processedEntities, type)
-                })
-                let l = try await streamFetch(Lesson.self, from: modelContext, progress: { count, type in
-                    processedEntities += count
-                    progress(0.20, "Processing lessons…", processedEntities, type)
-                })
-                let n = try await streamFetch(Note.self, from: modelContext, progress: { count, type in
-                    processedEntities += count
-                    progress(0.30, "Processing notes…", processedEntities, type)
-                })
-                // Safe cast with error handling
-                guard let students = s as? [StudentDTO],
-                      let lessons = l as? [LessonDTO],
-                      let notes = n as? [NoteDTO] else {
-                    throw WriteError.encodingFailed(NSError(domain: "StreamingBackupWriter", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to cast entity types during sequential processing"]))
-                }
-                return (students, lessons, notes)
+        // Collect DTOs - Use sequential processing to avoid Sendable issues with ModelContext
+        let (studentDTOs, lessonDTOs, noteDTOs): ([StudentDTO], [LessonDTO], [NoteDTO])
+        if configuration.enableParallelProcessing {
+            // For parallel processing, we need to work within MainActor context
+            async let students = streamFetch(Student.self, from: modelContext, progress: { count, type in
+                processedEntities += count
+                let prog = 0.05 + (Double(processedEntities) / Double(totalEntities)) * 0.30
+                progress(prog, "Processing students…", processedEntities, type)
+            })
+            async let lessons = streamFetch(Lesson.self, from: modelContext, progress: { count, type in
+                processedEntities += count
+                let prog = 0.05 + (Double(processedEntities) / Double(totalEntities)) * 0.30
+                progress(prog, "Processing lessons…", processedEntities, type)
+            })
+            async let notes = streamFetch(Note.self, from: modelContext, progress: { count, type in
+                processedEntities += count
+                let prog = 0.05 + (Double(processedEntities) / Double(totalEntities)) * 0.30
+                progress(prog, "Processing notes…", processedEntities, type)
+            })
+            
+            let (s, l, n) = try await (students, lessons, notes)
+            guard let studentDTOsTyped = s as? [StudentDTO],
+                  let lessonDTOsTyped = l as? [LessonDTO],
+                  let noteDTOsTyped = n as? [NoteDTO] else {
+                throw WriteError.encodingFailed(NSError(domain: "StreamingBackupWriter", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to cast entity types during parallel processing"]))
             }
+            (studentDTOs, lessonDTOs, noteDTOs) = (studentDTOsTyped, lessonDTOsTyped, noteDTOsTyped)
+        } else {
+            // Sequential processing
+            let s = try await streamFetch(Student.self, from: modelContext, progress: { count, type in
+                processedEntities += count
+                progress(0.10, "Processing students…", processedEntities, type)
+            })
+            let l = try await streamFetch(Lesson.self, from: modelContext, progress: { count, type in
+                processedEntities += count
+                progress(0.20, "Processing lessons…", processedEntities, type)
+            })
+            let n = try await streamFetch(Note.self, from: modelContext, progress: { count, type in
+                processedEntities += count
+                progress(0.30, "Processing notes…", processedEntities, type)
+            })
+            // Safe cast with error handling
+            guard let students = s as? [StudentDTO],
+                  let lessons = l as? [LessonDTO],
+                  let notes = n as? [NoteDTO] else {
+                throw WriteError.encodingFailed(NSError(domain: "StreamingBackupWriter", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to cast entity types during sequential processing"]))
+            }
+            (studentDTOs, lessonDTOs, noteDTOs) = (students, lessons, notes)
         }
         
         // Continue with other entity types (sequential for now to maintain order)
@@ -329,7 +315,7 @@ public final class StreamingBackupWriter {
     private func streamFetch<T: PersistentModel>(
         _ type: T.Type,
         from context: ModelContext,
-        progress: @escaping (Int, String) -> Void
+        progress: @escaping @Sendable (Int, String) -> Void
     ) async throws -> [Any] {
         var allDTOs: [Any] = []
         var offset = 0

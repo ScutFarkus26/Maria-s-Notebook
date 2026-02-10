@@ -15,7 +15,7 @@ import OSLog
     #Index<StudentLesson>([\.lessonID, \.scheduledForDay], [\.scheduledForDay, \.isPresented], [\.isPresented], [\.createdAt])
     
     /// Logger for StudentLesson data issues
-    private static let logger = Logger.app(category: "StudentLesson")
+    nonisolated private static let logger = Logger.app(category: "StudentLesson")
 
     var id: UUID = UUID()
     // CloudKit compatibility: Store UUIDs as strings - indexed for lesson-specific queries
