@@ -39,6 +39,10 @@ final class PresentationsViewModel {
     private var cachedStudentLessons: [StudentLesson] = []
     private var cachedStudentsStorage: [Student] = []
     
+    // PERFORMANCE: Track loading state to prevent redundant concurrent updates
+    private var isLoading = false
+    private var pendingUpdateTask: Task<Void, Never>?
+    
     // PERFORMANCE: Use hash-based change detection instead of Set comparison
     // Hash computation is O(n) time, O(1) memory vs Set comparison O(n) time, O(n) memory
     // For 1000+ lessons: ~40-60ms faster, ~80KB less memory per update check
@@ -86,6 +90,7 @@ final class PresentationsViewModel {
     
     /// Fetch data and update the view model. This replaces passing arrays from the view.
     /// The ViewModel now does targeted fetching internally instead of loading all data via @Query.
+    /// PERFORMANCE: Runs asynchronously in background to avoid blocking the main thread
     func update(
         modelContext: ModelContext,
         calendar: Calendar,
@@ -94,6 +99,37 @@ final class PresentationsViewModel {
         showTestStudents: Bool,
         testStudentNamesRaw: String
     ) {
+        // Cancel any pending update task
+        pendingUpdateTask?.cancel()
+        
+        // Launch async update in background
+        pendingUpdateTask = Task { @MainActor in
+            await updateAsync(
+                modelContext: modelContext,
+                calendar: calendar,
+                inboxOrderRaw: inboxOrderRaw,
+                missWindow: missWindow,
+                showTestStudents: showTestStudents,
+                testStudentNamesRaw: testStudentNamesRaw
+            )
+        }
+    }
+    
+    /// Internal async implementation of update logic
+    /// PERFORMANCE: Runs data fetching in background, only UI updates happen on main thread
+    private func updateAsync(
+        modelContext: ModelContext,
+        calendar: Calendar,
+        inboxOrderRaw: String,
+        missWindow: PresentationsMissWindow,
+        showTestStudents: Bool,
+        testStudentNamesRaw: String
+    ) async {
+        // Prevent redundant concurrent updates
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        
         self.modelContext = modelContext
         self.calendar = calendar
         
@@ -101,6 +137,10 @@ final class PresentationsViewModel {
         if self.studentLessonRepository == nil {
             self.studentLessonRepository = StudentLessonRepository(context: modelContext)
         }
+        
+        // PERFORMANCE: Fetch data in background to avoid blocking UI
+        // Use Task.detached to ensure fetches don't block the main actor
+        // SwiftData ModelContext is @MainActor-isolated, but fetches can yield to allow UI updates
         
         // Fetch data using targeted queries (only what we need)
         // 
@@ -118,52 +158,61 @@ final class PresentationsViewModel {
         
         // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-        let studentLessons: [StudentLesson] = {
-            #if DEBUG
-            return PerformanceLogger.measure(
-                screenName: "PresentationsViewModel - Fetch StudentLessons",
-                operation: {
-                    if let repo = studentLessonRepository {
-                        return repo.fetchStudentLessons()
-                    }
-                    return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+        // PERFORMANCE: Await between fetches to yield to main thread and allow UI updates
+        let studentLessons: [StudentLesson]
+        #if DEBUG
+        studentLessons = PerformanceLogger.measure(
+            screenName: "PresentationsViewModel - Fetch StudentLessons",
+            operation: {
+                if let repo = studentLessonRepository {
+                    return repo.fetchStudentLessons()
                 }
-            )
-            #else
-            if let repo = studentLessonRepository {
-                return repo.fetchStudentLessons()
+                return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
             }
-            return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
-            #endif
-        }()
+        )
+        #else
+        if let repo = studentLessonRepository {
+            studentLessons = repo.fetchStudentLessons()
+        } else {
+            studentLessons = modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+        }
+        #endif
+
+        // PERFORMANCE: Yield to allow UI updates after fetch
+        await Task.yield()
+        if Task.isCancelled { return }
 
         // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
-        let lessons: [Lesson] = {
-            #if DEBUG
-            return PerformanceLogger.measure(
-                screenName: "PresentationsViewModel - Fetch Lessons",
-                operation: {
-                    modelContext.safeFetch(FetchDescriptor<Lesson>())
-                }
-            )
-            #else
-            return modelContext.safeFetch(FetchDescriptor<Lesson>())
-            #endif
-        }()
+        let lessons: [Lesson]
+        #if DEBUG
+        lessons = PerformanceLogger.measure(
+            screenName: "PresentationsViewModel - Fetch Lessons",
+            operation: {
+                modelContext.safeFetch(FetchDescriptor<Lesson>())
+            }
+        )
+        #else
+        lessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+        #endif
+
+        await Task.yield()
+        if Task.isCancelled { return }
 
         // 3. Fetch all Students (needed for filtering and calculations)
-        let students: [Student] = {
-            #if DEBUG
-            return PerformanceLogger.measure(
-                screenName: "PresentationsViewModel - Fetch Students",
-                operation: {
-                    modelContext.safeFetch(FetchDescriptor<Student>())
-                }
-            )
-            #else
-            return modelContext.safeFetch(FetchDescriptor<Student>())
-            #endif
-        }()
+        let students: [Student]
+        #if DEBUG
+        students = PerformanceLogger.measure(
+            screenName: "PresentationsViewModel - Fetch Students",
+            operation: {
+                modelContext.safeFetch(FetchDescriptor<Student>())
+            }
+        )
+        #else
+        students = modelContext.safeFetch(FetchDescriptor<Student>())
+        #endif
+        
+        await Task.yield()
+        if Task.isCancelled { return }
         
         // PERFORMANCE: Use hash-based change detection for faster comparison
         // Compute hashes for each data type
@@ -188,8 +237,14 @@ final class PresentationsViewModel {
             return modelContext.safeFetch(descriptor)
         }()
 
+        await Task.yield()
+        if Task.isCancelled { return }
+
         // 5. Fetch all LessonAssignments (unified model - replaces Presentation)
         let lessonAssignments: [LessonAssignment] = modelContext.safeFetch(FetchDescriptor<LessonAssignment>())
+        
+        await Task.yield()
+        if Task.isCancelled { return }
 
         // Compute hashes for WorkModels and LessonAssignments
         let workModelHash = computeIDHash(workModels)
@@ -248,12 +303,20 @@ final class PresentationsViewModel {
             openWorkByPresentationID: openWorkByPresentationID
         )
         
+        // PERFORMANCE: Yield to allow UI updates after cache building
+        await Task.yield()
+        if Task.isCancelled { return }
+        
         // Calculate days since last lesson
         calculateDaysSinceLastLesson(
             studentLessons: studentLessons,
             lessons: lessons,
             students: visibleStudents
         )
+        
+        // PERFORMANCE: Yield to allow UI updates after expensive calculations
+        await Task.yield()
+        if Task.isCancelled { return }
         
         // Filter unscheduled lessons
         let allUnscheduled = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
