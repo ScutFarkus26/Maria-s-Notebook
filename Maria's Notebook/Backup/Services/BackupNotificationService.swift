@@ -12,6 +12,10 @@ import AppKit
 /// Service for managing backup-related notifications
 @MainActor
 public final class BackupNotificationService: ObservableObject {
+    
+    // MARK: - Dependencies
+    
+    private weak var autoBackupManager: AutoBackupManager?
 
     // MARK: - Types
 
@@ -107,8 +111,11 @@ public final class BackupNotificationService: ObservableObject {
         self.showSuccessNotifications = UserDefaults.standard.object(forKey: "BackupNotifications.showSuccess") as? Bool ?? false
         self.showFailureNotifications = UserDefaults.standard.object(forKey: "BackupNotifications.showFailure") as? Bool ?? true
         self.showHealthWarnings = UserDefaults.standard.object(forKey: "BackupNotifications.showHealthWarnings") as? Bool ?? true
-
-        // Set up observers for backup events
+    }
+    
+    /// Configures the service to observe the given AutoBackupManager
+    func configure(with autoBackupManager: AutoBackupManager) {
+        self.autoBackupManager = autoBackupManager
         setupObservers()
     }
 
@@ -256,40 +263,29 @@ public final class BackupNotificationService: ObservableObject {
     // MARK: - Private Helpers
 
     private func setupObservers() {
-        // Observe backup completion
-        NotificationCenter.default.addObserver(
-            forName: .autoBackupCompleted,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self = self else { return }
-            guard let url = notification.userInfo?["url"] as? URL,
-                  let triggerString = notification.userInfo?["trigger"] as? String,
-                  let trigger = AutoBackupManager.BackupTrigger(rawValue: triggerString) else {
-                return
-            }
-
-            let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? nil
-            Task { @MainActor in
-                self.notifyBackupComplete(type: trigger, url: url, fileSize: fileSize)
-            }
-        }
-
-        // Observe backup failure
-        NotificationCenter.default.addObserver(
-            forName: .autoBackupFailed,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self = self else { return }
-            guard let error = notification.userInfo?["error"] as? Error,
-                  let triggerString = notification.userInfo?["trigger"] as? String,
-                  let trigger = AutoBackupManager.BackupTrigger(rawValue: triggerString) else {
-                return
-            }
-
-            Task { @MainActor in
-                self.notifyBackupFailed(type: trigger, error: error)
+        // Observe backup events from AutoBackupManager
+        guard let autoBackupManager else { return }
+        
+        Task { @MainActor in
+            var lastEvent: AutoBackupManager.BackupEvent?
+            
+            while !Task.isCancelled {
+                // Check if there's a new event
+                if let event = autoBackupManager.lastBackupEvent, event.timestamp != lastEvent?.timestamp {
+                    lastEvent = event
+                    
+                    switch event.result {
+                    case .success(let url):
+                        let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? nil
+                        self.notifyBackupComplete(type: event.trigger, url: url, fileSize: fileSize)
+                        
+                    case .failure(let error):
+                        self.notifyBackupFailed(type: event.trigger, error: error)
+                    }
+                }
+                
+                // Check periodically for new events
+                try? await Task.sleep(for: .seconds(0.5))
             }
         }
     }

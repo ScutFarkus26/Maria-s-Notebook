@@ -28,8 +28,23 @@ final class AutoBackupManager {
     private(set) var lastScheduledBackupDate: Date?
     private(set) var isPerformingBackup = false
     private(set) var lastBackupResult: BackupResult?
+    
+    /// Modern event-based notification - SwiftUI views can observe this
+    private(set) var lastBackupEvent: BackupEvent?
 
     // MARK: - Types
+    
+    /// Modern event-based notification system replacing NotificationCenter
+    struct BackupEvent: Sendable {
+        let trigger: BackupTrigger
+        let result: BackupEventResult
+        let timestamp: Date
+        
+        enum BackupEventResult: Sendable {
+            case success(URL)
+            case failure(Error)
+        }
+    }
 
     enum BackupResult {
         case success(Date, URL)
@@ -48,7 +63,7 @@ final class AutoBackupManager {
         }
     }
 
-    enum BackupTrigger: String {
+    enum BackupTrigger: String, Sendable {
         case appQuit = "AppQuit"
         case scheduled = "Scheduled"
         case preDestructive = "PreDestructive"
@@ -212,11 +227,11 @@ final class AutoBackupManager {
             let result = BackupResult.success(Date(), url)
             lastBackupResult = result
 
-            // Post notification for backup completion
-            NotificationCenter.default.post(
-                name: .autoBackupCompleted,
-                object: self,
-                userInfo: ["url": url, "trigger": trigger.rawValue]
+            // Publish event using modern Observation pattern
+            lastBackupEvent = BackupEvent(
+                trigger: trigger,
+                result: .success(url),
+                timestamp: Date()
             )
 
             return result
@@ -228,11 +243,11 @@ final class AutoBackupManager {
             let result = BackupResult.failure(Date(), error)
             lastBackupResult = result
 
-            // Post notification for backup failure
-            NotificationCenter.default.post(
-                name: .autoBackupFailed,
-                object: self,
-                userInfo: ["error": error, "trigger": trigger.rawValue]
+            // Publish event using modern Observation pattern
+            lastBackupEvent = BackupEvent(
+                trigger: trigger,
+                result: .failure(error),
+                timestamp: Date()
             )
 
             return result
@@ -316,12 +331,5 @@ final class AutoBackupManager {
         }
         return intervalSeconds
     }
-}
-
-// MARK: - Notification Names
-
-extension Notification.Name {
-    static let autoBackupCompleted = Notification.Name("AutoBackupCompleted")
-    static let autoBackupFailed = Notification.Name("AutoBackupFailed")
 }
 

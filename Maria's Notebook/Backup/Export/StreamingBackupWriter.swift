@@ -10,7 +10,8 @@ public final class StreamingBackupWriter {
     
     public struct Configuration {
         public var batchSize: Int = BackupConstants.streamingBatchSize
-        public var useAutoreleasePool: Bool = true
+        /// Enable autoreleasepool for Objective-C interop (set to false for pure Swift workloads)
+        public var useAutoreleasePool: Bool = false
         public var enableParallelProcessing: Bool = true
         
         public static let `default` = Configuration()
@@ -335,23 +336,26 @@ public final class StreamingBackupWriter {
         let typeName = String(describing: type)
         
         while true {
-            let batch: [T] = try autoreleasepool {
-                var descriptor = FetchDescriptor<T>()
-                descriptor.fetchOffset = offset
-                descriptor.fetchLimit = configuration.batchSize
-                do {
-                    return try context.fetch(descriptor)
-                } catch {
-                    throw WriteError.encodingFailed(error)
+            // Modern approach: Use FetchDescriptor batch configuration
+            // SwiftData handles memory management internally
+            var descriptor = FetchDescriptor<T>()
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = configuration.batchSize
+            
+            // Only use autoreleasepool if needed for Objective-C bridging
+            let batch: [T]
+            if configuration.useAutoreleasePool {
+                batch = try autoreleasepool {
+                    try context.fetch(descriptor)
                 }
+            } else {
+                batch = try context.fetch(descriptor)
             }
             
             guard !batch.isEmpty else { break }
             
-            // Transform to DTOs within autoreleasepool
-            let dtos: [Any] = autoreleasepool {
-                return transformToDTOs(batch) as [Any]
-            }
+            // Transform to DTOs - Swift ARC handles memory automatically
+            let dtos = transformToDTOs(batch) as [Any]
             
             allDTOs.append(contentsOf: dtos)
             progress(batch.count, typeName)
@@ -418,15 +422,19 @@ public final class StreamingBackupWriter {
         var offset = 0
         
         while true {
-            let batch: [T] = try autoreleasepool {
-                var descriptor = FetchDescriptor<T>()
-                descriptor.fetchOffset = offset
-                descriptor.fetchLimit = configuration.batchSize
-                do {
-                    return try context.fetch(descriptor)
-                } catch {
-                    throw WriteError.encodingFailed(error)
+            // Modern approach: Use FetchDescriptor batch configuration
+            var descriptor = FetchDescriptor<T>()
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = configuration.batchSize
+            
+            // Only use autoreleasepool if needed for Objective-C bridging
+            let batch: [T]
+            if configuration.useAutoreleasePool {
+                batch = try autoreleasepool {
+                    try context.fetch(descriptor)
                 }
+            } else {
+                batch = try context.fetch(descriptor)
             }
             
             guard !batch.isEmpty else { break }
