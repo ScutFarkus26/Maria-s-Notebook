@@ -125,7 +125,7 @@ struct PresentationsInboxView: View {
                             Text(StudentFormatter.displayName(for: student))
                                 .font(.caption.weight(.medium))
                             Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation(.easeInOut(duration: 0.15)) {
                                     coordinator.clearStudentFilter()
                                 }
                             } label: {
@@ -477,7 +477,7 @@ struct PresentationsInboxView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 if coordinator.selectedStudentFilter == student.id {
                     coordinator.clearStudentFilter()
                 } else {

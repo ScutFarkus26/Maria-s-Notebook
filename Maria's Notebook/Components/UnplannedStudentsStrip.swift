@@ -57,7 +57,7 @@ struct UnplannedStudentsStrip: View {
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+                withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
             }
 
             if expanded {

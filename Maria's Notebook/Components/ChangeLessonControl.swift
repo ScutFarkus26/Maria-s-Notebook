@@ -6,7 +6,7 @@ struct ChangeLessonControl: View {
     var body: some View {
         HStack {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: 0.15)) {
                     showLessonPicker = true
                 }
             } label: {

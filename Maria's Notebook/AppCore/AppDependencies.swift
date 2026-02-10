@@ -62,6 +62,18 @@ final class AppDependencies {
         return _lifecycleService!
     }
     
+    private var _memoryPressureMonitor: MemoryPressureMonitor?
+    var memoryPressureMonitor: MemoryPressureMonitor {
+        if _memoryPressureMonitor == nil {
+            let monitor = MemoryPressureMonitor()
+            monitor.startMonitoring { [weak self] in
+                self?.handleMemoryPressure()
+            }
+            _memoryPressureMonitor = monitor
+        }
+        return _memoryPressureMonitor!
+    }
+    
     // MARK: - Repositories
     
     /// Central repository container for type-safe data access
@@ -396,6 +408,19 @@ final class AppDependencies {
     /// Create dependencies with specific ModelContext for testing
     static func makeTest(context: ModelContext) -> AppDependencies {
         return AppDependencies(modelContext: context)
+    }
+    
+    // MARK: - Memory Pressure Handling
+    
+    /// Called when system memory pressure is detected
+    /// Proactively clears caches to avoid being terminated by the system
+    private func handleMemoryPressure() {
+        // Post notification for ViewModels and other components to clear their caches
+        // ViewModels with cached data should observe this notification and clear non-essential data
+        NotificationCenter.default.post(
+            name: Notification.Name("MemoryPressureDetected"),
+            object: nil
+        )
     }
 }
 

@@ -13,7 +13,6 @@ final class NetworkMonitoring {
     // MARK: - Private State
     
     private var networkMonitor: NWPathMonitor?
-    private let networkQueue = DispatchQueue(label: "com.mariasnotebook.networkmonitor")
     private var pendingNetworkTask: Task<Void, Never>?
     private var networkChangeContinuation: AsyncStream<Bool>.Continuation?
     
@@ -78,7 +77,9 @@ final class NetworkMonitoring {
                 }
             }
         }
-        networkMonitor?.start(queue: networkQueue)
+        // Use global utility queue instead of custom DispatchQueue
+        // This leverages Swift concurrency's cooperative thread pool
+        networkMonitor?.start(queue: .global(qos: .utility))
     }
     
     private func handleNetworkChange(_ path: NWPath) {

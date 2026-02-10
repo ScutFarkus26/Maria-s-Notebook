@@ -400,7 +400,7 @@ struct LessonProgressSection: View {
         }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(seconds))
-            withAnimation(.easeInOut(duration: 0.2)) { showQuickBanner = false }
+            withAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
         }
     }
 }

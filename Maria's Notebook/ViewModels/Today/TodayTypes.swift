@@ -22,7 +22,7 @@ struct FollowUpWorkItem: Identifiable {
 // MARK: - Attendance Summary
 
 /// Lightweight counts shown in the Today header.
-struct AttendanceSummary {
+struct AttendanceSummary: Equatable {
     var presentCount: Int = 0
     var tardyCount: Int = 0
     var absentCount: Int = 0

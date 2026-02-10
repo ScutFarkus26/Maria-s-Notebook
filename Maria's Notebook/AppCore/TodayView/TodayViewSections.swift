@@ -26,6 +26,7 @@ extension TodayView {
                         .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
                     ForEach(viewModel.overdueReminders) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+                            .id(reminder.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                             .swipeActions(edge: .leading) {
                                 Button {
@@ -50,6 +51,7 @@ extension TodayView {
                     }
                     ForEach(viewModel.todaysReminders) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+                            .id(reminder.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                             .swipeActions(edge: .leading) {
                                 Button {
@@ -74,6 +76,7 @@ extension TodayView {
                     }
                     ForEach(viewModel.anytimeReminders) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
+                            .id(reminder.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                             .swipeActions(edge: .leading) {
                                 Button {
@@ -126,6 +129,7 @@ extension TodayView {
             } else {
                 ForEach(viewModel.todaysCalendarEvents, id: \.id) { event in
                     CalendarEventListRow(event: event)
+                        .id(event.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                 }
             }
@@ -173,6 +177,7 @@ extension TodayView {
                         studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
                         isPresented: sl.isPresented
                     )
+                    .id(sl.id)
                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -213,6 +218,7 @@ extension TodayView {
                                               onTap: {
                             selectedWorkID = item.work.id
                         })
+                        .id(item.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     }
                     ForEach(viewModel.todaysSchedule) { item in
@@ -222,6 +228,7 @@ extension TodayView {
                                               onTap: {
                             selectedWorkID = item.work.id
                         })
+                        .id(item.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     }
                 }
@@ -244,6 +251,7 @@ extension TodayView {
                                               onTap: {
                             selectedWorkID = item.work.id
                         })
+                        .id(item.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     }
                 }
@@ -271,6 +279,7 @@ extension TodayView {
                         lessonName: resolveLessonName(for: work),
                         work: work
                     )
+                    .id(work.id)
                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -328,6 +337,7 @@ extension TodayView {
                                 }
                             }
                         }
+                        .id(note.id)
                         .buttonStyle(.plain)
                         .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
                         .accessibilityLabel(accessibilityLabel)
@@ -372,7 +382,7 @@ extension TodayView {
     @ViewBuilder
     private func collapsibleSectionHeader(_ title: String, isCollapsed: Binding<Bool>, count: Int) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 isCollapsed.wrappedValue.toggle()
             }
         } label: {

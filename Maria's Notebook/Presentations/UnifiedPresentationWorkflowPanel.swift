@@ -430,7 +430,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         return VStack(spacing: 0) {
             // Header row
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: 0.15)) {
                     if isExpanded {
                         presentationViewModel.expandedStudentIDs.remove(student.id)
                     } else {
@@ -686,7 +686,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                 title: "Completion Details",
                 isExpanded: draft.showMoreDetails,
                 action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
                         updateWorkDraft(studentID: studentID, draftID: draft.id) {
                             $0.showMoreDetails.toggle()
                         }

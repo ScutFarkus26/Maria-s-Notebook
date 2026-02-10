@@ -117,6 +117,10 @@ struct MariasNotebookApp: App {
 
                     // Configure CloudKit sync status monitoring
                     CloudKitSyncStatusService.shared.configure(with: sharedModelContainer)
+                    
+                    // PERFORMANCE: Start memory pressure monitoring
+                    // This allows the app to proactively clear caches before being terminated
+                    _ = dependencies.memoryPressureMonitor
                 }
             }
             #if os(macOS)

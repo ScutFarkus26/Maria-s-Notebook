@@ -90,7 +90,7 @@ extension View {
 // MARK: - Animation Extensions
 
 extension Animation {
-    static let workflowToggle = Animation.easeInOut(duration: 0.2)
+    static let workflowToggle = Animation.easeInOut(duration: 0.15)
     static let workflowSelection = Animation.spring(response: 0.3, dampingFraction: 0.7)
 }
 

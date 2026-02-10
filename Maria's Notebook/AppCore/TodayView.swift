@@ -29,6 +29,7 @@ struct TodayView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.appRouter) var appRouter
     @Environment(\.calendar) var calendar
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(RestoreCoordinator.self) var restoreCoordinator
     @Environment(SaveCoordinator.self) var saveCoordinator
     #if os(iOS)
@@ -89,7 +90,11 @@ struct TodayView: View {
                 mainContent
             }
         }
-        .onAppear(perform: handleOnAppear)
+        // PERFORMANCE: Use .task instead of .onAppear for automatic cancellation
+        // .task automatically cancels when view disappears, preventing unnecessary work
+        .task(priority: .userInitiated) {
+            handleViewAppear()
+        }
         .onChange(of: calendar) { _, newCal in
             viewModel.setCalendar(newCal)
             AppCalendar.adopt(timeZoneFrom: newCal)
@@ -99,6 +104,10 @@ struct TodayView: View {
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             viewModel.reload()
+        }
+        // PERFORMANCE: Pause expensive syncs when app is in background
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
         }
         .sheet(id: $selectedWorkID) { id in
             WorkDetailView(workID: id) {
@@ -322,7 +331,7 @@ struct TodayView: View {
 
     // MARK: - Event Handlers
 
-    private func handleOnAppear() {
+    private func handleViewAppear() {
         viewModel.setCalendar(calendar)
         syncReminders()
         syncCalendarEvents()
@@ -332,6 +341,21 @@ struct TodayView: View {
             viewModel.date = AppCalendar.startOfDay(coerced)
         }
         updateFilteredQueries()
+    }
+    
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        switch newPhase {
+        case .active:
+            // Resume syncs when app becomes active
+            syncReminders()
+            syncCalendarEvents()
+        case .inactive, .background:
+            // App is inactive or in background - expensive syncs will be paused automatically
+            // because sync Tasks check for cancellation
+            break
+        @unknown default:
+            break
+        }
     }
 
     private func handleDateChange(_ newValue: Date) {

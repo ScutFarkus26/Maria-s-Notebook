@@ -90,7 +90,7 @@ extension UnifiedNoteEditor {
         }
         .frame(minHeight: 44)
         .opacity(detectedStudentIDs.isEmpty ? 0 : 1)
-        .animation(.easeInOut(duration: 0.2), value: detectedStudentIDs)
+        .animation(.easeInOut(duration: 0.15), value: detectedStudentIDs)
         .accessibilityHidden(detectedStudentIDs.isEmpty)
     }
 
@@ -479,7 +479,7 @@ private struct TemplatePickerView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header with expand/collapse
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: 0.15)) {
                     isExpanded.toggle()
                 }
             } label: {

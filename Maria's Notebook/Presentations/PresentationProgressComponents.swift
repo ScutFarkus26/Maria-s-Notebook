@@ -393,7 +393,7 @@ struct StudentProgressCard: View {
 
             if progress.hasWork {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
                         isExpanded.toggle()
                     }
                 } label: {

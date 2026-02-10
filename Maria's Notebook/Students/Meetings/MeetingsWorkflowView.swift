@@ -368,7 +368,7 @@ struct MeetingThresholdPicker: View {
 
                 // Show completed toggle
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
                         showCompleted.toggle()
                     }
                 } label: {
@@ -397,7 +397,7 @@ struct MeetingThresholdPicker: View {
                     HStack(spacing: 6) {
                         ForEach(presets, id: \.self) { preset in
                             Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation(.easeInOut(duration: 0.15)) {
                                     days = preset
                                 }
                             } label: {

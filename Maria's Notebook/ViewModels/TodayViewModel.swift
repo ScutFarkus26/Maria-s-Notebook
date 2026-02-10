@@ -272,3 +272,67 @@ final class TodayViewModel {
     }
 
 }
+
+// MARK: - Equatable Conformance
+
+extension TodayViewModel: Equatable {
+    /// Compare only properties that affect UI rendering
+    /// This allows SwiftUI to skip re-rendering when nothing visual has changed
+    ///
+    /// FUTURE OPTIMIZATION: For even more granular control, individual view sections
+    /// could use `withObservationTracking` to track only specific properties they access.
+    /// This would enable per-section updates instead of whole-view updates.
+    /// Example:
+    /// ```swift
+    /// withObservationTracking {
+    ///     ForEach(viewModel.todaysLessons) { lesson in
+    ///         LessonRow(lesson: lesson)
+    ///     }
+    /// } onChange: {
+    ///     // View updates only when todaysLessons changes, not when reminders change
+    /// }
+    /// ```
+    static func == (lhs: TodayViewModel, rhs: TodayViewModel) -> Bool {
+        // Compare inputs that trigger reloads
+        guard lhs.date == rhs.date,
+              lhs.levelFilter == rhs.levelFilter else {
+            return false
+        }
+        
+        // Compare output arrays by count and IDs (not full equality to avoid deep comparison)
+        guard lhs.todaysLessons.count == rhs.todaysLessons.count,
+              lhs.todaysLessons.map(\.id) == rhs.todaysLessons.map(\.id),
+              
+              lhs.overdueSchedule.count == rhs.overdueSchedule.count,
+              lhs.todaysSchedule.count == rhs.todaysSchedule.count,
+              lhs.staleFollowUps.count == rhs.staleFollowUps.count,
+              
+              lhs.completedWork.count == rhs.completedWork.count,
+              lhs.completedWork.map(\.id) == rhs.completedWork.map(\.id),
+              
+              lhs.todaysReminders.count == rhs.todaysReminders.count,
+              lhs.todaysReminders.map(\.id) == rhs.todaysReminders.map(\.id),
+              lhs.overdueReminders.count == rhs.overdueReminders.count,
+              lhs.anytimeReminders.count == rhs.anytimeReminders.count,
+              
+              lhs.todaysCalendarEvents.count == rhs.todaysCalendarEvents.count,
+              lhs.todaysCalendarEvents.map(\.id) == rhs.todaysCalendarEvents.map(\.id),
+              
+              lhs.recentNotes.count == rhs.recentNotes.count,
+              lhs.recentNotes.map(\.id) == rhs.recentNotes.map(\.id) else {
+            return false
+        }
+        
+        // Compare attendance summary
+        guard lhs.attendanceSummary == rhs.attendanceSummary,
+              lhs.absentToday == rhs.absentToday,
+              lhs.leftEarlyToday == rhs.leftEarlyToday else {
+            return false
+        }
+        
+        // Don't compare cache internals (studentsByID, lessonsByID, workByID, etc.)
+        // as they don't directly affect rendering
+        
+        return true
+    }
+}
