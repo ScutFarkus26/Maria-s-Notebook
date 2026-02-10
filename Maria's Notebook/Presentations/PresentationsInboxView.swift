@@ -12,10 +12,9 @@ struct PresentationsInboxView: View {
     let filteredSnapshot: (StudentLesson) -> StudentLessonSnapshot
     let missWindow: PresentationsMissWindow
     @Binding var missWindowRaw: String
-    @Binding var selectedStudentLessonForDetail: StudentLesson?
-    @Binding var isInboxTargeted: Bool
-    @Binding var isCalendarMinimized: Bool
-    @Binding var selectedStudentFilter: UUID?
+    
+    // MODERN: Navigation coordinator replaces scattered @Binding vars
+    let coordinator: PresentationsCoordinator
 
     // Pass cached data from parent to avoid duplicate queries
     let cachedLessons: [Lesson]
@@ -51,13 +50,13 @@ struct PresentationsInboxView: View {
     
     /// Lessons filtered by selected student (if any) - automatically updates
     private var studentFilteredReadyLessons: [StudentLesson] {
-        guard let studentID = selectedStudentFilter else { return readyLessons }
+        guard let studentID = coordinator.selectedStudentFilter else { return readyLessons }
         let studentIDString = studentID.uuidString
         return readyLessons.filter { $0.studentIDs.contains(studentIDString) }
     }
     
     private var studentFilteredBlockedLessons: [StudentLesson] {
-        guard let studentID = selectedStudentFilter else { return blockedLessons }
+        guard let studentID = coordinator.selectedStudentFilter else { return blockedLessons }
         let studentIDString = studentID.uuidString
         return blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
     }
@@ -79,10 +78,10 @@ struct PresentationsInboxView: View {
                         #if os(iOS)
                         Button {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                isCalendarMinimized.toggle()
+                                coordinator.toggleCalendar()
                             }
                         } label: {
-                            Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                            Image(systemName: coordinator.isCalendarMinimized ? "calendar" : "calendar.badge.minus")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(.secondary)
                                 .padding(8)
@@ -118,7 +117,7 @@ struct PresentationsInboxView: View {
                     }
 
                     // Active student filter chip
-                    if let studentID = selectedStudentFilter,
+                    if let studentID = coordinator.selectedStudentFilter,
                        let student = cachedStudents.first(where: { $0.id == studentID }) {
                         HStack(spacing: 6) {
                             Image(systemName: "person.fill")
@@ -127,7 +126,7 @@ struct PresentationsInboxView: View {
                                 .font(.caption.weight(.medium))
                             Button {
                                 withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedStudentFilter = nil
+                                    coordinator.clearStudentFilter()
                                 }
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
@@ -155,7 +154,7 @@ struct PresentationsInboxView: View {
             studentsNeedingLessonsSidebar
         }
         .overlay {
-            if isInboxTargeted {
+            if coordinator.isInboxTargeted {
                 Color.accentColor.opacity(0.15)
                     .allowsHitTesting(false)
                 
@@ -178,7 +177,7 @@ struct PresentationsInboxView: View {
         .onDrop(of: [.text], delegate: InboxDropDelegate(
             modelContext: modelContext,
             studentLessons: studentLessons,
-            isTargeted: $isInboxTargeted
+            coordinator: coordinator
         ))
     }
     
@@ -253,7 +252,7 @@ struct PresentationsInboxView: View {
                 cachedLessons: cachedLessons,
                 cachedStudents: cachedStudents
             )
-            .onTapGesture { selectedStudentLessonForDetail = sl }
+            .onTapGesture { coordinator.showStudentLessonDetail(sl) }
             .onDrag {
                 let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
                 // Use computed lessonsByID for fast lookup
@@ -417,7 +416,7 @@ struct PresentationsInboxView: View {
 
     @ViewBuilder
     private func studentRow(_ student: Student) -> some View {
-        let isSelected = selectedStudentFilter == student.id
+        let isSelected = coordinator.selectedStudentFilter == student.id
 
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
@@ -479,10 +478,10 @@ struct PresentationsInboxView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
-                if selectedStudentFilter == student.id {
-                    selectedStudentFilter = nil
+                if coordinator.selectedStudentFilter == student.id {
+                    coordinator.clearStudentFilter()
                 } else {
-                    selectedStudentFilter = student.id
+                    coordinator.filterByStudent(student.id)
                 }
             }
         }
@@ -493,14 +492,14 @@ struct PresentationsInboxView: View {
 private struct InboxDropDelegate: DropDelegate {
     let modelContext: ModelContext
     let studentLessons: [StudentLesson]
-    @Binding var isTargeted: Bool
+    let coordinator: PresentationsCoordinator
     
     func dropEntered(info: DropInfo) {
-        withAnimation { isTargeted = true }
+        withAnimation { coordinator.setInboxTargeted(true) }
     }
     
     func dropExited(info: DropInfo) {
-        withAnimation { isTargeted = false }
+        withAnimation { coordinator.setInboxTargeted(false) }
     }
     
     func validateDrop(info: DropInfo) -> Bool {
@@ -508,7 +507,7 @@ private struct InboxDropDelegate: DropDelegate {
     }
     
     func performDrop(info: DropInfo) -> Bool {
-        withAnimation { isTargeted = false }
+        withAnimation { coordinator.setInboxTargeted(false) }
         let providers = info.itemProviders(for: [.text])
         guard let provider = providers.first else { return false }
         

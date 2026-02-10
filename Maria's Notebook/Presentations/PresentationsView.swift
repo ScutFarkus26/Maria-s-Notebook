@@ -144,12 +144,11 @@ struct PresentationsView: View {
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @State private var startDate: Date = Date()
-    @State private var selectedStudentLessonForDetail: StudentLesson? = nil
-    @State private var isInboxTargeted: Bool = false
-    @State private var isCalendarMinimized: Bool = false
     @State private var mobileViewSelection: MobileViewMode = .inbox
     @State private var cachedNonSchoolDates: Set<Date> = []
-    @State private var selectedStudentFilter: UUID? = nil
+    
+    // MODERN: Centralized navigation coordinator
+    @State private var coordinator = PresentationsCoordinator()
 
     enum MobileViewMode: String, CaseIterable {
         case inbox = "Inbox"
@@ -242,10 +241,7 @@ struct PresentationsView: View {
                             filteredSnapshot: filteredSnapshot,
                             missWindow: missWindow,
                             missWindowRaw: $missWindowRaw,
-                            selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
-                            isInboxTargeted: $isInboxTargeted,
-                            isCalendarMinimized: .constant(false), // Always expanded in this mode
-                            selectedStudentFilter: $selectedStudentFilter,
+                            coordinator: coordinator,
                             cachedLessons: viewModel.lessons,
                             cachedStudents: viewModel.cachedStudents,
                             daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
@@ -263,7 +259,7 @@ struct PresentationsView: View {
                                 try? modelContext.save()
                             },
                             onSelect: { sl in
-                                selectedStudentLessonForDetail = sl
+                                coordinator.showStudentLessonDetail(sl)
                             }
                         )
                     }
@@ -274,7 +270,7 @@ struct PresentationsView: View {
                     ViewHeader(title: "Presentations")
                     Divider()
                     GeometryReader { proxy in
-                        let inboxHeight = proxy.size.height * (isCalendarMinimized ? 1.0 : 0.5)
+                        let inboxHeight = proxy.size.height * (coordinator.isCalendarMinimized ? 1.0 : 0.5)
                         let calendarHeight = proxy.size.height * 0.5
 
                         VStack(spacing: 0) {
@@ -286,17 +282,14 @@ struct PresentationsView: View {
                                 filteredSnapshot: filteredSnapshot,
                                 missWindow: missWindow,
                                 missWindowRaw: $missWindowRaw,
-                                selectedStudentLessonForDetail: $selectedStudentLessonForDetail,
-                                isInboxTargeted: $isInboxTargeted,
-                                isCalendarMinimized: $isCalendarMinimized,
-                                selectedStudentFilter: $selectedStudentFilter,
+                                coordinator: coordinator,
                                 cachedLessons: viewModel.lessons,
                                 cachedStudents: viewModel.cachedStudents,
                                 daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
                             )
                             .frame(height: inboxHeight)
 
-                            if !isCalendarMinimized {
+                            if !coordinator.isCalendarMinimized {
                                 Divider()
                                 // Bottom: Calendar strip
                                 PresentationsCalendarStrip(
@@ -308,7 +301,7 @@ struct PresentationsView: View {
                                         try? modelContext.save()
                                     },
                                     onSelect: { sl in
-                                        selectedStudentLessonForDetail = sl
+                                        coordinator.showStudentLessonDetail(sl)
                                     }
                                 )
                                 .frame(height: calendarHeight)
@@ -379,17 +372,32 @@ struct PresentationsView: View {
             // Update ViewModel for any dependency change
             updateViewModel()
         }
-        .sheet(item: $selectedStudentLessonForDetail) { sl in
-            StudentLessonDetailView(studentLesson: sl) {
-                selectedStudentLessonForDetail = nil
+        // MODERN: Sheet presentation managed by coordinator
+        .sheet(item: $coordinator.activeSheet) { sheet in
+            switch sheet {
+            case .studentLessonDetail(let sl):
+                StudentLessonDetailView(studentLesson: sl) {
+                    coordinator.dismissSheet()
+                }
+                #if os(macOS)
+                .frame(minWidth: 720, minHeight: 640)
+                .presentationSizingFitted()
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
+            
+            case .schedulePresentationFor(let lesson):
+                SchedulePresentationSheet(
+                    lesson: lesson,
+                    onPlan: { _ in coordinator.dismissSheet() },
+                    onCancel: { coordinator.dismissSheet() }
+                )
+                
+            case .postPresentation, .unifiedWorkflow, .lessonAssignmentDetail, .lessonAssignmentHistory:
+                // Future implementations
+                Text("Sheet not yet implemented")
             }
-        #if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizingFitted()
-        #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-        #endif
         }
     }
 
