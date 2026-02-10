@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 #if os(macOS)
 import AppKit
 #endif
@@ -10,20 +9,25 @@ import AppKit
 /// - Backups on app quit
 /// - Scheduled interval backups while app is running
 /// - Pre-destructive operation backups
+@Observable
 @MainActor
-class AutoBackupManager: ObservableObject {
+final class AutoBackupManager {
     // MARK: - Settings
 
+    @ObservationIgnored
     @AppStorage("AutoBackup.enabled") private var isEnabled = true
+    @ObservationIgnored
     @AppStorage("AutoBackup.retentionCount") private var retentionCount = 10
+    @ObservationIgnored
     @AppStorage("AutoBackup.scheduledEnabled") private var scheduledEnabled = false
+    @ObservationIgnored
     @AppStorage("AutoBackup.intervalHours") private var intervalHours = 4
 
-    // MARK: - Published State
+    // MARK: - State
 
-    @Published private(set) var lastScheduledBackupDate: Date?
-    @Published private(set) var isPerformingBackup = false
-    @Published private(set) var lastBackupResult: BackupResult?
+    private(set) var lastScheduledBackupDate: Date?
+    private(set) var isPerformingBackup = false
+    private(set) var lastBackupResult: BackupResult?
 
     // MARK: - Types
 

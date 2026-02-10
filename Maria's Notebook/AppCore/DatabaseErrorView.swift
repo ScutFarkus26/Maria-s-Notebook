@@ -10,7 +10,7 @@ import UIKit
 /// Provides recovery actions: Reset, Restore, Export Diagnostics.
 struct DatabaseErrorView: View {
     @Bindable var errorCoordinator: DatabaseErrorCoordinator
-    @ObservedObject var appRouter: AppRouter
+    @Bindable var appRouter: AppRouter
     
     @State private var isResetting = false
     @State private var resetError: String?

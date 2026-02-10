@@ -2,7 +2,6 @@
 // Centralized toast/notification management for the app
 
 import SwiftUI
-import Combine
 
 /// Toast message types for different visual styles
 enum ToastType {
@@ -49,13 +48,14 @@ struct ToastMessage: Identifiable, Equatable {
 }
 
 /// Centralized toast service for displaying transient notifications
+@Observable
 @MainActor
-final class ToastService: ObservableObject {
+final class ToastService {
     /// Shared instance for app-wide toast display
     static let shared = ToastService()
 
     /// The current toast message to display (nil when no toast is shown)
-    @Published private(set) var currentToast: ToastMessage?
+    private(set) var currentToast: ToastMessage?
 
     /// Queue of pending toasts
     private var toastQueue: [ToastMessage] = []
@@ -157,7 +157,7 @@ final class ToastService: ObservableObject {
 
 /// A view that displays the current toast message
 struct ToastOverlay: View {
-    @ObservedObject var toastService: ToastService
+    @Bindable var toastService: ToastService
 
     var body: some View {
         Group {
@@ -201,7 +201,7 @@ struct ToastView: View {
 
 /// View modifier to add toast overlay to a view
 struct ToastOverlayModifier: ViewModifier {
-    @ObservedObject var toastService: ToastService
+    @Bindable var toastService: ToastService
 
     func body(content: Content) -> some View {
         content

@@ -60,12 +60,10 @@ struct NoteEditSheet: View {
         }
         .frame(minWidth: 600, minHeight: 500)
         .presentationSizingFitted()
-        .onAppear {
+        .task {
             // Auto-focus text editor on macOS
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(200))
-                isTextEditorFocused = true
-            }
+            try? await Task.sleep(for: .milliseconds(200))
+            isTextEditorFocused = true
         }
         #else
         NavigationStack {
@@ -85,12 +83,10 @@ struct NoteEditSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .onAppear {
+        .task {
             // Auto-focus text editor on iOS
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(300))
-                isTextEditorFocused = true
-            }
+            try? await Task.sleep(for: .milliseconds(300))
+            isTextEditorFocused = true
         }
         #endif
     }

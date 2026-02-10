@@ -196,11 +196,9 @@ struct LessonsCardsGridView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             // Defer enabling animations until after the first layout to avoid initial appear animations
-            Task { @MainActor in
-                hasAppeared = true
-            }
+            hasAppeared = true
         }
         .task {
             if !introductionStore.isLoaded {

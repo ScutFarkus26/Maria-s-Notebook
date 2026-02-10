@@ -7,12 +7,12 @@
 //
 
 import SwiftUI
-import Combine
 
 /// Central navigation coordinator for the app
 /// Provides type-safe navigation actions and state management
+@Observable
 @MainActor
-class AppRouter: ObservableObject {
+final class AppRouter {
     static let shared = AppRouter()
     
     // MARK: - Navigation Actions
@@ -62,29 +62,29 @@ class AppRouter: ObservableObject {
         }
     }
     
-    // MARK: - Published State
+    // MARK: - State
     
     /// Current navigation destination to present
-    @Published var navigationDestination: NavigationDestination? = nil
+    var navigationDestination: NavigationDestination? = nil
     
     /// Plan lesson request
-    @Published var planLessonRequest: PlanLessonRequest? = nil
+    var planLessonRequest: PlanLessonRequest? = nil
     
     /// Navigation item selection for root view (new primary navigation)
-    @Published var selectedNavItem: RootView.NavigationItem? = nil
+    var selectedNavItem: RootView.NavigationItem? = nil
     
     /// Tab selection for root view (legacy - kept for backward compatibility)
-    @Published var selectedTab: RootView.Tab? = nil
+    var selectedTab: RootView.Tab? = nil
     
     /// Students mode selection
-    @Published var studentsMode: String? = nil
+    var studentsMode: String? = nil
     
     /// Refresh trigger for planning inbox
-    @Published var planningInboxRefreshTrigger: UUID = UUID()
+    var planningInboxRefreshTrigger: UUID = UUID()
     
     /// App lifecycle events
-    @Published var appDataWillBeReplaced: Bool = false
-    @Published var appDataDidRestore: Bool = false
+    var appDataWillBeReplaced: Bool = false
+    var appDataDidRestore: Bool = false
     
     // MARK: - Navigation Methods
     

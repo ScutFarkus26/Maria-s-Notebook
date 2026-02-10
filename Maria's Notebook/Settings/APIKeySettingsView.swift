@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+// MARK: - URL Extension for Safe Known URLs
+
+private extension URL {
+    /// Creates a URL from a known-valid string, with proper error handling
+    static func knownURL(_ string: String) -> URL {
+        guard let url = URL(string: string) else {
+            preconditionFailure("Invalid hardcoded URL: \(string). This is a programming error.")
+        }
+        return url
+    }
+}
+
 struct APIKeySettingsView: View {
     @State private var apiKey: String = ""
     @State private var showingKey = false
@@ -87,9 +99,9 @@ struct APIKeySettingsView: View {
                     showingInfoSheet = true
                 }
                 
-                Link("Open Anthropic Console", destination: URL(string: "https://console.anthropic.com/")!)
+                Link("Open Anthropic Console", destination: .knownURL("https://console.anthropic.com/"))
                 
-                Link("View Pricing Information", destination: URL(string: "https://www.anthropic.com/pricing")!)
+                Link("View Pricing Information", destination: .knownURL("https://www.anthropic.com/pricing"))
             } header: {
                 Text("Information")
             }
@@ -160,7 +172,7 @@ struct APIKeyInformationSheet: View {
                         Text("Visit console.anthropic.com and sign up for a free account.")
                             .font(.body)
                         
-                        Link("Open Anthropic Console →", destination: URL(string: "https://console.anthropic.com/")!)
+                        Link("Open Anthropic Console →", destination: .knownURL("https://console.anthropic.com/"))
                             .font(.subheadline)
                     }
                     .padding()
@@ -209,7 +221,7 @@ struct APIKeyInformationSheet: View {
                             .font(.body)
                             .fontWeight(.semibold)
                         
-                        Link("View Detailed Pricing →", destination: URL(string: "https://www.anthropic.com/pricing")!)
+                        Link("View Detailed Pricing →", destination: .knownURL("https://www.anthropic.com/pricing"))
                             .font(.subheadline)
                     }
                     .padding()

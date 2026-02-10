@@ -1,14 +1,14 @@
 import Foundation
-import Combine
 import Network
 
 /// Service responsible for monitoring network connectivity status
+@Observable
 @MainActor
-final class NetworkMonitoring: ObservableObject {
-    // MARK: - Published State
+final class NetworkMonitoring {
+    // MARK: - State
     
     /// Whether network is available
-    @Published private(set) var isNetworkAvailable: Bool = true
+    private(set) var isNetworkAvailable: Bool = true
     
     // MARK: - Private State
     

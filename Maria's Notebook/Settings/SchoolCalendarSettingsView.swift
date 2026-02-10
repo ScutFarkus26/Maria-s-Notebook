@@ -132,10 +132,8 @@ struct SchoolCalendarSettingsView: View {
             .padding(.top, 8)
             #endif
         }
-        .onAppear {
-            Task {
-                await reload()
-            }
+        .task {
+            await reload()
         }
     }
 

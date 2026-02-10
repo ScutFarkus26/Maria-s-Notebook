@@ -7,23 +7,23 @@ import EventKit
 public struct CalendarSyncSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dependencies) private var dependencies
-    @StateObject private var syncService: CalendarSyncService
+    @State private var syncService: CalendarSyncService
     @State private var selectedCalendarIdentifiers: Set<String> = []
     @State private var availableCalendars: [CalendarSyncService.CalendarInfo] = []
     @State private var isRefreshing: Bool = false
     @State private var lastSyncStatus: String? = nil
 
     public init() {
-        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.calendarSync)
+        _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.calendarSync)
     }
 
     private var needsAuthorization: Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            return syncService.authorizationStatus != .fullAccess
+            return syncService.authorizationStatus != EKAuthorizationStatus.fullAccess
         } else {
-            return syncService.authorizationStatus == .notDetermined ||
-                   syncService.authorizationStatus == .denied ||
-                   syncService.authorizationStatus == .restricted
+            return syncService.authorizationStatus == EKAuthorizationStatus.notDetermined ||
+                   syncService.authorizationStatus == EKAuthorizationStatus.denied ||
+                   syncService.authorizationStatus == EKAuthorizationStatus.restricted
         }
     }
 
@@ -90,12 +90,10 @@ public struct CalendarSyncSettingsView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             syncService.modelContext = modelContext
             selectedCalendarIdentifiers = Set(syncService.syncCalendarIdentifiers)
-            Task {
-                await loadAvailableCalendars()
-            }
+            await loadAvailableCalendars()
         }
     }
 

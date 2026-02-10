@@ -34,16 +34,14 @@ struct QuickNoteSheet: View {
     // MARK: - Body
     var body: some View {
         actualView
-            .onAppear {
+            .task {
                 // Update view model with students once available
                 // Note: ViewModel holds students for display name logic
                 viewModel.setupInitialState()
                 
                 // Delay focus to allow animation
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(500))
-                    isFocused = true
-                }
+                try? await Task.sleep(for: .milliseconds(500))
+                isFocused = true
             }
     }
     

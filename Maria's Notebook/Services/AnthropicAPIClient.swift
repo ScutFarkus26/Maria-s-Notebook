@@ -18,8 +18,12 @@ final class AnthropicAPIClient: MCPClientProtocol {
         // Try to load API key from UserDefaults, then from keychain, then use provided
         self.apiKey = apiKey ?? Self.loadAPIKey()
         self.session = session
-        // This URL is hardcoded and always valid
-        self.baseURL = URL(string: "https://api.anthropic.com/v1/messages")!
+        
+        // Hardcoded URL should always be valid, but make it explicit
+        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
+            preconditionFailure("Invalid hardcoded Anthropic API URL. This is a programming error.")
+        }
+        self.baseURL = url
     }
     
     // MARK: - MCPClientProtocol Implementation

@@ -42,7 +42,7 @@ struct PlanningWeekViewMac: View {
             activeSheet: $activeSheet,
             onRefreshNeeded: nil // Not needed - @Query handles updates automatically
         )
-        .onAppear {
+        .task {
             #if DEBUG
             print("🚀 PlanningWeekViewMac loaded with \(inboxLessons.count) inbox items (Using @Query magic)")
             PerformanceLogger.logScreenLoad(
@@ -56,15 +56,11 @@ struct PlanningWeekViewMac: View {
             #endif
             
             // Run migrations once
-            Task {
-                await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
-            }
+            await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
             DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
             
             // Calculate initial start date
-            Task {
-                await computeInitialStartDate()
-            }
+            await computeInitialStartDate()
             syncInboxOrderWithCurrentBase()
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in

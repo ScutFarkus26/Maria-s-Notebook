@@ -1,12 +1,12 @@
 import Foundation
 import EventKit
 import SwiftData
-import Combine
 
 /// Service that syncs calendar events with Apple's Calendar app via EventKit.
 /// Only syncs events from a specific calendar configured by the user.
+@Observable
 @MainActor
-class CalendarSyncService: ObservableObject {
+final class CalendarSyncService {
     static let shared = CalendarSyncService()
 
     private let eventStore = EKEventStore()
@@ -35,7 +35,7 @@ class CalendarSyncService: ObservableObject {
     }
 
     /// Whether EventKit access has been authorized
-    @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
+    var authorizationStatus: EKAuthorizationStatus = .notDetermined
 
     // MARK: - Change Observation
     private var changeObserver: NSObjectProtocol?
@@ -82,46 +82,41 @@ class CalendarSyncService: ObservableObject {
     /// Request access to Calendar
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                Task { @MainActor in
-                    self.eventStore.requestFullAccessToEvents { granted, error in
-                        Task { @MainActor in
-                            self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-
-                            if granted && !self.syncCalendarIdentifiers.isEmpty {
-                                self.startObservingChanges()
-                            }
-                        }
-
-                        if let error = error {
-                            continuation.resume(throwing: error)
-                        } else if granted {
-                            continuation.resume(returning: true)
-                        } else {
-                            continuation.resume(returning: false)
-                        }
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+                self.eventStore.requestFullAccessToEvents { granted, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: granted)
                     }
                 }
             }
+            
+            // Update status and start observing on main actor
+            authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+            if granted && !syncCalendarIdentifiers.isEmpty {
+                startObservingChanges()
+            }
+            
+            return granted
         } else {
-            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                Task { @MainActor in
-                    self.eventStore.requestAccess(to: .event) { granted, error in
-                        Task { @MainActor in
-                            self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-
-                            if granted && !self.syncCalendarIdentifiers.isEmpty {
-                                self.startObservingChanges()
-                            }
-                        }
-                        if let error = error {
-                            continuation.resume(throwing: error)
-                        } else {
-                            continuation.resume(returning: granted)
-                        }
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+                self.eventStore.requestAccess(to: .event) { granted, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: granted)
                     }
                 }
             }
+            
+            // Update status and start observing on main actor
+            authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+            if granted && !syncCalendarIdentifiers.isEmpty {
+                startObservingChanges()
+            }
+            
+            return granted
         }
     }
 
@@ -383,10 +378,10 @@ class CalendarSyncService: ObservableObject {
 
     private var lastSyncTime: Date?
 
-    /// Published sync status for UI visibility
-    @Published var lastSuccessfulSync: Date?
-    @Published var lastSyncError: String?
-    @Published var isSyncing: Bool = false
+    /// Sync status for UI visibility
+    var lastSuccessfulSync: Date?
+    var lastSyncError: String?
+    var isSyncing: Bool = false
 }
 
 enum CalendarSyncError: LocalizedError, Equatable {

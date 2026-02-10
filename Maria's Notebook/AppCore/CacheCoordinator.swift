@@ -24,8 +24,9 @@ private let logger = Logger.cache
 /// coordinator.register(todayCache, key: "today")
 /// coordinator.invalidate(key: "today")  // Or invalidateAll()
 /// ```
+@Observable
 @MainActor
-final class CacheCoordinator: ObservableObject {
+final class CacheCoordinator {
     
     // MARK: - Cache Registry
     
@@ -194,9 +195,10 @@ struct CacheMetrics: Identifiable {
 // MARK: - Reactive Cache Base Class
 
 /// Base class for caches that support reactive invalidation
+@Observable
 @MainActor
-class ReactiveCache: Caching, ObservableObject {
-    @Published private(set) var hasData: Bool = false
+class ReactiveCache: Caching {
+    private(set) var hasData: Bool = false
     
     private var cancellables = Set<AnyCancellable>()
     private let coordinator: CacheCoordinator?
@@ -316,7 +318,7 @@ class ReactiveCache: Caching, ObservableObject {
 import SwiftUI
 
 struct CacheDebugView: View {
-    @ObservedObject var coordinator: CacheCoordinator
+    @Bindable var coordinator: CacheCoordinator
     @State private var selectedCache: String?
     
     var body: some View {

@@ -86,22 +86,19 @@ struct ProjectsRootView: View {
         } message: { club in
             Text("Are you sure you want to delete \"\(club.title)\"? This will permanently remove all sessions, deliverables, and assignments associated with this project.")
         }
-        .onAppear {
+        .task {
             // Auto-select first if none selected on iPad
-            // Defer state changes to avoid layout recursion warnings
-            Task { @MainActor in
-                #if os(iOS)
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    if selectedClubIDString.isEmpty, let first = clubs.first {
-                        selectedClubIDString = first.id.uuidString
-                    }
-                }
-                #else
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .pad {
                 if selectedClubIDString.isEmpty, let first = clubs.first {
                     selectedClubIDString = first.id.uuidString
                 }
-                #endif
             }
+            #else
+            if selectedClubIDString.isEmpty, let first = clubs.first {
+                selectedClubIDString = first.id.uuidString
+            }
+            #endif
         }
     }
 

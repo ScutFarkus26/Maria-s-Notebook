@@ -1,12 +1,12 @@
 import Foundation
 import EventKit
 import SwiftData
-import Combine
 
 /// Service that syncs reminders with Apple's Reminders app via EventKit.
 /// Only syncs reminders from a specific Reminders list configured by the user.
+@Observable
 @MainActor
-class ReminderSyncService: ObservableObject {
+final class ReminderSyncService {
     static let shared = ReminderSyncService()
     
     private let eventStore = EKEventStore()
@@ -37,7 +37,7 @@ class ReminderSyncService: ObservableObject {
     }
 
     /// Whether EventKit access has been authorized
-    @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
+    var authorizationStatus: EKAuthorizationStatus = .notDetermined
 
     // MARK: - Change Observation
     private var changeObserver: NSObjectProtocol?
@@ -77,53 +77,41 @@ class ReminderSyncService: ObservableObject {
     /// Request access to Reminders
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                // Request must be called on main thread
-                Task { @MainActor in
-                    self.eventStore.requestFullAccessToReminders { granted, error in
-                        // Update status
-                        Task { @MainActor in
-                            self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-                            
-                            // Start observing if access was granted and sync is configured
-                            if granted && self.syncListName != nil {
-                                self.startObservingChanges()
-                            }
-                        }
-                        
-                        // Handle completion - check for error first
-                        if let error = error {
-                            continuation.resume(throwing: error)
-                        } else if granted {
-                            continuation.resume(returning: true)
-                        } else {
-                            // Access denied
-                            continuation.resume(returning: false)
-                        }
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+                self.eventStore.requestFullAccessToReminders { granted, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: granted)
                     }
                 }
             }
+            
+            // Update status and start observing on main actor
+            authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
+            if granted && syncListName != nil {
+                startObservingChanges()
+            }
+            
+            return granted
         } else {
-            // Fallback for older versions
-            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                Task { @MainActor in
-                    self.eventStore.requestAccess(to: .reminder) { granted, error in
-                        Task { @MainActor in
-                            self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-                            
-                            // Start observing if access was granted and sync is configured
-                            if granted && self.syncListName != nil {
-                                self.startObservingChanges()
-                            }
-                        }
-                        if let error = error {
-                            continuation.resume(throwing: error)
-                        } else {
-                            continuation.resume(returning: granted)
-                        }
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+                self.eventStore.requestAccess(to: .reminder) { granted, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: granted)
                     }
                 }
             }
+            
+            // Update status and start observing on main actor
+            authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
+            if granted && syncListName != nil {
+                startObservingChanges()
+            }
+            
+            return granted
         }
     }
     
@@ -444,10 +432,10 @@ class ReminderSyncService: ObservableObject {
     
     private var lastSyncTime: Date?
 
-    /// Published sync status for UI visibility
-    @Published var lastSuccessfulSync: Date?
-    @Published var lastSyncError: String?
-    @Published var isSyncing: Bool = false
+    /// Sync status for UI visibility
+    var lastSuccessfulSync: Date?
+    var lastSyncError: String?
+    var isSyncing: Bool = false
 
     // MARK: - Two-Way Sync: Update EventKit from Local Changes
 

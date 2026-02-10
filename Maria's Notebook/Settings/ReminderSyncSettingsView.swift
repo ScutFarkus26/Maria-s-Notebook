@@ -5,7 +5,7 @@ import EventKit
 /// Settings view for configuring Reminder sync with Apple's Reminders app.
 public struct ReminderSyncSettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var syncService: ReminderSyncService
+    @State private var syncService: ReminderSyncService
     @State private var selectedListIdentifier: String = ""
     @State private var availableLists: [ReminderSyncService.ReminderListInfo] = []
     @State private var isRefreshing: Bool = false
@@ -13,16 +13,16 @@ public struct ReminderSyncSettingsView: View {
 
     public init() {
         // Use the shared instance
-        _syncService = StateObject(wrappedValue: ReminderSyncService.shared)
+        _syncService = State(wrappedValue: ReminderSyncService.shared)
     }
 
     private var needsAuthorization: Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            return syncService.authorizationStatus != .fullAccess
+            return syncService.authorizationStatus != EKAuthorizationStatus.fullAccess
         } else {
-            return syncService.authorizationStatus == .notDetermined ||
-                   syncService.authorizationStatus == .denied ||
-                   syncService.authorizationStatus == .restricted
+            return syncService.authorizationStatus == EKAuthorizationStatus.notDetermined ||
+                   syncService.authorizationStatus == EKAuthorizationStatus.denied ||
+                   syncService.authorizationStatus == EKAuthorizationStatus.restricted
         }
     }
 
@@ -85,13 +85,11 @@ public struct ReminderSyncSettingsView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             // Update shared syncService with real modelContext
             syncService.modelContext = modelContext
             selectedListIdentifier = syncService.syncListIdentifier ?? ""
-            Task {
-                await loadAvailableLists()
-            }
+            await loadAvailableLists()
         }
     }
     

@@ -178,10 +178,8 @@ struct StudentsCardsGridView: View {
                 itemFrames = frames
             }
         }
-        .onAppear {
-            Task { @MainActor in
-                hasAppeared = true
-            }
+        .task {
+            hasAppeared = true
         }
     }
 

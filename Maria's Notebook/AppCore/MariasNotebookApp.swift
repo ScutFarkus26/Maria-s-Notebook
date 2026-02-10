@@ -20,7 +20,7 @@ struct MariasNotebookApp: App {
     @StateObject private var saveCoordinator = SaveCoordinator()
     @StateObject private var bootstrapper = AppBootstrapper.shared
     @StateObject private var restoreCoordinator = RestoreCoordinator()
-    @StateObject private var appRouter = AppRouter.shared
+    @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
     @StateObject private var dependencies: AppDependencies
     

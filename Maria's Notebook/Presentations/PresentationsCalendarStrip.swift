@@ -97,14 +97,12 @@ struct PresentationsCalendarStrip: View {
                     .padding(.vertical, 8)
                 }
             }
-            .onAppear {
+            .task {
                 // Scroll to the first day (which is the earliest of: first lesson date or today)
                 if let first = days.first {
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(100))
-                        withAnimation {
-                            proxy.scrollTo(first, anchor: .leading)
-                        }
+                    try? await Task.sleep(for: .milliseconds(100))
+                    withAnimation {
+                        proxy.scrollTo(first, anchor: .leading)
                     }
                 }
             }
