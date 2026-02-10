@@ -202,7 +202,7 @@ struct QuickNewWorkItemSheet: View {
                         Spacer()
                         if selectedLessonID == lesson.id {
                             Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                     }
                 }
@@ -249,14 +249,14 @@ struct QuickNewWorkItemSheet: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(Color.accentColor.opacity(0.15))
-                .foregroundColor(.accentColor)
+                .foregroundStyle(Color.accentColor)
                 .clipShape(Capsule())
 
             Button {
                 removeStudent(id: student.id)
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
             }
             .buttonStyle(.plain)
         }

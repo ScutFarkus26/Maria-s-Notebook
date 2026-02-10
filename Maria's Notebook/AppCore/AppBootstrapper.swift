@@ -1,13 +1,13 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 import OSLog
 
 /// Handles the initial setup and database migrations for the app.
 /// Moves heavy synchronous work off the main UI rendering flow of the App struct.
+@Observable
 @MainActor
-final class AppBootstrapper: ObservableObject {
+final class AppBootstrapper {
     private static let logger = Logger.app(category: "Bootstrapper")
 
     enum State {
@@ -17,7 +17,7 @@ final class AppBootstrapper: ObservableObject {
         case ready
     }
     
-    @Published private(set) var state: State = .idle
+    private(set) var state: State = .idle
     
     static let shared = AppBootstrapper()
     private init() {}

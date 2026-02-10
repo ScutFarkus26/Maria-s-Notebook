@@ -1,17 +1,17 @@
 import Foundation
-import Combine
 import SwiftUI
 
 /// Service responsible for monitoring CloudKit health and availability
+@Observable
 @MainActor
-final class CloudKitHealthCheck: ObservableObject {
-    // MARK: - Published State
+final class CloudKitHealthCheck {
+    // MARK: - Observable State
     
     /// Overall sync health status
-    @Published private(set) var syncHealth: SyncHealth = .unknown
+    private(set) var syncHealth: SyncHealth = .unknown
     
     /// Whether iCloud account is available
-    @Published private(set) var isICloudAvailable: Bool = true
+    private(set) var isICloudAvailable: Bool = true
     
     // MARK: - Types
     
@@ -73,7 +73,7 @@ final class CloudKitHealthCheck: ObservableObject {
     
     private var iCloudAccountObserver: NSObjectProtocol?
     private var pendingICloudTask: Task<Void, Never>?
-    private var onICloudChange: ((Bool) -> Void)?
+    private var iCloudChangeContinuation: AsyncStream<Bool>.Continuation?
     
     // MARK: - Initialization
     
@@ -111,9 +111,30 @@ final class CloudKitHealthCheck: ObservableObject {
     
     // MARK: - Public API
     
-    /// Set a callback to be notified when iCloud account status changes
+    /// Observe iCloud account status changes as an AsyncStream
+    func observeICloudChanges() -> AsyncStream<Bool> {
+        AsyncStream { [weak self] continuation in
+            guard let self else {
+                continuation.finish()
+                return
+            }
+            iCloudChangeContinuation = continuation
+            continuation.onTermination = { @Sendable _ in
+                Task { @MainActor [weak self] in
+                    self?.iCloudChangeContinuation = nil
+                }
+            }
+        }
+    }
+    
+    /// Set a callback to be notified when iCloud account status changes (legacy API)
+    @available(*, deprecated, message: "Use observeICloudChanges() instead")
     func setICloudChangeHandler(_ handler: @escaping (Bool) -> Void) {
-        onICloudChange = handler
+        Task {
+            for await isAvailable in observeICloudChanges() {
+                handler(isAvailable)
+            }
+        }
     }
     
     /// Start monitoring iCloud account changes
@@ -216,7 +237,7 @@ final class CloudKitHealthCheck: ObservableObject {
         isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
         
         if wasAvailable != isICloudAvailable {
-            onICloudChange?(isICloudAvailable)
+            iCloudChangeContinuation?.yield(isICloudAvailable)
         }
     }
     

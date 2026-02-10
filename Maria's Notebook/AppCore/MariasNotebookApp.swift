@@ -18,11 +18,11 @@ struct MariasNotebookApp: App {
     // MARK: - State Objects
     
     @State private var saveCoordinator = SaveCoordinator()
-    @StateObject private var bootstrapper = AppBootstrapper.shared
-    @StateObject private var restoreCoordinator = RestoreCoordinator()
+    @State private var bootstrapper = AppBootstrapper.shared
+    @State private var restoreCoordinator = RestoreCoordinator()
     @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
-    @StateObject private var dependencies: AppDependencies
+    @State private var dependencies: AppDependencies
     
     #if os(macOS)
     @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
@@ -33,7 +33,7 @@ struct MariasNotebookApp: App {
     init() {
         AppBootstrapping.performInitialSetup()
         let container = AppBootstrapping.getSharedModelContainer()
-        _dependencies = StateObject(wrappedValue: AppDependencies(modelContext: container.mainContext))
+        _dependencies = State(wrappedValue: AppDependencies(modelContext: container.mainContext))
     }
 
     // MARK: - Computed Properties
@@ -86,7 +86,7 @@ struct MariasNotebookApp: App {
                                     .environment(\.appRouter, appRouter)
                                     .environment(\.dependencies, dependencies)
                                     .environment(saveCoordinator)
-                                    .environmentObject(restoreCoordinator)
+                                    .environment(restoreCoordinator)
                             }
                         }
                     } else {
@@ -277,7 +277,7 @@ struct MariasNotebookApp: App {
                         WorkDetailWindowHost(workID: id)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(saveCoordinator)
-                            .environmentObject(restoreCoordinator)
+                            .environment(restoreCoordinator)
                     }
                 }
             } else {
@@ -305,7 +305,7 @@ struct MariasNotebookApp: App {
                         StudentDetailWindowHost(studentID: id)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(saveCoordinator)
-                            .environmentObject(restoreCoordinator)
+                            .environment(restoreCoordinator)
                     }
                 }
             } else {
@@ -333,7 +333,7 @@ struct MariasNotebookApp: App {
                         LessonDetailWindowHost(lessonID: id)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(saveCoordinator)
-                            .environmentObject(restoreCoordinator)
+                            .environment(restoreCoordinator)
                     }
                 }
             } else {

@@ -140,14 +140,14 @@ struct LessonAttachmentImportSheet: View {
             VStack(spacing: 8) {
                 Image(systemName: "doc.badge.plus")
                     .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                 
                 Text("Import Attachment")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                 
                 Text(fileURL.lastPathComponent)
                     .font(.system(size: 14))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -160,7 +160,7 @@ struct LessonAttachmentImportSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Suggested Lessons")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
                     ForEach(suggestedLessons.prefix(3)) { lesson in
@@ -180,7 +180,7 @@ struct LessonAttachmentImportSheet: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("All Lessons")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .padding(.horizontal)
                 
@@ -208,7 +208,7 @@ struct LessonAttachmentImportSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Attachment Scope")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
                     Picker("Scope", selection: $selectedScope) {
@@ -220,7 +220,7 @@ struct LessonAttachmentImportSheet: View {
                     
                     Text(selectedScope.description)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal)
             }
@@ -282,29 +282,29 @@ struct LessonSelectionRow: View {
         Button(action: onSelect) {
             HStack(spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                     .font(.system(size: 16))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(lesson.name)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     HStack(spacing: 6) {
                         if !lesson.subject.isEmpty {
                             Text(lesson.subject)
                                 .font(.system(size: 11))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         if !lesson.subject.isEmpty && !lesson.group.isEmpty {
                             Text("•")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         if !lesson.group.isEmpty {
                             Text(lesson.group)
                                 .font(.system(size: 11))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }

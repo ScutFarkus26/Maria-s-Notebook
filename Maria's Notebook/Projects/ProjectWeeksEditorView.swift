@@ -372,7 +372,7 @@ struct ProjectWeekEditorView: View, Identifiable {
                         offeredWorks.remove(at: index)
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
                 }

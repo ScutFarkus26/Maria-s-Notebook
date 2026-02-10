@@ -72,7 +72,7 @@ extension UnifiedNoteEditor {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
-                                .foregroundColor(isSelected ? .accentColor : .primary)
+                                .foregroundStyle(isSelected ? Color.accentColor : .primary)
                                 .background(
                                     Capsule()
                                         .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
@@ -123,7 +123,7 @@ extension UnifiedNoteEditor {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .background(
                                     Capsule()
                                         .fill(Color.accentColor.opacity(0.15))
@@ -149,7 +149,7 @@ extension UnifiedNoteEditor {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                     .background(
                         Capsule()
                             .fill(Color.accentColor.opacity(0.15))

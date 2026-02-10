@@ -17,7 +17,7 @@ struct InteractiveCard<Content: View>: View {
             HStack {
                 Image(systemName: systemImage)
                     .font(.title2)
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                 Text(title)
                     .font(.headline)
                     .lineLimit(1)
@@ -36,14 +36,14 @@ struct InteractiveCard<Content: View>: View {
         InteractiveCard(title: "Backup", systemImage: "icloud.and.arrow.up") {
             Text("Last backup: 2 hours ago")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         
         InteractiveCard(title: "Settings", systemImage: "gearshape", color: .blue) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Configure your preferences")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }

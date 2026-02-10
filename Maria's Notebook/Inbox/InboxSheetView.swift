@@ -75,14 +75,14 @@ public struct InboxSheetView: View {
         Image(systemName: "tray")
           .imageScale(.large)
           .frame(width: 24, height: 24)
-          .foregroundColor(.accentColor)
+          .foregroundStyle(Color.accentColor)
         VStack(alignment: .leading, spacing: 2) {
           Text("📥 Inbox")
             .font(.headline)
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
           Text("Unscheduled lessons")
             .font(.callout)
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
         }
         Spacer()
       }
@@ -94,7 +94,7 @@ public struct InboxSheetView: View {
           Spacer()
           Text("No unscheduled lessons")
             .font(.callout)
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
           Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -273,7 +273,7 @@ public struct InboxSheetView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
               .fill(Color.black.opacity(0.85))
           )
-          .foregroundColor(.white)
+          .foregroundStyle(.white)
           .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
           .transition(.move(edge: .top).combined(with: .opacity))
           .padding(.top, 8)
@@ -299,7 +299,7 @@ fileprivate struct InboxRow: View {
     HStack(spacing: 8) {
       Button(action: onToggleSelected) {
         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-          .foregroundColor(isSelected ? Color.accentColor : Color.secondary)
+          .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
       }
       .buttonStyle(.plain)
 

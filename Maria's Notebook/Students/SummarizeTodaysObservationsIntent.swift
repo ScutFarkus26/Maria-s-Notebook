@@ -37,11 +37,11 @@ struct SummarySnippetView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Follow-ups:")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     ForEach(followUps, id: \.self) { followUp in
                         Text("• \(followUp)")
                             .font(.footnote)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.top, 8)

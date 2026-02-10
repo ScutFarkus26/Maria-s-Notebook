@@ -5,21 +5,21 @@
 // Also supports bundled default introductions that ship with the app.
 
 import Foundation
-import Combine
 import os.log
 
 /// Service for managing curriculum introductions stored as JSON files.
+@Observable
 @MainActor
-final class CurriculumIntroductionStore: ObservableObject {
+final class CurriculumIntroductionStore {
     static let shared = CurriculumIntroductionStore()
 
     private let logger = Logger.app(category: "CurriculumIntroductionStore")
 
     /// All loaded introductions (merged from bundle defaults and user customizations)
-    @Published private(set) var introductions: [CurriculumIntroduction] = []
+    private(set) var introductions: [CurriculumIntroduction] = []
 
     /// Whether the store has completed initial loading
-    @Published private(set) var isLoaded: Bool = false
+    private(set) var isLoaded: Bool = false
 
     private let fileName = "curriculum_introductions.json"
     private let encoder = JSONEncoder()
@@ -34,7 +34,8 @@ final class CurriculumIntroductionStore: ObservableObject {
     // MARK: - File Paths
 
     private var userFileURL: URL {
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first 
+            ?? FileManager.default.temporaryDirectory
         return documentsURL.appendingPathComponent(fileName)
     }
 

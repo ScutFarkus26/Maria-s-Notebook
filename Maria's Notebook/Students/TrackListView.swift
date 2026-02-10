@@ -94,16 +94,16 @@ private struct GroupTrackRow: View {
                 HStack(spacing: 8) {
                     Text("\(lessons.count) lesson\(lessons.count == 1 ? "" : "s")")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     if groupTrack.isSequential {
                         Label("Sequential", systemImage: "list.number")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     } else {
                         Label("Unordered", systemImage: "list.bullet")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }

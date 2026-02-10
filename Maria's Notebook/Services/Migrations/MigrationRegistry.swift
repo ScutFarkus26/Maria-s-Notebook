@@ -334,7 +334,7 @@ struct MigrationDebugView: View {
             
             if !output.isEmpty {
                 Text(output)
-                    .foregroundColor(output.contains("failed") ? .red : .green)
+                    .foregroundStyle(output.contains("failed") ? .red : .green)
                     .padding()
             }
             

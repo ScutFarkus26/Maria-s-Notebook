@@ -31,11 +31,11 @@ struct GroupTrackSettingsSheet: View {
                             ? "Lessons must be completed in order. Students progress through lessons sequentially."
                             : "Lessons can be completed in any order. This is just a collection of related lessons.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     } else {
                         Text("This group will not be available as a track for student enrollment.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("Group: \(group)")

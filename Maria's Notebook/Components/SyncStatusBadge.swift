@@ -4,11 +4,11 @@ import SwiftUI
 /// Shows a small indicator with optional popover for details.
 struct SyncStatusBadge: View {
     @Environment(\.dependencies) private var dependencies
-    @StateObject private var syncService: CloudKitSyncStatusService
+    @State private var syncService: CloudKitSyncStatusService
     @State private var showingPopover = false
     
     init() {
-        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
+        _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
     }
 
     private var isCloudKitActive: Bool {
@@ -42,10 +42,10 @@ struct SyncStatusBadge: View {
 /// Popover content showing sync status details
 struct SyncStatusPopover: View {
     @Environment(\.dependencies) private var dependencies
-    @StateObject private var syncService: CloudKitSyncStatusService
+    @State private var syncService: CloudKitSyncStatusService
     
     init() {
-        _syncService = StateObject(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
+        _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
     }
 
     var body: some View {

@@ -111,7 +111,7 @@ struct StudentOverviewTab: View {
                         .padding(.horizontal, 4)
                     if workCache.isEmpty {
                         Text("No active work.")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 12)
                     } else {

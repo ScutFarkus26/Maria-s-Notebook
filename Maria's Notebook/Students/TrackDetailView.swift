@@ -24,7 +24,7 @@ struct TrackDetailView: View {
             Section("Steps") {
                 if orderedSteps.isEmpty {
                     Text("No steps yet. Add a step to get started.")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .font(.caption)
                 } else {
                     ForEach(orderedSteps) { step in
@@ -113,7 +113,7 @@ private struct StepRow: View {
         HStack {
             Text("\(step.orderIndex + 1).")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 30, alignment: .trailing)
             
             if let lesson = lesson {
@@ -124,12 +124,12 @@ private struct StepRow: View {
                     if !lesson.subject.isEmpty || !lesson.group.isEmpty {
                         Text("\(lesson.subject) · \(lesson.group)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
             } else {
                 Text("Unknown Lesson")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
             
@@ -173,12 +173,12 @@ private struct LessonPickerSheet: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                                     .font(.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 
                                 if !lesson.subject.isEmpty || !lesson.group.isEmpty {
                                     Text("\(lesson.subject) · \(lesson.group)")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }

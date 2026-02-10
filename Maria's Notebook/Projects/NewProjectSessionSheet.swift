@@ -167,7 +167,7 @@ struct NewProjectSessionSheet: View {
                         offeredWorks.removeAll { $0.id == work.id }
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
                 }

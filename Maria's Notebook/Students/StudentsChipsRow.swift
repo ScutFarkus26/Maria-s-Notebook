@@ -23,12 +23,12 @@ struct StudentsChipsRow: View {
                         HStack(spacing: 4) {
                             Text(displayName(for: student))
                                 .font(.subheadline)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             Button {
                                 selectedIDs.remove(student.id)
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove \(displayName(for: student))")

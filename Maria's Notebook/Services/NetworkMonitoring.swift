@@ -15,7 +15,7 @@ final class NetworkMonitoring {
     private var networkMonitor: NWPathMonitor?
     private let networkQueue = DispatchQueue(label: "com.mariasnotebook.networkmonitor")
     private var pendingNetworkTask: Task<Void, Never>?
-    private var onNetworkChange: ((Bool) -> Void)?
+    private var networkChangeContinuation: AsyncStream<Bool>.Continuation?
     
     // MARK: - Initialization
     
@@ -30,9 +30,30 @@ final class NetworkMonitoring {
     
     // MARK: - Public API
     
-    /// Set a callback to be notified when network status changes
+    /// Observe network status changes as an AsyncStream
+    func observeNetworkChanges() -> AsyncStream<Bool> {
+        AsyncStream { [weak self] continuation in
+            guard let self else {
+                continuation.finish()
+                return
+            }
+            networkChangeContinuation = continuation
+            continuation.onTermination = { @Sendable _ in
+                Task { @MainActor [weak self] in
+                    self?.networkChangeContinuation = nil
+                }
+            }
+        }
+    }
+    
+    /// Set a callback to be notified when network status changes (legacy API)
+    @available(*, deprecated, message: "Use observeNetworkChanges() instead")
     func setNetworkChangeHandler(_ handler: @escaping (Bool) -> Void) {
-        onNetworkChange = handler
+        Task {
+            for await isAvailable in observeNetworkChanges() {
+                handler(isAvailable)
+            }
+        }
     }
     
     /// Stop network monitoring
@@ -65,7 +86,7 @@ final class NetworkMonitoring {
         isNetworkAvailable = path.status == .satisfied
         
         if wasAvailable != isNetworkAvailable {
-            onNetworkChange?(isNetworkAvailable)
+            networkChangeContinuation?.yield(isNetworkAvailable)
         }
     }
 }

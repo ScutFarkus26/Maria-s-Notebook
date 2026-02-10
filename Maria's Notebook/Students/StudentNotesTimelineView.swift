@@ -227,7 +227,7 @@ private struct StudentNotesTimelineList: View {
                                 .fontWeight(.semibold)
                         }
                     }
-                    .foregroundColor(selectedCategories.isEmpty ? Color.secondary : Color.accentColor)
+                    .foregroundStyle(selectedCategories.isEmpty ? Color.secondary : Color.accentColor)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Filter by category")
@@ -467,7 +467,7 @@ private struct StudentNotesTimelineList: View {
                     Image(systemName: selectedNoteIDs.contains(item.id)
                           ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
-                        .foregroundColor(selectedNoteIDs.contains(item.id)
+                        .foregroundStyle(selectedNoteIDs.contains(item.id)
                                          ? Color.accentColor : Color.secondary)
                 }
                 .buttonStyle(.plain)

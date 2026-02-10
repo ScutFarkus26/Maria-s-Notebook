@@ -64,11 +64,11 @@ struct ImportTrackFromLessonsSheet: View {
                 Section("Group") {
                     if selectedSubject == nil {
                         Text("Select a subject first")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     } else if availableGroups.isEmpty {
                         Text("No groups found for this subject")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     } else {
                         Picker("Group", selection: $selectedGroup) {

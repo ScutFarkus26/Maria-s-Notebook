@@ -99,7 +99,7 @@ struct ScopedNotesSection: View {
             if sortedNotes.isEmpty {
                 Text("No notes yet.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 12) {
                     ForEach(sortedNotes, id: \.id) { note in
@@ -109,7 +109,7 @@ struct ScopedNotesSection: View {
                             HStack(spacing: 8) {
                                 Text(scopeLabel(for: note))
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
                                     .background(
@@ -122,7 +122,7 @@ struct ScopedNotesSection: View {
                                     Text(note.updatedAt, style: .time)
                                 }
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             }
                         }
                     }

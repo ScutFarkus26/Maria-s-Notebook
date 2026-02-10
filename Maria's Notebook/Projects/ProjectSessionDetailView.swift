@@ -129,7 +129,7 @@ struct ProjectSessionDetailView: View {
                                     }
                                 } label: {
                                     Image(systemName: "minus.circle.fill")
-                                        .foregroundColor(.red)
+                                        .foregroundStyle(.red)
                                 }
                                 .buttonStyle(.plain)
                             }

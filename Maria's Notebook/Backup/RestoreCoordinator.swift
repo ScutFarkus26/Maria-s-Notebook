@@ -1,10 +1,10 @@
 import Foundation
-import Combine
 import Observation
 
+@Observable
 @MainActor
-final class RestoreCoordinator: ObservableObject {
-    @Published var isRestoring: Bool = false
+final class RestoreCoordinator {
+    var isRestoring: Bool = false
     private let appRouter = AppRouter.shared
 
     init() {

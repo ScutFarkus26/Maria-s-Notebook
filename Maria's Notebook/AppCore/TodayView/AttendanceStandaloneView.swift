@@ -11,7 +11,7 @@ struct AttendanceStandaloneView: View {
     // MARK: - Environment
     @Environment(\.modelContext) var modelContext
     @Environment(\.calendar) var calendar
-    @EnvironmentObject var restoreCoordinator: RestoreCoordinator
+    @Environment(RestoreCoordinator.self) var restoreCoordinator
 
     // MARK: - State
     @State private var date: Date = AppCalendar.startOfDay(Date())
@@ -112,7 +112,7 @@ struct AttendanceStandaloneView: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.black.opacity(0.85))
                 )
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .padding(.top, 8)

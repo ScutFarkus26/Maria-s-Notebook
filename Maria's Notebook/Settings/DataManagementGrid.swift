@@ -140,7 +140,7 @@ struct DataManagementGrid: View {
                 HStack {
                     Label("Backup", systemImage: "externaldrive.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                     Spacer()
                     encryptionPill
                 }
@@ -187,7 +187,7 @@ struct DataManagementGrid: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Restore", systemImage: "arrow.counterclockwise")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
 
                 Picker("", selection: $viewModel.restoreMode) {
                     Text("Merge").tag(BackupService.RestoreMode.merge)
@@ -222,7 +222,7 @@ struct DataManagementGrid: View {
                 HStack {
                     Label("Storage", systemImage: "folder.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.purple)
+                        .foregroundStyle(.purple)
                     Spacer()
                     folderMenu
                 }
@@ -271,7 +271,7 @@ struct DataManagementGrid: View {
                 HStack {
                     Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
@@ -301,7 +301,7 @@ struct DataManagementGrid: View {
     private func resultBanner(_ message: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
+                .foregroundStyle(.green)
             Text(message)
                 .font(.caption)
                 .lineLimit(1)

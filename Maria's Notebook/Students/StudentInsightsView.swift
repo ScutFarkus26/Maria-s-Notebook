@@ -75,7 +75,7 @@ struct StudentInsightsView: View {
             
             Text("AI-powered analysis of \(student.fullName)'s recent progress")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             HStack {
                 Text("Analysis Period:")
@@ -104,7 +104,7 @@ struct StudentInsightsView: View {
                         .font(.headline)
                     Text(snapshot.generatedAt, style: .date)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -112,7 +112,7 @@ struct StudentInsightsView: View {
                 if !snapshot.isReviewed {
                     Label("New", systemImage: "sparkles")
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color.orange.opacity(0.1))
@@ -130,7 +130,7 @@ struct StudentInsightsView: View {
                 
                 Text(snapshot.overallProgress)
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
             
             Divider()
@@ -256,12 +256,12 @@ struct StudentInsightsView: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(value)
                 .font(.headline)
             Text(title)
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -280,7 +280,7 @@ struct StudentInsightsView: View {
             Label(title, systemImage: icon)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundColor(color)
+                .foregroundStyle(color)
             
             ForEach(items, id: \.self) { item in
                 HStack(alignment: .top, spacing: 8) {
@@ -291,7 +291,7 @@ struct StudentInsightsView: View {
                     
                     Text(item)
                         .font(.body)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
             }
         }
@@ -323,11 +323,11 @@ struct StudentInsightsView: View {
             Label("Error", systemImage: "exclamationmark.triangle.fill")
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
             
             Text(message)
                 .font(.body)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
             
             // Show settings button if API key is missing
             if message.contains("API key") {
@@ -361,14 +361,14 @@ struct StudentInsightsView: View {
                                 .fontWeight(.medium)
                             Text("\(snapshot.lookbackDays) days • \(snapshot.totalNotesAnalyzed) notes")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .padding()
                     #if os(iOS)
@@ -471,7 +471,7 @@ struct ParentSummarySheet: View {
                     
                     Text("This summary was generated using AI-powered analysis of classroom observations.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding()
             }

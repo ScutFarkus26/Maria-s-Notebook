@@ -21,45 +21,45 @@ struct TopicRowView: View {
             HStack(alignment: .top, spacing: 16) {
                 Image(systemName: isResolved ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundColor(isResolved ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isResolved ? Color.accentColor : Color.secondary)
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(titleText)
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundStyle(.primary)
                         Spacer()
                         Text((topic.addressedDate ?? topic.createdAt), style: .date)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     if !raisedBy.isEmpty {
                         Text("Raised by: \(raisedBy)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     Text(issueText)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
                     if isResolved && !resolutionText.isEmpty {
                         Text(resolutionText)
                             .font(.subheadline)
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     HStack(spacing: 4) {
                         Image(systemName: "lightbulb")
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                         Text("\(count) \(solutionsLabel)")
                             .font(.footnote)
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                     }
                     .padding(.top, 4)
                 }

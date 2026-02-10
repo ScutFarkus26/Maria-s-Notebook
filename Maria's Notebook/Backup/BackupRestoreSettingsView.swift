@@ -69,7 +69,7 @@ struct BackupRestoreSettingsView: View {
                 HStack {
                     Label("Backup", systemImage: "externaldrive.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                     Spacer()
                     encryptionPill
                 }
@@ -121,7 +121,7 @@ struct BackupRestoreSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Restore", systemImage: "arrow.counterclockwise")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
 
                 Picker("", selection: $restoreMode) {
                     Text("Merge").tag(BackupService.RestoreMode.merge)
@@ -152,7 +152,7 @@ struct BackupRestoreSettingsView: View {
                 HStack {
                     Label("Storage", systemImage: "folder.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.pink)
+                        .foregroundStyle(.pink)
                     Spacer()
                     folderMenu
                 }
@@ -201,7 +201,7 @@ struct BackupRestoreSettingsView: View {
                 HStack {
                     Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
@@ -229,7 +229,7 @@ struct BackupRestoreSettingsView: View {
     private var iCloudRow: some View {
         HStack(spacing: 10) {
             Image(systemName: "icloud.fill")
-                .foregroundColor(.cyan)
+                .foregroundStyle(.cyan)
             Text("iCloud Backup")
                 .font(.subheadline)
             Spacer()
@@ -275,7 +275,7 @@ struct BackupRestoreSettingsView: View {
     private func resultBanner(_ summary: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
+                .foregroundStyle(.green)
             Text(summary)
                 .font(.caption)
                 .lineLimit(1)

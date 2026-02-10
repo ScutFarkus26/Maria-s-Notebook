@@ -23,7 +23,7 @@ struct StudentChip: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .foregroundColor(subjectColor)
+        .foregroundStyle(subjectColor)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(subjectColor.opacity(0.15))
@@ -175,7 +175,7 @@ struct PlannedLessonBanner: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.green.opacity(0.95))
             )
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
             .padding(.top, 8)
     }
@@ -200,7 +200,7 @@ struct MovedStudentsBanner: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.orange.opacity(0.95))
         )
-        .foregroundColor(.white)
+        .foregroundStyle(.white)
         .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
         .padding(.top, 8)
     }

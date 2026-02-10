@@ -127,7 +127,7 @@ struct LessonPickerPopover: View {
                         Spacer()
                         if selectedLessonID == lesson.id {
                             Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                     }
                 }
@@ -222,13 +222,13 @@ struct StudentChipsList: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(subjectColor.opacity(0.2))
-                        .foregroundColor(subjectColor)
+                        .foregroundStyle(subjectColor)
                         .clipShape(Capsule())
                     Button {
                         onRemove(student.id)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(subjectColor)
+                            .foregroundStyle(subjectColor)
                     }
                     .buttonStyle(.plain)
                 }

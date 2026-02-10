@@ -15,7 +15,7 @@ struct ValidationErrorView: View {
             HStack {
                 Image(systemName: validation.isValid ? "checkmark.shield" : "exclamationmark.triangle")
                     .font(.title)
-                    .foregroundColor(validation.isValid ? .green : .orange)
+                    .foregroundStyle(validation.isValid ? .green : .orange)
                 
                 VStack(alignment: .leading) {
                     Text("Backup Validation")
@@ -24,7 +24,7 @@ struct ValidationErrorView: View {
                     
                     Text(validation.isValid ? "Ready to restore" : "\(validation.errors.count) issues found")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -63,7 +63,7 @@ struct ValidationErrorView: View {
                     ForEach(validation.warnings) { warning in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                                 .font(.caption)
                             
                             VStack(alignment: .leading, spacing: 4) {
@@ -73,7 +73,7 @@ struct ValidationErrorView: View {
                                 if let recommendation = warning.recommendation {
                                     Text(recommendation)
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -97,7 +97,7 @@ struct ValidationErrorView: View {
                     Button("Proceed Anyway") {
                         onProceedAnyway?()
                     }
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                 }
                 
                 if validation.canProceed {
@@ -120,7 +120,7 @@ struct ValidationErrorRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: severityIcon)
-                .foregroundColor(severityColor)
+                .foregroundStyle(severityColor)
                 .font(.title3)
             
             VStack(alignment: .leading, spacing: 4) {
@@ -133,7 +133,7 @@ struct ValidationErrorRow: View {
                 if let field = error.field {
                     Text("Field: \(field)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             
@@ -144,7 +144,7 @@ struct ValidationErrorRow: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(severityColor.opacity(0.2))
-                .foregroundColor(severityColor)
+                .foregroundStyle(severityColor)
                 .cornerRadius(4)
         }
         .padding()

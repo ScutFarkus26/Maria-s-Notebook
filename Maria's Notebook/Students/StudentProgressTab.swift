@@ -63,11 +63,11 @@ struct StudentProgressTab: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Development Insights")
                                 .font(.headline)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             
                             Text("AI-powered analysis of recent progress")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         
                         Spacer()

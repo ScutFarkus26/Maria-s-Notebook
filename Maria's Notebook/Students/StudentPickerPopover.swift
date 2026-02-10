@@ -71,7 +71,7 @@ struct StudentPickerPopover: View {
                         searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -98,11 +98,11 @@ struct StudentPickerPopover: View {
                         } label: {
                             HStack {
                                 Text(displayName(for: student))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 if selectedIDs.contains(student.id) {
                                     Image(systemName: "checkmark")
-                                        .foregroundColor(.accentColor)
+                                        .foregroundStyle(Color.accentColor)
                                 }
                             }
                             .padding(.vertical, 6)

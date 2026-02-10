@@ -102,10 +102,10 @@ struct BackupSummaryView: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.red.opacity(0.8))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .clipShape(Capsule())
                         Image(systemName: warningsExpanded ? "chevron.up" : "chevron.down")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 if warningsExpanded {

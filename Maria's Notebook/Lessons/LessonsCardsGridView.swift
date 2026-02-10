@@ -56,7 +56,7 @@ struct LessonsCardsGridView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     // Curriculum introductions store
-    @StateObject private var introductionStore = CurriculumIntroductionStore.shared
+    @State private var introductionStore = CurriculumIntroductionStore.shared
 
     private var columns: [GridItem] {
         CardGridLayout.columns(for: sizeClass)

@@ -353,16 +353,16 @@ public struct PasswordStrengthIndicator: View {
             // Strength label
             HStack {
                 Image(systemName: result.strength.systemImage)
-                    .foregroundColor(result.strength.color)
+                    .foregroundStyle(result.strength.color)
                 Text(result.strength.description)
                     .font(.caption)
-                    .foregroundColor(result.strength.color)
+                    .foregroundStyle(result.strength.color)
             }
 
             // Feedback
             Text(result.feedback)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             // Requirements list (collapsed by default, shown for weak passwords)
             if result.strength < .fair {
@@ -370,11 +370,11 @@ public struct PasswordStrengthIndicator: View {
                     ForEach(result.requirements) { req in
                         HStack(spacing: 6) {
                             Image(systemName: req.isMet ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(req.isMet ? .green : .gray)
+                                .foregroundStyle(req.isMet ? .green : .gray)
                                 .font(.caption2)
                             Text(req.description)
                                 .font(.caption2)
-                                .foregroundColor(req.isMet ? .secondary : .primary)
+                                .foregroundStyle(req.isMet ? .secondary : .primary)
                         }
                     }
                 }

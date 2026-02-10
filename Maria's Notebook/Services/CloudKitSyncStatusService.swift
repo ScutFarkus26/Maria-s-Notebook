@@ -2,25 +2,25 @@ import Foundation
 import SwiftUI
 import SwiftData
 import CoreData
-import Combine
 
 /// Service that monitors CloudKit sync activity and provides status information.
 /// Since SwiftData doesn't expose per-record sync status, this service tracks
 /// global sync state through Core Data notifications.
+@Observable
 @MainActor
-final class CloudKitSyncStatusService: ObservableObject {
+final class CloudKitSyncStatusService {
     static let shared = CloudKitSyncStatusService()
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
     /// Whether a sync operation is currently in progress
-    @Published private(set) var isSyncing: Bool = false
+    private(set) var isSyncing: Bool = false
 
     /// The last time a successful sync completed
-    @Published private(set) var lastSuccessfulSync: Date?
+    private(set) var lastSuccessfulSync: Date?
 
     /// The last sync error message, if any
-    @Published private(set) var lastSyncError: String?
+    private(set) var lastSyncError: String?
 
     /// Overall sync health status (delegated to CloudKitHealthCheck)
     var syncHealth: CloudKitHealthCheck.SyncHealth {

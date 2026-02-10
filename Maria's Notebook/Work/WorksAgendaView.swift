@@ -10,7 +10,7 @@ struct WorksAgendaView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @Environment(SaveCoordinator.self) private var saveCoordinator
-    @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
+    @Environment(RestoreCoordinator.self) private var restoreCoordinator
 
     @Query(filter: #Predicate<WorkModel> { $0.statusRaw != "complete" }, sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
     private var openWork: [WorkModel]

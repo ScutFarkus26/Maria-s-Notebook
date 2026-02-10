@@ -390,7 +390,7 @@ extension LessonsRootView {
                 trackSettingsItem = TrackSettingsItem(subject: subject, group: group)
             } label: {
                 Image(systemName: iconName)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
             .buttonStyle(.plain)

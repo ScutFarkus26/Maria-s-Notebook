@@ -101,13 +101,13 @@ struct GroupTrackDetailView: View {
                     Text("Subject:")
                     Spacer()
                     Text(subject)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 HStack {
                     Text("Group:")
                     Spacer()
                     Text(group)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 HStack {
                     Text("Type:")
@@ -117,7 +117,7 @@ struct GroupTrackDetailView: View {
                         settings.isSequential ? "Sequential" : "Unordered",
                         systemImage: settings.isSequential ? "list.number" : "list.bullet"
                     )
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
             }
 
@@ -170,7 +170,7 @@ struct GroupTrackDetailView: View {
             Section("Lessons") {
                 if lessons.isEmpty {
                     Text("No lessons in this group.")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .font(.caption)
                 } else {
                     ForEach(Array(lessons.enumerated()), id: \.element.id) { index, lesson in
@@ -222,7 +222,7 @@ private struct LessonStepRow: View {
                 // Show step number only if no progress state
                 Text("\(stepNumber!).")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .frame(width: 24, alignment: .trailing)
             }
 
@@ -235,7 +235,7 @@ private struct LessonStepRow: View {
                 if !lesson.subheading.isEmpty {
                     Text(lesson.subheading)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 

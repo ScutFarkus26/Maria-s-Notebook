@@ -31,7 +31,7 @@ struct InboxStatusSection: View {
                     .font(.system(size: 14))
                 Text("Scheduled: \(scheduleStatusText)")
                     .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -59,7 +59,7 @@ struct InboxStatusSection: View {
                     .font(.system(size: 14))
                 Text("Unscheduled")
                     .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

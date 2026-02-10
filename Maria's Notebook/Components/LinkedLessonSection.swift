@@ -28,7 +28,7 @@ struct LinkedLessonSection: View {
                 HStack(spacing: 10) {
                     Text("\(lessonName) • \(formattedDate)")
                         .font(.callout)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     
                     Spacer()
                     
@@ -53,7 +53,7 @@ struct LinkedLessonSection: View {
             } else {
                 HStack(spacing: 10) {
                     Text("None")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .onTapGesture { showingLinkPicker = true }
                     Spacer()
                     Button {

@@ -188,7 +188,7 @@ struct AddLessonToInboxSheet: View {
                         Spacer()
                         if selectedLessonID == lesson.id {
                             Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                     }
                 }

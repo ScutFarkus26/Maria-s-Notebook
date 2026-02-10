@@ -107,7 +107,7 @@ struct StudentLessonQuickActionsView: View {
                             .fontWeight(.medium)
                     } else {
                         Text("No next lesson available")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     Button("Plan Next Lesson in Group") {
                         guard let next = nextLessonInGroup else { return }
@@ -365,7 +365,7 @@ struct StudentLessonQuickActionsView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.green.opacity(0.95))
             )
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
             .padding(.top, 8)
     }

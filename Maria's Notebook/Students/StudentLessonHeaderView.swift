@@ -42,7 +42,7 @@ struct StudentLessonHeaderView: View {
             .font(.system(size: 13, weight: .medium, design: .rounded))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .foregroundColor(color)
+            .foregroundStyle(color)
             .background(
                 Capsule()
                     .fill(color.opacity(0.15))

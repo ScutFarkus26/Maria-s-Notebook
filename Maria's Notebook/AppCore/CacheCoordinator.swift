@@ -37,8 +37,8 @@ final class CacheCoordinator {
     /// Most recent invalidation event - observers can watch this property
     private(set) var lastInvalidation: CacheInvalidationEvent?
     
-    /// Registered invalidation handlers
-    private var invalidationHandlers: [(CacheInvalidationEvent) -> Void] = []
+    /// AsyncStream continuations for invalidation events with unique IDs
+    private var invalidationContinuations: [(id: UUID, continuation: AsyncStream<CacheInvalidationEvent>.Continuation)] = []
     
     // MARK: - Registration
     
@@ -60,10 +60,31 @@ final class CacheCoordinator {
     
     // MARK: - Invalidation Handler Registration
     
-    /// Register a handler to be called when caches are invalidated
-    /// Returns a token that must be retained to keep the handler active
+    /// Observe cache invalidation events as an AsyncStream
+    func observeInvalidations() -> AsyncStream<CacheInvalidationEvent> {
+        AsyncStream { [weak self] continuation in
+            guard let self else {
+                continuation.finish()
+                return
+            }
+            let id = UUID()
+            invalidationContinuations.append((id: id, continuation: continuation))
+            continuation.onTermination = { @Sendable [id] _ in
+                Task { @MainActor [weak self] in
+                    self?.invalidationContinuations.removeAll { $0.id == id }
+                }
+            }
+        }
+    }
+    
+    /// Register a handler to be called when caches are invalidated (legacy API)
+    @available(*, deprecated, message: "Use observeInvalidations() instead")
     func onInvalidation(_ handler: @escaping (CacheInvalidationEvent) -> Void) {
-        invalidationHandlers.append(handler)
+        Task {
+            for await event in observeInvalidations() {
+                handler(event)
+            }
+        }
     }
     
     // MARK: - Invalidation
@@ -118,8 +139,8 @@ final class CacheCoordinator {
     }
     
     private func notifyHandlers(_ event: CacheInvalidationEvent) {
-        for handler in invalidationHandlers {
-            handler(event)
+        for (_, continuation) in invalidationContinuations {
+            continuation.yield(event)
         }
     }
     
@@ -231,9 +252,13 @@ class ReactiveCache: Caching {
         // Register with coordinator if provided
         coordinator?.register(self, key: key)
         
-        // Subscribe to invalidation events using modern Swift observation
-        coordinator?.onInvalidation { [weak self] event in
-            self?.handleInvalidation(event)
+        // Subscribe to invalidation events using AsyncStream
+        if let coordinator {
+            Task { @MainActor [weak self] in
+                for await event in coordinator.observeInvalidations() {
+                    self?.handleInvalidation(event)
+                }
+            }
         }
     }
     
@@ -400,21 +425,21 @@ struct CacheMetricRow: View {
             
             HStack {
                 Label("\(metric.hitCount)", systemImage: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                 
                 Label("\(metric.missCount)", systemImage: "xmark.circle.fill")
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                 
                 Text("Hit Rate: \(metric.hitRate.formatAsPercentage())")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 
                 Spacer()
                 
                 if let lastInvalidation = metric.lastInvalidation {
                     Text("Last: \(lastInvalidation, style: .relative)")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .font(.caption)

@@ -191,7 +191,7 @@ struct AgendaDaySectionHeaderView: View {
             if isNonSchoolDay {
                 Text("No School")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
                     .background(

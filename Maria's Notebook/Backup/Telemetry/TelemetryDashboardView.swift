@@ -37,7 +37,7 @@ struct TelemetryDashboardView: View {
                         
                         Text("Performance metrics and statistics")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     
                     Spacer()
@@ -123,7 +123,7 @@ struct TelemetryDashboardView: View {
                                 HStack {
                                     Text("\(index + 1).")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                         .frame(width: 20)
                                     
                                     Text(errorTuple.error)
@@ -133,7 +133,7 @@ struct TelemetryDashboardView: View {
                                     
                                     Text("\(errorTuple.count)×")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -150,17 +150,17 @@ struct TelemetryDashboardView: View {
                         Grid(alignment: .leading) {
                             GridRow {
                                 Text("Model:")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Text(report.deviceInfo.model)
                             }
                             GridRow {
                                 Text("OS Version:")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Text(report.deviceInfo.osVersion)
                             }
                             GridRow {
                                 Text("App Version:")
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Text("\(report.deviceInfo.appVersion) (\(report.deviceInfo.appBuild))")
                             }
                         }
@@ -181,7 +181,7 @@ struct TelemetryDashboardView: View {
                         telemetry.clearAllData()
                         updateReport()
                     }
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                 }
             }
             .padding()
@@ -243,7 +243,7 @@ struct MetricCard: View {
             HStack {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                 
                 Spacer()
             }
@@ -257,7 +257,7 @@ struct MetricCard: View {
             
             Text(subtitle)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

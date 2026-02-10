@@ -59,7 +59,7 @@ struct StudentPillsSection: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .foregroundColor(subjectColor)
+        .foregroundStyle(subjectColor)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(subjectColor.opacity(0.15))

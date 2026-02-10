@@ -13,7 +13,7 @@ struct QuickBannerView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(color.opacity(0.95))
             )
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
             .padding(.top, 8)
     }

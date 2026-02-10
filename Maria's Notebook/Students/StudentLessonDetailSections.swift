@@ -24,7 +24,7 @@ struct StudentLessonSummarySection: View {
                         .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .foregroundColor(subjectColor)
+                        .foregroundStyle(subjectColor)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(subjectColor.opacity(0.15))

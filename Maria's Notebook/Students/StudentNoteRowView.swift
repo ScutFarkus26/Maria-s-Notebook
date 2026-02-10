@@ -28,14 +28,14 @@ struct StudentNoteRowView: View {
 
                     Image(systemName: iconName(for: item.source))
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(item.color)
+                        .foregroundStyle(item.color)
                 }
 
                 // Pin indicator
                 if item.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                         .offset(x: 4, y: -4)
                 }
             }

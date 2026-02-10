@@ -47,7 +47,7 @@ struct StatCard: View {
         VStack(alignment: .center, spacing: 6) {
             Image(systemName: systemImage)
                 .font(.title2)
-                .foregroundColor(.accentColor)
+                .foregroundStyle(Color.accentColor)
             Text(title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
@@ -291,7 +291,7 @@ struct SettingsToggleRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: systemImage)
-                .foregroundColor(color)
+                .foregroundStyle(color)
             Text(title)
                 .font(.subheadline)
             Spacer()

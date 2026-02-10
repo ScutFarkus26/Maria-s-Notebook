@@ -152,10 +152,10 @@ struct LessonAttachmentsSection: View {
         VStack(spacing: 8) {
             Image(systemName: "doc.badge.plus")
                 .font(.system(size: 32))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text("No attachments yet")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text("Add PDFs, images, or Pages documents")
                 .font(.system(size: 12))
                 .foregroundStyle(.tertiary)
@@ -168,7 +168,7 @@ struct LessonAttachmentsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             
             ForEach(attachments) { attachment in
@@ -375,21 +375,21 @@ struct AttachmentRow: View {
                     if isInherited {
                         Image(systemName: attachment.scope.icon)
                             .font(.system(size: 10))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
                 HStack(spacing: 8) {
                     Text(attachment.fileSizeFormatted)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     Text("•")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     Text(attachment.attachedAt, style: .relative)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             
@@ -416,7 +416,7 @@ struct AttachmentRow: View {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
                                 .font(.system(size: 12))
-                                .foregroundColor(.red)
+                                .foregroundStyle(.red)
                         }
                         .buttonStyle(.borderless)
                         .help("Delete")
@@ -439,7 +439,7 @@ struct AttachmentRow: View {
             
             Image(systemName: fileTypeIcon)
                 .font(.system(size: 16))
-                .foregroundColor(fileTypeColor)
+                .foregroundStyle(fileTypeColor)
         }
     }
     
@@ -497,7 +497,7 @@ struct AttachmentImportOptionsSheet: View {
             VStack(spacing: 8) {
                 Image(systemName: "doc.badge.plus")
                     .font(.system(size: 36))
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                 
                 Text("Import Options")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -509,7 +509,7 @@ struct AttachmentImportOptionsSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Attachment Scope")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     VStack(spacing: 8) {
                         ScopeOptionButton(
@@ -541,7 +541,7 @@ struct AttachmentImportOptionsSheet: View {
                             .font(.system(size: 13, weight: .medium))
                         Text("Delete the original file after importing")
                             .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .toggleStyle(.checkbox)
@@ -594,16 +594,16 @@ struct ScopeOptionButton: View {
             HStack(spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20))
-                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(scope.displayName)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     
                     Text(subtitle)
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()

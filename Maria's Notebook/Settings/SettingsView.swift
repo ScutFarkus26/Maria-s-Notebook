@@ -156,7 +156,7 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(statsViewModel.noteTemplatesCount)")
                                     .font(.title2.weight(.semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 Text("Templates Available")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -187,7 +187,7 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(statsViewModel.meetingTemplatesCount)")
                                     .font(.title2.weight(.semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 Text("Templates Available")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -236,16 +236,16 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Claude AI Integration")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             
                             if AnthropicAPIClient.hasAPIKey() {
                                 Label("API key configured", systemImage: "checkmark.circle.fill")
                                     .font(.caption)
-                                    .foregroundColor(.green)
+                                    .foregroundStyle(.green)
                             } else {
                                 Label("API key required", systemImage: "exclamationmark.triangle")
                                     .font(.caption)
-                                    .foregroundColor(.orange)
+                                    .foregroundStyle(.orange)
                             }
                         }
                         Spacer()

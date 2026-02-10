@@ -30,7 +30,7 @@ struct APIKeySettingsView: View {
             Section {
                 Text("Development Insights uses Claude AI to analyze student progress and generate detailed reports.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             
             Section {
@@ -53,7 +53,7 @@ struct APIKeySettingsView: View {
                     
                     Button(action: { showingKey.toggle() }) {
                         Image(systemName: showingKey ? "eye.slash" : "eye")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -61,7 +61,7 @@ struct APIKeySettingsView: View {
                 if let message = saveMessage {
                     Text(message)
                         .font(.caption)
-                        .foregroundColor(message.contains("saved") ? .green : .red)
+                        .foregroundStyle(message.contains("saved") ? .green : .red)
                 }
             } header: {
                 Text("API Key")
@@ -72,11 +72,11 @@ struct APIKeySettingsView: View {
                     if AnthropicAPIClient.hasAPIKey() {
                         Label("API key configured", systemImage: "checkmark.circle.fill")
                             .font(.caption)
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                     } else {
                         Label("No API key configured", systemImage: "xmark.circle")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                     }
                 }
             }

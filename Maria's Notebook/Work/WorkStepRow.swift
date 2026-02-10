@@ -21,7 +21,7 @@ struct WorkStepRow: View {
             // Step number
             Text("\(step.orderIndex + 1).")
                 .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 24, alignment: .trailing)
 
             // Step content
@@ -34,7 +34,7 @@ struct WorkStepRow: View {
                 if !step.instructions.isEmpty {
                     Text(step.instructions)
                         .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
