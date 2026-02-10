@@ -93,6 +93,8 @@ struct WorkDetailView: View {
                     headerSection()
                     
                     presentationContextSection()
+                    
+                    nextPresentationStatusSection()
 
                     if viewModel.status == .complete { completionSection() }
                     if viewModel.workKind == .report { stepsSection() }
@@ -656,6 +658,79 @@ struct WorkDetailView: View {
                     }
                 }
             }
+        }
+    }
+    
+    @ViewBuilder private func nextPresentationStatusSection() -> some View {
+        if let work = viewModel.work {
+            let status = WorkPresentationStatusService.findNextPresentationStatus(
+                for: work,
+                modelContext: modelContext
+            )
+            
+            // Only show if there's a presentation status to display
+            if case .notFound = status {
+                EmptyView()
+            } else {
+                presentationStatusCard(status: status)
+            }
+        }
+    }
+    
+    @ViewBuilder private func presentationStatusCard(status: WorkPresentationStatusService.PresentationStatus) -> some View {
+        
+        DetailSectionCard(
+            title: "Next Presentation",
+            icon: status.iconName,
+            accentColor: status.color
+        ) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(status.color.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: status.iconName)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(status.color)
+                }
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(status.displayText)
+                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    
+                    // Additional context based on status
+                    switch status {
+                    case .scheduled(let date):
+                        Text(date.formatted(date: .abbreviated, time: .omitted))
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    case .inInbox(let students):
+                        if students.count > 1 {
+                            Text("Ready to present with \(students.count) students")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Ready to present")
+                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    case .withOtherStudents(let students):
+                        Text("Waiting area with \(students.count) other \(students.count == 1 ? "student" : "students")")
+                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    case .notFound:
+                        EmptyView()
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(status.color.opacity(0.05))
+            )
         }
     }
     
