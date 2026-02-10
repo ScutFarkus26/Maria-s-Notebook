@@ -66,7 +66,7 @@ struct LessonAssignmentHistoryView: View {
     @State private var searchText: String = ""
 
     @AppStorage("PresentationHistory.nameDisplayStyle") private var nameDisplayStyleRaw: String = "firstLastInitial"
-    private enum NameDisplayStyle: String { case initials, firstLastInitial }
+    private enum NameDisplayStyle: String, Sendable { case initials, firstLastInitial }
     private var nameDisplayStyle: NameDisplayStyle { NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial }
 
     private func displayName(for s: Student) -> String {

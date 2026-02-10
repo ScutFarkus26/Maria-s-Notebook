@@ -72,7 +72,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     @State private var showStudentNavigator: Bool = false
     @Namespace private var studentScrollAnchor
     
-    private enum PanelFocus {
+    private enum PanelFocus: Sendable {
         case presentation
         case work
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum PresentationsSortMode: String, CaseIterable, Identifiable {
+public enum PresentationsSortMode: String, CaseIterable, Identifiable, Sendable {
     case lesson = "Lesson"
     case student = "Student"
     case age = "Age"

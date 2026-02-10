@@ -18,6 +18,7 @@ final class PresentationsCoordinator {
     // MARK: - Sheet Destinations
     
     /// Enum representing all possible sheet destinations in Presentations
+    /// Note: Cannot conform to Sendable because SwiftData models are not Sendable
     enum Sheet: Identifiable {
         case studentLessonDetail(StudentLesson)
         case schedulePresentationFor(Lesson)

@@ -36,6 +36,7 @@ struct PresentationsDayColumn: View {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
     
+    /// Note: Cannot conform to Sendable because SwiftData models are not Sendable
     enum CalendarItem: Identifiable {
         case studentLesson(StudentLesson)
         case workPlanItem(WorkPlanItem)

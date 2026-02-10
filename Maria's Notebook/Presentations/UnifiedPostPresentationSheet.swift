@@ -16,7 +16,7 @@ struct UnifiedPostPresentationSheet: View {
         var dueDate: Date?
     }
 
-    enum PresentationStatus: String, CaseIterable, Identifiable {
+    enum PresentationStatus: String, CaseIterable, Identifiable, Sendable {
         case justPresented
         case previouslyPresented
         case needsAnother

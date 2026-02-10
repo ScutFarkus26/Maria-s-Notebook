@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-enum PresentationsMissWindow: String, CaseIterable {
+enum PresentationsMissWindow: String, CaseIterable, Sendable {
     case all, d1, d2, d3
     var threshold: Int? {
         switch self {
@@ -150,7 +150,7 @@ struct PresentationsView: View {
     // MODERN: Centralized navigation coordinator
     @State private var coordinator = PresentationsCoordinator()
 
-    enum MobileViewMode: String, CaseIterable {
+    enum MobileViewMode: String, CaseIterable, Sendable {
         case inbox = "Inbox"
         case calendar = "Calendar"
     }

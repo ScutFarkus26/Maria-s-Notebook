@@ -8,7 +8,7 @@ struct PostPresentationAssignmentsSheet: View {
         var text: String
         var schedule: Schedule?
     }
-    enum ScheduleKind: String, CaseIterable, Identifiable {
+    enum ScheduleKind: String, CaseIterable, Identifiable, Sendable {
         case checkIn
         case dueDate
         var id: String { rawValue }
