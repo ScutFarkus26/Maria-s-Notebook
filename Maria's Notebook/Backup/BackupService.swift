@@ -37,16 +37,24 @@ public final class BackupService {
         password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> BackupOperationSummary {
-        let access = url.startAccessingSecurityScopedResource()
-        defer { if access { url.stopAccessingSecurityScopedResource() } }
-        
+        return try withSecurityScopedResource(url) {
+            try performExport(modelContext: modelContext, to: url, password: password, progress: progress)
+        }
+    }
+
+    private func performExport(
+        modelContext: ModelContext,
+        to url: URL,
+        password: String?,
+        progress: @escaping (Double, String) -> Void
+    ) throws -> BackupOperationSummary {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.0), "Collecting students…")
 
         let students: [Student] = safeFetchInBatches(Student.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
         let lessons: [Lesson] = safeFetchInBatches(Lesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
-        let studentLessons: [StudentLesson] = safeFetchInBatchesWithErrorHandling(StudentLesson.self, using: modelContext)
+        let studentLessons: [StudentLesson] = safeFetchInBatches(StudentLesson.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments…")
         let lessonAssignments: [LessonAssignment] = safeFetchInBatches(LessonAssignment.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
@@ -60,7 +68,7 @@ public final class BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings…")
         let studentMeetings: [StudentMeeting] = safeFetchInBatches(StudentMeeting.self, using: modelContext)
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data…")
-        let communityTopics: [CommunityTopic] = safeFetchInBatchesWithErrorHandling(CommunityTopic.self, using: modelContext)
+        let communityTopics: [CommunityTopic] = safeFetchInBatches(CommunityTopic.self, using: modelContext)
         let proposedSolutions: [ProposedSolution] = safeFetchInBatches(ProposedSolution.self, using: modelContext)
         // Removed: MeetingNote fetch
         let communityAttachments: [CommunityAttachment] = safeFetchInBatches(CommunityAttachment.self, using: modelContext)
@@ -216,68 +224,9 @@ public final class BackupService {
         password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> RestorePreview {
-        
-        let access = url.startAccessingSecurityScopedResource()
-        defer { if access { url.stopAccessingSecurityScopedResource() } }
 
-        progress(0.05, "Reading file…")
-        let data = try Data(contentsOf: url)
-        
-        guard !data.isEmpty else {
-            throw NSError(domain: "BackupService", code: 1105, userInfo: [NSLocalizedDescriptionKey: "Backup file is empty or could not be read."])
-        }
-        
-        let dataString = String(data: data.prefix(100), encoding: .utf8) ?? ""
-        guard dataString.trimmingCharacters(in: .whitespaces).hasPrefix("{") || dataString.trimmingCharacters(in: .whitespaces).hasPrefix("[") else {
-            throw NSError(domain: "BackupService", code: 1106, userInfo: [
-                NSLocalizedDescriptionKey: "Backup file does not appear to be a valid JSON file."
-            ])
-        }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let envelope: BackupEnvelope
-        do {
-            envelope = try decoder.decode(BackupEnvelope.self, from: data)
-        } catch {
-            throw NSError(domain: "BackupService", code: 1107, userInfo: [NSLocalizedDescriptionKey: "Failed to read backup file: \(error.localizedDescription)"])
-        }
-
-        let payloadBytes: Data
-        let isCompressed = envelope.manifest.compression != nil
-
-        if let compressed = envelope.compressedPayload {
-            progress(0.15, "Decompressing data…")
-            payloadBytes = try codec.decompress(compressed)
-        } else if let enc = envelope.encryptedPayload {
-            guard let password = password, !password.isEmpty else {
-                throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."])
-            }
-            progress(0.15, "Decrypting data…")
-            let decryptedBytes = try codec.decrypt(enc, password: password)
-            if isCompressed {
-                progress(0.17, "Decompressing data…")
-                payloadBytes = try codec.decompress(decryptedBytes)
-            } else {
-                payloadBytes = decryptedBytes
-            }
-        } else {
-            throw NSError(domain: "BackupService", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload. This may be an older backup format that is no longer supported."])
-        }
-
-        progress(0.20, "Validating checksum…")
-        if !envelope.manifest.sha256.isEmpty {
-            let sha = codec.sha256Hex(payloadBytes)
-            guard sha == envelope.manifest.sha256 else {
-                throw NSError(domain: "BackupService", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch."])
-            }
-        }
-
-        let payload: BackupPayload
-        do {
-            payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
-        } catch {
-            throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup payload: \(error.localizedDescription)"])
+        let (_, payload) = try withSecurityScopedResource(url) {
+            try loadAndDecodeBackup(from: url, password: password, progress: progress)
         }
 
         progress(0.50, "Analyzing…")
@@ -312,49 +261,12 @@ public final class BackupService {
         password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> BackupOperationSummary {
-        
-        let access = url.startAccessingSecurityScopedResource()
-        defer { if access { url.stopAccessingSecurityScopedResource() } }
 
-        progress(0.05, "Reading file…")
-        let data = try Data(contentsOf: url)
-        
-        guard !data.isEmpty else {
-            throw NSError(domain: "BackupService", code: 1105, userInfo: [NSLocalizedDescriptionKey: "Backup file is empty."])
-        }
-        
-        // Validation logic for JSON... (simplified here, assume valid per existing logic)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
-
-        // Resolve payload bytes
-        let payloadBytes: Data
-        let isCompressed = envelope.manifest.compression != nil
-
-        if let compressed = envelope.compressedPayload {
-            progress(0.15, "Decompressing data…")
-            payloadBytes = try codec.decompress(compressed)
-        } else if let enc = envelope.encryptedPayload {
-            guard let password = password, !password.isEmpty else {
-                throw NSError(domain: "BackupService", code: 1103, userInfo: [NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."])
-            }
-            let decryptedBytes = try codec.decrypt(enc, password: password)
-            if isCompressed {
-                payloadBytes = try codec.decompress(decryptedBytes)
-            } else {
-                payloadBytes = decryptedBytes
-            }
-        } else {
-            throw NSError(domain: "BackupService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Backup file missing payload. This may be an older backup format that is no longer supported."])
+        let (envelope, loadedPayload) = try withSecurityScopedResource(url) {
+            try loadAndDecodeBackup(from: url, password: password, progress: progress)
         }
 
-        var payload: BackupPayload
-        do {
-            payload = try decoder.decode(BackupPayload.self, from: payloadBytes)
-        } catch {
-            throw NSError(domain: "BackupService", code: 1108, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup payload."])
-        }
+        var payload = loadedPayload
 
         // Deduplicate payload arrays instead of failing on duplicates
         // This handles backups that were created before deduplication was added,
@@ -561,147 +473,10 @@ public final class BackupService {
         return allEntities
     }
 
-    private func safeFetchInBatchesWithErrorHandling<T: PersistentModel>(
-        _ type: T.Type,
-        using context: ModelContext,
-        batchSize: Int = 1000
-    ) -> [T] {
-        safeFetchInBatches(type, using: context, batchSize: batchSize)
-    }
     
 
     private func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
-        if type == Student.self {
-            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == Lesson.self {
-            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == StudentLesson.self {
-            var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == LessonAssignment.self {
-            var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        // WorkContract removed - use WorkModel instead
-        if type == WorkModel.self {
-            var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == WorkPlanItem.self {
-            var descriptor = FetchDescriptor<WorkPlanItem>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        // Removed: ScopedNote
-        if type == Note.self {
-            var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == NonSchoolDay.self {
-            var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == SchoolDayOverride.self {
-            var descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == StudentMeeting.self {
-            var descriptor = FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        // Removed: Presentation (now uses LessonAssignment)
-        if type == CommunityTopic.self {
-            var descriptor = FetchDescriptor<CommunityTopic>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == ProposedSolution.self {
-            var descriptor = FetchDescriptor<ProposedSolution>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        // Removed: MeetingNote
-        if type == CommunityAttachment.self {
-            var descriptor = FetchDescriptor<CommunityAttachment>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == AttendanceRecord.self {
-            var descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == WorkCompletionRecord.self {
-            var descriptor = FetchDescriptor<WorkCompletionRecord>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == Project.self {
-            var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == ProjectAssignmentTemplate.self {
-            var descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == ProjectSession.self {
-            var descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == ProjectRole.self {
-            var descriptor = FetchDescriptor<ProjectRole>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == ProjectTemplateWeek.self {
-            var descriptor = FetchDescriptor<ProjectTemplateWeek>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        if type == ProjectWeekRoleAssignment.self {
-            var descriptor = FetchDescriptor<ProjectWeekRoleAssignment>(predicate: #Predicate { $0.id == id })
-            descriptor.fetchLimit = 1
-            let arr = try context.fetch(descriptor)
-            return arr.first as? T
-        }
-        return nil
+        return try BackupFetchHelper.fetchOne(type, id: id, using: context)
     }
 
     // Compression, decompression, encryption, and key derivation methods moved to BackupCodec
@@ -725,5 +500,123 @@ public final class BackupService {
 
     private func deduplicatePayload(_ payload: BackupPayload) -> BackupPayload {
         BackupPayloadDeduplicator.deduplicate(payload)
+    }
+
+    // MARK: - Shared Helper Methods
+
+    private func withSecurityScopedResource<T>(_ url: URL, operation: () throws -> T) rethrows -> T {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        return try operation()
+    }
+
+    private func loadAndDecodeBackup(
+        from url: URL,
+        password: String?,
+        progress: @escaping (Double, String) -> Void
+    ) throws -> (envelope: BackupEnvelope, payload: BackupPayload) {
+        progress(0.05, "Reading file…")
+        let data = try Data(contentsOf: url)
+
+        try validateBackupData(data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let envelope = try decodeEnvelope(from: data, decoder: decoder)
+
+        let payloadBytes = try extractPayloadBytes(
+            from: envelope,
+            password: password,
+            progress: progress
+        )
+
+        try validateChecksum(payloadBytes, against: envelope.manifest.sha256, progress: progress)
+
+        let payload = try decodePayload(from: payloadBytes, decoder: decoder)
+
+        return (envelope, payload)
+    }
+
+    private func validateBackupData(_ data: Data) throws {
+        guard !data.isEmpty else {
+            throw NSError(domain: "BackupService", code: 1105, userInfo: [
+                NSLocalizedDescriptionKey: "Backup file is empty or could not be read."
+            ])
+        }
+
+        let dataString = String(data: data.prefix(100), encoding: .utf8) ?? ""
+        let trimmed = dataString.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("{") || trimmed.hasPrefix("[") else {
+            throw NSError(domain: "BackupService", code: 1106, userInfo: [
+                NSLocalizedDescriptionKey: "Backup file does not appear to be a valid JSON file."
+            ])
+        }
+    }
+
+    private func decodeEnvelope(from data: Data, decoder: JSONDecoder) throws -> BackupEnvelope {
+        do {
+            return try decoder.decode(BackupEnvelope.self, from: data)
+        } catch {
+            throw NSError(domain: "BackupService", code: 1107, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to read backup file: \(error.localizedDescription)"
+            ])
+        }
+    }
+
+    private func extractPayloadBytes(
+        from envelope: BackupEnvelope,
+        password: String?,
+        progress: @escaping (Double, String) -> Void
+    ) throws -> Data {
+        let isCompressed = envelope.manifest.compression != nil
+
+        if let compressed = envelope.compressedPayload {
+            progress(0.15, "Decompressing data…")
+            return try codec.decompress(compressed)
+        } else if let enc = envelope.encryptedPayload {
+            guard let password = password, !password.isEmpty else {
+                throw NSError(domain: "BackupService", code: 1103, userInfo: [
+                    NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."
+                ])
+            }
+            progress(0.15, "Decrypting data…")
+            let decryptedBytes = try codec.decrypt(enc, password: password)
+            if isCompressed {
+                progress(0.17, "Decompressing data…")
+                return try codec.decompress(decryptedBytes)
+            } else {
+                return decryptedBytes
+            }
+        } else {
+            throw NSError(domain: "BackupService", code: 1101, userInfo: [
+                NSLocalizedDescriptionKey: "Backup file missing payload. This may be an older backup format that is no longer supported."
+            ])
+        }
+    }
+
+    private func validateChecksum(
+        _ payloadBytes: Data,
+        against expectedSHA: String,
+        progress: @escaping (Double, String) -> Void
+    ) throws {
+        progress(0.20, "Validating checksum…")
+        if !expectedSHA.isEmpty {
+            let sha = codec.sha256Hex(payloadBytes)
+            guard sha == expectedSHA else {
+                throw NSError(domain: "BackupService", code: 1102, userInfo: [
+                    NSLocalizedDescriptionKey: "Checksum mismatch."
+                ])
+            }
+        }
+    }
+
+    private func decodePayload(from data: Data, decoder: JSONDecoder) throws -> BackupPayload {
+        do {
+            return try decoder.decode(BackupPayload.self, from: data)
+        } catch {
+            throw NSError(domain: "BackupService", code: 1108, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to decode backup payload: \(error.localizedDescription)"
+            ])
+        }
     }
 }

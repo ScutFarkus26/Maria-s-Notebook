@@ -13,10 +13,10 @@ import SwiftData
 @testable import Maria_s_Notebook
 
 @Suite("LifecycleService Tests")
-struct LifecycleServiceTests {
-
+struct LifecycleServiceTests {}
+    
     // MARK: - Core Functionality Tests
-
+    
     @Test("Record presentation creates LessonAssignment")
     func recordPresentationCreatesLessonAssignment() async throws {
         let deps = AppDependencies.makeTest()
@@ -92,9 +92,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: A StudentLesson with a specific ID
-        let student = try builder.buildStudent(firstName: "Eve", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Physics")
-        let studentLesson = try builder.buildStudentLesson(
+        let student = try createTestStudent(name: "Eve", context: context)
+        let lesson = try createTestLesson(name: "Physics", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -117,14 +117,14 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: A lesson with title and subheading
-        let student = try builder.buildStudent(firstName: "Frank", lastName: "Student")
+        let student = try createTestStudent(name: "Frank", context: context)
         let lesson = try createTestLesson(
             name: "Ancient Rome",
             subject: "History",
             group: "Ancient History",
             context: context
         )
-        let studentLesson = try builder.buildStudentLesson(
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -150,9 +150,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: A presentation
-        let student = try builder.buildStudent(firstName: "Grace", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Chemistry")
-        let studentLesson = try builder.buildStudentLesson(
+        let student = try createTestStudent(name: "Grace", context: context)
+        let lesson = try createTestLesson(name: "Chemistry", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -176,10 +176,10 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: Students and lesson
-        let student1 = try builder.buildStudent(firstName: "Henry", lastName: "Student")
-        let student2 = try builder.buildStudent(firstName: "Irene", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Biology")
-        let studentLesson = try builder.buildStudentLesson(
+        let student1 = try createTestStudent(name: "Henry", context: context)
+        let student2 = try createTestStudent(name: "Irene", context: context)
+        let lesson = try createTestLesson(name: "Biology", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student1, student2],
             context: context
@@ -205,9 +205,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: A presentation
-        let student = try builder.buildStudent(firstName: "Jack", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "English")
-        let studentLesson = try builder.buildStudentLesson(
+        let student = try createTestStudent(name: "Jack", context: context)
+        let lesson = try createTestLesson(name: "English", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -232,11 +232,11 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: StudentLesson with valid and invalid student IDs
-        let validStudent = try builder.buildStudent(firstName: "Karen", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Art")
+        let validStudent = try createTestStudent(name: "Karen", context: context)
+        let lesson = try createTestLesson(name: "Art", context: context)
         let invalidStudentID = UUID()
         
-        let studentLesson = try builder.buildStudentLesson(
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [validStudent],
             context: context
@@ -267,7 +267,7 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: All students deleted
-        let lesson = try builder.buildLesson(name: "Music")
+        let lesson = try createTestLesson(name: "Music", context: context)
         let invalidStudentID1 = UUID()
         let invalidStudentID2 = UUID()
         
@@ -300,9 +300,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: A presentation
-        let student = try builder.buildStudent(firstName: "Leo", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Latin")
-        let studentLesson = try builder.buildStudentLesson(
+        let student = try createTestStudent(name: "Leo", context: context)
+        let lesson = try createTestLesson(name: "Latin", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -322,7 +322,7 @@ struct LifecycleServiceTests {
             $0.studentID == student.id.uuidString && $0.lessonID == lesson.id.uuidString
         }
         
-        TestPatterns.expectCount(studentPresentations, equals: 1)
+        #expect(studentPresentations.count == 1)
         let presentation = studentPresentations[0]
         #expect(presentation.state == .presented)
         #expect(presentation.presentedAt == presentedAt)
@@ -335,9 +335,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: An existing presentation
-        let student = try builder.buildStudent(firstName: "Mia", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Drama")
-        let studentLesson = try builder.buildStudentLesson(
+        let student = try createTestStudent(name: "Mia", context: context)
+        let lesson = try createTestLesson(name: "Drama", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -364,7 +364,7 @@ struct LifecycleServiceTests {
             $0.studentID == student.id.uuidString && $0.lessonID == lesson.id.uuidString
         }
         
-        TestPatterns.expectCount(studentPresentations, equals: 1)
+        #expect(studentPresentations.count == 1)
         let presentation = studentPresentations[0]
         #expect(presentation.lastObservedAt == secondPresentedAt)
     }
@@ -377,7 +377,7 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: StudentLesson with invalid lesson ID
-        let student = try builder.buildStudent(firstName: "Noah", lastName: "Student")
+        let student = try createTestStudent(name: "Noah", context: context)
         let studentLesson = StudentLesson(
             id: UUID(),
             lessonID: UUID(),
@@ -404,9 +404,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: StudentLesson with mix of valid and invalid student IDs
-        let validStudent = try builder.buildStudent(firstName: "Olivia", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Geography")
-        let studentLesson = try builder.buildStudentLesson(
+        let validStudent = try createTestStudent(name: "Olivia", context: context)
+        let lesson = try createTestLesson(name: "Geography", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [validStudent],
             context: context
@@ -434,9 +434,9 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: An existing LessonAssignment in draft state
-        let student = try builder.buildStudent(firstName: "Paul", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Economics")
-        let studentLesson = try builder.buildStudentLesson(
+        let student = try createTestStudent(name: "Paul", context: context)
+        let lesson = try createTestLesson(name: "Economics", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student],
             context: context
@@ -480,11 +480,11 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: Multiple students in one presentation
-        let student1 = try builder.buildStudent(firstName: "Quinn", lastName: "Student")
-        let student2 = try builder.buildStudent(firstName: "Rachel", lastName: "Student")
-        let student3 = try builder.buildStudent(firstName: "Sam", lastName: "Student")
-        let lesson = try builder.buildLesson(name: "Philosophy")
-        let studentLesson = try builder.buildStudentLesson(
+        let student1 = try createTestStudent(name: "Quinn", context: context)
+        let student2 = try createTestStudent(name: "Rachel", context: context)
+        let student3 = try createTestStudent(name: "Sam", context: context)
+        let lesson = try createTestLesson(name: "Philosophy", context: context)
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student1, student2, student3],
             context: context
@@ -514,15 +514,15 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: A fully set up StudentLesson
-        let student1 = try builder.buildStudent(firstName: "Tina", lastName: "Student")
-        let student2 = try builder.buildStudent(firstName: "Uma", lastName: "Student")
+        let student1 = try createTestStudent(name: "Tina", context: context)
+        let student2 = try createTestStudent(name: "Uma", context: context)
         let lesson = try createTestLesson(
             name: "World War II",
             subject: "History",
             group: "Modern History",
             context: context
         )
-        let studentLesson = try builder.buildStudentLesson(
+        let studentLesson = try createTestStudentLesson(
             lesson: lesson,
             students: [student1, student2],
             context: context
@@ -553,7 +553,7 @@ struct LifecycleServiceTests {
             $0.lessonID == lesson.id.uuidString &&
             [student1.id.uuidString, student2.id.uuidString].contains($0.studentID)
         }
-        TestPatterns.expectCount(relevantPresentations, equals: 2)
+        #expect(relevantPresentations.count == 2)
         
         // 4. All records properly linked
         let presentationID = result.lessonAssignment.id.uuidString
@@ -567,12 +567,12 @@ struct LifecycleServiceTests {
         let context = deps.modelContext
         
         // Given: Two different presentations
-        let student = try builder.buildStudent(firstName: "Victor", lastName: "Student")
+        let student = try createTestStudent(name: "Victor", context: context)
         let lesson1 = try createTestLesson(name: "Algebra I", subject: "Math", group: "Algebra", context: context)
         let lesson2 = try createTestLesson(name: "Algebra II", subject: "Math", group: "Algebra", context: context)
         
-        let studentLesson1 = try builder.buildStudentLesson(lesson: lesson1, students: [student], context: context)
-        let studentLesson2 = try builder.buildStudentLesson(lesson: lesson2, students: [student], context: context)
+        let studentLesson1 = try createTestStudentLesson(lesson: lesson1, students: [student], context: context)
+        let studentLesson2 = try createTestStudentLesson(lesson: lesson2, students: [student], context: context)
         
         // When: Recording both presentations
         let result1 = try LifecycleService.recordPresentationAndExplodeWork(

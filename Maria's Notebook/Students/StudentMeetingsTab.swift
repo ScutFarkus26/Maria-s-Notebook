@@ -433,20 +433,14 @@ struct StudentMeetingsTab: View {
 
     private func workRowLine(_ work: WorkModel, showCompletedDate: Bool = false) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(.secondary)
-            Text(workDisplayTitle(work))
-                .font(.footnote)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
+            BulletPointRow(text: workDisplayTitle(work))
             if showCompletedDate, let date = work.completedAt {
                 Text("•").foregroundStyle(.secondary)
                 Text(Self.dateFormatter.string(from: date))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
         }
-        .padding(.vertical, 2)
     }
 
     private func workDisplayTitle(_ work: WorkModel) -> String {
@@ -464,20 +458,7 @@ struct StudentMeetingsTab: View {
     
     private func lessonRowLine(_ studentLesson: StudentLesson) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "book.fill").font(.system(size: 8)).foregroundStyle(.secondary)
-            if let lesson = studentLesson.lesson {
-                Text(lesson.name)
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-            } else if let lessonID = UUID(uuidString: studentLesson.lessonID), let lesson = lessonsByID[lessonID] {
-                Text(lesson.name)
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-            } else {
-                Text("Lesson")
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-            }
+            BulletPointRow(text: lessonDisplayName(studentLesson), icon: "book.fill", iconSize: 8)
             if let givenAt = studentLesson.givenAt {
                 Text("•").foregroundStyle(.secondary)
                 Text(Self.dateFormatter.string(from: givenAt))
@@ -488,9 +469,17 @@ struct StudentMeetingsTab: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
         }
-        .padding(.vertical, 2)
+    }
+
+    private func lessonDisplayName(_ studentLesson: StudentLesson) -> String {
+        if let lesson = studentLesson.lesson {
+            return lesson.name
+        } else if let lessonID = UUID(uuidString: studentLesson.lessonID), let lesson = lessonsByID[lessonID] {
+            return lesson.name
+        } else {
+            return "Lesson"
+        }
     }
 
     // MARK: - Persistence (delegated to MeetingPersistenceService)
@@ -567,72 +556,19 @@ struct StudentMeetingsTab: View {
     // MARK: - UI Helpers
 
     private func rowLine(label: String, value: String) -> some View {
-        HStack(spacing: 8) {
-            Text("\(label):")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-            Spacer()
-        }
+        LabelValueRow(label: label, value: value)
     }
 
     private func textArea(title: String, text: Binding<String>, placeholder: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ZStack(alignment: .topLeading) {
-                TextEditor(text: text)
-                    .font(.body)
-                    .frame(minHeight: 80)
-                    .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08))
-                    )
-                if text.wrappedValue.trimmed().isEmpty {
-                    Text(placeholder)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                }
-            }
-        }
+        PlaceholderTextArea(title: title, text: text, placeholder: placeholder)
     }
 
     private func historyDetailLine(title: String, text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("\(title):")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Text(text)
-                .font(.footnote)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-        }
+        DetailLine(title: title, text: text)
     }
 
     private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            content()
-                .padding(12)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
-        )
+        CardContainer(content: content)
     }
 
     // MARK: - Summary Generation (delegated to MeetingSummaryGenerator)

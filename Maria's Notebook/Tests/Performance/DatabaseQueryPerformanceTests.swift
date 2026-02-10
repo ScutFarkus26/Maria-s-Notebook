@@ -4,6 +4,45 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
+// MARK: - Shared Test Helpers
+
+/// Common container configurations for performance tests
+private enum TestContainers {
+    static let noteQueryTypes: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, Note.self,
+        NoteStudentLink.self, WorkModel.self, WorkParticipantEntity.self
+    ]
+    
+    static let studentLessonTypes: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, Note.self,
+        NoteStudentLink.self, WorkModel.self, WorkParticipantEntity.self,
+        LessonPresentation.self
+    ]
+    
+    static let groupTrackTypes: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self,
+        GroupTrack.self, StudentTrackEnrollment.self
+    ]
+    
+    static let workQueryTypes: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, WorkModel.self,
+        WorkParticipantEntity.self, WorkCheckIn.self, WorkPlanItem.self
+    ]
+    
+    static let indexTestTypes: [any PersistentModel.Type] = [
+        Student.self, Note.self, NoteStudentLink.self,
+        StudentTrackEnrollment.self, GroupTrack.self
+    ]
+    
+    static let batchOperationTypes: [any PersistentModel.Type] = [
+        Student.self, Note.self, NoteStudentLink.self
+    ]
+    
+    static let deduplicationTypes: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self
+    ]
+}
+
 // MARK: - Note Query Performance Tests
 
 /// Tests to ensure note fetching behavior remains correct during performance optimizations.
@@ -13,15 +52,7 @@ import SwiftData
 struct NoteQueryBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            Note.self,
-            NoteStudentLink.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-        ])
+        return try makeTestContainer(for: TestContainers.noteQueryTypes)
     }
 
     @Test("fetchNotesForStudent returns notes with all scope")
@@ -164,16 +195,7 @@ struct NoteQueryBehaviorTests {
 struct StudentLessonQueryBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            Note.self,
-            NoteStudentLink.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            LessonPresentation.self,
-        ])
+        return try makeTestContainer(for: TestContainers.studentLessonTypes)
     }
 
     @Test("fetchStudentLessons returns lessons for specific student")
@@ -264,13 +286,7 @@ struct StudentLessonQueryBehaviorTests {
 struct GroupTrackQueryBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        return try makeTestContainer(for: TestContainers.groupTrackTypes)
     }
 
     @Test("getOrCreateGroupTrack returns existing track")
@@ -363,14 +379,7 @@ struct GroupTrackQueryBehaviorTests {
 struct WorkQueryBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkPlanItem.self,
-        ])
+        return try makeTestContainer(for: TestContainers.workQueryTypes)
     }
 
     @Test("fetchOpenWorkModels returns active work")
@@ -434,13 +443,7 @@ struct WorkQueryBehaviorTests {
 struct IndexFieldBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Note.self,
-            NoteStudentLink.self,
-            StudentTrackEnrollment.self,
-            GroupTrack.self,
-        ])
+        return try makeTestContainer(for: TestContainers.indexTestTypes)
     }
 
     @Test("Note searchIndexStudentID filtering works correctly")
@@ -551,11 +554,7 @@ struct IndexFieldBehaviorTests {
 struct BatchOperationBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Note.self,
-            NoteStudentLink.self,
-        ])
+        return try makeTestContainer(for: TestContainers.batchOperationTypes)
     }
 
     @Test("syncStudentLinks creates links for multi-student scope")
@@ -637,11 +636,7 @@ struct BatchOperationBehaviorTests {
 struct DeduplicationBehaviorTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-        ])
+        return try makeTestContainer(for: TestContainers.deduplicationTypes)
     }
 
     @Test("uniqueByID extension removes duplicates keeping first occurrence")

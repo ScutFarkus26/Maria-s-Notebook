@@ -2,6 +2,42 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
+// MARK: - File Import Helpers
+
+private enum FileImportHelpers {
+    static func accessSecurityScopedResource(url: URL) -> Bool {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        if needsAccess {
+            print("✅ Started security-scoped access")
+        } else {
+            print("ℹ️ File accessible without security scope")
+        }
+        return needsAccess
+    }
+    
+    static func logImportAttempt(url: URL) {
+        print("📁 Attempting to import: \(url.lastPathComponent)")
+        print("📍 From path: \(url.path)")
+    }
+    
+    static func logImportSuccess(url: URL, relativePath: String, fileSize: Int64) {
+        print("✅ File copied to: \(url.path)")
+        print("📍 Relative path: \(relativePath)")
+        print("📊 File size: \(fileSize) bytes")
+        print("🔖 Bookmark created")
+        print("✅ Successfully imported attachment: \(url.lastPathComponent)")
+    }
+    
+    static func logImportError(_ error: Error) {
+        print("❌ Failed to import attachment: \(error)")
+        print("❌ Error details: \(error.localizedDescription)")
+        if let nsError = error as NSError? {
+            print("❌ Error domain: \(nsError.domain), code: \(nsError.code)")
+            print("❌ Error userInfo: \(nsError.userInfo)")
+        }
+    }
+}
+
 /// Displays and manages attachments for a lesson, including inherited attachments from group and subject.
 struct LessonAttachmentsSection: View {
     let lesson: Lesson
@@ -156,17 +192,8 @@ struct LessonAttachmentsSection: View {
                 return
             }
             
-            print("📁 Attempting to import: \(url.lastPathComponent)")
-            print("📍 From path: \(url.path)")
-            
-            // For drag and drop from Finder, files are usually accessible without security-scoped access
-            // Try to access without security scope first
-            let needsSecurityScope = url.startAccessingSecurityScopedResource()
-            if needsSecurityScope {
-                print("✅ Started security-scoped access")
-            } else {
-                print("ℹ️ File accessible without security scope")
-            }
+            FileImportHelpers.logImportAttempt(url: url)
+            let needsSecurityScope = FileImportHelpers.accessSecurityScopedResource(url: url)
             
             defer {
                 if needsSecurityScope {
@@ -185,16 +212,13 @@ struct LessonAttachmentsSection: View {
                     scope: selectedScope
                 )
                 
-                print("✅ File copied to: \(destURL.path)")
-                print("📍 Relative path: \(relativePath)")
-                
                 // Get file size
                 let fileSize = try FileManager.default.attributesOfItem(atPath: destURL.path)[.size] as? Int64 ?? 0
-                print("📊 File size: \(fileSize) bytes")
                 
                 // Create bookmark
                 let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
-                print("🔖 Bookmark created")
+                
+                FileImportHelpers.logImportSuccess(url: destURL, relativePath: relativePath, fileSize: fileSize)
                 
                 // Create attachment entity
                 let attachment = LessonAttachment(
@@ -213,8 +237,6 @@ struct LessonAttachmentsSection: View {
                 print("💾 Saving context")
                 try modelContext.save()
                 
-                print("✅ Successfully imported attachment: \(url.lastPathComponent)")
-                
                 // Delete original file if requested
                 if deleteOriginalAfterImport {
                     do {
@@ -226,12 +248,7 @@ struct LessonAttachmentsSection: View {
                 }
                 
             } catch {
-                print("❌ Failed to import attachment: \(error)")
-                print("❌ Error details: \(error.localizedDescription)")
-                if let nsError = error as NSError? {
-                    print("❌ Error domain: \(nsError.domain), code: \(nsError.code)")
-                    print("❌ Error userInfo: \(nsError.userInfo)")
-                }
+                FileImportHelpers.logImportError(error)
             }
             
         case .failure(let error):

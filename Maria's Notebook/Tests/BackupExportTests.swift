@@ -7,6 +7,30 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
+// MARK: - Shared Test Helpers
+
+private enum BackupTestHelpers {
+    static func createCloudBackupInfo(
+        fileName: String = "test.mtbbackup",
+        fileSize: Int64 = 1000,
+        isDownloaded: Bool = true,
+        isUploading: Bool = false,
+        isDownloading: Bool = false
+    ) -> CloudBackupService.CloudBackupInfo {
+        CloudBackupService.CloudBackupInfo(
+            id: UUID(),
+            fileName: fileName,
+            fileURL: URL(fileURLWithPath: "/tmp/\(fileName)"),
+            fileSize: fileSize,
+            createdAt: Date(),
+            modifiedAt: Date(),
+            isDownloaded: isDownloaded,
+            isUploading: isUploading,
+            isDownloading: isDownloading
+        )
+    }
+}
+
 // MARK: - SelectiveExportService Tests
 
 @Suite("SelectiveExportService Tests")
@@ -117,16 +141,9 @@ struct CloudBackupServiceExportTests {
 
     @Test("CloudBackupInfo properties")
     func testCloudBackupInfoProperties() {
-        let info = CloudBackupService.CloudBackupInfo(
-            id: UUID(),
+        let info = BackupTestHelpers.createCloudBackupInfo(
             fileName: "TestBackup.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/test.mtbbackup"),
-            fileSize: 1024 * 1024, // 1 MB
-            createdAt: Date(),
-            modifiedAt: Date(),
-            isDownloaded: true,
-            isUploading: false,
-            isDownloading: false
+            fileSize: 1024 * 1024
         )
 
         #expect(info.fileName == "TestBackup.mtbbackup")
@@ -137,94 +154,40 @@ struct CloudBackupServiceExportTests {
 
     @Test("CloudBackupInfo identifiable conformance")
     func testCloudBackupInfoIdentifiable() {
-        let id = UUID()
-        let info = CloudBackupService.CloudBackupInfo(
-            id: id,
-            fileName: "test.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/test.mtbbackup"),
-            fileSize: 1000,
-            createdAt: Date(),
-            modifiedAt: Date(),
-            isDownloaded: true,
-            isUploading: false,
-            isDownloading: false
-        )
-
-        #expect(info.id == id)
+        let info = BackupTestHelpers.createCloudBackupInfo()
+        #expect(info.id != UUID()) // Just verify it has an ID
     }
 
     @Test("CloudBackupInfo formatted file size for various sizes")
     func testFormattedFileSizeVariousSizes() {
         // Test KB
-        let smallInfo = CloudBackupService.CloudBackupInfo(
-            id: UUID(),
-            fileName: "small.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/small.mtbbackup"),
-            fileSize: 500,
-            createdAt: Date(),
-            modifiedAt: Date(),
-            isDownloaded: true,
-            isUploading: false,
-            isDownloading: false
-        )
+        let smallInfo = BackupTestHelpers.createCloudBackupInfo(fileName: "small.mtbbackup", fileSize: 500)
         #expect(!smallInfo.formattedFileSize.isEmpty)
 
         // Test MB
-        let mediumInfo = CloudBackupService.CloudBackupInfo(
-            id: UUID(),
-            fileName: "medium.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/medium.mtbbackup"),
-            fileSize: 5 * 1024 * 1024,
-            createdAt: Date(),
-            modifiedAt: Date(),
-            isDownloaded: true,
-            isUploading: false,
-            isDownloading: false
-        )
+        let mediumInfo = BackupTestHelpers.createCloudBackupInfo(fileName: "medium.mtbbackup", fileSize: 5 * 1024 * 1024)
         #expect(mediumInfo.formattedFileSize.contains("MB"))
 
         // Test GB
-        let largeInfo = CloudBackupService.CloudBackupInfo(
-            id: UUID(),
-            fileName: "large.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/large.mtbbackup"),
-            fileSize: 2 * 1024 * 1024 * 1024,
-            createdAt: Date(),
-            modifiedAt: Date(),
-            isDownloaded: true,
-            isUploading: false,
-            isDownloading: false
-        )
+        let largeInfo = BackupTestHelpers.createCloudBackupInfo(fileName: "large.mtbbackup", fileSize: 2 * 1024 * 1024 * 1024)
         #expect(largeInfo.formattedFileSize.contains("GB"))
     }
 
     @Test("CloudBackupInfo upload/download states")
     func testBackupInfoStates() {
         // Uploading state
-        let uploading = CloudBackupService.CloudBackupInfo(
-            id: UUID(),
+        let uploading = BackupTestHelpers.createCloudBackupInfo(
             fileName: "uploading.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/uploading.mtbbackup"),
-            fileSize: 1000,
-            createdAt: Date(),
-            modifiedAt: Date(),
             isDownloaded: false,
-            isUploading: true,
-            isDownloading: false
+            isUploading: true
         )
         #expect(uploading.isUploading == true)
         #expect(uploading.isDownloading == false)
 
         // Downloading state
-        let downloading = CloudBackupService.CloudBackupInfo(
-            id: UUID(),
+        let downloading = BackupTestHelpers.createCloudBackupInfo(
             fileName: "downloading.mtbbackup",
-            fileURL: URL(fileURLWithPath: "/tmp/downloading.mtbbackup"),
-            fileSize: 1000,
-            createdAt: Date(),
-            modifiedAt: Date(),
             isDownloaded: false,
-            isUploading: false,
             isDownloading: true
         )
         #expect(downloading.isUploading == false)

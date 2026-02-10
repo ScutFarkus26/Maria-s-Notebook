@@ -58,7 +58,6 @@ struct AttendanceViewModelSortingTests {
             makeTestStudent(firstName: "Bob", lastName: "Anderson"),
             makeTestStudent(firstName: "Charlie", lastName: "Miller"),
         ]
-
         let sorted = vm.sortedAndFiltered(students: students)
 
         #expect(sorted[0].lastName == "Anderson")
@@ -76,7 +75,6 @@ struct AttendanceViewModelSortingTests {
             makeTestStudent(firstName: "Alice", lastName: "Jones"),
             makeTestStudent(firstName: "Bob", lastName: "Wilson"),
         ]
-
         let sorted = vm.sortedAndFiltered(students: students)
 
         #expect(sorted[0].firstName == "Alice")
@@ -141,20 +139,17 @@ struct AttendanceViewModelSortingTests {
     @Test("sortedAndFiltered handles empty array")
     func handlesEmptyArray() {
         let vm = AttendanceViewModel()
-
         let sorted = vm.sortedAndFiltered(students: [])
-
-        #expect(sorted.isEmpty)
+        TestPatterns.expectEmpty(sorted)
     }
 
     @Test("sortedAndFiltered handles single element")
     func handlesSingleElement() {
         let vm = AttendanceViewModel()
         let student = makeTestStudent(firstName: "Solo", lastName: "Student")
-
         let sorted = vm.sortedAndFiltered(students: [student])
 
-        #expect(sorted.count == 1)
+        TestPatterns.expectCount(sorted, equals: 1)
         #expect(sorted[0].firstName == "Solo")
     }
 }
@@ -165,117 +160,63 @@ struct AttendanceViewModelSortingTests {
 @MainActor
 struct AttendanceViewModelStatusCyclingTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            AttendanceRecord.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [Student.self, AttendanceRecord.self, Note.self]
 
     @Test("cycleStatus transitions unmarked to present")
     func cyclesUnmarkedToPresent() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
-        let record = makeTestAttendanceRecord(studentID: student.id, status: .unmarked)
-        context.insert(record)
-
-        vm.recordsByStudent[student.cloudKitKey] = record
-
-        vm.cycleStatus(for: student, modelContext: context)
-
-        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .present)
+        StatusCycleTester.testStatusCycle(from: .unmarked, to: .present, using: vm, student: student, context: context)
     }
 
     @Test("cycleStatus transitions present to absent")
     func cyclesPresentToAbsent() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
-        let record = makeTestAttendanceRecord(studentID: student.id, status: .present)
-        context.insert(record)
-
-        vm.recordsByStudent[student.cloudKitKey] = record
-
-        vm.cycleStatus(for: student, modelContext: context)
-
-        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .absent)
+        StatusCycleTester.testStatusCycle(from: .present, to: .absent, using: vm, student: student, context: context)
     }
 
     @Test("cycleStatus transitions absent to tardy")
     func cyclesAbsentToTardy() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
-        let record = makeTestAttendanceRecord(studentID: student.id, status: .absent)
-        context.insert(record)
-
-        vm.recordsByStudent[student.cloudKitKey] = record
-
-        vm.cycleStatus(for: student, modelContext: context)
-
-        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .tardy)
+        StatusCycleTester.testStatusCycle(from: .absent, to: .tardy, using: vm, student: student, context: context)
     }
 
     @Test("cycleStatus transitions tardy to leftEarly")
     func cyclesTardyToLeftEarly() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
-        let record = makeTestAttendanceRecord(studentID: student.id, status: .tardy)
-        context.insert(record)
-
-        vm.recordsByStudent[student.cloudKitKey] = record
-
-        vm.cycleStatus(for: student, modelContext: context)
-
-        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .leftEarly)
+        StatusCycleTester.testStatusCycle(from: .tardy, to: .leftEarly, using: vm, student: student, context: context)
     }
 
     @Test("cycleStatus transitions leftEarly to present")
     func cyclesLeftEarlyToPresent() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
-        let record = makeTestAttendanceRecord(studentID: student.id, status: .leftEarly)
-        context.insert(record)
-
-        vm.recordsByStudent[student.cloudKitKey] = record
-
-        vm.cycleStatus(for: student, modelContext: context)
-
-        #expect(vm.recordsByStudent[student.cloudKitKey]?.status == .present)
+        StatusCycleTester.testStatusCycle(from: .leftEarly, to: .present, using: vm, student: student, context: context)
     }
 
     @Test("cycleStatus does nothing for unknown student")
     func doesNothingForUnknownStudent() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Unknown", lastName: "Student")
-        // Don't add record to vm.recordsByStudent
 
         vm.cycleStatus(for: student, modelContext: context)
 
@@ -289,20 +230,12 @@ struct AttendanceViewModelStatusCyclingTests {
 @MainActor
 struct AttendanceViewModelLoadingTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            AttendanceRecord.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [Student.self, AttendanceRecord.self, Note.self]
 
     @Test("load populates recordsByStudent")
     func loadPopulatesRecords() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
         context.insert(student1)
@@ -311,17 +244,15 @@ struct AttendanceViewModelLoadingTests {
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         vm.load(for: date, students: [student1, student2], modelContext: context)
 
-        #expect(vm.recordsByStudent.count == 2)
+        TestPatterns.expectCount(vm.recordsByStudent, equals: 2)
         #expect(vm.recordsByStudent[student1.cloudKitKey] != nil)
         #expect(vm.recordsByStudent[student2.cloudKitKey] != nil)
     }
 
     @Test("load filters to provided students only")
     func loadFiltersToProvidedStudents() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
         let student3 = makeTestStudent(firstName: "Charlie", lastName: "Clark")
@@ -329,33 +260,30 @@ struct AttendanceViewModelLoadingTests {
         context.insert(student2)
         context.insert(student3)
 
-        // Create a record for student3 that shouldn't be included
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         let extraRecord = makeTestAttendanceRecord(studentID: student3.id, date: date)
         context.insert(extraRecord)
 
         vm.load(for: date, students: [student1, student2], modelContext: context)
 
-        #expect(vm.recordsByStudent.count == 2)
+        TestPatterns.expectCount(vm.recordsByStudent, equals: 2)
         #expect(vm.recordsByStudent[student3.cloudKitKey] == nil)
     }
 
     @Test("load handles empty student list")
     func loadHandlesEmptyStudentList() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
 
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         vm.load(for: date, students: [], modelContext: context)
 
-        #expect(vm.recordsByStudent.isEmpty)
+        TestPatterns.expectEmpty(vm.recordsByStudent)
     }
 
     @Test("load updates selectedDate")
     func loadUpdatesSelectedDate() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
 
         let originalDate = TestCalendar.date(year: 2025, month: 1, day: 1)
@@ -370,10 +298,8 @@ struct AttendanceViewModelLoadingTests {
 
     @Test("load creates unmarked records for students without records")
     func loadCreatesUnmarkedRecords() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "New", lastName: "Student")
         context.insert(student)
 
@@ -497,20 +423,12 @@ struct AttendanceViewModelStatsTests {
 @MainActor
 struct AttendanceViewModelActionsTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            AttendanceRecord.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [Student.self, AttendanceRecord.self, Note.self]
 
     @Test("markAllPresent updates all records to present")
     func markAllPresentUpdatesAllRecords() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
         context.insert(student1)
@@ -519,7 +437,6 @@ struct AttendanceViewModelActionsTests {
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         vm.load(for: date, students: [student1, student2], modelContext: context)
 
-        // Verify initial state is unmarked
         #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .unmarked)
         #expect(vm.recordsByStudent[student2.cloudKitKey]?.status == .unmarked)
 
@@ -531,10 +448,8 @@ struct AttendanceViewModelActionsTests {
 
     @Test("resetDay sets all to unmarked")
     func resetDaySetsAllToUnmarked() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student1 = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
         context.insert(student1)
@@ -542,14 +457,12 @@ struct AttendanceViewModelActionsTests {
 
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
 
-        // First mark them as present
         vm.load(for: date, students: [student1, student2], modelContext: context)
         vm.markAllPresent(students: [student1, student2], modelContext: context)
 
         #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .present)
         #expect(vm.recordsByStudent[student2.cloudKitKey]?.status == .present)
 
-        // Now reset
         vm.resetDay(students: [student1, student2], modelContext: context)
 
         #expect(vm.recordsByStudent[student1.cloudKitKey]?.status == .unmarked)
@@ -558,10 +471,8 @@ struct AttendanceViewModelActionsTests {
 
     @Test("updateNote persists note")
     func updateNotePersistsNote() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
@@ -575,10 +486,8 @@ struct AttendanceViewModelActionsTests {
 
     @Test("updateNote trims whitespace")
     func updateNoteTrimsWhitespace() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
@@ -592,57 +501,45 @@ struct AttendanceViewModelActionsTests {
 
     @Test("updateNote sets nil for empty string")
     func updateNoteSetsNilForEmptyString() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         vm.load(for: date, students: [student], modelContext: context)
 
-        // First set a note
         vm.updateNote(for: student, note: "Some note", modelContext: context)
         #expect(vm.recordsByStudent[student.cloudKitKey]?.note != nil)
 
-        // Now clear it
         vm.updateNote(for: student, note: "   ", modelContext: context)
         #expect(vm.recordsByStudent[student.cloudKitKey]?.note == nil)
     }
 
     @Test("updateAbsenceReason only works when absent")
     func updateAbsenceReasonOnlyWorksWhenAbsent() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 
         let date = TestCalendar.date(year: 2025, month: 1, day: 15)
         vm.load(for: date, students: [student], modelContext: context)
 
-        // Student is unmarked, so this should not work
         vm.updateAbsenceReason(for: student, reason: .sick, modelContext: context)
-        // Use AbsenceReason.none explicitly to avoid confusion with Optional.none
         #expect(vm.recordsByStudent[student.cloudKitKey]?.absenceReason == AbsenceReason.none)
 
-        // Mark as absent first
-        vm.cycleStatus(for: student, modelContext: context)  // unmarked -> present
-        vm.cycleStatus(for: student, modelContext: context)  // present -> absent
+        vm.cycleStatus(for: student, modelContext: context)
+        vm.cycleStatus(for: student, modelContext: context)
 
-        // Now setting reason should work
         vm.updateAbsenceReason(for: student, reason: .sick, modelContext: context)
         #expect(vm.recordsByStudent[student.cloudKitKey]?.absenceReason == .sick)
     }
 
     @Test("updateAbsenceReason can set vacation reason")
     func updateAbsenceReasonCanSetVacation() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let vm = AttendanceViewModel()
-
         let student = makeTestStudent(firstName: "Test", lastName: "Student")
         context.insert(student)
 

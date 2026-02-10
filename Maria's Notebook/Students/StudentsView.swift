@@ -289,21 +289,6 @@ struct StudentsView<WorkloadContent: View>: View {
                         }
                     }
                 }
-            } else {
-                // Fallback: List-detail split (kept for safety)
-                NavigationSplitView {
-                    sidebarContent
-                } detail: {
-                    NavigationStack {
-                        detailContent
-                            .navigationTitle("Students")
-                            .toolbar {
-                                toolbarContent
-                            }
-                            .navigationBarTitleDisplayMode(.inline)
-                    }
-                }
-                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 420)
             }
         }
         #endif
@@ -341,40 +326,31 @@ struct StudentsView<WorkloadContent: View>: View {
                 AddStudentView()
                     .presentationSizingFitted()
             }
-            .alert("Save Failed", isPresented: $isShowingSaveError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(saveErrorMessage)
-            }
+            .modifier(SaveErrorAlert(isPresented: $isShowingSaveError, message: saveErrorMessage))
             .alert(item: $importAlert) { alert in
                 Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
             }
-            .fileImporter(
-                isPresented: $showingStudentCSVImporter,
-                allowedContentTypes: [.commaSeparatedText, .plainText]
-            ) { result in
-                handleFileImport(result)
-            }
-            .sheet(isPresented: $showingMappingSheet) {
-                StudentCSVMappingView(headers: mappingHeaders, onCancel: {
+            .modifier(CSVImportSheets(
+                showingImporter: $showingStudentCSVImporter,
+                showingMappingSheet: $showingMappingSheet,
+                mappingHeaders: mappingHeaders,
+                pendingParsedImport: $pendingParsedImport,
+                pendingFileURL: $pendingFileURL,
+                onFileImport: handleFileImport,
+                onMappingCancel: {
                     showingMappingSheet = false
                     pendingFileURL = nil
-                }, onConfirm: { mapping in
-                    handleMappingConfirm(mapping)
-                })
-            }
-            .sheet(item: $pendingParsedImport, onDismiss: {}) { (parsed: StudentCSVImporter.Parsed) in
-                StudentImportPreviewView(parsed: parsed, onCancel: {
+                },
+                onMappingConfirm: handleMappingConfirm,
+                onImportCancel: {
                     pendingParsedImport = nil
                     pendingFileURL = nil
-                }, onConfirm: { filtered in
-                    handleImportCommit(filtered)
-                })
-                .frame(minWidth: 620, minHeight: 520)
-            }
-            .sheet(item: $selectedStudentForSheet, onDismiss: {}) { (student: Student) in
+                },
+                onImportConfirm: handleImportCommit
+            ))
+            .sheet(item: $selectedStudentForSheet, onDismiss: {}) { student in
                 StudentDetailView(student: student)
-                    .id(student.id) // <--- Add this safety check
+                    .id(student.id)
                 #if os(macOS)
                     .frame(minWidth: 860, minHeight: 640)
                     .presentationSizingFitted()
@@ -403,29 +379,19 @@ struct StudentsView<WorkloadContent: View>: View {
                 handleModeChange(oldMode: oldMode, newMode: newMode)
             }
             .onChange(of: studentsSortOrderRaw) { _, _ in
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+                reloadDataAsync()
             }
             .onChange(of: studentsFilterRaw) { _, _ in
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+                reloadDataAsync()
             }
             .onChange(of: attendanceRecordIDs) { _, _ in
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+                reloadDataAsync()
             }
             .onChange(of: studentLessonIDs) { _, _ in
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+                reloadDataAsync()
             }
             .onChange(of: lessonIDs) { _, _ in
-                Task { @MainActor in
-                    await loadDataOnDemand()
-                }
+                reloadDataAsync()
             }
             .onChange(of: uniqueStudentIDs) { _, _ in
                 ensureInitialManualOrderIfNeeded()
@@ -503,42 +469,20 @@ struct StudentsView<WorkloadContent: View>: View {
     #if os(iOS)
     @ToolbarContentBuilder
     private var iOSToolbarContent: some ToolbarContent {
-        if horizontalSizeClass == .compact {
-            // iPhone layout for compact size class
-            if mode == .roster {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    StudentsSortFilterMenu(
-                        sortOrderRaw: $studentsSortOrderRaw,
-                        filterRaw: $studentsFilterRaw
-                    )
-                }
+        let helper = StudentsViewToolbarHelper(
+            mode: mode,
+            effectiveSortOrder: effectiveSortOrder,
+            sortOrderRaw: $studentsSortOrderRaw,
+            filterRaw: $studentsFilterRaw,
+            modePickerContent: { modePickerContent },
+            addStudentButton: { addStudentButton },
+            horizontalSizeClass: horizontalSizeClass
+        )
 
-                if effectiveSortOrder == .manual {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        EditButton()
-                    }
-                }
-            }
-
-            // Add Student button for iPhone
-            if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
-                ToolbarItem(placement: .primaryAction) {
-                    addStudentButton
-                }
-            }
+        if helper.isCompact {
+            helper.compactToolbarContent()
         } else {
-            // iPad layout: Use segmented picker in toolbar
-            ToolbarItem(placement: .automatic) {
-                modePickerContent
-                    .controlSize(.regular)
-            }
-
-            // Add Student button for iPad
-            if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
-                ToolbarItem(placement: .primaryAction) {
-                    addStudentButton
-                }
-            }
+            helper.regularToolbarContent()
         }
     }
     #endif
@@ -549,14 +493,12 @@ struct StudentsView<WorkloadContent: View>: View {
     private var fullScreenModeToolbar: some ToolbarContent {
         #if os(iOS)
         if horizontalSizeClass != .compact {
-            // iPad layout: Use segmented picker
             ToolbarItem(placement: .automatic) {
                 modePickerContent
                     .controlSize(.regular)
             }
         }
         #else
-        // macOS layout: Use segmented picker
         ToolbarItem(placement: .automatic) {
             modePickerContent
         }
@@ -564,144 +506,129 @@ struct StudentsView<WorkloadContent: View>: View {
     }
 
     // MARK: - Toolbar Content
-    
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         #if os(iOS)
-        if horizontalSizeClass == .compact {
-            // iPhone layout: Use menus instead of segmented picker
-            // Sort and Filter controls for roster mode
-            if mode == .roster && horizontalSizeClass == .compact {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    StudentsSortFilterMenu(
-                        sortOrderRaw: $studentsSortOrderRaw,
-                        filterRaw: $studentsFilterRaw
-                    )
-                }
+        let helper = StudentsViewToolbarHelper(
+            mode: mode,
+            effectiveSortOrder: effectiveSortOrder,
+            sortOrderRaw: $studentsSortOrderRaw,
+            filterRaw: $studentsFilterRaw,
+            modePickerContent: { modePickerContent },
+            addStudentButton: { addStudentButton },
+            horizontalSizeClass: horizontalSizeClass
+        )
 
-                if effectiveSortOrder == .manual {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        EditButton()
-                    }
-                }
-            }
+        if helper.isCompact {
+            helper.compactToolbarContent()
         } else {
-            // iPad layout: Use segmented picker
-            ToolbarItem(placement: .automatic) {
-                modePickerContent
-                    .controlSize(.regular)
-            }
-
-            // Sort and Filter controls moved to top of second pane in roster mode
-            // Edit button also moved there
+            helper.regularToolbarContent()
         }
         #else
-        // macOS layout: Use segmented picker
         ToolbarItem(placement: .automatic) {
             modePickerContent
         }
 
-        // Sort and Filter controls moved to top of second pane in roster mode
-        #endif
-        
-        // Add Student button (show in roster/age/birthday/lastLesson modes)
         if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
             ToolbarItem(placement: .primaryAction) {
                 addStudentButton
             }
         }
+        #endif
     }
 
 
 
     // MARK: - Roster Grid Content
-    
+
     private var rosterGridContent: some View {
-        Group {
-            if filteredStudents.isEmpty {
-                NoStudentsEmptyState(onAddStudent: { showingAddStudent = true })
-            } else {
-                StudentsCardsGridView(
-                    students: filteredStudents,
-                    isBirthdayMode: effectiveSortOrder == .birthday,
-                    isAgeMode: effectiveSortOrder == .age,
-                    isLastLessonMode: effectiveSortOrder == .lastLesson,
-                    lastLessonDays: effectiveSortOrder == .lastLesson ? daysSinceLastLessonByStudent : [:],
-                    isManualMode: false,
-                    onTapStudent: { student in
-                        selectedStudentForSheet = student
-                    },
-                    onReorder: { movingStudent, fromIndex, toIndex, subset in
-                        // Reordering not supported in grid view modes
-                    }
-                )
-                #if DEBUG
-                .onAppear {
-                    checkForDuplicateIDs(in: filteredStudents)
-                }
-                .onChange(of: filteredStudents.count) {
-                    checkForDuplicateIDs(in: filteredStudents)
-                }
-                .onChange(of: selectedFilter) {
-                    checkForDuplicateIDs(in: filteredStudents)
-                }
-                .onChange(of: effectiveSortOrder) {
-                    checkForDuplicateIDs(in: filteredStudents)
-                }
-                #endif
+        #if os(iOS)
+        let renderer = StudentsContentRenderer(
+            students: filteredStudents,
+            effectiveSortOrder: effectiveSortOrder,
+            daysSinceLastLesson: daysSinceLastLessonByStudent,
+            isParsing: $isParsing,
+            parsingTask: $parsingTask,
+            onAddStudent: { showingAddStudent = true },
+            onTapStudent: { student in
+                selectedStudentForSheet = student
+            },
+            selectedStudentID: nil,
+            horizontalSizeClass: horizontalSizeClass
+        )
+        #else
+        let renderer = StudentsContentRenderer(
+            students: filteredStudents,
+            effectiveSortOrder: effectiveSortOrder,
+            daysSinceLastLesson: daysSinceLastLessonByStudent,
+            isParsing: $isParsing,
+            parsingTask: $parsingTask,
+            onAddStudent: { showingAddStudent = true },
+            onTapStudent: { student in
+                selectedStudentForSheet = student
+            },
+            selectedStudentID: nil
+        )
+        #endif
+
+        return renderer.gridView
+            #if DEBUG
+            .onAppear {
+                checkForDuplicateIDs(in: filteredStudents)
             }
-        }
-        .overlay {
-            ParsingOverlay(isParsing: $isParsing) {
-                parsingTask?.cancel()
+            .onChange(of: filteredStudents.count) {
+                checkForDuplicateIDs(in: filteredStudents)
             }
-        }
+            .onChange(of: selectedFilter) {
+                checkForDuplicateIDs(in: filteredStudents)
+            }
+            .onChange(of: effectiveSortOrder) {
+                checkForDuplicateIDs(in: filteredStudents)
+            }
+            #endif
     }
     
     // MARK: - Roster Content (List View)
-    
+
     private var rosterListContent: some View {
-        Group {
-            if filteredStudents.isEmpty {
-                NoStudentsEmptyState(onAddStudent: { showingAddStudent = true })
-            } else {
-                List(selection: $selectedStudentID) {
-                    ForEach(filteredStudents, id: \.id) { student in
-                        StudentListRow(
-                            student: student,
-                            sortOrder: effectiveSortOrder,
-                            daysSinceLastLesson: daysSinceLastLessonByStudent[student.id]
-                        )
-                        .tag(student.id)
-                        #if os(iOS)
-                        .onTapGesture {
-                            // On compact devices, still use sheet; on regular, use three-pane
-                            if horizontalSizeClass == .compact {
-                                selectedStudentForSheet = student
-                            } else {
-                                selectedStudentID = student.id
-                            }
-                        }
-                        #else
-                        // macOS: selection binding handles it automatically
-                        #endif
-                    }
-                    .onMove { source, destination in
-                        handleManualReorder(from: source, to: destination)
-                    }
-                }
-            }
-        }
-        .overlay {
-            ParsingOverlay(isParsing: $isParsing) {
-                parsingTask?.cancel()
-            }
+        #if os(iOS)
+        let renderer = StudentsContentRenderer(
+            students: filteredStudents,
+            effectiveSortOrder: effectiveSortOrder,
+            daysSinceLastLesson: daysSinceLastLessonByStudent,
+            isParsing: $isParsing,
+            parsingTask: $parsingTask,
+            onAddStudent: { showingAddStudent = true },
+            onTapStudent: { student in
+                selectedStudentForSheet = student
+            },
+            selectedStudentID: $selectedStudentID,
+            horizontalSizeClass: horizontalSizeClass
+        )
+        #else
+        let renderer = StudentsContentRenderer(
+            students: filteredStudents,
+            effectiveSortOrder: effectiveSortOrder,
+            daysSinceLastLesson: daysSinceLastLessonByStudent,
+            isParsing: $isParsing,
+            parsingTask: $parsingTask,
+            onAddStudent: { showingAddStudent = true },
+            onTapStudent: { student in
+                selectedStudentForSheet = student
+            },
+            selectedStudentID: $selectedStudentID
+        )
+        #endif
+
+        return renderer.listView { source, destination in
+            handleManualReorder(from: source, to: destination)
         }
     }
     
 
     // MARK: - Logic Helpers
-    
+
     // MARK: - On-Demand Data Loading
 
     /// Loads data on-demand based on current mode and filters
@@ -716,6 +643,13 @@ struct StudentsView<WorkloadContent: View>: View {
             lessonIDs: Set(lessonIDs),
             students: uniqueStudents
         )
+    }
+
+    /// Helper to reload data asynchronously (reduces duplication in onChange handlers)
+    private func reloadDataAsync() {
+        Task { @MainActor in
+            await loadDataOnDemand()
+        }
     }
 
     private func ensureInitialManualOrderIfNeeded() {
@@ -766,22 +700,25 @@ struct StudentsView<WorkloadContent: View>: View {
     }
     
     private func handleModeChange(oldMode: StudentMode, newMode: StudentMode) {
+        let specialModes: [StudentMode] = [.age, .birthday, .lastLesson]
+        let specialSortOrders = ["age", "birthday", "lastLesson"]
+
         // Automatically set sort order when switching to age/birthday/lastLesson modes
-        if newMode == .age {
+        switch newMode {
+        case .age:
             studentsSortOrderRaw = "age"
-        } else if newMode == .birthday {
+        case .birthday:
             studentsSortOrderRaw = "birthday"
-        } else if newMode == .lastLesson {
+        case .lastLesson:
             studentsSortOrderRaw = "lastLesson"
-        } else if (oldMode == .age || oldMode == .birthday || oldMode == .lastLesson) && newMode == .roster {
-            // When switching back to roster from age/birthday/lastLesson, default to alphabetical
-            if studentsSortOrderRaw == "age" || studentsSortOrderRaw == "birthday" || studentsSortOrderRaw == "lastLesson" {
-                studentsSortOrderRaw = "alphabetical"
-            }
+        case .roster where specialModes.contains(oldMode) && specialSortOrders.contains(studentsSortOrderRaw):
+            // When switching back to roster from special modes, default to alphabetical
+            studentsSortOrderRaw = "alphabetical"
+        default:
+            break
         }
-        Task { @MainActor in
-            await loadDataOnDemand()
-        }
+
+        reloadDataAsync()
     }
 
     // MARK: - CSV Handlers
@@ -842,31 +779,3 @@ struct StudentsView<WorkloadContent: View>: View {
         pendingParsedImport = nil
     }
 }
-
-// MARK: - Sidebar Button Helper
-struct SidebarNavButton: View {
-    let title: String
-    let icon: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: icon)
-                    .frame(width: 20)
-                Text(title)
-                Spacer()
-            }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
-            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-            .cornerRadius(6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-    }
-}
-

@@ -44,142 +44,19 @@ struct PracticeSessionSheet: View {
         PracticeSessionRepository(modelContext: modelContext)
     }
     
-    // MARK: - Student Ordering Categories
-
-    enum StudentCategory: Int, Comparable {
-        case withInitialStudent = 1    // Students who had lesson with initial student
-        case practicing = 2             // Students practicing same lesson (active work)
-        case recentlyPassed = 3        // Students who recently completed (within 30 days)
-        case pastPractice = 4          // Students who practiced in the past
-        case neverReceived = 5         // Students who never received the lesson
-
-        static func < (lhs: StudentCategory, rhs: StudentCategory) -> Bool {
-            lhs.rawValue < rhs.rawValue
-        }
-    }
-
-    private struct CategorizedStudent {
-        let student: Student
-        let category: StudentCategory
-        let work: WorkModel?
-        let daysSinceCompletion: Int?
-        let lastPracticeDate: Date?
-    }
-
-    // Get the student lesson for the initial work item to find co-learners
-    private var initialStudentLesson: StudentLesson? {
-        guard let lessonUUID = UUID(uuidString: initialWorkItem.lessonID),
-              let studentUUID = UUID(uuidString: initialWorkItem.studentID) else {
-            return nil
-        }
-
-        return allStudentLessons.first { studentLesson in
-            studentLesson.lessonIDUUID == lessonUUID &&
-            studentLesson.studentIDs.contains(studentUUID.uuidString)
-        }
-    }
 
     // Co-learner student IDs (students who had the lesson together)
     private var coLearnerIDs: Set<UUID> {
-        guard let studentLesson = initialStudentLesson else { return [] }
-        return Set(studentLesson.studentIDs.compactMap { UUID(uuidString: $0) })
+        StudentCategorizer.getCoLearnerIDs(for: initialWorkItem, allStudentLessons: allStudentLessons)
     }
 
-    // Categorize a student based on their relationship to the lesson
-    private func categorizeStudent(_ student: Student) -> CategorizedStudent {
-        let lessonID = initialWorkItem.lessonID
-
-        // Find work for this student and lesson
-        let studentWork = allWork.filter {
-            $0.studentID == student.id.uuidString &&
-            $0.lessonID == lessonID &&
-            $0.id != initialWorkItem.id
-        }
-
-        // Check if they're a co-learner
-        if coLearnerIDs.contains(student.id) {
-            let activeWork = studentWork.first { $0.status != .complete }
-            return CategorizedStudent(
-                student: student,
-                category: .withInitialStudent,
-                work: activeWork,
-                daysSinceCompletion: nil,
-                lastPracticeDate: nil
-            )
-        }
-
-        // Check for active work (practicing)
-        if let activeWork = studentWork.first(where: { $0.status != .complete }) {
-            return CategorizedStudent(
-                student: student,
-                category: .practicing,
-                work: activeWork,
-                daysSinceCompletion: nil,
-                lastPracticeDate: nil
-            )
-        }
-
-        // Check for completed work (recently passed)
-        if let completedWork = studentWork.first(where: { $0.status == .complete }) {
-            let daysSince = completedWork.completedAt.map { Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? Int.max } ?? Int.max
-
-            if daysSince <= 30 {
-                return CategorizedStudent(
-                    student: student,
-                    category: .recentlyPassed,
-                    work: completedWork,
-                    daysSinceCompletion: daysSince,
-                    lastPracticeDate: completedWork.completedAt
-                )
-            }
-        }
-
-        // Check for past practice sessions
-        let practiceSessions = allPracticeSessions.filter { session in
-            session.studentIDs.contains(student.id.uuidString) &&
-            session.workItemIDs.contains { workID in
-                if let work = allWork.first(where: { $0.id.uuidString == workID }) {
-                    return work.lessonID == lessonID
-                }
-                return false
-            }
-        }.sorted { $0.date > $1.date }
-
-        if let lastSession = practiceSessions.first {
-            return CategorizedStudent(
-                student: student,
-                category: .pastPractice,
-                work: nil,
-                daysSinceCompletion: nil,
-                lastPracticeDate: lastSession.date
-            )
-        }
-
-        // Check if student has received the lesson at all
-        let hasReceivedLesson = allStudentLessons.contains { studentLesson in
-            guard let lessonUUID = UUID(uuidString: lessonID) else { return false }
-            return studentLesson.lessonIDUUID == lessonUUID &&
-                   studentLesson.studentIDs.contains(student.id.uuidString) &&
-                   studentLesson.isPresented
-        }
-
-        if hasReceivedLesson {
-            return CategorizedStudent(
-                student: student,
-                category: .pastPractice,
-                work: nil,
-                daysSinceCompletion: nil,
-                lastPracticeDate: nil
-            )
-        }
-
-        // Never received the lesson
-        return CategorizedStudent(
-            student: student,
-            category: .neverReceived,
-            work: nil,
-            daysSinceCompletion: nil,
-            lastPracticeDate: nil
+    private var categorizer: StudentCategorizer {
+        StudentCategorizer(
+            initialWorkItem: initialWorkItem,
+            allWork: allWork,
+            allStudentLessons: allStudentLessons,
+            allPracticeSessions: allPracticeSessions,
+            coLearnerIDs: coLearnerIDs
         )
     }
 
@@ -187,7 +64,7 @@ struct PracticeSessionSheet: View {
     private var orderedStudents: [CategorizedStudent] {
         let categorized = allStudents
             .filter { !selectedStudentIDs.contains($0.id) }
-            .map { categorizeStudent($0) }
+            .map { categorizer.categorize($0) }
             .filter { categorized in
                 // Apply search filter
                 if searchText.isEmpty { return true }
@@ -195,37 +72,7 @@ struct PracticeSessionSheet: View {
                 return displayName.localizedCaseInsensitiveContains(searchText)
             }
 
-        return categorized.sorted { lhs, rhs in
-            // First sort by category
-            if lhs.category != rhs.category {
-                return lhs.category < rhs.category
-            }
-
-            // Within category, sort by specific criteria
-            switch lhs.category {
-            case .withInitialStudent, .practicing:
-                // Alphabetical
-                return StudentFormatter.displayName(for: lhs.student) < StudentFormatter.displayName(for: rhs.student)
-
-            case .recentlyPassed:
-                // Most recently completed first
-                if let lDays = lhs.daysSinceCompletion, let rDays = rhs.daysSinceCompletion {
-                    return lDays < rDays
-                }
-                return false
-
-            case .pastPractice:
-                // Most recent practice first
-                if let lDate = lhs.lastPracticeDate, let rDate = rhs.lastPracticeDate {
-                    return lDate > rDate
-                }
-                return false
-
-            case .neverReceived:
-                // Alphabetical
-                return StudentFormatter.displayName(for: lhs.student) < StudentFormatter.displayName(for: rhs.student)
-            }
-        }
+        return StudentCategorizer.sort(categorized)
     }
 
     private var selectedStudents: [Student] {
@@ -417,86 +264,18 @@ struct PracticeSessionSheet: View {
 
     private var studentSelectionList: some View {
         ForEach(Array(groupedStudents.keys.sorted(by: { $0.rawValue < $1.rawValue })), id: \.rawValue) { category in
-            if let students = groupedStudents[category], !students.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Category header
-                    Text(categoryLabel(for: category))
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .padding(.top, category == .withInitialStudent ? 0 : 8)
-
-                    // Students in this category
-                    ForEach(students, id: \.student.id) { categorizedStudent in
-                        studentSelectionRow(for: categorizedStudent)
-                    }
-                }
+            if let students = groupedStudents[category] {
+                StudentCategorySection(
+                    category: category,
+                    students: students,
+                    onStudentTap: toggleStudent
+                )
             }
         }
     }
 
     private var groupedStudents: [StudentCategory: [CategorizedStudent]] {
         Dictionary(grouping: orderedStudents, by: { $0.category })
-    }
-
-    private func categoryLabel(for category: StudentCategory) -> String {
-        switch category {
-        case .withInitialStudent:
-            return "Learned Together"
-        case .practicing:
-            return "Currently Practicing"
-        case .recentlyPassed:
-            return "Recently Completed"
-        case .pastPractice:
-            return "Practiced Before"
-        case .neverReceived:
-            return "Never Received Lesson"
-        }
-    }
-    
-    private func studentSelectionRow(for categorizedStudent: CategorizedStudent) -> some View {
-        Button {
-            toggleStudent(categorizedStudent.student)
-        } label: {
-            HStack {
-                Image(systemName: "square")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 20))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(StudentFormatter.displayName(for: categorizedStudent.student))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    // Show work title or status info
-                    if let work = categorizedStudent.work {
-                        Text(work.title)
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    } else if let days = categorizedStudent.daysSinceCompletion {
-                        Text("Completed \(days) day\(days == 1 ? "" : "s") ago")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                            .foregroundStyle(.green)
-                    } else if let date = categorizedStudent.lastPracticeDate {
-                        Text("Last practiced \(date.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "plus.circle.fill")
-                    .foregroundStyle(Color.accentColor)
-                    .font(.system(size: 16))
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.05))
-            )
-        }
-        .buttonStyle(.plain)
     }
     
     private var sharedNotesSection: some View {
@@ -515,39 +294,18 @@ struct PracticeSessionSheet: View {
                 label: "Engagement Level",
                 selectedLevel: $practiceQuality,
                 color: .blue,
-                levelLabels: qualityLabel
+                levelLabels: PracticeSessionLabels.qualityLabel
             )
 
             RatingLevelSelector(
                 label: "Independence Level",
                 selectedLevel: $independenceLevel,
                 color: .green,
-                levelLabels: independenceLabel
+                levelLabels: PracticeSessionLabels.independenceLabel
             )
         }
     }
 
-    private func qualityLabel(for level: Int) -> String {
-        switch level {
-        case 1: return "Distracted"
-        case 2: return "Minimal"
-        case 3: return "Adequate"
-        case 4: return "Good"
-        case 5: return "Excellent"
-        default: return ""
-        }
-    }
-
-    private func independenceLabel(for level: Int) -> String {
-        switch level {
-        case 1: return "Constant Help"
-        case 2: return "Frequent Guidance"
-        case 3: return "Some Support"
-        case 4: return "Mostly Independent"
-        case 5: return "Fully Independent"
-        default: return ""
-        }
-    }
 
     private var optionalFieldsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -632,16 +390,6 @@ struct PracticeSessionSheet: View {
         )
     }
 
-    private func understandingLabel(for level: Int) -> String {
-        switch level {
-        case 1: return "Struggling"
-        case 2: return "Needs Support"
-        case 3: return "Developing"
-        case 4: return "Proficient"
-        case 5: return "Mastered"
-        default: return ""
-        }
-    }
 
     private var bottomBar: some View {
         PracticeSessionBottomBar(
@@ -718,7 +466,7 @@ struct PracticeSessionSheet: View {
             // Build note body with understanding level prefix if available
             var fullNoteBody = ""
             if let level = understandingLevel {
-                fullNoteBody = "Understanding: \(understandingLabel(for: level))"
+                fullNoteBody = "Understanding: \(PracticeSessionLabels.understandingLabel(for: level))"
                 if !noteText.isEmpty {
                     fullNoteBody += "\n\n\(noteText)"
                 }

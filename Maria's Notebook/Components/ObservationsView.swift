@@ -31,6 +31,26 @@ struct NotesNarrative {
 // Data loading delegated to ObservationsDataLoader
 // Filtering delegated to ObservationsFilterService
 
+// MARK: - Shared Helpers
+
+private enum ObservationsHelpers {
+    static func formatBodiesForSummary(_ bodies: [String], mode: ObservationsView.SummaryMode) -> String {
+        if mode == .digest {
+            return bodies.joined(separator: "\n")
+        } else {
+            return bodies.map { $0.replacingOccurrences(of: "^- ", with: "", options: .regularExpression) }
+                .joined(separator: "\n")
+        }
+    }
+    
+    static func buildSummaryInstructions() -> String {
+        """
+        You summarize Montessori classroom observations for staff.
+        Be concise, factual, and avoid speculation.
+        """
+    }
+}
+
 struct ObservationsView: View {
     @Environment(\.modelContext) private var modelContext
 
@@ -67,7 +87,7 @@ struct ObservationsView: View {
     private let pageSize: Int = 50
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-    private enum SummaryMode { case digest, narrative }
+    fileprivate enum SummaryMode { case digest, narrative }
 #endif
 
     var body: some View {
@@ -472,7 +492,7 @@ struct ObservationsView: View {
             sourceBodies = filteredItems.prefix(50).map { "- \($0.body)" }
         }
         guard !sourceBodies.isEmpty else { return }
-        let joined = (mode == .digest ? sourceBodies.joined(separator: "\n") : sourceBodies.map { $0.replacingOccurrences(of: "^- ", with: "", options: .regularExpression) }.joined(separator: "\n"))
+        let joined = ObservationsHelpers.formatBodiesForSummary(sourceBodies, mode: mode)
 
         showingSummarySheet = true
         isSummarizing = true
@@ -480,11 +500,7 @@ struct ObservationsView: View {
         summaryPartialDigest = nil
         summaryPartialNarrative = nil
 
-        let instructions = """
-        You summarize Montessori classroom observations for staff.
-        Be concise, factual, and avoid speculation.
-        """
-
+        let instructions = ObservationsHelpers.buildSummaryInstructions()
         let session = LanguageModelSession(instructions: instructions)
         summaryTask?.cancel()
         summaryTask = Task { @MainActor in

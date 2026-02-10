@@ -139,41 +139,7 @@ struct WorkDetailView: View {
                 }
                 
                 // Bottom row: Cancel and Save buttons
-                HStack(spacing: 12) {
-                    Button {
-                        close()
-                    } label: {
-                        Text("Cancel")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.primary.opacity(0.05))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button {
-                        save()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Save")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.accentColor)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+                SaveCancelButtons(onCancel: close, onSave: save)
             }
             .padding(20)
             .background(.bar)
@@ -551,65 +517,7 @@ struct WorkDetailView: View {
     
     @ViewBuilder
     private func planItemRow(_ item: WorkPlanItem) -> some View {
-        HStack(spacing: 12) {
-            // Date badge
-            VStack(spacing: 2) {
-                Text(item.scheduledDate.formatted(.dateTime.month(.abbreviated)))
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                Text(item.scheduledDate.formatted(.dateTime.day()))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-            }
-            .frame(width: 48)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.blue.opacity(0.1))
-            )
-            
-            // Reason and note
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: item.reason?.icon ?? "calendar")
-                        .font(.system(size: 12, weight: .medium))
-                    Text(item.reason?.label ?? "Check-In")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
-                }
-                .foregroundStyle(.primary)
-                
-                if let note = item.note, !note.isEmpty {
-                    Text(note)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            
-            Spacer()
-            
-            // Delete button
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    deletePlanItem(item)
-                }
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.red)
-                    .padding(8)
-                    .background(
-                        Circle()
-                            .fill(Color.red.opacity(0.1))
-                    )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
-        )
+        WorkPlanItemRow(item: item, onDelete: { deletePlanItem(item) })
     }
 
     @ViewBuilder private func practiceOverviewSection() -> some View {
@@ -910,113 +818,14 @@ struct WorkDetailView: View {
 
     @ViewBuilder
     private func noteRow(_ note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(note.body)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                CategoryBadge(category: note.category)
-
-                Text(note.createdAt, style: .date)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
-                    .foregroundStyle(.tertiary)
-
-                Spacer()
-
-                HStack(spacing: 8) {
-                    Button {
-                        viewModel.noteBeingEdited = note
-                    } label: {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.blue)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button {
-                        deleteNote(note)
-                    } label: {
-                        Image(systemName: "trash.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
+        NoteRowView(note: note, onEdit: { viewModel.noteBeingEdited = note }, onDelete: { deleteNote(note) })
     }
 
 
     // MARK: - Practice Overview Helpers
 
-    private struct PracticeStats {
-        var totalSessions: Int = 0
-        var totalDuration: String? = nil
-        var avgQuality: Double? = nil
-        var avgIndependence: Double? = nil
-        var topBehaviors: [String] = []
-        var needsReteaching: Int = 0
-        var upcomingCheckIns: Int = 0
-    }
-
     private func calculatePracticeStats() -> PracticeStats {
-        var stats = PracticeStats()
-
-        stats.totalSessions = practiceSessions.count
-
-        // Calculate total duration
-        let totalSeconds = practiceSessions.compactMap { $0.duration }.reduce(0, +)
-        if totalSeconds > 0 {
-            let minutes = Int(totalSeconds / 60)
-            if minutes < 60 {
-                stats.totalDuration = "\(minutes) min"
-            } else {
-                let hours = Double(minutes) / 60.0
-                stats.totalDuration = String(format: "%.1f hrs", hours)
-            }
-        }
-
-        // Calculate average quality
-        let qualityScores = practiceSessions.compactMap { $0.practiceQuality }
-        if !qualityScores.isEmpty {
-            stats.avgQuality = Double(qualityScores.reduce(0, +)) / Double(qualityScores.count)
-        }
-
-        // Calculate average independence
-        let independenceScores = practiceSessions.compactMap { $0.independenceLevel }
-        if !independenceScores.isEmpty {
-            stats.avgIndependence = Double(independenceScores.reduce(0, +)) / Double(independenceScores.count)
-        }
-
-        // Collect all behaviors
-        var behaviorCounts: [String: Int] = [:]
-        for session in practiceSessions {
-            for behavior in session.activeBehaviors {
-                behaviorCounts[behavior, default: 0] += 1
-            }
-        }
-
-        // Get top 3 behaviors
-        stats.topBehaviors = behaviorCounts
-            .sorted { $0.value > $1.value }
-            .prefix(3)
-            .map { $0.key }
-
-        // Count action items
-        stats.needsReteaching = practiceSessions.filter { $0.needsReteaching }.count
-        stats.upcomingCheckIns = practiceSessions.filter { $0.checkInScheduledFor != nil }.count
-
-        return stats
+        PracticeStatsCalculator.calculate(from: practiceSessions)
     }
 
     private func save() {

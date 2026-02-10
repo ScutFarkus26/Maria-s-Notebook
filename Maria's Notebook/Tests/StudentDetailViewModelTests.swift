@@ -4,6 +4,20 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
+// MARK: - Shared Test Helpers
+
+private enum StudentDetailTestHelpers {
+    static let testTypes: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, WorkModel.self,
+        WorkParticipantEntity.self, WorkCheckIn.self, Note.self,
+        GroupTrack.self, StudentTrackEnrollment.self
+    ]
+    
+    static func makeContainer() throws -> ModelContainer {
+        return try makeTestContainer(for: testTypes)
+    }
+}
+
 // MARK: - StudentDetailViewModel Initialization Tests
 
 @Suite("StudentDetailViewModel Initialization Tests", .serialized)
@@ -102,17 +116,7 @@ struct StudentDetailViewModelWorkSummaryTests {
 struct StudentDetailViewModelDataLoadingTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        return try StudentDetailTestHelpers.makeContainer()
     }
 
     @Test("loadData populates lessons for student")
@@ -244,17 +248,7 @@ struct StudentDetailViewModelDataLoadingTests {
 struct StudentDetailViewModelMasteredPlannedTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        return try StudentDetailTestHelpers.makeContainer()
     }
 
     @Test("presentedLessonIDs contains presented lessons")
@@ -310,17 +304,7 @@ struct StudentDetailViewModelMasteredPlannedTests {
 struct StudentDetailViewModelNextLessonsTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        return try StudentDetailTestHelpers.makeContainer()
     }
 
     @Test("nextLessonsForStudent contains not-yet-presented lessons")
@@ -414,17 +398,7 @@ struct StudentDetailViewModelNextLessonsTests {
 struct StudentDetailViewModelLookupMethodsTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        return try StudentDetailTestHelpers.makeContainer()
     }
 
     @Test("latestStudentLesson returns most recent")
@@ -532,17 +506,7 @@ struct StudentDetailViewModelLookupMethodsTests {
 struct StudentDetailViewModelWorkMethodsTests {
 
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-            GroupTrack.self,
-            StudentTrackEnrollment.self,
-        ])
+        return try StudentDetailTestHelpers.makeContainer()
     }
 
     @Test("updateWorkModels sets workModelsForStudent")

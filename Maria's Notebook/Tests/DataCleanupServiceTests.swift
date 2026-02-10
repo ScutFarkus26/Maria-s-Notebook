@@ -10,26 +10,20 @@ import SwiftData
 @MainActor
 struct DataCleanupServiceOrphanedStudentLessonIDsTests {
 
+    private static let commonModels: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, LessonPresentation.self, Note.self
+    ]
+
     private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            LessonPresentation.self,
-            Note.self,
-        ])
+        return try TestContainerFactory.makeContainer(for: Self.commonModels)
     }
 
     @Test("cleanOrphanedStudentIDs removes non-existent student IDs from StudentLesson")
     func cleanOrphanedStudentIDsRemovesNonExistent() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.commonModels)
+        let builder = TestEntityBuilder(context: context)
 
-        // Create a valid student
-        let validStudent = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        context.insert(validStudent)
-
-        // Create a StudentLesson with a mix of valid and orphaned student IDs
+        let validStudent = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
         let orphanedID = UUID()
         let sl = makeTestStudentLesson(studentIDs: [validStudent.id, orphanedID])
         context.insert(sl)
@@ -37,36 +31,30 @@ struct DataCleanupServiceOrphanedStudentLessonIDsTests {
 
         await DataCleanupService.cleanOrphanedStudentIDs(using: context)
 
-        // Should only contain the valid student
-        #expect(sl.studentIDs.count == 1)
+        TestPatterns.expectCount(sl.studentIDs, equals: 1)
         #expect(sl.studentIDs.contains(validStudent.id.uuidString))
         #expect(!sl.studentIDs.contains(orphanedID.uuidString))
     }
 
     @Test("cleanOrphanedStudentIDs preserves all valid student IDs")
     func cleanOrphanedStudentIDsPreservesValid() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.commonModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let student1 = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        let student2 = makeTestStudent(firstName: "Bob", lastName: "Jones")
-        context.insert(student1)
-        context.insert(student2)
-
+        let student1 = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
+        let student2 = try builder.buildStudent(firstName: "Bob", lastName: "Jones")
         let sl = makeTestStudentLesson(studentIDs: [student1.id, student2.id])
         context.insert(sl)
         try context.save()
 
         await DataCleanupService.cleanOrphanedStudentIDs(using: context)
 
-        // Both students should still be present
-        #expect(sl.studentIDs.count == 2)
+        TestPatterns.expectCount(sl.studentIDs, equals: 2)
     }
 
     @Test("cleanOrphanedStudentIDs handles StudentLesson with no students")
     func cleanOrphanedStudentIDsHandlesEmpty() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.commonModels)
 
         let sl = makeTestStudentLesson(studentIDs: [])
         context.insert(sl)
@@ -74,31 +62,27 @@ struct DataCleanupServiceOrphanedStudentLessonIDsTests {
 
         await DataCleanupService.cleanOrphanedStudentIDs(using: context)
 
-        #expect(sl.studentIDs.isEmpty)
+        TestPatterns.expectEmpty(sl.studentIDs)
     }
 
     @Test("cleanOrphanedStudentIDs is idempotent")
     func cleanOrphanedStudentIDsIsIdempotent() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.commonModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let validStudent = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        context.insert(validStudent)
-
+        let validStudent = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
         let orphanedID = UUID()
         let sl = makeTestStudentLesson(studentIDs: [validStudent.id, orphanedID])
         context.insert(sl)
         try context.save()
 
-        // Run twice
         await DataCleanupService.cleanOrphanedStudentIDs(using: context)
         let firstCount = sl.studentIDs.count
 
         await DataCleanupService.cleanOrphanedStudentIDs(using: context)
-        let secondCount = sl.studentIDs.count
 
-        #expect(firstCount == secondCount)
-        #expect(firstCount == 1)
+        #expect(sl.studentIDs.count == firstCount)
+        TestPatterns.expectCount(sl.studentIDs, equals: 1)
     }
 }
 
@@ -108,25 +92,17 @@ struct DataCleanupServiceOrphanedStudentLessonIDsTests {
 @MainActor
 struct DataCleanupServiceOrphanedWorkModelIDsTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            Note.self,
-        ])
-    }
+    private static let workModels: [any PersistentModel.Type] = [
+        Student.self, WorkModel.self, WorkParticipantEntity.self, WorkCheckIn.self, Note.self
+    ]
 
     @Test("cleanOrphanedWorkStudentIDs clears orphaned studentID")
     func cleanOrphanedWorkStudentIDsClearsOrphaned() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.workModels)
+        let builder = TestEntityBuilder(context: context)
 
         let orphanedID = UUID()
-        let work = makeTestWorkModel(studentID: orphanedID.uuidString)
-        context.insert(work)
-        try context.save()
+        let work = try builder.buildWorkModel(studentID: orphanedID.uuidString)
 
         await DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
 
@@ -135,15 +111,11 @@ struct DataCleanupServiceOrphanedWorkModelIDsTests {
 
     @Test("cleanOrphanedWorkStudentIDs preserves valid studentID")
     func cleanOrphanedWorkStudentIDsPreservesValid() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.workModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let validStudent = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        context.insert(validStudent)
-
-        let work = makeTestWorkModel(studentID: validStudent.id.uuidString)
-        context.insert(work)
-        try context.save()
+        let validStudent = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
+        let work = try builder.buildWorkModel(studentID: validStudent.id.uuidString)
 
         await DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
 
@@ -152,38 +124,34 @@ struct DataCleanupServiceOrphanedWorkModelIDsTests {
 
     @Test("cleanOrphanedWorkStudentIDs removes orphaned participants")
     func cleanOrphanedWorkStudentIDsRemovesOrphanedParticipants() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.workModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let validStudent = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        context.insert(validStudent)
-
-        let work = makeTestWorkModel()
+        let validStudent = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
+        let work = try builder.buildWorkModel()
         let validParticipant = WorkParticipantEntity(studentID: validStudent.id, work: work)
         let orphanedParticipant = WorkParticipantEntity(studentID: UUID(), work: work)
         work.participants = [validParticipant, orphanedParticipant]
-        context.insert(work)
         try context.save()
 
         await DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
 
-        #expect(work.participants?.count == 1)
+        TestPatterns.expectCount(work.participants ?? [], equals: 1)
         #expect(work.participants?[0].studentID == validStudent.id.uuidString)
     }
 
     @Test("cleanOrphanedWorkStudentIDs handles work with no participants")
     func cleanOrphanedWorkStudentIDsHandlesNoParticipants() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.workModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let work = makeTestWorkModel()
+        let work = try builder.buildWorkModel()
         work.participants = []
-        context.insert(work)
         try context.save()
 
         await DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
 
-        #expect(work.participants?.isEmpty ?? true)
+        TestPatterns.expectEmpty(work.participants ?? [])
     }
 }
 
@@ -193,97 +161,73 @@ struct DataCleanupServiceOrphanedWorkModelIDsTests {
 @MainActor
 struct DataCleanupServiceDeduplicationTests {
 
-    private func makeStudentContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            Note.self,
-        ])
-    }
+    private static let studentModels: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, Note.self
+    ]
 
-    private func makeProjectContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Project.self,
-            ProjectSession.self,
-            ProjectRole.self,
-            Note.self,
-        ])
-    }
+    private static let projectModels: [any PersistentModel.Type] = [
+        Project.self, ProjectSession.self, ProjectRole.self, Note.self
+    ]
 
     @Test("deduplicateStudents removes duplicate students with same ID")
     func deduplicateStudentsRemovesDuplicates() throws {
-        let container = try makeStudentContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.studentModels)
 
-        let sharedID = UUID()
-        let student1 = Student(
-            id: sharedID,
-            firstName: "Alice",
-            lastName: "Smith",
-            birthday: TestCalendar.date(year: 2015, month: 6, day: 15)
+        try DeduplicationTester.testDeduplication(
+            setup: { ctx in
+                let sharedID = UUID()
+                let student1 = Student(
+                    id: sharedID, firstName: "Alice", lastName: "Smith",
+                    birthday: TestCalendar.date(year: 2015, month: 6, day: 15)
+                )
+                let student2 = Student(
+                    id: sharedID, firstName: "Alice", lastName: "Smith",
+                    birthday: TestCalendar.date(year: 2015, month: 6, day: 15)
+                )
+                ctx.insert(student1)
+                ctx.insert(student2)
+                try ctx.save()
+            },
+            deduplicateAction: { ctx in DataCleanupService.deduplicateStudents(using: ctx) },
+            verifyDeletedCount: 1,
+            verifyRemainingCount: 1,
+            context: context
         )
-        let student2 = Student(
-            id: sharedID,
-            firstName: "Alice",
-            lastName: "Smith",
-            birthday: TestCalendar.date(year: 2015, month: 6, day: 15)
-        )
-        context.insert(student1)
-        context.insert(student2)
-        try context.save()
-
-        let deletedCount = DataCleanupService.deduplicateStudents(using: context)
-
-        #expect(deletedCount == 1)
-
-        let remaining = context.safeFetch(FetchDescriptor<Student>())
-        #expect(remaining.count == 1)
     }
 
     @Test("deduplicateStudents preserves unique students")
     func deduplicateStudentsPreservesUnique() throws {
-        let container = try makeStudentContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.studentModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let student1 = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        let student2 = makeTestStudent(firstName: "Bob", lastName: "Jones")
-        context.insert(student1)
-        context.insert(student2)
-        try context.save()
+        _ = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
+        _ = try builder.buildStudent(firstName: "Bob", lastName: "Jones")
 
         let deletedCount = DataCleanupService.deduplicateStudents(using: context)
 
         #expect(deletedCount == 0)
-
         let remaining = context.safeFetch(FetchDescriptor<Student>())
-        #expect(remaining.count == 2)
+        TestPatterns.expectCount(remaining, equals: 2)
     }
 
     @Test("deduplicateProjects removes duplicate projects with same ID")
     func deduplicateProjectsRemovesDuplicates() throws {
-        let container = try makeProjectContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.projectModels)
 
-        let sharedID = UUID()
         let project1 = Project(title: "Book Club")
-        // Force same ID (simulating CloudKit sync conflict)
         let project2 = Project(title: "Book Club")
-        // Note: In real scenario, these would have same ID from CloudKit sync
         context.insert(project1)
         context.insert(project2)
         try context.save()
 
         let deletedCount = DataCleanupService.deduplicateProjects(using: context)
 
-        // With different IDs, no duplicates
         #expect(deletedCount == 0)
     }
 
     @Test("deduplicateProjectRoles removes duplicate roles")
     func deduplicateProjectRolesRemovesDuplicates() throws {
-        let container = try makeProjectContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.projectModels)
 
         let role1 = ProjectRole(projectID: UUID(), title: "Leader")
         let role2 = ProjectRole(projectID: UUID(), title: "Helper")
@@ -293,7 +237,7 @@ struct DataCleanupServiceDeduplicationTests {
 
         let deletedCount = DataCleanupService.deduplicateProjectRoles(using: context)
 
-        #expect(deletedCount == 0) // No duplicates
+        #expect(deletedCount == 0)
     }
 }
 
@@ -303,26 +247,15 @@ struct DataCleanupServiceDeduplicationTests {
 @MainActor
 struct DataCleanupServiceDedupMergeTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Document.self,
-            Lesson.self,
-            StudentLesson.self,
-            LessonPresentation.self,
-            Note.self,
-            NoteStudentLink.self,
-            WorkModel.self,
-            WorkParticipantEntity.self,
-            WorkCheckIn.self,
-            WorkStep.self,
-        ])
-    }
+    private static let allModels: [any PersistentModel.Type] = [
+        Student.self, Document.self, Lesson.self, StudentLesson.self, LessonPresentation.self,
+        Note.self, NoteStudentLink.self, WorkModel.self, WorkParticipantEntity.self,
+        WorkCheckIn.self, WorkStep.self
+    ]
 
     @Test("deduplicateStudentsStrong merges fields and documents")
     func deduplicateStudentsStrongMergesFieldsAndDocuments() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.allModels)
 
         let sharedID = UUID()
         let studentA = Student(
@@ -350,7 +283,7 @@ struct DataCleanupServiceDedupMergeTests {
         #expect(deletedCount == 1)
 
         let remaining = context.safeFetch(FetchDescriptor<Student>())
-        #expect(remaining.count == 1)
+        TestPatterns.expectCount(remaining, equals: 1)
 
         let student = remaining[0]
         #expect(!student.firstName.isEmpty)
@@ -361,8 +294,7 @@ struct DataCleanupServiceDedupMergeTests {
 
     @Test("deduplicateLessonsStrong merges fields and relationships")
     func deduplicateLessonsStrongMergesFieldsAndRelationships() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.allModels)
 
         let sharedID = UUID()
         let lessonA = Lesson(id: sharedID, name: "Intro", subject: "Math", group: "", subheading: "", writeUp: "")
@@ -381,7 +313,7 @@ struct DataCleanupServiceDedupMergeTests {
         #expect(deletedCount == 1)
 
         let remaining = context.safeFetch(FetchDescriptor<Lesson>())
-        #expect(remaining.count == 1)
+        TestPatterns.expectCount(remaining, equals: 1)
 
         let lesson = remaining[0]
         #expect(!lesson.name.isEmpty)
@@ -396,8 +328,7 @@ struct DataCleanupServiceDedupMergeTests {
 
     @Test("deduplicateLessonPresentationsStrong merges fields")
     func deduplicateLessonPresentationsStrongMergesFields() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.allModels)
 
         let sharedID = UUID()
         let lpA = LessonPresentation(
@@ -421,7 +352,7 @@ struct DataCleanupServiceDedupMergeTests {
         #expect(deletedCount == 1)
 
         let remaining = context.safeFetch(FetchDescriptor<LessonPresentation>())
-        #expect(remaining.count == 1)
+        TestPatterns.expectCount(remaining, equals: 1)
 
         let lp = remaining[0]
         #expect(!lp.studentID.isEmpty)
@@ -432,8 +363,7 @@ struct DataCleanupServiceDedupMergeTests {
 
     @Test("deduplicateWorkModelsStrong merges fields and relationships")
     func deduplicateWorkModelsStrongMergesFieldsAndRelationships() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.allModels)
 
         let sharedID = UUID()
         let workA = WorkModel(id: sharedID, title: "Work A", notes: "")
@@ -461,7 +391,7 @@ struct DataCleanupServiceDedupMergeTests {
         #expect(deletedCount == 1)
 
         let remaining = context.safeFetch(FetchDescriptor<WorkModel>())
-        #expect(remaining.count == 1)
+        TestPatterns.expectCount(remaining, equals: 1)
 
         let work = remaining[0]
         #expect(!work.title.isEmpty)
@@ -477,11 +407,10 @@ struct DataCleanupServiceDedupMergeTests {
 
     @Test("deduplicateNotesStrong merges fields and student links")
     func deduplicateNotesStrongMergesFieldsAndStudentLinks() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.allModels)
+        let builder = TestEntityBuilder(context: context)
 
-        let student = makeTestStudent(firstName: "Alice", lastName: "Smith")
-        context.insert(student)
+        let student = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
 
         let sharedID = UUID()
         let noteA = Note(id: sharedID, body: "Body", scope: .all)
@@ -496,38 +425,32 @@ struct DataCleanupServiceDedupMergeTests {
         #expect(deletedCount == 1)
 
         let remaining = context.safeFetch(FetchDescriptor<Note>())
-        #expect(remaining.count == 1)
+        TestPatterns.expectCount(remaining, equals: 1)
 
         let note = remaining[0]
         #expect(note.body == "Body")
         #expect(note.reportedBy == "assistant")
 
         let links = context.safeFetch(FetchDescriptor<NoteStudentLink>())
-        #expect(links.count == 1)
+        TestPatterns.expectCount(links, equals: 1)
         #expect(links.first?.note?.id == note.id)
         #expect(links.first?.noteID == note.id.uuidString)
     }
 }
+
 // MARK: - Unpresented StudentLesson Deduplication Tests
 
 @Suite("DataCleanupService Unpresented StudentLesson Tests", .serialized)
 @MainActor
 struct DataCleanupServiceUnpresentedStudentLessonTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            LessonPresentation.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, LessonPresentation.self, Note.self
+    ]
 
     @Test("deduplicateUnpresentedStudentLessons removes duplicates with same lesson and students")
     func deduplicateUnpresentedRemovesDuplicates() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let lessonID = UUID()
         let studentID = UUID()
@@ -542,13 +465,12 @@ struct DataCleanupServiceUnpresentedStudentLessonTests {
         DataCleanupService.deduplicateUnpresentedStudentLessons(using: context)
 
         let remaining = context.safeFetch(FetchDescriptor<StudentLesson>())
-        #expect(remaining.count == 1)
+        TestPatterns.expectCount(remaining, equals: 1)
     }
 
     @Test("deduplicateUnpresentedStudentLessons preserves scheduled lessons")
     func deduplicateUnpresentedPreservesScheduled() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let lessonID = UUID()
         let studentID = UUID()
@@ -563,13 +485,12 @@ struct DataCleanupServiceUnpresentedStudentLessonTests {
         DataCleanupService.deduplicateUnpresentedStudentLessons(using: context)
 
         let remaining = context.safeFetch(FetchDescriptor<StudentLesson>())
-        #expect(remaining.count == 2)
+        TestPatterns.expectCount(remaining, equals: 2)
     }
 
     @Test("deduplicateUnpresentedStudentLessons merges flags to canonical")
     func deduplicateUnpresentedMergesFlags() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let lessonID = UUID()
         let studentID = UUID()
@@ -594,8 +515,8 @@ struct DataCleanupServiceUnpresentedStudentLessonTests {
         DataCleanupService.deduplicateUnpresentedStudentLessons(using: context)
 
         let remaining = context.safeFetch(FetchDescriptor<StudentLesson>())
-        #expect(remaining.count == 1)
-        #expect(remaining[0].needsPractice == true) // Merged from duplicate
+        TestPatterns.expectCount(remaining, equals: 1)
+        #expect(remaining[0].needsPractice == true)
     }
 }
 
@@ -605,20 +526,13 @@ struct DataCleanupServiceUnpresentedStudentLessonTests {
 @MainActor
 struct DataCleanupServiceDenormalizedFieldRepairTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-            LessonPresentation.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [
+        Student.self, Lesson.self, StudentLesson.self, LessonPresentation.self, Note.self
+    ]
 
     @Test("repairDenormalizedScheduledForDay fixes mismatched dates")
     func repairDenormalizedScheduledForDayFixesMismatched() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let scheduledDate = TestCalendar.date(year: 2025, month: 2, day: 15)
         let wrongDayValue = TestCalendar.startOfDay(year: 2025, month: 1, day: 1) // Intentionally wrong
@@ -637,8 +551,7 @@ struct DataCleanupServiceDenormalizedFieldRepairTests {
 
     @Test("repairDenormalizedScheduledForDay handles nil scheduledFor")
     func repairDenormalizedScheduledForDayHandlesNil() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let sl = makeTestStudentLesson(scheduledFor: nil)
         context.insert(sl)
@@ -651,8 +564,7 @@ struct DataCleanupServiceDenormalizedFieldRepairTests {
 
     @Test("repairDenormalizedScheduledForDay is idempotent")
     func repairDenormalizedScheduledForDayIsIdempotent() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let scheduledDate = TestCalendar.date(year: 2025, month: 2, day: 15)
         let sl = makeTestStudentLesson(scheduledFor: scheduledDate)
@@ -675,35 +587,23 @@ struct DataCleanupServiceDenormalizedFieldRepairTests {
 @MainActor
 struct DataCleanupServiceRunAllTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeStandardTestContainer()
-    }
-
     @Test("runAllCleanupOperations completes without error")
     func runAllCleanupOperationsCompletes() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: [Student.self, Note.self])
+        let builder = TestEntityBuilder(context: context)
 
-        // Add some test data
-        let student = makeTestStudent()
-        context.insert(student)
-        try context.save()
+        _ = try builder.buildStudent()
 
         await DataCleanupService.runAllCleanupOperations(using: context)
-
-        // Should complete without error
     }
 
     @Test("runAllCleanupOperations is safe to run multiple times")
     func runAllCleanupOperationsIsSafeToRepeat() async throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: [Student.self, Note.self])
 
         await DataCleanupService.runAllCleanupOperations(using: context)
         await DataCleanupService.runAllCleanupOperations(using: context)
         await DataCleanupService.runAllCleanupOperations(using: context)
-
-        // Should complete without error
     }
 }
 

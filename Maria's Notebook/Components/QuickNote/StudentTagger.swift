@@ -22,6 +22,41 @@ struct StudentMatchResult: Sendable {
     var replacements: [TextReplacement] = [] // Text replacements to apply
 }
 
+// MARK: - Pattern Matching Helpers
+
+private enum PatternMatchHelpers {
+    nonisolated static func containsWithBoundary(source: String, pattern: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        return regex.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) != nil
+    }
+
+    nonisolated static func containsWord(_ text: String, word: String) -> Bool {
+        guard !word.isEmpty else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    nonisolated static func containsFirstAndLastInitial(_ text: String, first: String, lastInitial: Substring) -> Bool {
+        guard !first.isEmpty, let li = lastInitial.first else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: String(li)) + "\\.?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    nonisolated static func containsFirstAndLast(_ text: String, first: String, last: String) -> Bool {
+        guard !first.isEmpty, !last.isEmpty else { return false }
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: last) + "\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    nonisolated static func containsInitials(_ text: String, firstInitial: Character, lastInitial: Character) -> Bool {
+        let fi = String(firstInitial).lowercased()
+        let li = String(lastInitial).lowercased()
+        // Matches: "a b", "a.b.", "ab" with word boundaries
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: fi) + "\\.?\\s*" + NSRegularExpression.escapedPattern(for: li) + "\\.?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+}
+
 // MARK: - Student Tagger Actor
 // Runs heavy regex/NLP off the main thread to keep typing smooth
 
@@ -586,36 +621,25 @@ actor StudentTagger {
         return replacements
     }
     
-    // Private Helpers
+    // Private Helpers delegate to shared helpers
     private func containsWithBoundary(source: String, pattern: String) -> Bool {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
-        return regex.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) != nil
+        PatternMatchHelpers.containsWithBoundary(source: source, pattern: pattern)
     }
     
     private func containsWord(_ text: String, word: String) -> Bool {
-        guard !word.isEmpty else { return false }
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+        PatternMatchHelpers.containsWord(text, word: word)
     }
     
     private func containsFirstAndLastInitial(_ text: String, first: String, lastInitial: Substring) -> Bool {
-        guard !first.isEmpty, let li = lastInitial.first else { return false }
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: String(li)) + "\\.?\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+        PatternMatchHelpers.containsFirstAndLastInitial(text, first: first, lastInitial: lastInitial)
     }
     
     private func containsFirstAndLast(_ text: String, first: String, last: String) -> Bool {
-        guard !first.isEmpty, !last.isEmpty else { return false }
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: first) + "\\s+" + NSRegularExpression.escapedPattern(for: last) + "\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+        PatternMatchHelpers.containsFirstAndLast(text, first: first, last: last)
     }
     
     private func containsInitials(_ text: String, firstInitial: Character, lastInitial: Character) -> Bool {
-        let fi = String(firstInitial).lowercased()
-        let li = String(lastInitial).lowercased()
-        // Matches: "a b", "a.b.", "ab" with word boundaries
-        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: fi) + "\\.?\\s*" + NSRegularExpression.escapedPattern(for: li) + "\\.?\\b"
-        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+        PatternMatchHelpers.containsInitials(text, firstInitial: firstInitial, lastInitial: lastInitial)
     }
     
     private func isExactMatch(_ token: String, student: StudentData) -> Bool {

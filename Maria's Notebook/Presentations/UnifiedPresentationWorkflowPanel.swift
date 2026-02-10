@@ -149,7 +149,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
             Text(bulkAppliedMessage)
-                .font(.system(size: AppTheme.FontSize.callout, weight: .medium, design: .rounded))
+                .font(.workflowCallout)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -308,9 +308,7 @@ struct UnifiedPresentationWorkflowPanel: View {
 
             // Apply Understanding to All
             VStack(alignment: .leading, spacing: 8) {
-                Text("Apply Understanding to All")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                FieldLabel(text: "Apply Understanding to All")
 
                 HStack(spacing: 8) {
                     ForEach(1...5, id: \.self) { level in
@@ -367,7 +365,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                         .labelsHidden()
                 }
             }
-            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+            .font(.workflowCaption)
         }
         .padding(.horizontal, 16)
     }
@@ -382,21 +380,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         for student in students {
             // Check if this student already has work drafts
             if workDrafts[student.id]?.isEmpty ?? true {
-                // Create new draft
-                var draft = WorkItemDraft(
-                    studentID: student.id,
-                    title: trimmed,
-                    kind: .followUpAssignment
-                )
-                
-                // Apply default dates if enabled
-                if presentationViewModel.defaultCheckInEnabled {
-                    draft.checkInDate = presentationViewModel.defaultCheckInDate
-                }
-                if presentationViewModel.defaultDueEnabled {
-                    draft.dueDate = presentationViewModel.defaultDueDate
-                }
-                
+                let draft = createWorkDraft(for: student.id, title: trimmed, applyDefaultDates: true)
                 workDrafts[student.id, default: []].append(draft)
             } else {
                 // Update existing first draft
@@ -618,49 +602,36 @@ struct UnifiedPresentationWorkflowPanel: View {
                 )
 
                 // Work kind pills
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Type")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-
+                LabeledFieldSection(label: "Type") {
                     HStack(spacing: 8) {
-                        ForEach(WorkKind.allCases) { kind in
-                            SelectablePillButton(
-                                item: kind,
-                                isSelected: draft.kind == kind,
-                                color: kind.color,
-                                icon: kind.iconName,
-                                label: kind.shortLabel
-                            ) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.kind = kind }
-                                }
+                        PillButtonGroup(
+                            items: WorkKind.allCases,
+                            selection: draft.kind,
+                            color: { $0.color },
+                            icon: { $0.iconName },
+                            label: { $0.shortLabel },
+                            isSelected: { $0 == draft.kind },
+                            onSelect: { kind in
+                                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.kind = kind }
                             }
-                        }
+                        )
                     }
                 }
 
                 // Status pills
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Status")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-
+                LabeledFieldSection(label: "Status") {
                     HStack(spacing: 8) {
-                        ForEach(WorkStatus.allCases) { status in
-                            SelectablePillButton(
-                                item: status,
-                                isSelected: draft.status == status,
-                                color: status.color,
-                                icon: status.iconName,
-                                label: status.displayName
-                            ) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.status = status }
-                                }
+                        PillButtonGroup(
+                            items: WorkStatus.allCases,
+                            selection: draft.status,
+                            color: { $0.color },
+                            icon: { $0.iconName },
+                            label: { $0.displayName },
+                            isSelected: { $0 == draft.status },
+                            onSelect: { status in
+                                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.status = status }
                             }
-                        }
-
+                        )
                         Spacer()
                     }
                 }
@@ -726,23 +697,19 @@ struct UnifiedPresentationWorkflowPanel: View {
             if draft.showMoreDetails {
                 VStack(alignment: .leading, spacing: 12) {
                     // Outcome picker
-                    Text("Outcome")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-
-                    FlowLayout(spacing: 8) {
-                        ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
-                            SelectablePillButton(
-                                item: outcome,
-                                isSelected: draft.completionOutcome == outcome,
-                                color: outcome.color,
-                                icon: outcome.iconName,
-                                label: outcome.displayName
-                            ) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    LabeledFieldSection(label: "Outcome") {
+                        FlowLayout(spacing: 8) {
+                            PillButtonGroup(
+                                items: CompletionOutcome.allCases,
+                                selection: draft.completionOutcome,
+                                color: { $0.color },
+                                icon: { $0.iconName },
+                                label: { $0.displayName },
+                                isSelected: { $0 == draft.completionOutcome },
+                                onSelect: { outcome in
                                     updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionOutcome = outcome }
                                 }
-                            }
+                            )
                         }
                     }
 
@@ -762,10 +729,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.green.opacity(0.08))
-        )
+        .cardBackground(color: Color.green.opacity(0.08), cornerRadius: 10)
     }
     
     // MARK: - Existing Work Card
@@ -825,14 +789,24 @@ struct UnifiedPresentationWorkflowPanel: View {
     // MARK: - Work Draft Management
     
     private func addWorkDraft(for studentID: UUID) {
-        // Initialize with assignment from presentation if available
         let assignment = presentationViewModel.entries[studentID]?.assignment ?? ""
-        let draft = WorkItemDraft(
-            studentID: studentID,
-            title: assignment.isEmpty ? "" : assignment,
-            kind: .followUpAssignment
-        )
+        let draft = createWorkDraft(for: studentID, title: assignment)
         workDrafts[studentID, default: []].append(draft)
+    }
+    
+    private func createWorkDraft(for studentID: UUID, title: String = "", kind: WorkKind = .followUpAssignment, applyDefaultDates: Bool = false) -> WorkItemDraft {
+        var draft = WorkItemDraft(studentID: studentID, title: title.isEmpty ? "" : title, kind: kind)
+        
+        if applyDefaultDates {
+            if presentationViewModel.defaultCheckInEnabled {
+                draft.checkInDate = presentationViewModel.defaultCheckInDate
+            }
+            if presentationViewModel.defaultDueEnabled {
+                draft.dueDate = presentationViewModel.defaultDueDate
+            }
+        }
+        
+        return draft
     }
     
     private func removeWorkDraft(studentID: UUID, draftID: UUID) {
@@ -844,42 +818,17 @@ struct UnifiedPresentationWorkflowPanel: View {
         update(&workDrafts[studentID]![index])
     }
     
-    private func toggleCheckInDate(studentID: UUID, draftID: UUID) {
-        guard let index = workDrafts[studentID]?.firstIndex(where: { $0.id == draftID }) else { return }
-        if workDrafts[studentID]![index].checkInDate != nil {
-            workDrafts[studentID]![index].checkInDate = nil
-        } else {
-            workDrafts[studentID]![index].checkInDate = presentationViewModel.defaultCheckInDate
-        }
-    }
-    
-    private func toggleDueDate(studentID: UUID, draftID: UUID) {
-        guard let index = workDrafts[studentID]?.firstIndex(where: { $0.id == draftID }) else { return }
-        if workDrafts[studentID]![index].dueDate != nil {
-            workDrafts[studentID]![index].dueDate = nil
-        } else {
-            workDrafts[studentID]![index].dueDate = presentationViewModel.defaultDueDate
-        }
-    }
-    
+
     private func syncAssignmentToWorkDraft(studentID: UUID, assignment: String) {
         let trimmedAssignment = assignment.trimmed()
         
-        // If no work drafts exist for this student, create one
         if workDrafts[studentID]?.isEmpty ?? true {
             if !trimmedAssignment.isEmpty {
-                let draft = WorkItemDraft(
-                    studentID: studentID,
-                    title: trimmedAssignment,
-                    kind: .followUpAssignment
-                )
+                let draft = createWorkDraft(for: studentID, title: trimmedAssignment)
                 workDrafts[studentID, default: []].append(draft)
             }
-        } else {
-            // Update the first draft's title
-            if let firstIndex = workDrafts[studentID]?.indices.first {
-                workDrafts[studentID]?[firstIndex].title = trimmedAssignment
-            }
+        } else if let firstIndex = workDrafts[studentID]?.indices.first {
+            workDrafts[studentID]?[firstIndex].title = trimmedAssignment
         }
     }
     

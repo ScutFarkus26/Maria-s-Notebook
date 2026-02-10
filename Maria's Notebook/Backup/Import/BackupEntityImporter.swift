@@ -10,22 +10,42 @@ enum BackupEntityImporter {
     /// Type alias for a function that checks if an entity with a given ID exists
     typealias EntityExistsCheck<T: PersistentModel> = (UUID) throws -> T?
 
+    // MARK: - Common Helpers
+
+    /// Generic helper to check if an entity exists and skip if it does.
+    /// Returns true if the entity should be skipped (already exists).
+    private static func shouldSkipExisting<T: PersistentModel>(
+        id: UUID,
+        existingCheck: EntityExistsCheck<T>
+    ) -> Bool {
+        return (try? existingCheck(id)) != nil
+    }
+
+    /// Generic helper for importing simple entities with common pattern.
+    private static func importSimpleEntities<DTO, Entity: PersistentModel>(
+        _ dtos: [DTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<Entity>,
+        idExtractor: (DTO) -> UUID,
+        entityBuilder: (DTO) -> Entity
+    ) rethrows {
+        for dto in dtos {
+            let id = idExtractor(dto)
+            if shouldSkipExisting(id: id, existingCheck: existingCheck) { continue }
+            let entity = entityBuilder(dto)
+            modelContext.insert(entity)
+        }
+    }
+
     // MARK: - Students
 
     /// Imports students from DTOs, returning a dictionary of imported students by ID.
-    ///
-    /// - Parameters:
-    ///   - dtos: The student DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a student already exists
-    /// - Returns: Dictionary mapping student IDs to imported Student objects
     static func importStudents(
         _ dtos: [StudentDTO],
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<Student>
     ) rethrows -> [UUID: Student] {
         var studentsByID: [UUID: Student] = [:]
-
         for dto in dtos {
             if (try? existingCheck(dto.id)) != nil { continue }
             let student = Student(
@@ -41,95 +61,54 @@ enum BackupEntityImporter {
             modelContext.insert(student)
             studentsByID[student.id] = student
         }
-
         return studentsByID
     }
 
     // MARK: - Lessons
 
     /// Imports lessons from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The lesson DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a lesson already exists
     static func importLessons(
         _ dtos: [LessonDTO],
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<Lesson>
     ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-            let lesson = Lesson(
-                id: dto.id,
-                name: dto.name,
-                subject: dto.subject,
-                group: dto.group,
-                orderInGroup: dto.orderInGroup,
-                subheading: dto.subheading,
-                writeUp: dto.writeUp
-            )
-            if let pages = dto.pagesFileRelativePath {
-                lesson.pagesFileRelativePath = pages
-            }
-            modelContext.insert(lesson)
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            let lesson = Lesson(id: dto.id, name: dto.name, subject: dto.subject, group: dto.group, orderInGroup: dto.orderInGroup, subheading: dto.subheading, writeUp: dto.writeUp)
+            if let pages = dto.pagesFileRelativePath { lesson.pagesFileRelativePath = pages }
+            return lesson
         }
     }
 
     // MARK: - Community Topics
 
     /// Imports community topics from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The community topic DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a topic already exists
     static func importCommunityTopics(
         _ dtos: [CommunityTopicDTO],
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<CommunityTopic>
     ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-            let topic = CommunityTopic(
-                id: dto.id,
-                title: dto.title,
-                issueDescription: dto.issueDescription,
-                createdAt: dto.createdAt,
-                addressedDate: dto.addressedDate,
-                resolution: dto.resolution
-            )
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            let topic = CommunityTopic(id: dto.id, title: dto.title, issueDescription: dto.issueDescription, createdAt: dto.createdAt, addressedDate: dto.addressedDate, resolution: dto.resolution)
             topic.raisedBy = dto.raisedBy
             topic.tags = dto.tags
-            modelContext.insert(topic)
+            return topic
         }
     }
 
     // MARK: - Work Plan Items
 
     /// Imports work plan items from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The work plan item DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if an item already exists
     static func importWorkPlanItems(
         _ dtos: [WorkPlanItemDTO],
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<WorkPlanItem>
     ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-            let item = WorkPlanItem(
-                workID: dto.workID,
-                scheduledDate: dto.scheduledDate,
-                reason: nil,
-                note: dto.note
-            )
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            let item = WorkPlanItem(workID: dto.workID, scheduledDate: dto.scheduledDate, reason: nil, note: dto.note)
             item.id = dto.id
             item.reasonRaw = dto.reason.isEmpty ? nil : dto.reason
             item.note = dto.note
-            modelContext.insert(item)
+            return item
         }
     }
 
@@ -228,67 +207,37 @@ enum BackupEntityImporter {
     // MARK: - Non-School Days
 
     /// Imports non-school days from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The non-school day DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a day already exists
-    static func importNonSchoolDays(
-        _ dtos: [NonSchoolDayDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<NonSchoolDay>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
+    static func importNonSchoolDays(_ dtos: [NonSchoolDayDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<NonSchoolDay>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let day = NonSchoolDay(id: dto.id, date: dto.date)
             day.reason = dto.reason
-            modelContext.insert(day)
+            return day
         }
     }
 
     // MARK: - School Day Overrides
 
     /// Imports school day overrides from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The school day override DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if an override already exists
-    static func importSchoolDayOverrides(
-        _ dtos: [SchoolDayOverrideDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<SchoolDayOverride>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
+    static func importSchoolDayOverrides(_ dtos: [SchoolDayOverrideDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<SchoolDayOverride>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let override = SchoolDayOverride(id: dto.id, date: dto.date)
             override.note = dto.note
-            modelContext.insert(override)
+            return override
         }
     }
 
     // MARK: - Student Meetings
 
     /// Imports student meetings from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The student meeting DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a meeting already exists
-    static func importStudentMeetings(
-        _ dtos: [StudentMeetingDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<StudentMeeting>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
+    static func importStudentMeetings(_ dtos: [StudentMeetingDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<StudentMeeting>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let meeting = StudentMeeting(id: dto.id, studentID: dto.studentID, date: dto.date)
             meeting.completed = dto.completed
             meeting.reflection = dto.reflection
             meeting.focus = dto.focus
             meeting.requests = dto.requests
             meeting.guideNotes = dto.guideNotes
-            modelContext.insert(meeting)
+            return meeting
         }
     }
 
@@ -432,170 +381,55 @@ enum BackupEntityImporter {
     // MARK: - Attendance Records
 
     /// Imports attendance records from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The attendance record DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a record already exists
-    static func importAttendanceRecords(
-        _ dtos: [AttendanceRecordDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<AttendanceRecord>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
+    static func importAttendanceRecords(_ dtos: [AttendanceRecordDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<AttendanceRecord>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let absenceReason = dto.absenceReason.flatMap { AbsenceReason(rawValue: $0) } ?? .none
-            let record = AttendanceRecord(
-                id: dto.id,
-                studentID: dto.studentID,
-                date: dto.date,
-                status: AttendanceStatus(rawValue: dto.status) ?? .unmarked,
-                absenceReason: absenceReason,
-                note: dto.note
-            )
-            modelContext.insert(record)
+            return AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, absenceReason: absenceReason, note: dto.note)
         }
     }
 
     // MARK: - Work Completion Records
 
     /// Imports work completion records from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The work completion record DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a record already exists
-    static func importWorkCompletionRecords(
-        _ dtos: [WorkCompletionRecordDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<WorkCompletionRecord>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
-            let record = WorkCompletionRecord(
-                id: dto.id,
-                workID: dto.workID,
-                studentID: dto.studentID,
-                completedAt: dto.completedAt,
-                note: dto.note
-            )
-            modelContext.insert(record)
+    static func importWorkCompletionRecords(_ dtos: [WorkCompletionRecordDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<WorkCompletionRecord>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt, note: dto.note)
         }
     }
 
     // MARK: - Projects
 
     /// Imports projects from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The project DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a project already exists
-    static func importProjects(
-        _ dtos: [ProjectDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Project>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
-            let project = Project(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                title: dto.title,
-                bookTitle: dto.bookTitle,
-                memberStudentIDs: dto.memberStudentIDs
-            )
-            modelContext.insert(project)
+    static func importProjects(_ dtos: [ProjectDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Project>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            Project(id: dto.id, createdAt: dto.createdAt, title: dto.title, bookTitle: dto.bookTitle, memberStudentIDs: dto.memberStudentIDs)
         }
     }
 
     // MARK: - Project Roles
 
     /// Imports project roles from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The project role DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a role already exists
-    static func importProjectRoles(
-        _ dtos: [ProjectRoleDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ProjectRole>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
-            let role = ProjectRole(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                projectID: dto.projectID,
-                title: dto.title,
-                summary: dto.summary,
-                instructions: dto.instructions
-            )
-            modelContext.insert(role)
+    static func importProjectRoles(_ dtos: [ProjectRoleDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<ProjectRole>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            ProjectRole(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, summary: dto.summary, instructions: dto.instructions)
         }
     }
 
     // MARK: - Project Template Weeks
 
     /// Imports project template weeks from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The project template week DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a week already exists
-    static func importProjectTemplateWeeks(
-        _ dtos: [ProjectTemplateWeekDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ProjectTemplateWeek>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
-            let week = ProjectTemplateWeek(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                projectID: dto.projectID,
-                weekIndex: dto.weekIndex,
-                readingRange: dto.readingRange,
-                agendaItemsJSON: dto.agendaItemsJSON,
-                linkedLessonIDsJSON: dto.linkedLessonIDsJSON,
-                workInstructions: dto.workInstructions
-            )
-            modelContext.insert(week)
+    static func importProjectTemplateWeeks(_ dtos: [ProjectTemplateWeekDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<ProjectTemplateWeek>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            ProjectTemplateWeek(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, weekIndex: dto.weekIndex, readingRange: dto.readingRange, agendaItemsJSON: dto.agendaItemsJSON, linkedLessonIDsJSON: dto.linkedLessonIDsJSON, workInstructions: dto.workInstructions)
         }
     }
 
     // MARK: - Project Assignment Templates
 
     /// Imports project assignment templates from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The project assignment template DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a template already exists
-    static func importProjectAssignmentTemplates(
-        _ dtos: [ProjectAssignmentTemplateDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ProjectAssignmentTemplate>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
-            let template = ProjectAssignmentTemplate(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                projectID: dto.projectID,
-                title: dto.title,
-                instructions: dto.instructions,
-                isShared: dto.isShared,
-                defaultLinkedLessonID: dto.defaultLinkedLessonID
-            )
-            modelContext.insert(template)
+    static func importProjectAssignmentTemplates(_ dtos: [ProjectAssignmentTemplateDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<ProjectAssignmentTemplate>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            ProjectAssignmentTemplate(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, title: dto.title, instructions: dto.instructions, isShared: dto.isShared, defaultLinkedLessonID: dto.defaultLinkedLessonID)
         }
     }
 
@@ -637,30 +471,9 @@ enum BackupEntityImporter {
     // MARK: - Project Sessions
 
     /// Imports project sessions from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The project session DTOs to import
-    ///   - modelContext: The model context for database operations
-    ///   - existingCheck: Function to check if a session already exists
-    static func importProjectSessions(
-        _ dtos: [ProjectSessionDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ProjectSession>
-    ) rethrows {
-        for dto in dtos {
-            if (try? existingCheck(dto.id)) != nil { continue }
-
-            let session = ProjectSession(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                projectID: dto.projectID,
-                meetingDate: dto.meetingDate,
-                chapterOrPages: dto.chapterOrPages,
-                notes: dto.notes,
-                agendaItemsJSON: dto.agendaItemsJSON,
-                templateWeekID: dto.templateWeekID
-            )
-            modelContext.insert(session)
+    static func importProjectSessions(_ dtos: [ProjectSessionDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<ProjectSession>) rethrows {
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+            ProjectSession(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
         }
     }
 }

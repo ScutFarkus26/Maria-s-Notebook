@@ -555,18 +555,7 @@ private struct StudentNotesTimelineList: View {
     // MARK: - Pinned Section Header
 
     private var pinnedSectionHeader: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "pin.fill")
-                .font(.subheadline)
-                .foregroundStyle(.orange)
-            Text("Pinned")
-                .font(.headline)
-                .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.orange.opacity(0.08))
+        SectionHeaderView(title: "Pinned", icon: "pin.fill", iconColor: .orange)
     }
 
     // MARK: - Pin/Unpin
@@ -662,26 +651,13 @@ private struct CategoryFilterChip: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: NoteCategoryHelpers.icon(for: category))
-                    .font(.caption)
-                Text(NoteCategoryHelpers.label(for: category))
-                    .font(.caption)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? NoteCategoryHelpers.color(for: category).opacity(0.2) : Color.primary.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(isSelected ? NoteCategoryHelpers.color(for: category) : Color.clear, lineWidth: 1)
-            )
-            .foregroundStyle(isSelected ? NoteCategoryHelpers.color(for: category) : .secondary)
-        }
-        .buttonStyle(.plain)
+        StudentFilterChip(
+            label: NoteCategoryHelpers.label(for: category),
+            icon: NoteCategoryHelpers.icon(for: category),
+            color: NoteCategoryHelpers.color(for: category),
+            isSelected: isSelected,
+            action: action
+        )
     }
 }
 

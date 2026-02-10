@@ -408,9 +408,9 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importStudentLessons(
                 payload.studentLessons,
                 into: modelContext,
-                studentLessonCheck: { [existingStudentLessonIDs] id in
+                studentLessonCheck: { [self] id in
                     // Return a placeholder if exists (importer only checks for nil)
-                    existingStudentLessonIDs.contains(id) ? StudentLesson(lessonID: id, studentIDs: []) : nil
+                    self.getCachedIDs("studentLessons").contains(id) ? StudentLesson(lessonID: id, studentIDs: []) : nil
                 },
                 lessonCheck: { [lessonsByID] id in lessonsByID[id] },
                 studentCheck: { [studentsByID] id in studentsByID[id] }
@@ -421,8 +421,8 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importWorkPlanItems(
                 payload.workPlanItems,
                 into: modelContext,
-                existingCheck: { [existingWorkPlanItemIDs] id in
-                    existingWorkPlanItemIDs.contains(id) ? WorkPlanItem(workID: id, scheduledDate: Date(), reason: nil, note: nil) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("workPlanItems").contains(id) ? WorkPlanItem(workID: id, scheduledDate: Date(), reason: nil, note: nil) : nil
                 }
             )
             imported = payload.workPlanItems.count
@@ -431,8 +431,8 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importNotes(
                 payload.notes,
                 into: modelContext,
-                existingCheck: { [existingNoteIDs] id in
-                    existingNoteIDs.contains(id) ? Note(body: "", scope: .all) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("notes").contains(id) ? Note(body: "", scope: .all) : nil
                 },
                 lessonCheck: { [lessonsByID] id in lessonsByID[id] }
             )
@@ -442,15 +442,15 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importNonSchoolDays(
                 payload.nonSchoolDays,
                 into: modelContext,
-                existingCheck: { [existingNonSchoolDayIDs] id in
-                    existingNonSchoolDayIDs.contains(id) ? NonSchoolDay(date: Date()) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("nonSchoolDays").contains(id) ? NonSchoolDay(date: Date()) : nil
                 }
             )
             BackupEntityImporter.importSchoolDayOverrides(
                 payload.schoolDayOverrides,
                 into: modelContext,
-                existingCheck: { [existingSchoolDayOverrideIDs] id in
-                    existingSchoolDayOverrideIDs.contains(id) ? SchoolDayOverride(date: Date()) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("schoolDayOverrides").contains(id) ? SchoolDayOverride(date: Date()) : nil
                 }
             )
             imported = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
@@ -459,8 +459,8 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importStudentMeetings(
                 payload.studentMeetings,
                 into: modelContext,
-                existingCheck: { [existingMeetingIDs] id in
-                    existingMeetingIDs.contains(id) ? StudentMeeting(studentID: UUID(), date: Date()) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("studentMeetings").contains(id) ? StudentMeeting(studentID: UUID(), date: Date()) : nil
                 }
             )
             imported = payload.studentMeetings.count
@@ -478,16 +478,16 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importProposedSolutions(
                 payload.proposedSolutions,
                 into: modelContext,
-                existingCheck: { [existingSolutionIDs] id in
-                    existingSolutionIDs.contains(id) ? ProposedSolution(title: "", details: "", proposedBy: "", topic: nil) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("proposedSolutions").contains(id) ? ProposedSolution(title: "", details: "", proposedBy: "", topic: nil) : nil
                 },
                 topicCheck: { [topicsByID] id in topicsByID[id] }
             )
             BackupEntityImporter.importCommunityAttachments(
                 payload.communityAttachments,
                 into: modelContext,
-                existingCheck: { [existingAttachmentIDs] id in
-                    existingAttachmentIDs.contains(id) ? CommunityAttachment(filename: "", kind: .file, data: nil, topic: nil) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("communityAttachments").contains(id) ? CommunityAttachment(filename: "", kind: .file, data: nil, topic: nil) : nil
                 },
                 topicCheck: { [topicsByID] id in topicsByID[id] }
             )
@@ -497,8 +497,8 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importAttendanceRecords(
                 payload.attendance,
                 into: modelContext,
-                existingCheck: { [existingAttendanceIDs] id in
-                    existingAttendanceIDs.contains(id) ? AttendanceRecord(studentID: UUID(), date: Date(), status: .unmarked) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("attendanceRecords").contains(id) ? AttendanceRecord(studentID: UUID(), date: Date(), status: .unmarked) : nil
                 }
             )
             imported = payload.attendance.count
@@ -507,8 +507,8 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importWorkCompletionRecords(
                 payload.workCompletions,
                 into: modelContext,
-                existingCheck: { [existingWorkCompletionIDs] id in
-                    existingWorkCompletionIDs.contains(id) ? WorkCompletionRecord(workID: UUID(), studentID: UUID(), completedAt: Date()) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("workCompletionRecords").contains(id) ? WorkCompletionRecord(workID: UUID(), studentID: UUID(), completedAt: Date()) : nil
                 }
             )
             imported = payload.workCompletions.count
@@ -517,15 +517,15 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importProjects(
                 payload.projects,
                 into: modelContext,
-                existingCheck: { [existingProjectIDs] id in
-                    existingProjectIDs.contains(id) ? Project(title: "", bookTitle: nil, memberStudentIDs: []) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("projects").contains(id) ? Project(title: "", bookTitle: nil, memberStudentIDs: []) : nil
                 }
             )
             BackupEntityImporter.importProjectRoles(
                 payload.projectRoles,
                 into: modelContext,
-                existingCheck: { [existingProjectRoleIDs] id in
-                    existingProjectRoleIDs.contains(id) ? ProjectRole(projectID: UUID(), title: "", summary: "", instructions: "") : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("projectRoles").contains(id) ? ProjectRole(projectID: UUID(), title: "", summary: "", instructions: "") : nil
                 }
             )
             BackupEntityImporter.importProjectTemplateWeeks(
@@ -540,23 +540,23 @@ public final class SelectiveRestoreService {
             BackupEntityImporter.importProjectAssignmentTemplates(
                 payload.projectAssignmentTemplates,
                 into: modelContext,
-                existingCheck: { [existingProjectAssignmentTemplateIDs] id in
-                    existingProjectAssignmentTemplateIDs.contains(id) ? ProjectAssignmentTemplate(projectID: UUID(), title: "", instructions: "") : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("projectAssignmentTemplates").contains(id) ? ProjectAssignmentTemplate(projectID: UUID(), title: "", instructions: "") : nil
                 }
             )
             BackupEntityImporter.importProjectWeekRoleAssignments(
                 payload.projectWeekRoleAssignments,
                 into: modelContext,
-                existingCheck: { [existingProjectWeekRoleAssignmentIDs] id in
-                    existingProjectWeekRoleAssignmentIDs.contains(id) ? ProjectWeekRoleAssignment(weekID: UUID(), studentID: "", roleID: UUID(), week: nil) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("projectWeekRoleAssignments").contains(id) ? ProjectWeekRoleAssignment(weekID: UUID(), studentID: "", roleID: UUID(), week: nil) : nil
                 },
                 weekCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
             )
             BackupEntityImporter.importProjectSessions(
                 payload.projectSessions,
                 into: modelContext,
-                existingCheck: { [existingProjectSessionIDs] id in
-                    existingProjectSessionIDs.contains(id) ? ProjectSession(projectID: UUID(), meetingDate: Date()) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("projectSessions").contains(id) ? ProjectSession(projectID: UUID(), meetingDate: Date()) : nil
                 }
             )
             imported = payload.projects.count + payload.projectAssignmentTemplates.count +
@@ -577,56 +577,53 @@ public final class SelectiveRestoreService {
     private var templateWeeksByID: [UUID: ProjectTemplateWeek] = [:]
 
     /// ID sets for simple existence checks (no entity retrieval needed)
-    private var existingStudentLessonIDs: Set<UUID> = []
-    private var existingNoteIDs: Set<UUID> = []
-    private var existingWorkPlanItemIDs: Set<UUID> = []
-    private var existingNonSchoolDayIDs: Set<UUID> = []
-    private var existingSchoolDayOverrideIDs: Set<UUID> = []
-    private var existingMeetingIDs: Set<UUID> = []
-    private var existingLessonAssignmentIDs: Set<UUID> = []
-    private var existingSolutionIDs: Set<UUID> = []
-    private var existingAttachmentIDs: Set<UUID> = []
-    private var existingAttendanceIDs: Set<UUID> = []
-    private var existingWorkCompletionIDs: Set<UUID> = []
-    private var existingProjectIDs: Set<UUID> = []
-    private var existingProjectRoleIDs: Set<UUID> = []
-    private var existingProjectAssignmentTemplateIDs: Set<UUID> = []
-    private var existingProjectWeekRoleAssignmentIDs: Set<UUID> = []
-    private var existingProjectSessionIDs: Set<UUID> = []
+    private var existingIDSets: [String: Set<UUID>] = [:]
+
+    // MARK: - Cache Helpers
+
+    /// Helper to fetch and cache entity IDs for a given type.
+    private func cacheEntityIDs<T: PersistentModel & Identifiable>(_ type: T.Type, key: String, in context: ModelContext) where T.ID == UUID {
+        let entities = (try? context.fetch(FetchDescriptor<T>())) ?? []
+        existingIDSets[key] = Set(entities.map { $0.id })
+    }
+
+    /// Helper to fetch and cache entities with full objects for relationships.
+    private func cacheDictionary<T: PersistentModel & Identifiable>(_ type: T.Type, in context: ModelContext) -> [UUID: T] where T.ID == UUID {
+        let entities = (try? context.fetch(FetchDescriptor<T>())) ?? []
+        return entities.toDictionary(by: \.id)
+    }
+
+    /// Helper to get cached ID set.
+    private func getCachedIDs(_ key: String) -> Set<UUID> {
+        return existingIDSets[key] ?? []
+    }
 
     /// Pre-builds lookup caches for all entity types to enable O(1) existence checks.
     /// This is much faster than querying the database for each entity.
     private func buildExistingIDCaches(in context: ModelContext) {
         // Build lookup dictionaries for entities needed for relationship linking
-        let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
-        studentsByID = students.toDictionary(by: \.id)
-
-        let lessons = (try? context.fetch(FetchDescriptor<Lesson>())) ?? []
-        lessonsByID = lessons.toDictionary(by: \.id)
-
-        let topics = (try? context.fetch(FetchDescriptor<CommunityTopic>())) ?? []
-        topicsByID = topics.toDictionary(by: \.id)
-
-        let weeks = (try? context.fetch(FetchDescriptor<ProjectTemplateWeek>())) ?? []
-        templateWeeksByID = weeks.toDictionary(by: \.id)
+        studentsByID = cacheDictionary(Student.self, in: context)
+        lessonsByID = cacheDictionary(Lesson.self, in: context)
+        topicsByID = cacheDictionary(CommunityTopic.self, in: context)
+        templateWeeksByID = cacheDictionary(ProjectTemplateWeek.self, in: context)
 
         // Build ID sets for simple existence checks
-        existingStudentLessonIDs = Set((try? context.fetch(FetchDescriptor<StudentLesson>()))?.map { $0.id } ?? [])
-        existingNoteIDs = Set((try? context.fetch(FetchDescriptor<Note>()))?.map { $0.id } ?? [])
-        existingWorkPlanItemIDs = Set((try? context.fetch(FetchDescriptor<WorkPlanItem>()))?.map { $0.id } ?? [])
-        existingNonSchoolDayIDs = Set((try? context.fetch(FetchDescriptor<NonSchoolDay>()))?.map { $0.id } ?? [])
-        existingSchoolDayOverrideIDs = Set((try? context.fetch(FetchDescriptor<SchoolDayOverride>()))?.map { $0.id } ?? [])
-        existingMeetingIDs = Set((try? context.fetch(FetchDescriptor<StudentMeeting>()))?.map { $0.id } ?? [])
-        existingLessonAssignmentIDs = Set((try? context.fetch(FetchDescriptor<LessonAssignment>()))?.map { $0.id } ?? [])
-        existingSolutionIDs = Set((try? context.fetch(FetchDescriptor<ProposedSolution>()))?.map { $0.id } ?? [])
-        existingAttachmentIDs = Set((try? context.fetch(FetchDescriptor<CommunityAttachment>()))?.map { $0.id } ?? [])
-        existingAttendanceIDs = Set((try? context.fetch(FetchDescriptor<AttendanceRecord>()))?.map { $0.id } ?? [])
-        existingWorkCompletionIDs = Set((try? context.fetch(FetchDescriptor<WorkCompletionRecord>()))?.map { $0.id } ?? [])
-        existingProjectIDs = Set((try? context.fetch(FetchDescriptor<Project>()))?.map { $0.id } ?? [])
-        existingProjectRoleIDs = Set((try? context.fetch(FetchDescriptor<ProjectRole>()))?.map { $0.id } ?? [])
-        existingProjectAssignmentTemplateIDs = Set((try? context.fetch(FetchDescriptor<ProjectAssignmentTemplate>()))?.map { $0.id } ?? [])
-        existingProjectWeekRoleAssignmentIDs = Set((try? context.fetch(FetchDescriptor<ProjectWeekRoleAssignment>()))?.map { $0.id } ?? [])
-        existingProjectSessionIDs = Set((try? context.fetch(FetchDescriptor<ProjectSession>()))?.map { $0.id } ?? [])
+        cacheEntityIDs(StudentLesson.self, key: "studentLessons", in: context)
+        cacheEntityIDs(Note.self, key: "notes", in: context)
+        cacheEntityIDs(WorkPlanItem.self, key: "workPlanItems", in: context)
+        cacheEntityIDs(NonSchoolDay.self, key: "nonSchoolDays", in: context)
+        cacheEntityIDs(SchoolDayOverride.self, key: "schoolDayOverrides", in: context)
+        cacheEntityIDs(StudentMeeting.self, key: "studentMeetings", in: context)
+        cacheEntityIDs(LessonAssignment.self, key: "lessonAssignments", in: context)
+        cacheEntityIDs(ProposedSolution.self, key: "proposedSolutions", in: context)
+        cacheEntityIDs(CommunityAttachment.self, key: "communityAttachments", in: context)
+        cacheEntityIDs(AttendanceRecord.self, key: "attendanceRecords", in: context)
+        cacheEntityIDs(WorkCompletionRecord.self, key: "workCompletionRecords", in: context)
+        cacheEntityIDs(Project.self, key: "projects", in: context)
+        cacheEntityIDs(ProjectRole.self, key: "projectRoles", in: context)
+        cacheEntityIDs(ProjectAssignmentTemplate.self, key: "projectAssignmentTemplates", in: context)
+        cacheEntityIDs(ProjectWeekRoleAssignment.self, key: "projectWeekRoleAssignments", in: context)
+        cacheEntityIDs(ProjectSession.self, key: "projectSessions", in: context)
     }
 
     /// Clears the lookup caches to free memory after restore is complete
@@ -635,21 +632,6 @@ public final class SelectiveRestoreService {
         lessonsByID = [:]
         topicsByID = [:]
         templateWeeksByID = [:]
-        existingStudentLessonIDs = []
-        existingNoteIDs = []
-        existingWorkPlanItemIDs = []
-        existingNonSchoolDayIDs = []
-        existingSchoolDayOverrideIDs = []
-        existingMeetingIDs = []
-        existingLessonAssignmentIDs = []
-        existingSolutionIDs = []
-        existingAttachmentIDs = []
-        existingAttendanceIDs = []
-        existingWorkCompletionIDs = []
-        existingProjectIDs = []
-        existingProjectRoleIDs = []
-        existingProjectAssignmentTemplateIDs = []
-        existingProjectWeekRoleAssignmentIDs = []
-        existingProjectSessionIDs = []
+        existingIDSets = [:]
     }
 }

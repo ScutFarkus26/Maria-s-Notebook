@@ -17,6 +17,70 @@ private enum CompletionFilter: String {
     case hiddenUndated = "Hidden"
 }
 
+// MARK: - Predicate Builders
+
+private enum PredicateBuilders {
+    /// Builds a predicate for filtering student lessons by completion status and subject
+    static func buildPredicate(
+        filter: CompletionFilter,
+        subjectLessonIDs: Set<UUID>?
+    ) -> Predicate<StudentLesson> {
+        // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic
+        switch filter {
+        case .all:
+            if let lessonIDs = subjectLessonIDs {
+                return #Predicate<StudentLesson> { sl in
+                    sl.lesson != nil &&
+                    !((sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil) &&
+                    lessonIDs.contains(sl.lesson!.id)
+                }
+            } else {
+                return #Predicate<StudentLesson> { sl in
+                    !((sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil)
+                }
+            }
+        case .completed:
+            if let lessonIDs = subjectLessonIDs {
+                return #Predicate<StudentLesson> { sl in
+                    sl.lesson != nil &&
+                    (sl.isPresented || sl.givenAt != nil) &&
+                    sl.givenAt != nil &&
+                    lessonIDs.contains(sl.lesson!.id)
+                }
+            } else {
+                return #Predicate<StudentLesson> { sl in
+                    (sl.isPresented || sl.givenAt != nil) && sl.givenAt != nil
+                }
+            }
+        case .notCompleted:
+            if let lessonIDs = subjectLessonIDs {
+                return #Predicate<StudentLesson> { sl in
+                    sl.lesson != nil &&
+                    !(sl.isPresented || sl.givenAt != nil) &&
+                    lessonIDs.contains(sl.lesson!.id)
+                }
+            } else {
+                return #Predicate<StudentLesson> { sl in
+                    !(sl.isPresented || sl.givenAt != nil)
+                }
+            }
+        case .hiddenUndated:
+            if let lessonIDs = subjectLessonIDs {
+                return #Predicate<StudentLesson> { sl in
+                    sl.lesson != nil &&
+                    (sl.isPresented || sl.givenAt != nil) &&
+                    sl.givenAt == nil &&
+                    lessonIDs.contains(sl.lesson!.id)
+                }
+            } else {
+                return #Predicate<StudentLesson> { sl in
+                    (sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil
+                }
+            }
+        }
+    }
+}
+
 struct StudentLessonsRootView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
@@ -107,71 +171,8 @@ struct StudentLessonsRootView: View {
             subjectLessonIDs = nil
         }
         
-        // Build predicate based on filter and subject
-        // OPTIMIZATION: Use database-level filtering via predicates for optimal performance
-        let predicate: Predicate<StudentLesson>
-        switch filter {
-        case .all:
-            if let lessonIDs = subjectLessonIDs {
-                // Filter by subject only (exclude hidden undated by default)
-                // Note: isGiven is a computed property, so we inline its logic here for SwiftData predicate compatibility
-                predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil &&
-                    !((sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil) &&
-                    lessonIDs.contains(sl.lesson!.id)
-                }
-            } else {
-                // No filter - but exclude hidden undated
-                // Note: isGiven is a computed property, so we inline its logic here for SwiftData predicate compatibility
-                predicate = #Predicate<StudentLesson> { sl in
-                    !((sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil)
-                }
-            }
-        case .completed:
-            // isGiven && givenAt != nil
-            // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic here
-            if let lessonIDs = subjectLessonIDs {
-                predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil &&
-                    (sl.isPresented || sl.givenAt != nil) &&
-                    sl.givenAt != nil &&
-                    lessonIDs.contains(sl.lesson!.id)
-                }
-            } else {
-                predicate = #Predicate<StudentLesson> { sl in
-                    (sl.isPresented || sl.givenAt != nil) && sl.givenAt != nil
-                }
-            }
-        case .notCompleted:
-            // !isGiven
-            // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic here
-            if let lessonIDs = subjectLessonIDs {
-                predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil &&
-                    !(sl.isPresented || sl.givenAt != nil) &&
-                    lessonIDs.contains(sl.lesson!.id)
-                }
-            } else {
-                predicate = #Predicate<StudentLesson> { sl in
-                    !(sl.isPresented || sl.givenAt != nil)
-                }
-            }
-        case .hiddenUndated:
-            // isGiven && givenAt == nil
-            // Note: isGiven is a computed property (isPresented || givenAt != nil), so we inline its logic here
-            if let lessonIDs = subjectLessonIDs {
-                predicate = #Predicate<StudentLesson> { sl in
-                    sl.lesson != nil &&
-                    (sl.isPresented || sl.givenAt != nil) &&
-                    sl.givenAt == nil &&
-                    lessonIDs.contains(sl.lesson!.id)
-                }
-            } else {
-                predicate = #Predicate<StudentLesson> { sl in
-                    (sl.isPresented || sl.givenAt != nil) && sl.givenAt == nil
-                }
-            }
-        }
+        // Build predicate using helper
+        let predicate = PredicateBuilders.buildPredicate(filter: filter, subjectLessonIDs: subjectLessonIDs)
         
         // Fetch with predicate
         let descriptor = FetchDescriptor<StudentLesson>(predicate: predicate)

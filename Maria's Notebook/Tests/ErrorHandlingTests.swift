@@ -12,29 +12,25 @@ struct ValidationErrorTests {
     @Test("emptyValue error has correct description")
     func emptyValueErrorDescription() {
         let error = ValidationError.emptyValue("Name cannot be empty")
-
-        #expect(error.errorDescription == "Name cannot be empty")
+        ErrorDescriptionTester.testErrorDescriptionEquals(error, expected: "Name cannot be empty")
     }
 
     @Test("nilValue error has correct description")
     func nilValueErrorDescription() {
         let error = ValidationError.nilValue("Student is required")
-
-        #expect(error.errorDescription == "Student is required")
+        ErrorDescriptionTester.testErrorDescriptionEquals(error, expected: "Student is required")
     }
 
     @Test("outOfRange error has correct description")
     func outOfRangeErrorDescription() {
         let error = ValidationError.outOfRange("Value must be between 0 and 100")
-
-        #expect(error.errorDescription == "Value must be between 0 and 100")
+        ErrorDescriptionTester.testErrorDescriptionEquals(error, expected: "Value must be between 0 and 100")
     }
 
     @Test("emptyCollection error has correct description")
     func emptyCollectionErrorDescription() {
         let error = ValidationError.emptyCollection("At least one student required")
-
-        #expect(error.errorDescription == "At least one student required")
+        ErrorDescriptionTester.testErrorDescriptionEquals(error, expected: "At least one student required")
     }
 }
 
@@ -45,22 +41,17 @@ struct ValidationHelpersTests {
 
     @Test("validateNonEmpty throws for empty string")
     func validateNonEmptyThrowsForEmpty() {
-        #expect(throws: ValidationError.self) {
-            try ValidationHelpers.validateNonEmpty("")
-        }
+        TestPatterns.expectThrowsError(try ValidationHelpers.validateNonEmpty(""), ofType: ValidationError.self)
     }
 
     @Test("validateNonEmpty throws for whitespace-only string")
     func validateNonEmptyThrowsForWhitespace() {
-        #expect(throws: ValidationError.self) {
-            try ValidationHelpers.validateNonEmpty("   \n\t  ")
-        }
+        TestPatterns.expectThrowsError(try ValidationHelpers.validateNonEmpty("   \n\t  "), ofType: ValidationError.self)
     }
 
     @Test("validateNonEmpty succeeds for non-empty string")
     func validateNonEmptySucceeds() throws {
         try ValidationHelpers.validateNonEmpty("Hello")
-        // No exception means success
     }
 
     @Test("validateNonEmpty uses custom message")
@@ -69,7 +60,7 @@ struct ValidationHelpersTests {
             try ValidationHelpers.validateNonEmpty("", message: "Custom message")
             #expect(Bool(false), "Should have thrown")
         } catch let error as ValidationError {
-            #expect(error.errorDescription == "Custom message")
+            ErrorDescriptionTester.testErrorDescriptionEquals(error, expected: "Custom message")
         } catch {
             #expect(Bool(false), "Wrong error type")
         }
@@ -78,10 +69,7 @@ struct ValidationHelpersTests {
     @Test("validateNotNil throws for nil value")
     func validateNotNilThrowsForNil() {
         let optionalValue: String? = nil
-
-        #expect(throws: ValidationError.self) {
-            _ = try ValidationHelpers.validateNotNil(optionalValue)
-        }
+        TestPatterns.expectThrowsError(try ValidationHelpers.validateNotNil(optionalValue), ofType: ValidationError.self)
     }
 
     @Test("validateNotNil returns unwrapped value")
@@ -95,32 +83,25 @@ struct ValidationHelpersTests {
 
     @Test("validateRange throws for value below range")
     func validateRangeThrowsForBelowRange() {
-        #expect(throws: ValidationError.self) {
-            try ValidationHelpers.validateRange(-1, in: 0...100)
-        }
+        TestPatterns.expectThrowsError(try ValidationHelpers.validateRange(-1, in: 0...100), ofType: ValidationError.self)
     }
 
     @Test("validateRange throws for value above range")
     func validateRangeThrowsForAboveRange() {
-        #expect(throws: ValidationError.self) {
-            try ValidationHelpers.validateRange(101, in: 0...100)
-        }
+        TestPatterns.expectThrowsError(try ValidationHelpers.validateRange(101, in: 0...100), ofType: ValidationError.self)
     }
 
     @Test("validateRange succeeds for value in range")
     func validateRangeSucceeds() throws {
         try ValidationHelpers.validateRange(50, in: 0...100)
-        try ValidationHelpers.validateRange(0, in: 0...100) // Boundary
-        try ValidationHelpers.validateRange(100, in: 0...100) // Boundary
+        try ValidationHelpers.validateRange(0, in: 0...100)
+        try ValidationHelpers.validateRange(100, in: 0...100)
     }
 
     @Test("validateNonEmpty collection throws for empty array")
     func validateNonEmptyCollectionThrowsForEmpty() {
         let emptyArray: [Int] = []
-
-        #expect(throws: ValidationError.self) {
-            try ValidationHelpers.validateNonEmpty(emptyArray)
-        }
+        TestPatterns.expectThrowsError(try ValidationHelpers.validateNonEmpty(emptyArray), ofType: ValidationError.self)
     }
 
     @Test("validateNonEmpty collection succeeds for non-empty array")
@@ -177,16 +158,14 @@ struct CSVImportErrorTests {
     @Test("missingRequiredHeaders error has correct description")
     func missingRequiredHeadersDescription() {
         let error = CSVImportError.missingRequiredHeaders(["name", "subject"])
-
-        #expect(error.errorDescription?.contains("name") == true)
-        #expect(error.errorDescription?.contains("subject") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "name")
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "subject")
     }
 
     @Test("invalidHeaderFormat error has correct description")
     func invalidHeaderFormatDescription() {
         let error = CSVImportError.invalidHeaderFormat("Headers contain special characters")
-
-        #expect(error.errorDescription?.contains("special characters") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "special characters")
     }
 }
 
@@ -198,29 +177,25 @@ struct LessonCSVImporterErrorTests {
     @Test("empty error has correct description")
     func emptyErrorDescription() {
         let error = LessonCSVImporter.ImportError.empty
-
-        #expect(error.errorDescription?.contains("empty") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "empty")
     }
 
     @Test("missingHeader error includes header name")
     func missingHeaderErrorDescription() {
         let error = LessonCSVImporter.ImportError.missingHeader("name")
-
-        #expect(error.errorDescription?.contains("name") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "name")
     }
 
     @Test("malformedRow error includes row number")
     func malformedRowErrorDescription() {
         let error = LessonCSVImporter.ImportError.malformedRow(5)
-
-        #expect(error.errorDescription?.contains("5") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "5")
     }
 
     @Test("encoding error includes message")
     func encodingErrorDescription() {
         let error = LessonCSVImporter.ImportError.encoding("Unsupported encoding")
-
-        #expect(error.errorDescription?.contains("Unsupported") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "Unsupported")
     }
 }
 
@@ -232,16 +207,13 @@ struct KeychainErrorTests {
     @Test("unexpectedStatus error includes status code")
     func unexpectedStatusDescription() {
         let error = KeychainError.unexpectedStatus(-25300)
-
-        #expect(error.errorDescription?.contains("-25300") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "-25300")
     }
 
     @Test("dataConversion error has description")
     func dataConversionDescription() {
         let error = KeychainError.dataConversion
-
-        #expect(error.errorDescription != nil)
-        #expect(error.errorDescription?.contains("conversion") == true)
+        ErrorDescriptionTester.testErrorDescription(error, containsSubstring: "conversion")
     }
 }
 
@@ -252,21 +224,19 @@ struct CSVParsingErrorTests {
 
     @Test("parse throws for empty data")
     func parseThrowsForEmptyData() {
-        let data = Data()
-
-        #expect(throws: LessonCSVImporter.ImportError.self) {
-            _ = try LessonCSVImporter.parse(data: data, existingLessonKeys: Set())
-        }
+        TestPatterns.expectThrowsError(
+            try LessonCSVImporter.parse(data: Data(), existingLessonKeys: Set()),
+            ofType: LessonCSVImporter.ImportError.self
+        )
     }
 
     @Test("parse throws for header-only CSV")
     func parseHandlesHeaderOnly() throws {
         let csv = "name,subject,group\n"
         let data = csv.data(using: .utf8)!
-
         let parsed = try LessonCSVImporter.parse(data: data, existingLessonKeys: Set())
 
-        #expect(parsed.rows.isEmpty)
+        TestPatterns.expectEmpty(parsed.rows)
         #expect(parsed.totalRows == 0)
     }
 
@@ -275,10 +245,10 @@ struct CSVParsingErrorTests {
         let csv = "title,category\nLesson 1,Math"
         let data = csv.data(using: .utf8)!
 
-        // Should throw because 'subject' is missing (title maps to name, but no subject)
-        #expect(throws: LessonCSVImporter.ImportError.self) {
-            _ = try LessonCSVImporter.parse(data: data, existingLessonKeys: Set())
-        }
+        TestPatterns.expectThrowsError(
+            try LessonCSVImporter.parse(data: data, existingLessonKeys: Set()),
+            ofType: LessonCSVImporter.ImportError.self
+        )
     }
 
     @Test("parse reports rows with missing required values as warnings")
@@ -290,23 +260,19 @@ struct CSVParsingErrorTests {
         Lesson 3,,Physics
         """
         let data = csv.data(using: .utf8)!
-
         let parsed = try LessonCSVImporter.parse(data: data, existingLessonKeys: Set())
 
-        // Only the first row is valid (2nd missing name, 3rd missing subject)
-        #expect(parsed.rows.count == 1)
-        #expect(parsed.warnings.count == 2)
+        TestPatterns.expectCount(parsed.rows, equals: 1)
+        TestPatterns.expectCount(parsed.warnings, equals: 2)
     }
 
     @Test("parse handles unsupported encoding gracefully")
     func parseHandlesUnsupportedEncoding() {
-        // Create data that can't be decoded as UTF-8 or UTF-16
         let invalidData = Data([0xFF, 0xFE, 0x00, 0xD8, 0x00, 0xDC])
-
-        // Should throw encoding error
-        #expect(throws: LessonCSVImporter.ImportError.self) {
-            _ = try LessonCSVImporter.parse(data: invalidData, existingLessonKeys: Set())
-        }
+        TestPatterns.expectThrowsError(
+            try LessonCSVImporter.parse(data: invalidData, existingLessonKeys: Set()),
+            ofType: LessonCSVImporter.ImportError.self
+        )
     }
 }
 
@@ -318,10 +284,10 @@ struct CSVHeaderMappingErrorTests {
     @Test("validateRequired throws for missing required keys")
     func validateRequiredThrowsForMissing() {
         let mapping: [String: Int] = ["name": 0, "group": 2]
-
-        #expect(throws: CSVImportError.self) {
-            try CSVHeaderMapping.validateRequired(mapping: mapping, requiredKeys: ["name", "subject"])
-        }
+        TestPatterns.expectThrowsError(
+            try CSVHeaderMapping.validateRequired(mapping: mapping, requiredKeys: ["name", "subject"]),
+            ofType: CSVImportError.self
+        )
     }
 
     @Test("validateRequired succeeds when all keys present")
@@ -358,56 +324,31 @@ struct CSVHeaderMappingErrorTests {
 @MainActor
 struct DatabaseErrorHandlingTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [Student.self, Note.self]
 
     @Test("fetch handles empty result gracefully")
     func fetchHandlesEmptyResult() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
-        // Query for non-existent students
         let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { student in
-                student.firstName == "NonExistent"
-            }
+            predicate: #Predicate { student in student.firstName == "NonExistent" }
         )
-
         let results = try context.fetch(descriptor)
 
-        #expect(results.isEmpty)
+        TestPatterns.expectEmpty(results)
     }
 
     @Test("save handles duplicate insert")
     func saveHandlesDuplicateInsert() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
 
         let id = UUID()
-        let student1 = Student(
-            id: id,
-            firstName: "Test",
-            lastName: "Student",
-            birthday: Date()
-        )
+        let student1 = Student(id: id, firstName: "Test", lastName: "Student", birthday: Date())
         context.insert(student1)
         try context.save()
 
-        // Creating another student with same UUID should work in SwiftData
-        // (it will just update the existing one)
-        let student2 = Student(
-            id: id,
-            firstName: "Updated",
-            lastName: "Student",
-            birthday: Date()
-        )
+        let student2 = Student(id: id, firstName: "Updated", lastName: "Student", birthday: Date())
         context.insert(student2)
-
-        // Should not crash
         try context.save()
     }
 }
@@ -472,48 +413,30 @@ struct GracefulDegradationTests {
 @MainActor
 struct ErrorRecoveryTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [Student.self, Note.self]
 
     @Test("SaveCoordinator handles context save failure gracefully")
     func saveCoordinatorHandlesFailure() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
-
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let saveCoordinator = SaveCoordinator()
-
-        // Should not crash even if called with empty context
         saveCoordinator.save(context)
     }
 
     @Test("model deletion followed by fetch doesn't crash")
     func deletionFollowedByFetchWorks() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
+        let builder = TestEntityBuilder(context: context)
 
-        let student = makeTestStudent()
-        context.insert(student)
-        try context.save()
-
+        let student = try builder.buildStudent()
         let studentId = student.id
 
-        // Delete
         context.delete(student)
         try context.save()
 
-        // Fetch should return empty
-        let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate<Student> { s in
-                s.id == studentId
-            }
-        )
+        let descriptor = FetchDescriptor<Student>(predicate: #Predicate<Student> { s in s.id == studentId })
         let results = try context.fetch(descriptor)
 
-        #expect(results.isEmpty)
+        TestPatterns.expectEmpty(results)
     }
 }
 
@@ -616,19 +539,12 @@ struct ToastServiceTests {
 @MainActor
 struct SaveCoordinatorIntegrationTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Note.self,
-        ])
-    }
+    private static let models: [any PersistentModel.Type] = [Student.self, Note.self]
 
     @Test("save returns true on success")
     func saveReturnsTrueOnSuccess() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let coordinator = SaveCoordinator()
-
         let student = makeTestStudent()
         context.insert(student)
 
@@ -640,11 +556,9 @@ struct SaveCoordinatorIntegrationTests {
 
     @Test("save skips when no changes")
     func saveSkipsWhenNoChanges() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let coordinator = SaveCoordinator()
 
-        // No changes made to context
         let result = coordinator.save(context)
 
         #expect(result == true)
@@ -667,11 +581,9 @@ struct SaveCoordinatorIntegrationTests {
 
     @Test("saveWithToast shows success toast on success")
     func saveWithToastShowsSuccessToast() throws {
-        let container = try makeContainer()
-        let context = ModelContext(container)
+        let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.models)
         let coordinator = SaveCoordinator()
 
-        // Clear any existing toasts from previous tests
         ToastService.shared.clearAll()
 
         let student = makeTestStudent()
@@ -680,7 +592,6 @@ struct SaveCoordinatorIntegrationTests {
         let result = coordinator.saveWithToast(context, successMessage: "Saved!")
 
         #expect(result == true)
-        // Toast should be shown (we can check ToastService.shared)
         #expect(ToastService.shared.currentToast?.message == "Saved!")
     }
 }

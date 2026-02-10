@@ -114,12 +114,14 @@ struct StudentLessonPill: View {
     }
 
     private var studentLine: String {
-        let names: [String] = snapshot.studentIDs.map { id in
-            if let s = students.first(where: { $0.id == id }) { return displayName(for: s) } else { return "(Removed)" }
+        let names = snapshot.studentIDs.compactMap { id -> String? in
+            students.first(where: { $0.id == id }).map { displayName(for: $0) } ?? "(Removed)"
         }
-        if !names.isEmpty { return names.joined(separator: ", ") }
-        let count = snapshot.studentIDs.count
-        return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+        guard !names.isEmpty else {
+            let count = snapshot.studentIDs.count
+            return count > 0 ? "\(count) student\(count == 1 ? "" : "s")" : ""
+        }
+        return names.joined(separator: ", ")
     }
     
     /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
@@ -127,31 +129,30 @@ struct StudentLessonPill: View {
         let day = AppCalendar.startOfDay(date)
         let cal = AppCalendar.shared
 
-        // 1) Explicit non-school day wins
-        do {
-            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-            nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
-        }
+        // 1) Check explicit non-school day
+        if hasNonSchoolDay(for: day) { return true }
 
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
+        // 2) Check if weekend
         let weekday = cal.component(.weekday, from: day)
         let isWeekend = (weekday == 1 || weekday == 7)
         guard isWeekend else { return false }
 
-        // 3) Weekend override makes it a school day
-        do {
-            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-            ovDescriptor.fetchLimit = 1
-            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            // If override fetch fails, assume weekend remains non-school
-        }
-        return true
+        // 3) Check weekend override (makes it a school day)
+        return !hasSchoolDayOverride(for: day)
+    }
+
+    /// Helper to check if a specific date has a non-school day entry.
+    private func hasNonSchoolDay(for day: Date) -> Bool {
+        var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.isEmpty == false
+    }
+
+    /// Helper to check if a specific date has a school day override entry.
+    private func hasSchoolDayOverride(for day: Date) -> Bool {
+        var descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.isEmpty == false
     }
     
     private func recentSchoolDayStarts(anchor: Date, count: Int) -> [Date] {
@@ -179,26 +180,32 @@ struct StudentLessonPill: View {
         guard let start = days.first,
               let endExclusive = calendar.date(byAdding: .day, value: 1, to: (days.last ?? start)) else { return [] }
 
-        func norm(_ s: String) -> String { s.normalizedForComparison() }
-        let excludedLessonIDs: Set<UUID> = {
-            let ids = lessons.filter { l in
-                let s = norm(l.subject)
-                let g = norm(l.group)
-                return s == "parsha" || g == "parsha"
-            }.map { $0.id }
-            return Set(ids)
-        }()
+        let excludedLessonIDs = getExcludedParshaLessonIDs()
+        let presented = fetchPresentedStudentLessons(from: start, to: endExclusive)
+        let filtered = presented.filter { !excludedLessonIDs.contains($0.resolvedLessonID) }
+        return Set(filtered.flatMap { $0.resolvedStudentIDs })
+    }
 
-        // Fetch any presented StudentLesson within the window, regardless of lesson
+    /// Helper to get lesson IDs that should be excluded (e.g., Parsha lessons).
+    private func getExcludedParshaLessonIDs() -> Set<UUID> {
+        let normalized = { (s: String) in s.normalizedForComparison() }
+        let parshaLessons = lessons.filter { l in
+            let s = normalized(l.subject)
+            let g = normalized(l.group)
+            return s == "parsha" || g == "parsha"
+        }
+        return Set(parshaLessons.map { $0.id })
+    }
+
+    /// Helper to fetch presented StudentLessons within a date range.
+    private func fetchPresentedStudentLessons(from start: Date, to endExclusive: Date) -> [StudentLesson] {
         let predicate = #Predicate<StudentLesson> {
             $0.isPresented == true &&
             $0.givenAt != nil &&
             $0.givenAt! >= start &&
             $0.givenAt! < endExclusive
         }
-        let presented = (try? modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
-        let filtered = presented.filter { !excludedLessonIDs.contains($0.resolvedLessonID) }
-        return Set(filtered.flatMap { $0.resolvedStudentIDs })
+        return (try? modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))) ?? []
     }
 
     @MainActor
@@ -494,22 +501,33 @@ struct StudentLessonPill: View {
     }
 
     private func setTime(_ newTime: Date) {
-        guard let id = targetStudentLessonID else { return }
-        var desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
-        desc.fetchLimit = 1
-        guard let sl = (try? modelContext.fetch(desc))?.first else { return }
-        let baseDate = sl.scheduledFor ?? snapshot.scheduledFor ?? Date()
-        let dayComps = calendar.dateComponents([.year, .month, .day], from: baseDate)
-        let timeComps = calendar.dateComponents([.hour, .minute], from: newTime)
+        guard let id = targetStudentLessonID,
+              let studentLesson = fetchStudentLesson(by: id) else { return }
+
+        let baseDate = studentLesson.scheduledFor ?? snapshot.scheduledFor ?? Date()
+        let combined = mergeDateAndTime(date: baseDate, time: newTime)
+        studentLesson.setScheduledFor(combined, using: calendar)
+        saveCoordinator.save(modelContext, reason: "Update lesson time")
+    }
+
+    /// Helper to fetch a StudentLesson by ID.
+    private func fetchStudentLesson(by id: UUID) -> StudentLesson? {
+        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first
+    }
+
+    /// Helper to merge date components (year, month, day) with time components (hour, minute).
+    private func mergeDateAndTime(date: Date, time: Date) -> Date {
+        let dayComps = calendar.dateComponents([.year, .month, .day], from: date)
+        let timeComps = calendar.dateComponents([.hour, .minute], from: time)
         var merged = DateComponents()
         merged.year = dayComps.year
         merged.month = dayComps.month
         merged.day = dayComps.day
         merged.hour = timeComps.hour
         merged.minute = timeComps.minute
-        let combined = calendar.date(from: merged) ?? newTime
-        sl.setScheduledFor(combined, using: calendar)
-        saveCoordinator.save(modelContext, reason: "Update lesson time")
+        return calendar.date(from: merged) ?? time
     }
 
     private struct PillDropDelegate: DropDelegate {

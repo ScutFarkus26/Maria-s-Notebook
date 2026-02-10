@@ -224,9 +224,9 @@ struct StudentLessonDetailContentView: View {
             if let presentationVM = vm.presentationViewModel {
                 IndependentWorkflowWindow(
                     presentationViewModel: presentationVM,
-                    students: studentsAll.filter { vm.selectedStudentIDs.contains($0.id) },
-                    lessonName: vm.lessonObject(from: lessons)?.name ?? "Lesson",
-                    lessonID: vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID,
+                    students: selectedStudentsList,
+                    lessonName: currentLessonName,
+                    lessonID: currentLessonID,
                     onComplete: {
                         handleWorkflowComplete()
                         showIndependentWorkflowWindow = false
@@ -304,42 +304,23 @@ struct StudentLessonDetailContentView: View {
     }
     
     // MARK: - Three Panel Layout (Planning + Presentation + Work)
-    
+
     private var threePanelLayout: some View {
         guard let presentationVM = vm.presentationViewModel else {
             return AnyView(EmptyView())
         }
-        
-        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
-        let lessonTitle = vm.lessonObject(from: lessons)?.name ?? "Lesson"
-        let lessonID = vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
+
+        let lessonTitle = currentLessonName
+        let lessonID = currentLessonID
         
         return AnyView(
             VStack(spacing: 0) {
                 // Header toolbar
-                #if os(macOS)
-                WorkflowHeaderBar(
+                workflowHeaderBar(
+                    presentationVM: presentationVM,
                     lessonTitle: lessonTitle,
-                    onBack: checkAndExitWorkflowMode,
-                    onComplete: handleWorkflowComplete,
-                    canComplete: canCompleteWorkflow(presentationVM: presentationVM),
-                    onPopOut: {
-                        popOutToIndependentWindow(
-                            presentationVM: presentationVM,
-                            lessonTitle: lessonTitle,
-                            lessonID: lessonID,
-                            selectedStudents: selectedStudents
-                        )
-                    }
+                    lessonID: lessonID
                 )
-                #else
-                WorkflowHeaderBar(
-                    lessonTitle: lessonTitle,
-                    onBack: checkAndExitWorkflowMode,
-                    onComplete: handleWorkflowComplete,
-                    canComplete: canCompleteWorkflow(presentationVM: presentationVM)
-                )
-                #endif
                 
                 // Three-panel layout
                 GeometryReader { geometry in
@@ -368,11 +349,11 @@ struct StudentLessonDetailContentView: View {
                         // The panel internally splits into presentation (left) and work items (right)
                         UnifiedPresentationWorkflowPanel(
                             presentationViewModel: presentationVM,
-                            students: selectedStudents,
+                            students: selectedStudentsList,
                             lessonName: lessonTitle,
                             lessonID: lessonID,
-                            onComplete: { handleWorkflowComplete() },
-                            onCancel: { vm.exitWorkflowMode() },
+                            onComplete: handleWorkflowComplete,
+                            onCancel: vm.exitWorkflowMode,
                             triggerCompletion: nil
                         )
                         .frame(width: geometry.size.width * 0.72)
@@ -416,35 +397,62 @@ struct StudentLessonDetailContentView: View {
     
     // Helper for keyboard shortcut
     private func applyUnderstandingToAll(level: Int, presentationVM: PostPresentationFormViewModel) {
-        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
-        for student in selectedStudents {
+        for student in selectedStudentsList {
             if presentationVM.entries[student.id] != nil {
                 presentationVM.entries[student.id]?.understandingLevel = level
             }
         }
     }
-    
+
     // Check for unsaved changes before exiting workflow
     private func checkAndExitWorkflowMode() {
-        guard let presentationVM = vm.presentationViewModel else {
-            vm.exitWorkflowMode()
-            return
-        }
-        
-        // Check if there are any changes (notes, observations, or understanding levels set)
-        let hasChanges = presentationVM.entries.values.contains { entry in
-            !entry.observation.isEmpty || 
-            !entry.assignment.isEmpty || 
-            entry.understandingLevel != 3 // 3 is default
-        } || !presentationVM.groupObservation.isEmpty
-        
-        if hasChanges {
+        if workflowHasUnsavedChanges {
             showUnsavedChangesAlert = true
         } else {
             vm.exitWorkflowMode()
         }
     }
-    
+
+    private var workflowHasUnsavedChanges: Bool {
+        guard let presentationVM = vm.presentationViewModel else { return false }
+        return presentationVM.entries.values.contains { entry in
+            !entry.observation.isEmpty ||
+            !entry.assignment.isEmpty ||
+            entry.understandingLevel != 3
+        } || !presentationVM.groupObservation.isEmpty
+    }
+
+    @ViewBuilder
+    private func workflowHeaderBar(
+        presentationVM: PostPresentationFormViewModel,
+        lessonTitle: String,
+        lessonID: UUID
+    ) -> some View {
+        #if os(macOS)
+        WorkflowHeaderBar(
+            lessonTitle: lessonTitle,
+            onBack: checkAndExitWorkflowMode,
+            onComplete: handleWorkflowComplete,
+            canComplete: canCompleteWorkflow(presentationVM: presentationVM),
+            onPopOut: {
+                popOutToIndependentWindow(
+                    presentationVM: presentationVM,
+                    lessonTitle: lessonTitle,
+                    lessonID: lessonID,
+                    selectedStudents: selectedStudentsList
+                )
+            }
+        )
+        #else
+        WorkflowHeaderBar(
+            lessonTitle: lessonTitle,
+            onBack: checkAndExitWorkflowMode,
+            onComplete: handleWorkflowComplete,
+            canComplete: canCompleteWorkflow(presentationVM: presentationVM)
+        )
+        #endif
+    }
+
     // Pop out workflow to independent window
     #if os(macOS)
     private func popOutToIndependentWindow(
@@ -462,30 +470,44 @@ struct StudentLessonDetailContentView: View {
     }
     #endif
 
-    
+
     private func handleWorkflowComplete() {
-        // Sync state back to detail VM
-        vm.isPresented = true
-        vm.givenAt = calendar.startOfDay(for: Date())
-        vm.needsAnotherPresentation = false
-        
-        // Save everything
+        setPresentationState(isPresented: true, givenAt: calendar.startOfDay(for: Date()), needsAnother: false)
+        saveAndExitWorkflow()
+    }
+
+    private func saveAndExitWorkflow() {
         vm.save(
             studentsAll: studentsAll,
             lessons: lessons,
             studentLessonsAll: studentLessonsAll,
             calendar: calendar
         ) {
-            // Exit workflow mode
             vm.exitWorkflowMode()
-            
-            // Optionally dismiss the entire detail view
             handleDone()
         }
     }
     
     // MARK: - Computed Properties
-    
+
+    private var currentLessonName: String {
+        vm.lessonObject(from: lessons)?.name ?? "Lesson"
+    }
+
+    private var currentLessonID: UUID {
+        vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
+    }
+
+    private var currentLesson: Lesson? {
+        vm.lessonObject(from: lessons)
+    }
+
+    private var selectedStudentsList: [Student] {
+        studentsAll
+            .filter { vm.selectedStudentIDs.contains($0.id) }
+            .sorted(by: StudentSortComparator.byFirstName)
+    }
+
     #if os(iOS)
     private var progressButtonsHorizontalPadding: CGFloat {
         horizontalSizeClass == .compact ? 16 : 32
@@ -497,36 +519,38 @@ struct StudentLessonDetailContentView: View {
     #endif
     
     // MARK: - Sections
-    
+
     private var lessonHeaderSection: some View {
-        let lesson = vm.lessonObject(from: lessons)
-        let hasFile: Bool = {
-            guard let l = lesson else { return false }
-            if let rel = l.pagesFileRelativePath, !rel.isEmpty { return true }
-            return l.pagesFileBookmark != nil
-        }()
-        
-        return StudentLessonHeaderView(
-            lessonName: lesson?.name ?? "Lesson",
-            subject: lesson?.subject ?? "",
-            group: lesson?.group ?? "",
-            subjectColor: AppColors.color(forSubject: lesson?.subject ?? ""),
-            onTapTitle: hasFile ? { if let url = resolveLessonPagesURL() { openInPages(url) } } : nil
+        StudentLessonHeaderView(
+            lessonName: currentLesson?.name ?? "Lesson",
+            subject: currentLesson?.subject ?? "",
+            group: currentLesson?.group ?? "",
+            subjectColor: AppColors.color(forSubject: currentLesson?.subject ?? ""),
+            onTapTitle: lessonHasFile ? ({ openLessonFile() }) : nil
         )
+    }
+
+    private var lessonHasFile: Bool {
+        guard let lesson = currentLesson else { return false }
+        if let rel = lesson.pagesFileRelativePath, !rel.isEmpty { return true }
+        return lesson.pagesFileBookmark != nil
+    }
+
+    private func openLessonFile() {
+        if let url = resolveLessonPagesURL() {
+            openInPages(url)
+        }
     }
     
     private var studentPillsSection: some View {
         StudentPillsSection(
             students: selectedStudentsList,
-            subjectColor: AppColors.color(forSubject: vm.lessonObject(from: lessons)?.subject ?? ""),
+            subjectColor: AppColors.color(forSubject: currentLesson?.subject ?? ""),
             onRemove: { id in vm.selectedStudentIDs.remove(id) },
             onOpenPicker: { vm.showingStudentPickerPopover = true },
-            onOpenMove: {
-                vm.studentsToMove = []
-                vm.showingMoveStudentsSheet = true
-            },
+            onOpenMove: openMoveStudentsSheet,
             canMoveStudents: selectedStudentsList.count > 1 && !vm.isPresented,
-            onOpenMoveAbsent: { openMoveAbsentStudents() },
+            onOpenMoveAbsent: openMoveAbsentStudents,
             canMoveAbsentStudents: canMoveAbsentStudents
         )
         .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
@@ -539,6 +563,11 @@ struct StudentLessonDetailContentView: View {
             .frame(minWidth: 320)
         }
     }
+
+    private func openMoveStudentsSheet() {
+        vm.studentsToMove = []
+        vm.showingMoveStudentsSheet = true
+    }
     
     private var inboxStatusSection: some View {
         InboxStatusSection(scheduledFor: $vm.scheduledFor)
@@ -548,28 +577,22 @@ struct StudentLessonDetailContentView: View {
         StudentLessonNotesSectionUnified(
             studentLesson: vm.studentLesson,
             legacyNotes: $vm.notes,
-            onLegacyNotesChange: { newNotes in
-                vm.notes = newNotes
-            }
+            onLegacyNotesChange: { vm.notes = $0 }
         )
     }
-    
-    private var lessonPickerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LessonPickerSection(
-                viewModel: lessonPickerVM,
-                resolvedLesson: lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? vm.lessonObject(from: lessons),
-                isFocused: $lessonPickerFocused
-            )
-        }
-    }
-    
+
     @ViewBuilder
     private func lessonPickerOrChangeControl(horizontalPadding: CGFloat) -> some View {
-        if vm.lessonObject(from: lessons) == nil || vm.showLessonPicker {
-            lessonPickerSection
-                .padding(.horizontal, horizontalPadding)
-                .padding(.top, 16)
+        if currentLesson == nil || vm.showLessonPicker {
+            VStack(alignment: .leading, spacing: 8) {
+                LessonPickerSection(
+                    viewModel: lessonPickerVM,
+                    resolvedLesson: lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? currentLesson,
+                    isFocused: $lessonPickerFocused
+                )
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 16)
         } else {
             ChangeLessonControl(showLessonPicker: $vm.showLessonPicker)
                 .padding(.horizontal, horizontalPadding)
@@ -597,27 +620,31 @@ struct StudentLessonDetailContentView: View {
     
     private var moveStudentsSheet: some View {
         MoveStudentsSheet(
-            lessonName: vm.lessonObject(from: lessons)?.name ?? "Lesson",
+            lessonName: currentLessonName,
             students: selectedStudentsList,
             studentsToMove: $vm.studentsToMove,
             selectedStudentIDs: vm.selectedStudentIDs,
-            onMove: {
-                vm.moveStudentsToInbox(
-                    studentsAll: studentsAll,
-                    studentLessonsAll: studentLessonsAll,
-                    lessons: lessons
-                )
-                vm.showingMoveStudentsSheet = false
-            },
-            onCancel: {
-                vm.studentsToMove = []
-                vm.showingMoveStudentsSheet = false
-            }
+            onMove: handleMoveStudents,
+            onCancel: cancelMoveStudents
         )
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 520)
         .presentationSizingFitted()
         #endif
+    }
+
+    private func handleMoveStudents() {
+        vm.moveStudentsToInbox(
+            studentsAll: studentsAll,
+            studentLessonsAll: studentLessonsAll,
+            lessons: lessons
+        )
+        vm.showingMoveStudentsSheet = false
+    }
+
+    private func cancelMoveStudents() {
+        vm.studentsToMove = []
+        vm.showingMoveStudentsSheet = false
     }
 
 
@@ -651,19 +678,21 @@ struct StudentLessonDetailContentView: View {
         }
     }
 
-    private var selectedStudentsList: [Student] {
-        // studentsAll is already deduplicated, but filter first then sort for clarity
-        studentsAll
-            .filter { vm.selectedStudentIDs.contains($0.id) }
-            .sorted(by: StudentSortComparator.byFirstName)
-    }
-    
     private func resolveLessonPagesURL() -> URL? {
-        guard let lesson = vm.lessonObject(from: lessons) else { return nil }
-        if let rel = lesson.pagesFileRelativePath, !rel.isEmpty, let url = try? LessonFileStorage.resolve(relativePath: rel) {
+        guard let lesson = currentLesson else { return nil }
+
+        // Try relative path first
+        if let relativePath = lesson.pagesFileRelativePath, !relativePath.isEmpty,
+           let url = try? LessonFileStorage.resolve(relativePath: relativePath) {
             return url
         }
-        guard let bookmark = lesson.pagesFileBookmark else { return nil }
+
+        // Fallback to bookmark
+        return resolveBookmarkURL(lesson.pagesFileBookmark)
+    }
+
+    private func resolveBookmarkURL(_ bookmark: Data?) -> URL? {
+        guard let bookmark = bookmark else { return nil }
         var stale = false
         do {
 #if os(macOS)
@@ -677,13 +706,19 @@ struct StudentLessonDetailContentView: View {
             return nil
         }
     }
-    
+
     private func openInPages(_ url: URL) {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 #if os(iOS)
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
 #elseif os(macOS)
+        openInPagesOnMac(url)
+#endif
+    }
+
+#if os(macOS)
+    private func openInPagesOnMac(_ url: URL) {
         if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
@@ -691,8 +726,8 @@ struct StudentLessonDetailContentView: View {
         } else {
             NSWorkspace.shared.open(url)
         }
-#endif
     }
+#endif
     
     // MARK: - Mastery Status Row
 
@@ -709,6 +744,7 @@ struct StudentLessonDetailContentView: View {
             calendar: calendar
         )
     }
+
     private var isPreviouslyPresentedActive: Bool {
         StudentLessonProgressHelper.isPreviouslyPresentedActive(
             isPresented: vm.isPresented,
@@ -716,50 +752,29 @@ struct StudentLessonDetailContentView: View {
             calendar: calendar
         )
     }
-    private var isNeedsAnotherActive: Bool {
-        StudentLessonProgressHelper.isNeedsAnotherActive(
-            needsAnotherPresentation: vm.needsAnotherPresentation,
-            isPresented: vm.isPresented
-        )
-    }
+
     private func selectJustPresented() {
-        vm.isPresented = true
-        vm.givenAt = calendar.startOfDay(for: Date())
-        vm.needsAnotherPresentation = false
-        
-        // Enter workflow mode instead of showing sheet
-        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
-        vm.enterWorkflowMode(students: selectedStudents)
+        setPresentationState(isPresented: true, givenAt: calendar.startOfDay(for: Date()), needsAnother: false)
+        vm.enterWorkflowMode(students: selectedStudentsList)
     }
-    
+
     private func selectPreviouslyPresented() {
-        vm.isPresented = true
-        vm.needsAnotherPresentation = false
-        if let date = vm.givenAt, calendar.isDateInToday(date) {
-            vm.givenAt = nil
-        }
-        
-        // Enter workflow mode instead of showing sheet
-        let selectedStudents = studentsAll.filter { vm.selectedStudentIDs.contains($0.id) }
-        vm.enterWorkflowMode(students: selectedStudents)
+        let givenAt = vm.givenAt.flatMap { calendar.isDateInToday($0) ? nil : $0 }
+        setPresentationState(isPresented: true, givenAt: givenAt, needsAnother: false)
+        vm.enterWorkflowMode(students: selectedStudentsList)
         vm.showAssignmentComposer = true
     }
-    private func selectNeedsAnother() {
-        vm.isPresented = false
-        vm.givenAt = nil
-        vm.needsAnotherPresentation = true
+
+    private func setPresentationState(isPresented: Bool, givenAt: Date?, needsAnother: Bool) {
+        vm.isPresented = isPresented
+        vm.givenAt = givenAt
+        vm.needsAnotherPresentation = needsAnother
     }
 
-
-
-
-    // MARK: - Workflow Helpers
-    
     private func canCompleteWorkflow(presentationVM: PostPresentationFormViewModel) -> Bool {
-        // Must have valid presentation status
-        return presentationVM.canDismiss
+        presentationVM.canDismiss
     }
-    
+
     // MARK: - Absent Logic
     private var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
 
@@ -780,11 +795,8 @@ struct StudentLessonDetailContentView: View {
     }
 
     private func openMoveAbsentStudents() {
-        let ids = absentStudentIDs
-        guard !ids.isEmpty else { return }
-        vm.studentsToMove = ids
+        guard !absentStudentIDs.isEmpty else { return }
+        vm.studentsToMove = absentStudentIDs
         vm.showingMoveStudentsSheet = true
     }
-
-
 }
