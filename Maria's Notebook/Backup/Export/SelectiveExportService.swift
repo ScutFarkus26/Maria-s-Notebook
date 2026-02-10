@@ -451,9 +451,7 @@ public final class SelectiveExportService {
                 guard sl.resolvedStudentIDs.contains(where: { studentIDs.contains($0) }) else { return false }
             }
             if let range = filter.dateRange {
-                if let date = sl.createdAt {
-                    return range.contains(date)
-                }
+                return range.contains(sl.createdAt)
             }
             return true
         }

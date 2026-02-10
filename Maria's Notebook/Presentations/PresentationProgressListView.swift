@@ -79,7 +79,7 @@ struct PresentationProgressListView: View {
                 if viewModel.presentations.isEmpty {
                     ContentUnavailableView(
                         "No Presentations",
-                        systemImage: "presentation.person.line",
+                        systemImage: "person.3.sequence.fill",
                         description: Text("No presentations match your search")
                     )
                 }

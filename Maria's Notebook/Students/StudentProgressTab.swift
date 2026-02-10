@@ -237,7 +237,7 @@ struct StudentProgressTab: View {
                     iconName: "list.bullet.rectangle",
                     color: trackColor,
                     title: track.title,
-                    subtitle: enrollment.startedAt.map { "Started \($0, style: .relative)" } ?? "Enrolled \(enrollment.createdAt, style: .relative)",
+                    subtitle: enrollment.startedAt.map { "Started \($0.formatted(.relative(presentation: .named)))" } ?? "Enrolled \(enrollment.createdAt.formatted(.relative(presentation: .named)))",
                     isComplete: progress.isComplete && progress.totalSteps > 0,
                     isActive: enrollment.isActive
                 )
@@ -254,7 +254,7 @@ struct StudentProgressTab: View {
 
                 if let lesson = progress.currentLesson, progress.totalSteps > 0 {
                     Divider().padding(.vertical, 4)
-                    NextItemBanner(iconName: "book.fill", label: "Next Lesson", title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name, color: trackColor)
+                    NextItemBanner(iconName: "book.fill", label: "Next Lesson", title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name, subtitle: nil, color: trackColor)
                 } else if progress.isComplete && progress.totalSteps > 0 {
                     Divider().padding(.vertical, 4)
                     CompletionTrophyBanner(message: "All lessons mastered!")
@@ -311,7 +311,7 @@ struct StudentProgressTab: View {
                     iconName: "doc.text.fill",
                     color: .green,
                     title: viewModel.reportTitle(for: report),
-                    subtitle: "Assigned \(report.assignedAt, style: .relative)",
+                    subtitle: "Assigned \(report.assignedAt.formatted(.relative(presentation: .named)))",
                     isComplete: isComplete,
                     isActive: false
                 )

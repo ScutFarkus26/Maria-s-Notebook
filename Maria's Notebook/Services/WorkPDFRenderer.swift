@@ -44,7 +44,7 @@ enum WorkPDFRenderer {
         let lightGrayColor = NSColor(white: 0.6, alpha: 1.0)
 
         // Group and sort
-        let (sortedItems, groups, groupOrder) = groupItems(items, by: sortMode)
+        let (_, groups, groupOrder) = groupItems(items, by: sortMode)
 
         // Create PDF
         let pdfData = NSMutableData()

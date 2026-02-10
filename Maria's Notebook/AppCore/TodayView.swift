@@ -336,9 +336,14 @@ struct TodayView: View {
 
     private func handleDateChange(_ newValue: Date) {
         let coerced = nearestSchoolDaySync(to: newValue)
-        if coerced != newValue {
-            viewModel.date = AppCalendar.startOfDay(coerced)
+        let startOfDay = AppCalendar.startOfDay(coerced)
+        
+        // Only update if the coerced date is different to prevent feedback loops
+        if startOfDay != newValue && startOfDay != AppCalendar.startOfDay(newValue) {
+            viewModel.date = startOfDay
+            return
         }
+        
         updateFilteredQueries()
     }
 

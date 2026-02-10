@@ -230,6 +230,11 @@ extension WorkStep: StepProtocol {
     var stepID: String { id.uuidString }
 }
 
+// Extend TrackStep to conform to StepProtocol
+extension TrackStep: StepProtocol {
+    var stepID: String { id.uuidString }
+}
+
 // MARK: - Next Item Banner
 
 /// Banner showing the next lesson/step with colored background

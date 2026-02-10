@@ -400,6 +400,7 @@ enum DataCleanupService {
         deduplicate(Note.self, using: context, merge: mergeNote)
     }
 
+    @MainActor
     private static func mergeStudent(canonical: Student, duplicate: Student) {
         if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
@@ -416,6 +417,7 @@ enum DataCleanupService {
         mergeRelationship(from: duplicate.documents, to: &canonical.documents, setter: { $0.student = canonical })
     }
 
+    @MainActor
     private static func mergeLesson(canonical: Lesson, duplicate: Lesson) {
         if canonical.name.isEmpty { canonical.name = duplicate.name }
         if canonical.subject.isEmpty { canonical.subject = duplicate.subject }
@@ -434,6 +436,7 @@ enum DataCleanupService {
         mergeRelationship(from: duplicate.lessonAssignments, to: &canonical.lessonAssignments, setter: { $0.lesson = canonical })
     }
 
+    @MainActor
     private static func mergeLessonPresentation(canonical: LessonPresentation, duplicate: LessonPresentation) {
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
@@ -445,6 +448,7 @@ enum DataCleanupService {
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
     }
 
+    @MainActor
     private static func mergeWorkModel(canonical: WorkModel, duplicate: WorkModel) {
         if canonical.title.isEmpty { canonical.title = duplicate.title }
         if canonical.notes.isEmpty { canonical.notes = duplicate.notes }
@@ -469,6 +473,7 @@ enum DataCleanupService {
         mergeRelationship(from: duplicate.unifiedNotes, to: &canonical.unifiedNotes, setter: { $0.work = canonical })
     }
 
+    @MainActor
     private static func mergeNote(canonical: Note, duplicate: Note) {
         if canonical.body.isEmpty { canonical.body = duplicate.body }
         if !canonical.isPinned && duplicate.isPinned { canonical.isPinned = true }

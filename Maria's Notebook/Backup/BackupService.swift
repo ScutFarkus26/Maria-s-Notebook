@@ -135,19 +135,16 @@ public final class BackupService {
         let finalPayload: BackupPayload?
         let finalEncrypted: Data?
         let finalCompressed: Data?
-        let compressionUsed: String?
 
         if let password = password, !password.isEmpty {
             progress(BackupProgress.progress(for: .encrypting), "Encrypting data…")
             finalEncrypted = try codec.encrypt(compressedPayloadBytes, password: password)
             finalPayload = nil
             finalCompressed = nil
-            compressionUsed = BackupFile.compressionAlgorithm
         } else {
             finalEncrypted = nil
             finalPayload = nil
             finalCompressed = compressedPayloadBytes
-            compressionUsed = BackupFile.compressionAlgorithm
         }
 
         let counts: [String: Int] = [

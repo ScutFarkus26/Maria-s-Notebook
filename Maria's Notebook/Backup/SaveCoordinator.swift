@@ -33,7 +33,9 @@ final class SaveCoordinator: ObservableObject {
         
         saveTimer?.invalidate()
         saveTimer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
-            self?.executePendingSaves()
+            Task { @MainActor [weak self] in
+                self?.executePendingSaves()
+            }
         }
     }
     
