@@ -117,7 +117,8 @@ final class TodayViewModel {
 
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
     // during rapid changes (e.g., date picker scrolling, filter changes)
-    // Made nonisolated to allow access from deinit
+    // This warning is a known Swift 6 issue with Task cancellation in deinit
+    // The property must be nonisolated(unsafe) to allow cancellation from deinit
     nonisolated(unsafe) private var reloadTask: Task<Void, Never>?
 
     /// Schedules a debounced reload. Use this for data-driven changes that may happen rapidly.
