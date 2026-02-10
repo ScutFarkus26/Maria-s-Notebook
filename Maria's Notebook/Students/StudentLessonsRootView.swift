@@ -93,7 +93,7 @@ struct StudentLessonsRootView: View {
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use lightweight query for change detection only
-    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var allStudentLessons: [StudentLesson]
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
@@ -101,11 +101,6 @@ struct StudentLessonsRootView: View {
     private var students: [Student] {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
-
-    // OPTIMIZATION: Cached filtered studentLessons loaded with database-level predicates
-    @State private var filteredStudentLessons: [StudentLesson] = []
-    // OPTIMIZATION: Cached sorted studentLessons to avoid expensive sorting on every view render
-    @State private var cachedStudentLessons: [StudentLesson] = []
 
     @State private var selectedLessonID: UUID? = nil
     @State private var quickActionsLessonID: UUID? = nil
@@ -150,47 +145,102 @@ struct StudentLessonsRootView: View {
         Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     
-    // MARK: - Database-Level Filtering
+    // MODERN: Computed properties with automatic dependency tracking
+    // No manual cache invalidation needed - SwiftUI handles updates automatically
     
-    /// Loads filtered studentLessons using database-level predicates
-    /// Filters by completion status and subject at the database level for optimal performance
-    private func loadFilteredStudentLessons() {
-        // First, if subject is selected, get lesson IDs for that subject
-        let subjectLessonIDs: Set<UUID>?
-        if let subject = selectedSubject {
-            let subjectLessons = lessons.filter { lesson in
-                lesson.subject.caseInsensitiveCompare(subject) == .orderedSame
-            }
-            subjectLessonIDs = Set(subjectLessons.map { $0.id })
-            // If no lessons found for subject, return empty array
-            if subjectLessonIDs?.isEmpty == true {
-                filteredStudentLessons = []
-                return
-            }
-        } else {
-            subjectLessonIDs = nil
+    /// Subject-filtered lesson IDs for filtering student lessons
+    private var subjectLessonIDs: Set<UUID>? {
+        guard let subject = selectedSubject else { return nil }
+        let subjectLessons = lessons.filter { lesson in
+            lesson.subject.caseInsensitiveCompare(subject) == .orderedSame
+        }
+        let ids = Set(subjectLessons.map { $0.id })
+        return ids.isEmpty ? nil : ids
+    }
+    
+    /// Filtered student lessons based on completion filter and subject selection
+    /// Automatically recomputes when filter, subject, or allStudentLessons changes
+    private var filteredStudentLessons: [StudentLesson] {
+        // Apply completion filter
+        let base: [StudentLesson]
+        switch filter {
+        case .all:
+            // Exclude hidden undated (presented but no givenAt)
+            base = allStudentLessons.filter { !($0.isGiven && $0.givenAt == nil) }
+        case .completed:
+            base = allStudentLessons.filter { $0.isGiven && $0.givenAt != nil }
+        case .notCompleted:
+            base = allStudentLessons.filter { !$0.isGiven }
+        case .hiddenUndated:
+            base = allStudentLessons.filter { $0.isGiven && $0.givenAt == nil }
         }
         
-        // Build predicate using helper
-        let predicate = PredicateBuilders.buildPredicate(filter: filter, subjectLessonIDs: subjectLessonIDs)
+        // Apply subject filter if selected
+        if let lessonIDs = subjectLessonIDs {
+            return base.filter { sl in
+                guard let lessonID = UUID(uuidString: sl.lessonID) else { return false }
+                return lessonIDs.contains(lessonID)
+            }
+        }
         
-        // Fetch with predicate
-        let descriptor = FetchDescriptor<StudentLesson>(predicate: predicate)
-        filteredStudentLessons = (try? modelContext.fetch(descriptor)) ?? []
-        
-        // Update cached sorted results after filtering
-        updateCachedStudentLessons()
+        return base
     }
-
-    // OPTIMIZATION: Filtering is now done at database level, so these computed properties
-    // only need to sort the pre-filtered data
+    
+    /// Sorted student lessons based on current sort mode
+    /// Automatically recomputes when sort or filteredStudentLessons changes
+    private var sortedStudentLessons: [StudentLesson] {
+        #if DEBUG
+        let startTime = Date()
+        defer {
+            let duration = Date().timeIntervalSince(startTime)
+            PerformanceLogger.log(
+                screenName: "StudentLessonsRootView - Sort",
+                itemCount: filteredStudentLessons.count,
+                duration: duration
+            )
+        }
+        #endif
+        
+        switch sort {
+        case .presentThenGiven:
+            let upcoming = filteredStudentLessons.filter { !$0.isGiven }.sorted { lhs, rhs in
+                switch (lhs.scheduledFor, rhs.scheduledFor) {
+                case let (l?, r?): return l < r
+                case (nil, nil): return lhs.createdAt < rhs.createdAt
+                case (nil, _?): return false
+                case (_?, nil): return true
+                }
+            }
+            let given = filteredStudentLessons.filter { $0.isGiven }.sorted { lhs, rhs in
+                let l = lhs.givenAt ?? .distantPast
+                let r = rhs.givenAt ?? .distantPast
+                return l > r
+            }
+            return upcoming + given
+        case .dateCreated:
+            return filteredStudentLessons.sorted { $0.createdAt > $1.createdAt }
+        case .dateGiven:
+            return filteredStudentLessons.sorted { lhs, rhs in
+                switch (lhs.givenAt, rhs.givenAt) {
+                case let (l?, r?): return l > r
+                case (nil, nil): return lhs.createdAt > rhs.createdAt
+                case (nil, _?): return false
+                case (_?, nil): return true
+                }
+            }
+        }
+    }
+    
+    // MODERN: Specialized views for different presentation layouts
+    // These are only used for .presentThenGiven sort mode
+    
+    /// Hidden undated presentations - automatically updates when filteredStudentLessons changes
     private var hiddenUndated: [StudentLesson] {
-        // filteredStudentLessons already contains only hidden undated items when filter is .hiddenUndated
         filteredStudentLessons.sorted { $0.createdAt > $1.createdAt }
     }
-
+    
+    /// Upcoming presentations (not yet given) - automatically updates
     private var defaultUpcoming: [StudentLesson] {
-        // filteredStudentLessons already contains only not-completed items when filter is .notCompleted or .all
         filteredStudentLessons.filter { !$0.isGiven }.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?): return l < r
@@ -200,66 +250,14 @@ struct StudentLessonsRootView: View {
             }
         }
     }
-
+    
+    /// Given presentations - automatically updates
     private var defaultGiven: [StudentLesson] {
-        // filteredStudentLessons already contains only completed items when filter is .completed or .all
         filteredStudentLessons.filter { $0.isGiven && $0.givenAt != nil }.sorted { lhs, rhs in
             let l = lhs.givenAt ?? .distantPast
             let r = rhs.givenAt ?? .distantPast
             return l > r
         }
-    }
-
-    /// Updates the cached sorted studentLessons based on current filter and sort settings
-    /// This avoids expensive sorting operations on every view body re-render
-    private func updateCachedStudentLessons() {
-        #if DEBUG
-        let startTime = Date()
-        #endif
-        
-        // filteredStudentLessons already contains the correct filtered set from database
-        let base = filteredStudentLessons
-
-        let result: [StudentLesson]
-        switch sort {
-        case .presentThenGiven:
-            let upcoming = base.filter { !$0.isGiven }.sorted { lhs, rhs in
-                switch (lhs.scheduledFor, rhs.scheduledFor) {
-                case let (l?, r?): return l < r
-                case (nil, nil): return lhs.createdAt < rhs.createdAt
-                case (nil, _?): return false
-                case (_?, nil): return true
-                }
-            }
-            let given = base.filter { $0.isGiven }.sorted { lhs, rhs in
-                let l = lhs.givenAt ?? .distantPast
-                let r = rhs.givenAt ?? .distantPast
-                return l > r
-            }
-            result = upcoming + given
-        case .dateCreated:
-            result = base.sorted { lhs, rhs in lhs.createdAt > rhs.createdAt }
-        case .dateGiven:
-            result = base.sorted { lhs, rhs in
-                switch (lhs.givenAt, rhs.givenAt) {
-                case let (l?, r?): return l > r
-                case (nil, nil): return lhs.createdAt > rhs.createdAt
-                case (nil, _?): return false
-                case (_?, nil): return true
-                }
-            }
-        }
-        
-        #if DEBUG
-        let duration = Date().timeIntervalSince(startTime)
-        PerformanceLogger.log(
-            screenName: "StudentLessonsRootView - Filter & Sort",
-            itemCount: result.count,
-            duration: duration
-        )
-        #endif
-        
-        cachedStudentLessons = result
     }
 
     private var columns: [GridItem] {
@@ -350,9 +348,8 @@ struct StudentLessonsRootView: View {
                 appRouter.clearNavigation()
             }
         }
+        #if DEBUG
         .onAppear {
-            loadFilteredStudentLessons()
-            #if DEBUG
             PerformanceLogger.logScreenLoad(
                 screenName: "StudentLessonsRootView",
                 itemCounts: [
@@ -361,27 +358,8 @@ struct StudentLessonsRootView: View {
                     "students": students.count
                 ]
             )
-            #endif
         }
-        .onChange(of: studentLessonsFilterRaw) { _, _ in
-            loadFilteredStudentLessons()
-        }
-        .onChange(of: studentLessonsSubjectRaw) { _, _ in
-            loadFilteredStudentLessons()
-        }
-        .onChange(of: studentLessonsSortRaw) { _, _ in
-            // Update cached sorted results when sort changes
-            updateCachedStudentLessons()
-        }
-        .onChange(of: studentLessonsForChangeDetection.count) { _, _ in
-            // Reload when underlying data changes
-            loadFilteredStudentLessons()
-        }
-        .onChange(of: filteredStudentLessons.count) { _, _ in
-            // Update cached sorted results when filtered data changes
-            // Note: This is a safety net; loadFilteredStudentLessons() already calls updateCachedStudentLessons()
-            updateCachedStudentLessons()
-        }
+        #endif
     }
 
     // MARK: - Sidebar
@@ -603,7 +581,7 @@ struct StudentLessonsRootView: View {
                     }
                 }
             } else {
-                if cachedStudentLessons.isEmpty {
+                if sortedStudentLessons.isEmpty {
                     VStack(spacing: 8) {
                         Text("No presentations")
                             .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
@@ -615,7 +593,7 @@ struct StudentLessonsRootView: View {
                 } else {
                     ScrollView {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                            ForEach(cachedStudentLessons, id: \.id) { sl in
+                            ForEach(sortedStudentLessons, id: \.id) { sl in
                                 StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                     .onTapGesture { selectedLessonID = sl.id }
                                     .contextMenu {

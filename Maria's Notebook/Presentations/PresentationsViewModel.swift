@@ -25,8 +25,10 @@ final class PresentationsViewModel {
         self.cachedLessons
     }
     
-    // MARK: - Dependencies (passed in update method)
-    private var modelContext: ModelContext?
+    // MARK: - Dependencies
+    // MODERN: Inject repository instead of raw ModelContext for better separation of concerns
+    private var studentLessonRepository: StudentLessonRepository?
+    private var modelContext: ModelContext? // Keep for backward compatibility during transition
     private var calendar: Calendar = .current
     
     // MARK: - Cache State
@@ -51,7 +53,13 @@ final class PresentationsViewModel {
     
     // MARK: - Initialization
     init() {
-        // Context and calendar will be set via update method
+        // Dependencies will be set via setRepository or update method
+    }
+    
+    // MODERN: Set repository for dependency injection (preferred over raw ModelContext)
+    func setRepository(_ repository: StudentLessonRepository) {
+        self.studentLessonRepository = repository
+        self.modelContext = repository.context
     }
     
     // MARK: - Public API
@@ -69,6 +77,11 @@ final class PresentationsViewModel {
         self.modelContext = modelContext
         self.calendar = calendar
         
+        // MODERN: Create repository if not already set
+        if self.studentLessonRepository == nil {
+            self.studentLessonRepository = StudentLessonRepository(context: modelContext)
+        }
+        
         // Fetch data using targeted queries (only what we need)
         // 
         // ALGORITHMIC REQUIREMENT: The blocking logic and days-since-last-lesson calculations
@@ -80,6 +93,9 @@ final class PresentationsViewModel {
         //    we need to examine ALL studentLessons to find the most recent one for each student.
         //    This cannot be optimized without changing the algorithm semantics.
         //
+        // MODERN: Use repository for data fetching
+        // Falls back to direct modelContext calls if repository not available
+        
         // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let studentLessons: [StudentLesson] = {
@@ -87,10 +103,16 @@ final class PresentationsViewModel {
             return PerformanceLogger.measure(
                 screenName: "PresentationsViewModel - Fetch StudentLessons",
                 operation: {
-                    modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+                    if let repo = studentLessonRepository {
+                        return repo.fetchStudentLessons()
+                    }
+                    return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
                 }
             )
             #else
+            if let repo = studentLessonRepository {
+                return repo.fetchStudentLessons()
+            }
             return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
             #endif
         }()

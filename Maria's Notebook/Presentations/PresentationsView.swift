@@ -75,6 +75,30 @@ struct PresentationsView: View {
             .map { $0.id }
     }
     
+    // MODERN: Unified dependency tracker for ViewModel updates
+    // Consolidates all onChange handlers into a single observation point
+    private struct ViewModelDependencies: Equatable {
+        let studentLessonKeys: [StudentLessonChangeKey]
+        let lessonIDs: [UUID]
+        let studentIDs: [UUID]
+        let activeWorkIDs: [UUID]
+        let missWindowRaw: String
+        let showTestStudents: Bool
+        let testStudentNamesRaw: String
+    }
+    
+    private var viewModelDependencies: ViewModelDependencies {
+        ViewModelDependencies(
+            studentLessonKeys: studentLessonChangeKeys,
+            lessonIDs: lessonIDs,
+            studentIDs: studentIDs,
+            activeWorkIDs: activeWorkIDs,
+            missWindowRaw: missWindowRaw,
+            showTestStudents: showTestStudents,
+            testStudentNamesRaw: testStudentNamesRaw
+        )
+    }
+    
     // Active WorkModels: unresolved work items (statusRaw != "complete")
     private var activeWork: [WorkModel] {
         workModelsForChangeDetection.filter { $0.statusRaw != "complete" }
@@ -332,34 +356,27 @@ struct PresentationsView: View {
             syncInboxOrderWithCurrentBase()
             syncRecentWindowWithMissWindow()
         }
+        // MODERN: Single onChange for startDate (persists to @AppStorage and loads dates)
         .onChange(of: startDate) { _, new in
-            // Debounce to prevent multiple updates per frame
             Task { @MainActor in
                 startDateRaw = new.timeIntervalSinceReferenceDate
                 await loadNonSchoolDates()
             }
         }
-        .onChange(of: studentLessonChangeKeys) { _, _ in
-            syncInboxOrderWithCurrentBase()
-            updateViewModel()
-        }
-        .onChange(of: lessonIDs) { _, _ in
-            updateViewModel()
-        }
-        .onChange(of: activeWorkIDs) { _, _ in
-            updateViewModel()
-        }
-        .onChange(of: studentIDs) { _, _ in
-            updateViewModel()
-        }
-        .onChange(of: missWindowRaw) { _, _ in
-            syncRecentWindowWithMissWindow()
-            updateViewModel()
-        }
-        .onChange(of: showTestStudents) { _, _ in
-            updateViewModel()
-        }
-        .onChange(of: testStudentNamesRaw) { _, _ in
+        // MODERN: Unified dependency tracker - single onChange replaces 7 separate handlers
+        // SwiftUI automatically recomputes viewModelDependencies when any component changes
+        .onChange(of: viewModelDependencies) { old, new in
+            // Sync inbox order when student lessons change
+            if old.studentLessonKeys != new.studentLessonKeys {
+                syncInboxOrderWithCurrentBase()
+            }
+            
+            // Sync miss window when it changes
+            if old.missWindowRaw != new.missWindowRaw {
+                syncRecentWindowWithMissWindow()
+            }
+            
+            // Update ViewModel for any dependency change
             updateViewModel()
         }
         .sheet(item: $selectedStudentLessonForDetail) { sl in

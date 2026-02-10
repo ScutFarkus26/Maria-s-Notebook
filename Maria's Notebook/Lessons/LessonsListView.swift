@@ -13,8 +13,8 @@ struct LessonsListView: View {
     let canReorderLessons: Bool
     let onMoveLesson: (_ source: IndexSet, _ destination: Int, _ orderedSubset: [Lesson]) -> Void
 
-    @State private var cachedSubheadingOrder: [String] = []
-
+    // MODERN: Computed properties - no manual cache management needed
+    
     private var lessonsInGroup: [Lesson] {
         lessons
             .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
@@ -27,18 +27,19 @@ struct LessonsListView: View {
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
     }
-
-    private func updateSubheadings() {
+    
+    /// Automatically recomputes when orderedLessons changes
+    private var subheadingOrder: [String] {
         let existing = Array(Set(orderedLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        cachedSubheadingOrder = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
+        return FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
     }
 
     var body: some View {
         List {
             // If there are subheadings, present as structural sections.
-            if !cachedSubheadingOrder.isEmpty {
-                ForEach(cachedSubheadingOrder, id: \.self) { sh in
+            if !subheadingOrder.isEmpty {
+                ForEach(subheadingOrder, id: \.self) { sh in
                     let items = orderedLessons.filter { $0.subheading.trimmed() == sh }
                     if !items.isEmpty {
                         Section(header: Text(sh)) {
@@ -80,11 +81,5 @@ struct LessonsListView: View {
         .contentMargins(.leading, 0, for: .scrollContent)
         .contentMargins(.trailing, 0, for: .scrollContent)
         .navigationTitle(group)
-        .onAppear {
-            updateSubheadings()
-        }
-        .onChange(of: lessons) {
-            updateSubheadings()
-        }
     }
 }

@@ -33,36 +33,33 @@ struct PresentationsInboxView: View {
     @State private var debouncedSearchText: String = ""
     @State private var searchDebounceTask: Task<Void, Never>? = nil
 
-    // Cached filtered/sorted results to avoid recomputation during scroll
-    @State private var cachedReadyLessons: [StudentLesson] = []
-    @State private var cachedBlockedLessons: [StudentLesson] = []
-    @State private var lastSearchText: String = ""
-    @State private var lastReadyLessonsCount: Int = 0
-    @State private var lastBlockedLessonsCount: Int = 0
-    @State private var lastStudentFilter: UUID? = nil
-
-    // Cached dictionaries for fast lookups
-    @State private var lessonsByIDCache: [UUID: Lesson] = [:]
-    @State private var studentsByIDCache: [UUID: Student] = [:]
-
     // Default sorting is by age
     private let sortMode: PresentationsSortMode = .age
     
-    // Combined change detection key to consolidate onChange handlers
-    private struct CacheInvalidationKey: Equatable {
-        let searchText: String
-        let readyCount: Int
-        let blockedCount: Int
-        let filterID: UUID?
+    // MODERN: Computed properties with automatic dependency tracking
+    // SwiftUI automatically recomputes these when their dependencies change
+    
+    /// Fast lookup dictionary for lessons - automatically rebuilds when cachedLessons changes
+    private var lessonsByID: [UUID: Lesson] {
+        Dictionary(cachedLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     
-    private var cacheInvalidationKey: CacheInvalidationKey {
-        CacheInvalidationKey(
-            searchText: debouncedSearchText,
-            readyCount: readyLessons.count,
-            blockedCount: blockedLessons.count,
-            filterID: selectedStudentFilter
-        )
+    /// Fast lookup dictionary for students - automatically rebuilds when cachedStudents changes
+    private var studentsByID: [UUID: Student] {
+        Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+    
+    /// Lessons filtered by selected student (if any) - automatically updates
+    private var studentFilteredReadyLessons: [StudentLesson] {
+        guard let studentID = selectedStudentFilter else { return readyLessons }
+        let studentIDString = studentID.uuidString
+        return readyLessons.filter { $0.studentIDs.contains(studentIDString) }
+    }
+    
+    private var studentFilteredBlockedLessons: [StudentLesson] {
+        guard let studentID = selectedStudentFilter else { return blockedLessons }
+        let studentIDString = studentID.uuidString
+        return blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
     }
 
     var body: some View {
@@ -183,8 +180,6 @@ struct PresentationsInboxView: View {
             studentLessons: studentLessons,
             isTargeted: $isInboxTargeted
         ))
-        .onAppear { updateCachesIfNeeded() }
-        .onChange(of: cacheInvalidationKey) { _, _ in updateCachesIfNeeded() }
     }
     
     // MARK: - Filtering and Sorting
@@ -206,21 +201,24 @@ struct PresentationsInboxView: View {
         return names.joined(separator: ", ")
     }
 
-    private func matchesSearch(_ sl: StudentLesson, query: String, lessonCache: [UUID: Lesson], studentCache: [UUID: Student]) -> Bool {
+    // MODERN: Pure computed properties - no manual caching needed
+    // SwiftUI's dependency tracking handles updates automatically
+    
+    private func matchesSearch(_ sl: StudentLesson, query: String) -> Bool {
         guard !query.isEmpty else { return true }
-        let lessonTitleLower = lessonTitle(for: sl, using: lessonCache).lowercased()
-        let studentNamesLower = studentNames(for: sl, using: studentCache).lowercased()
+        let lessonTitleLower = lessonTitle(for: sl, using: lessonsByID).lowercased()
+        let studentNamesLower = studentNames(for: sl, using: studentsByID).lowercased()
         return lessonTitleLower.contains(query) || studentNamesLower.contains(query)
     }
 
-    private func sortedLessons(_ lessons: [StudentLesson], query: String, lessonCache: [UUID: Lesson], studentCache: [UUID: Student]) -> [StudentLesson] {
-        let matched = lessons.filter { matchesSearch($0, query: query, lessonCache: lessonCache, studentCache: studentCache) }
+    private func sortedLessons(_ lessons: [StudentLesson], query: String) -> [StudentLesson] {
+        let matched = lessons.filter { matchesSearch($0, query: query) }
 
         switch sortMode {
         case .lesson:
-            return matched.sorted { lessonTitle(for: $0, using: lessonCache).localizedCaseInsensitiveCompare(lessonTitle(for: $1, using: lessonCache)) == .orderedAscending }
+            return matched.sorted { lessonTitle(for: $0, using: lessonsByID).localizedCaseInsensitiveCompare(lessonTitle(for: $1, using: lessonsByID)) == .orderedAscending }
         case .student:
-            return matched.sorted { studentNames(for: $0, using: studentCache).localizedCaseInsensitiveCompare(studentNames(for: $1, using: studentCache)) == .orderedAscending }
+            return matched.sorted { studentNames(for: $0, using: studentsByID).localizedCaseInsensitiveCompare(studentNames(for: $1, using: studentsByID)) == .orderedAscending }
         case .age:
             // Sort by creation date (older first)
             return matched.sorted { $0.createdAt < $1.createdAt }
@@ -230,54 +228,16 @@ struct PresentationsInboxView: View {
         }
     }
 
-    private func updateCachesIfNeeded() {
-        let trimmedSearch = debouncedSearchText.trimmed().lowercased()
-
-        // Check if we need to rebuild caches
-        let needsRebuild = trimmedSearch != lastSearchText
-            || readyLessons.count != lastReadyLessonsCount
-            || blockedLessons.count != lastBlockedLessonsCount
-            || selectedStudentFilter != lastStudentFilter
-
-        guard needsRebuild else { return }
-
-        // Rebuild dictionary caches if lessons/students changed
-        if lessonsByIDCache.count != cachedLessons.count {
-            lessonsByIDCache = Dictionary(cachedLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        }
-        if studentsByIDCache.count != cachedStudents.count {
-            studentsByIDCache = Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        }
-
-        // Filter by selected student if any
-        let filteredReady: [StudentLesson]
-        let filteredBlocked: [StudentLesson]
-
-        if let studentID = selectedStudentFilter {
-            let studentIDString = studentID.uuidString
-            filteredReady = readyLessons.filter { $0.studentIDs.contains(studentIDString) }
-            filteredBlocked = blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
-        } else {
-            filteredReady = readyLessons
-            filteredBlocked = blockedLessons
-        }
-
-        // Rebuild filtered/sorted caches
-        cachedReadyLessons = sortedLessons(filteredReady, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
-        cachedBlockedLessons = sortedLessons(filteredBlocked, query: trimmedSearch, lessonCache: lessonsByIDCache, studentCache: studentsByIDCache)
-
-        lastSearchText = trimmedSearch
-        lastReadyLessonsCount = readyLessons.count
-        lastBlockedLessonsCount = blockedLessons.count
-        lastStudentFilter = selectedStudentFilter
-    }
-
+    /// Filtered and sorted ready lessons - automatically recomputes when dependencies change
     private var filteredAndSortedReadyLessons: [StudentLesson] {
-        cachedReadyLessons
+        let trimmedSearch = debouncedSearchText.trimmed().lowercased()
+        return sortedLessons(studentFilteredReadyLessons, query: trimmedSearch)
     }
 
+    /// Filtered and sorted blocked lessons - automatically recomputes when dependencies change
     private var filteredAndSortedBlockedLessons: [StudentLesson] {
-        cachedBlockedLessons
+        let trimmedSearch = debouncedSearchText.trimmed().lowercased()
+        return sortedLessons(studentFilteredBlockedLessons, query: trimmedSearch)
     }
 
     @ViewBuilder
@@ -296,7 +256,8 @@ struct PresentationsInboxView: View {
             .onTapGesture { selectedStudentLessonForDetail = sl }
             .onDrag {
                 let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
-                provider.suggestedName = sl.lesson?.name ?? "Lesson"
+                // Use computed lessonsByID for fast lookup
+                provider.suggestedName = (UUID(uuidString: sl.lessonID).flatMap { lessonsByID[$0] })?.name ?? "Lesson"
                 return provider
             }
         }

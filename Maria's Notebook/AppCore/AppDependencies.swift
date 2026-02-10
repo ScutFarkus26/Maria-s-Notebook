@@ -65,6 +65,18 @@ final class AppDependencies: ObservableObject {
         return _lifecycleService!
     }
     
+    // MARK: - Repositories
+    
+    /// Central repository container for type-safe data access
+    /// Provides repositories for all entities with consistent context injection
+    private var _repositories: RepositoryContainer?
+    var repositories: RepositoryContainer {
+        if _repositories == nil {
+            _repositories = RepositoryContainer(context: modelContext, saveCoordinator: nil)
+        }
+        return _repositories!
+    }
+    
     // MARK: - Data Services
     
     // Work-related services
@@ -284,7 +296,10 @@ final class AppDependencies: ObservableObject {
     private var _presentationsViewModel: PresentationsViewModel?
     var presentationsViewModel: PresentationsViewModel {
         if _presentationsViewModel == nil {
-            _presentationsViewModel = PresentationsViewModel()
+            let vm = PresentationsViewModel()
+            // MODERN: Inject repository for type-safe data access
+            vm.setRepository(repositories.studentLessons)
+            _presentationsViewModel = vm
         }
         return _presentationsViewModel!
     }

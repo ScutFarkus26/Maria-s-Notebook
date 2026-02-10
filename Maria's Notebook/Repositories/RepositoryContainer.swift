@@ -37,6 +37,11 @@ struct RepositoryContainer {
     var studentLessons: StudentLessonRepository {
         StudentLessonRepository(context: context, saveCoordinator: saveCoordinator)
     }
+    
+    /// Repository for Presentation/LessonAssignment entities (unified presentation model)
+    var presentations: PresentationRepository {
+        PresentationRepository(context: context, saveCoordinator: saveCoordinator)
+    }
 
     /// Repository for Note entities
     var notes: NoteRepository {
