@@ -36,7 +36,7 @@ struct TodayView: View {
     #endif
 
     // MARK: - ViewModel
-    @StateObject var viewModel: TodayViewModel
+    @State var viewModel: TodayViewModel
 
     // MARK: - Navigation State
     @State var selectedWorkID: UUID? = nil
@@ -76,7 +76,7 @@ struct TodayView: View {
 
     // MARK: - Init
     init(context: ModelContext) {
-        _viewModel = StateObject(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
+        _viewModel = State(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
     }
 
     // MARK: - Body

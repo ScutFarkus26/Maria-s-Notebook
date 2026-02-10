@@ -18,7 +18,7 @@ import SwiftData
 ///   - isFocused: Binding used by the underlying picker to control first-responder focus.
 @MainActor
 struct LessonPickerSection: View {
-    @ObservedObject var viewModel: LessonPickerViewModel
+    @Bindable var viewModel: LessonPickerViewModel
     let resolvedLesson: Lesson?
     @Binding var isFocused: Bool
 

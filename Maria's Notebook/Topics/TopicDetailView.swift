@@ -11,7 +11,7 @@ struct TopicDetailView: View, Identifiable {
     let topicID: UUID
     var onSave: (CommunityTopic) -> Void
 
-    @StateObject private var vm = TopicDetailViewModel()
+    @State private var vm = TopicDetailViewModel()
 
     // Ephemeral input state for adding content
     @State private var newSolutionTitle: String = ""

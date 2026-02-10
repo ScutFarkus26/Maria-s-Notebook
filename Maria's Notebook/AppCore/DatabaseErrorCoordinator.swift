@@ -1,15 +1,15 @@
 import Foundation
 import SwiftUI
-import Combine
 
 /// Coordinates database initialization errors and recovery actions.
 /// Provides app-wide error state management for database failures.
+@Observable
 @MainActor
-final class DatabaseErrorCoordinator: ObservableObject {
+final class DatabaseErrorCoordinator {
     static let shared = DatabaseErrorCoordinator()
     
-    @Published var error: Error?
-    @Published var errorDetails: String = ""
+    var error: Error?
+    var errorDetails: String = ""
     
     private init() {}
     

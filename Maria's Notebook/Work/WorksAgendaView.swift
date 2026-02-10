@@ -289,6 +289,7 @@ struct WorksAgendaView: View {
         return "Lesson \(String(lessonID.prefix(6)))"
     }
 
+    #if os(macOS)
     private func makePrintItems(from works: [WorkModel]) -> [WorkPDFRenderer.PrintItem] {
         works.map { w in
             let title = lessonTitle(forLessonID: w.lessonID)
@@ -304,6 +305,7 @@ struct WorksAgendaView: View {
             )
         }
     }
+    #endif
 
     private func studentPrintName(for student: Student) -> String {
         let parts = student.fullName.split(separator: " ")

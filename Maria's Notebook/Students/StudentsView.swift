@@ -42,7 +42,7 @@ struct StudentsView<WorkloadContent: View>: View {
     }
     
     // OPTIMIZATION: Cache data loaded on-demand based on mode and filters (moved to ViewModel)
-    @StateObject private var viewModel = StudentsViewModel()
+    @State private var viewModel = StudentsViewModel()
 
     // MARK: - App Storage for Roster Mode
     @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"

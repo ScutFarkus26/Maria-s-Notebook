@@ -37,7 +37,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     
     // MARK: - Input
     
-    @ObservedObject var presentationViewModel: PostPresentationFormViewModel
+    @Bindable var presentationViewModel: PostPresentationFormViewModel
     let students: [Student]
     let lessonName: String
     let lessonID: UUID

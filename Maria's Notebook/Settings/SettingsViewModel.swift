@@ -2,27 +2,27 @@ import Foundation
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
-import Combine
 
 #if os(macOS)
 import AppKit
 #endif
 
+@Observable
 @MainActor
-final class SettingsViewModel: ObservableObject {
-    // MARK: - Published UI State
-    @Published var restoreMode: BackupService.RestoreMode = .merge
-    @Published var backupProgress: Double = 0
-    @Published var backupMessage: String = ""
-    @Published var importProgress: Double = 0
-    @Published var importMessage: String = ""
-    @Published var resultSummary: String? = nil
-    @Published var operationSummary: BackupOperationSummary? = nil
-    @Published var restorePreviewData: RestorePreview? = nil
-    @Published var defaultFolderName: String = ""
-    @Published var exportData: Data? = nil
-    @Published var importError: String? = nil
-    @Published var estimatedBackupSize: Int64? = nil
+final class SettingsViewModel {
+    // MARK: - UI State
+    var restoreMode: BackupService.RestoreMode = .merge
+    var backupProgress: Double = 0
+    var backupMessage: String = ""
+    var importProgress: Double = 0
+    var importMessage: String = ""
+    var resultSummary: String? = nil
+    var operationSummary: BackupOperationSummary? = nil
+    var restorePreviewData: RestorePreview? = nil
+    var defaultFolderName: String = ""
+    var exportData: Data? = nil
+    var importError: String? = nil
+    var estimatedBackupSize: Int64? = nil
 
     // Internal
     private let dependencies: AppDependencies

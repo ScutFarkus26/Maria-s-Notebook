@@ -4,27 +4,27 @@
 
 import Foundation
 import SwiftUI
-import Combine
 
-final class LessonsFilterState: ObservableObject {
-    @Published var selectedSubject: String? = nil
-    @Published var selectedGroup: String? = nil
-    @Published var searchText: String = "" {
+@Observable
+final class LessonsFilterState {
+    var selectedSubject: String? = nil
+    var selectedGroup: String? = nil
+    var searchText: String = "" {
         didSet {
             scheduleDebounce()
         }
     }
-    @Published var expandedSubjects: Set<String> = []
+    var expandedSubjects: Set<String> = []
 
-    @Published var sourceFilter: LessonSource? = nil // nil means All
-    @Published var personalKindFilter: PersonalLessonKind? = nil // nil means All Types
+    var sourceFilter: LessonSource? = nil // nil means All
+    var personalKindFilter: PersonalLessonKind? = nil // nil means All Types
 
     // New filter properties for chip bar
-    @Published var hasAttachmentFilter: Bool = false
-    @Published var needsAttentionFilter: Bool = false
+    var hasAttachmentFilter: Bool = false
+    var needsAttentionFilter: Bool = false
 
     // Debounced search text for filtering (updates ~200ms after user stops typing)
-    @Published private(set) var debouncedSearchText: String = ""
+    private(set) var debouncedSearchText: String = ""
     
     private var debounceTask: Task<Void, Never>?
     private let debounceInterval: Duration = .milliseconds(200)

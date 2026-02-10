@@ -3,7 +3,6 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 
 // MARK: - Unified Item
 public struct UnifiedNoteItem: Identifiable {
@@ -32,18 +31,19 @@ public struct UnifiedNoteItem: Identifiable {
 }
 
 // MARK: - View Model
+@Observable
 @MainActor
-final class StudentNotesViewModel: ObservableObject {
+final class StudentNotesViewModel {
     private let student: Student
     let modelContext: ModelContext
     private let saveCoordinator: SaveCoordinator
 
-    @Published var items: [UnifiedNoteItem] = []
+    var items: [UnifiedNoteItem] = []
 
     // Pagination support
     private let pageSize: Int = 30
-    @Published private(set) var displayedItemCount: Int = 0
-    @Published private(set) var hasMoreItems: Bool = true
+    private(set) var displayedItemCount: Int = 0
+    private(set) var hasMoreItems: Bool = true
 
     var displayedItems: [UnifiedNoteItem] {
         Array(items.prefix(displayedItemCount))

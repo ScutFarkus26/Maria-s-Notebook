@@ -1,14 +1,14 @@
 import Foundation
 import SwiftData
-import Combine
 
+@Observable
 @MainActor
-final class StudentsViewModel: ObservableObject {
+final class StudentsViewModel {
     // MARK: - Cache State
-    @Published var cachedAttendanceRecords: [AttendanceRecord] = []
-    @Published var cachedStudentLessons: [StudentLesson] = []
-    @Published var cachedLessons: [UUID: Lesson] = [:]
-    @Published var cachedDaysSinceLastLesson: [UUID: Int] = [:]
+    var cachedAttendanceRecords: [AttendanceRecord] = []
+    var cachedStudentLessons: [StudentLesson] = []
+    var cachedLessons: [UUID: Lesson] = [:]
+    var cachedDaysSinceLastLesson: [UUID: Int] = [:]
     
     // MARK: - Change Detection
     private var lastAttendanceIDs: Set<UUID> = []

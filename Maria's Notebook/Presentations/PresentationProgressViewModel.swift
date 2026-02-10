@@ -1,13 +1,13 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
+@Observable
 @MainActor
-final class PresentationProgressViewModel: ObservableObject {
-    // MARK: - Published State
-    @Published private(set) var presentations: [PresentationWithCachedData] = []
-    @Published private(set) var isLoading = false
+final class PresentationProgressViewModel {
+    // MARK: - State
+    private(set) var presentations: [PresentationWithCachedData] = []
+    private(set) var isLoading = false
 
     // MARK: - Dependencies
     private var modelContext: ModelContext?

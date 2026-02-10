@@ -19,7 +19,7 @@ struct StudentDetailView: View {
     }
 
     // MARK: - State
-    @StateObject private var vm: StudentDetailViewModel
+    @State private var vm: StudentDetailViewModel
 
     @State private var isEditing = false
     @State private var draftFirstName = ""
@@ -233,6 +233,6 @@ struct StudentDetailView: View {
     init(student: Student, onDone: (() -> Void)? = nil) {
         self.student = student
         self.onDone = onDone
-        _vm = StateObject(wrappedValue: StudentDetailViewModel(student: student, dependencies: AppDependenciesKey.defaultValue))
+        _vm = State(wrappedValue: StudentDetailViewModel(student: student, dependencies: AppDependenciesKey.defaultValue))
     }
 }

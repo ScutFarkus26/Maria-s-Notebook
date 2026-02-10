@@ -1,29 +1,29 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
 /// ViewModel for managing post-presentation form state and logic.
 /// Works with UnifiedPostPresentationSheet's nested types for compatibility.
+@Observable
 @MainActor
-final class PostPresentationFormViewModel: ObservableObject {
+final class PostPresentationFormViewModel {
     // MARK: - Type Aliases (using sheet's nested types)
-    
+
     typealias PresentationStatus = UnifiedPostPresentationSheet.PresentationStatus
     typealias StudentEntry = UnifiedPostPresentationSheet.StudentEntry
-    
-    // MARK: - Published State
-    
-    @Published var status: PresentationStatus
-    @Published var entries: [UUID: StudentEntry] = [:]
-    @Published var groupObservation: String = ""
-    @Published var bulkAssignment: String = ""
-    @Published var defaultCheckInEnabled: Bool = false
-    @Published var defaultCheckInDate: Date
-    @Published var defaultDueEnabled: Bool = false
-    @Published var defaultDueDate: Date
-    @Published var expandedStudentIDs: Set<UUID> = []
-    @Published var studentsToUnlock: Set<UUID> = []
+
+    // MARK: - State
+
+    var status: PresentationStatus
+    var entries: [UUID: StudentEntry] = [:]
+    var groupObservation: String = ""
+    var bulkAssignment: String = ""
+    var defaultCheckInEnabled: Bool = false
+    var defaultCheckInDate: Date
+    var defaultDueEnabled: Bool = false
+    var defaultDueDate: Date
+    var expandedStudentIDs: Set<UUID> = []
+    var studentsToUnlock: Set<UUID> = []
 
     // MARK: - Computed Properties
     

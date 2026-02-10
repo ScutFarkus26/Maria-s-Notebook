@@ -6,7 +6,7 @@ import SwiftData
 // MARK: - Lesson Section
 
 struct LessonSection: View {
-    @ObservedObject var viewModel: LessonPickerViewModel
+    @Bindable var viewModel: LessonPickerViewModel
     let resolvedLesson: Lesson?
     let lessonDisplayTitle: (Lesson) -> String
     @Binding var isFocused: Bool
@@ -148,7 +148,7 @@ struct LessonPickerPopover: View {
 // MARK: - Students Section
 
 struct StudentsSection: View {
-    @ObservedObject var viewModel: LessonPickerViewModel
+    @Bindable var viewModel: LessonPickerViewModel
     let subjectColor: Color
     let displayName: (Student) -> String
     @Binding var showingAddStudentSheet: Bool
@@ -243,7 +243,7 @@ struct StudentChipsList: View {
 // MARK: - Status Section
 
 struct StatusSection: View {
-    @ObservedObject var viewModel: LessonPickerViewModel
+    @Bindable var viewModel: LessonPickerViewModel
     let subjectColor: Color
     
     var body: some View {

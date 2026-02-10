@@ -28,7 +28,7 @@ struct WorksLogView: View {
     @State private var searchText: String = ""
 
     // Pagination state
-    @StateObject private var pagination = PaginationState(pageSize: 50)
+    @State private var pagination = PaginationState(pageSize: 50)
 
     private var lessonsByID: [UUID: Lesson] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates

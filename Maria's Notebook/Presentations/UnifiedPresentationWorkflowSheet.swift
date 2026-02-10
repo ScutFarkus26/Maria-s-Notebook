@@ -22,7 +22,7 @@ struct UnifiedPresentationWorkflowSheet: View {
     
     // MARK: - State
     
-    @StateObject private var presentationViewModel: PostPresentationFormViewModel
+    @State private var presentationViewModel: PostPresentationFormViewModel
     @State private var triggerCompletion: Bool = false
     
     // MARK: - Init
@@ -41,7 +41,7 @@ struct UnifiedPresentationWorkflowSheet: View {
         self.onComplete = onComplete
         self.onCancel = onCancel
         
-        _presentationViewModel = StateObject(wrappedValue: PostPresentationFormViewModel(students: deduped))
+        _presentationViewModel = State(wrappedValue: PostPresentationFormViewModel(students: deduped))
     }
     
     // MARK: - Body

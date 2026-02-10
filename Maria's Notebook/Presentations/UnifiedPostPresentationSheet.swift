@@ -61,7 +61,7 @@ struct UnifiedPostPresentationSheet: View {
 
     // MARK: - State
 
-    @StateObject private var viewModel: PostPresentationFormViewModel
+    @State private var viewModel: PostPresentationFormViewModel
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -92,7 +92,7 @@ struct UnifiedPostPresentationSheet: View {
         self.onCancel = onCancel
 
         // Initialize ViewModel
-        _viewModel = StateObject(wrappedValue: PostPresentationFormViewModel(students: deduped, initialStatus: initialStatus))
+        _viewModel = State(wrappedValue: PostPresentationFormViewModel(students: deduped, initialStatus: initialStatus))
     }
 
     // MARK: - Computed

@@ -24,7 +24,7 @@ struct AttendanceExpandedView: View {
     private var allStudents: [Student] { allStudentsRaw.uniqueByID }
     private var allStudentIDs: [UUID] { allStudents.map { $0.id } }
 
-    @StateObject private var viewModel = AttendanceViewModel()
+    @State private var viewModel = AttendanceViewModel()
 
     @SyncedAppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
     @State private var showMailSheet = false

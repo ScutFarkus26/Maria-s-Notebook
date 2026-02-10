@@ -1,16 +1,16 @@
 import Foundation
 import SwiftUI
-import Combine
 import SwiftData
 
+@Observable
 @MainActor
-final class AttendanceViewModel: ObservableObject {
-    @Published var selectedDate: Date
+final class AttendanceViewModel {
+    var selectedDate: Date
     // CloudKit compatibility: Use String keys since studentID is now String
-    @Published var recordsByStudentID: [String: AttendanceRecord] = [:]
+    var recordsByStudentID: [String: AttendanceRecord] = [:]
 
     enum SortKey: String, CaseIterable { case firstName, lastName }
-    @Published var sortKey: SortKey = .lastName
+    var sortKey: SortKey = .lastName
 
     init(selectedDate: Date = Date()) {
         self.selectedDate = selectedDate.normalizedDay()

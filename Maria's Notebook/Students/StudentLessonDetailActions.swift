@@ -1,10 +1,10 @@
 import Foundation
 import SwiftUI
-import Combine
 import SwiftData
 
+@Observable
 @MainActor
-final class StudentLessonDetailActions: ObservableObject {
+final class StudentLessonDetailActions {
     func applyEditsToModel(
         studentLesson: StudentLesson,
         editingLessonID: UUID,

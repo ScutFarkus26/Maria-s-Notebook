@@ -1,25 +1,25 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
 /// ViewModel for efficiently loading and caching Settings statistics
 /// Optimizes SettingsView by avoiding loading entire tables just for counts
+@Observable
 @MainActor
-class SettingsStatsViewModel: ObservableObject {
-    @Published var studentsCount: Int = 0
-    @Published var lessonsCount: Int = 0
-    @Published var studentLessonsCount: Int = 0
-    @Published var plannedCount: Int = 0
-    @Published var givenCount: Int = 0
-    @Published var workModelsCount: Int = 0
-    @Published var presentationsCount: Int = 0
-    @Published var notesCount: Int = 0
-    @Published var meetingsCount: Int = 0
-    @Published var noteTemplatesCount: Int = 0
-    @Published var meetingTemplatesCount: Int = 0
-    
-    @Published var isLoading: Bool = false
+class SettingsStatsViewModel {
+    var studentsCount: Int = 0
+    var lessonsCount: Int = 0
+    var studentLessonsCount: Int = 0
+    var plannedCount: Int = 0
+    var givenCount: Int = 0
+    var workModelsCount: Int = 0
+    var presentationsCount: Int = 0
+    var notesCount: Int = 0
+    var meetingsCount: Int = 0
+    var noteTemplatesCount: Int = 0
+    var meetingTemplatesCount: Int = 0
+
+    var isLoading: Bool = false
     
     private var lastLoadDate: Date?
     private let cacheDuration: TimeInterval = 30 // Cache for 30 seconds

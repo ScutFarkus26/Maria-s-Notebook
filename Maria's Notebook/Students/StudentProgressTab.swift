@@ -13,7 +13,7 @@ struct StudentProgressTab: View {
     let student: Student
 
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var viewModel = StudentProgressTabViewModel()
+    @State private var viewModel = StudentProgressTabViewModel()
 
     // MARK: - State
     @State private var selectedEnrollment: StudentTrackEnrollment?

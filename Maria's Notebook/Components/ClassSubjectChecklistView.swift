@@ -14,7 +14,7 @@ import Combine
 
 struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var viewModel = ClassSubjectChecklistViewModel()
+    @State private var viewModel = ClassSubjectChecklistViewModel()
 
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"

@@ -3,22 +3,22 @@
 // Provides both a state manager and view components for implementing infinite scroll.
 
 import SwiftUI
-import Combine
 
 // MARK: - Pagination State Manager
 
 /// Observable state manager for list pagination.
 /// Use this in views that need to display large datasets with "load more" functionality.
+@Observable
 @MainActor
-final class PaginationState: ObservableObject {
+final class PaginationState {
     /// Current number of items being displayed
-    @Published private(set) var displayedCount: Int
+    private(set) var displayedCount: Int
 
     /// Number of items to load per page
     let pageSize: Int
 
     /// Total count of items (set externally when data changes)
-    @Published var totalCount: Int = 0
+    var totalCount: Int = 0
 
     /// Whether there are more items to load
     var hasMore: Bool {
@@ -115,7 +115,7 @@ struct LoadMoreTrigger: View {
 
 /// A footer view showing pagination status and load more button.
 struct PaginatedListFooter: View {
-    @ObservedObject var state: PaginationState
+    var state: PaginationState
     let itemName: String
 
     init(state: PaginationState, itemName: String = "items") {
@@ -157,7 +157,7 @@ extension Array {
 
 #Preview("Pagination Footer") {
     struct PreviewWrapper: View {
-        @StateObject private var state = PaginationState(pageSize: 10)
+        @State private var state = PaginationState(pageSize: 10)
 
         var body: some View {
             VStack {

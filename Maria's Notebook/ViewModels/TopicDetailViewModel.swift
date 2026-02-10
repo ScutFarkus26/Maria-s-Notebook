@@ -1,29 +1,29 @@
 import SwiftUI
 @preconcurrency import SwiftData
-import Combine
 
+@Observable
 @MainActor
-final class TopicDetailViewModel: ObservableObject {
+final class TopicDetailViewModel {
     // Loading state
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
 
     // Backing model
-    @Published var topic: CommunityTopic?
+    var topic: CommunityTopic?
 
     // Lightweight editable fields
-    @Published var title: String = ""
-    @Published var issue: String = ""
-    @Published var resolution: String = ""
-    @Published var raisedBy: String = ""
-    @Published var createdAt: Date = Date()
-    @Published var addressed: Bool = false
-    @Published var addressedDate: Date = Date()
-    @Published var tagsDraft: String = ""
+    var title: String = ""
+    var issue: String = ""
+    var resolution: String = ""
+    var raisedBy: String = ""
+    var createdAt: Date = Date()
+    var addressed: Bool = false
+    var addressedDate: Date = Date()
+    var tagsDraft: String = ""
 
     // Derived lists (loaded lazily)
-    @Published var proposedSolutions: [ProposedSolution] = []
-    @Published var notes: [Note] = []
-    @Published var attachments: [CommunityAttachment] = []
+    var proposedSolutions: [ProposedSolution] = []
+    var notes: [Note] = []
+    var attachments: [CommunityAttachment] = []
 
     // MARK: - Mapping helpers
 

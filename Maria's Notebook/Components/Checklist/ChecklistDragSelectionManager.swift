@@ -1,20 +1,20 @@
 import Foundation
 import CoreGraphics
-import Combine
 
 // MARK: - Checklist Drag Selection Manager
 
 /// Manages drag selection state and logic for the checklist grid.
 /// Handles converting drag gestures into cell selections.
+@Observable
 @MainActor
-final class ChecklistDragSelectionManager: ObservableObject {
+final class ChecklistDragSelectionManager {
 
-    // MARK: - Published State
+    // MARK: - State
 
-    @Published var cellFrames: [CellIdentifier: CGRect] = [:]
-    @Published var dragStart: CGPoint? = nil
-    @Published var dragCurrent: CGPoint? = nil
-    @Published var isDragging: Bool = false
+    var cellFrames: [CellIdentifier: CGRect] = [:]
+    var dragStart: CGPoint? = nil
+    var dragCurrent: CGPoint? = nil
+    var isDragging: Bool = false
 
     // MARK: - Selection Calculation
 

@@ -6,7 +6,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
 
     // OPTIMIZATION: Use ViewModel for efficient statistics loading instead of loading entire tables
-    @StateObject private var statsViewModel = SettingsStatsViewModel()
+    @State private var statsViewModel = SettingsStatsViewModel()
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 

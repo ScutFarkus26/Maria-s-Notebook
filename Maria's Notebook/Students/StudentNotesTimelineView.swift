@@ -57,7 +57,7 @@ struct StudentNotesTimelineView: View {
 
 // MARK: - Internal List View
 private struct StudentNotesTimelineList: View {
-    @ObservedObject var viewModel: StudentNotesViewModel
+    @Bindable var viewModel: StudentNotesViewModel
     @Environment(\.calendar) private var calendar
 
     enum NoteFilter: String, CaseIterable, Identifiable {

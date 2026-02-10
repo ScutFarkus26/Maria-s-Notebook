@@ -1,40 +1,40 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
+@Observable
 @MainActor
-final class WorkDetailViewModel: ObservableObject {
-    // MARK: - Published State
-    @Published var work: WorkModel?
-    @Published var relatedLesson: Lesson?
-    @Published var relatedLessons: [Lesson] = []
-    @Published var relatedStudent: Student?
-    @Published var workModelNotes: [Note] = []
-    @Published var relatedPresentation: LessonAssignment?
-    @Published var resolvedPresentationID: UUID?
-    
-    @Published var showPresentationNotes = false
-    @Published var showAddNoteSheet = false
-    @Published var noteBeingEdited: Note?
-    @Published var showScheduleSheet = false
-    @Published var showPlannedBanner = false
-    @Published var showDeleteAlert = false
-    @Published var showAddStepSheet = false
-    @Published var stepBeingEdited: WorkStep?
-    @Published var showPracticeSessionSheet = false
-    @Published var showUnlockNextLessonAlert = false
-    @Published var nextLessonToUnlock: Lesson?
-    
-    @Published var status: WorkStatus = .active
-    @Published var workKind: WorkKind = .practiceLesson
-    @Published var workTitle: String = ""
-    @Published var completionOutcome: CompletionOutcome?
-    @Published var completionNote: String = ""
-    
-    @Published var newPlanDate: Date = Date()
-    @Published var newPlanReason: WorkPlanItem.Reason = .progressCheck
-    @Published var newPlanNote: String = ""
+final class WorkDetailViewModel {
+    // MARK: - State
+    var work: WorkModel?
+    var relatedLesson: Lesson?
+    var relatedLessons: [Lesson] = []
+    var relatedStudent: Student?
+    var workModelNotes: [Note] = []
+    var relatedPresentation: LessonAssignment?
+    var resolvedPresentationID: UUID?
+
+    var showPresentationNotes = false
+    var showAddNoteSheet = false
+    var noteBeingEdited: Note?
+    var showScheduleSheet = false
+    var showPlannedBanner = false
+    var showDeleteAlert = false
+    var showAddStepSheet = false
+    var stepBeingEdited: WorkStep?
+    var showPracticeSessionSheet = false
+    var showUnlockNextLessonAlert = false
+    var nextLessonToUnlock: Lesson?
+
+    var status: WorkStatus = .active
+    var workKind: WorkKind = .practiceLesson
+    var workTitle: String = ""
+    var completionOutcome: CompletionOutcome?
+    var completionNote: String = ""
+
+    var newPlanDate: Date = Date()
+    var newPlanReason: WorkPlanItem.Reason = .progressCheck
+    var newPlanNote: String = ""
     
     // MARK: - Dependencies
     private let workID: UUID

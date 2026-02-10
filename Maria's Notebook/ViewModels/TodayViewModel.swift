@@ -13,13 +13,13 @@
 import Foundation
 import SwiftUI
 import SwiftData
-import Combine
 
 /// View model for the Today screen.
 /// - Manages date selection and a level filter.
 /// - Builds in-memory caches to avoid repeated fetches per row.
+@Observable
 @MainActor
-final class TodayViewModel: ObservableObject {
+final class TodayViewModel {
 
     // MARK: - Type Aliases (for backwards compatibility)
 
@@ -39,7 +39,7 @@ final class TodayViewModel: ObservableObject {
 
     // MARK: - Inputs
 
-    @Published var date: Date {
+    var date: Date {
         didSet {
             let normalized = date.startOfDay
             if date != normalized {
@@ -51,35 +51,35 @@ final class TodayViewModel: ObservableObject {
             scheduleReload()
         }
     }
-    @Published var levelFilter: LevelFilter = .all { didSet { scheduleReload() } }
+    var levelFilter: LevelFilter = .all { didSet { scheduleReload() } }
 
     // MARK: - Outputs
 
-    @Published var todaysLessons: [StudentLesson] = []
+    var todaysLessons: [StudentLesson] = []
 
     // WorkModel-based lists
-    @Published var overdueSchedule: [ScheduledWorkItem] = []
-    @Published var todaysSchedule: [ScheduledWorkItem] = []
-    @Published var staleFollowUps: [FollowUpWorkItem] = []
+    var overdueSchedule: [ScheduledWorkItem] = []
+    var todaysSchedule: [ScheduledWorkItem] = []
+    var staleFollowUps: [FollowUpWorkItem] = []
 
     // Completed work items
-    @Published var completedWork: [WorkModel] = []
+    var completedWork: [WorkModel] = []
 
     // Reminders for today
-    @Published var todaysReminders: [Reminder] = []
-    @Published var overdueReminders: [Reminder] = []
-    @Published var anytimeReminders: [Reminder] = []  // Reminders with no due date
+    var todaysReminders: [Reminder] = []
+    var overdueReminders: [Reminder] = []
+    var anytimeReminders: [Reminder] = []  // Reminders with no due date
 
     // Calendar events for today
-    @Published var todaysCalendarEvents: [CalendarEvent] = []
+    var todaysCalendarEvents: [CalendarEvent] = []
 
-    @Published var attendanceSummary: AttendanceSummary = AttendanceSummary()
-    @Published var absentToday: [UUID] = []
-    @Published var leftEarlyToday: [UUID] = []
+    var attendanceSummary: AttendanceSummary = AttendanceSummary()
+    var absentToday: [UUID] = []
+    var leftEarlyToday: [UUID] = []
 
-    // New Published Outputs for recent notes and their students
-    @Published var recentNotes: [Note] = []
-    @Published var recentNoteStudentsByID: [UUID: Student] = [:]
+    // New Outputs for recent notes and their students
+    var recentNotes: [Note] = []
+    var recentNoteStudentsByID: [UUID: Student] = [:]
 
     // MARK: - Cache Accessors (delegate to cacheManager)
 
@@ -117,7 +117,8 @@ final class TodayViewModel: ObservableObject {
 
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
     // during rapid changes (e.g., date picker scrolling, filter changes)
-    private var reloadTask: Task<Void, Never>?
+    // Made nonisolated to allow access from deinit
+    nonisolated(unsafe) private var reloadTask: Task<Void, Never>?
 
     /// Schedules a debounced reload. Use this for data-driven changes that may happen rapidly.
     /// For user-initiated changes, call reload() directly for immediate feedback.
@@ -148,8 +149,10 @@ final class TodayViewModel: ObservableObject {
         scheduleReload()
     }
 
-    deinit {
+    nonisolated deinit {
         // Cancel any pending reload task to prevent leaks and unnecessary work
+        // reloadTask is marked nonisolated(unsafe) to allow access from deinit
+        // This is safe because Task.cancel() is thread-safe.
         reloadTask?.cancel()
     }
 

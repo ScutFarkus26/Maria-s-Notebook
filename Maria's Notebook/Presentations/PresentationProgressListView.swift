@@ -24,7 +24,7 @@ struct PresentationProgressListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \LessonAssignment.scheduledForDay, order: .reverse) private var allPresentations: [LessonAssignment]
     
-    @StateObject private var viewModel = PresentationProgressViewModel()
+    @State private var viewModel = PresentationProgressViewModel()
     
     @State private var searchText = ""
     @State private var filterState: PresentationState?

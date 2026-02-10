@@ -3,13 +3,13 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 
+@Observable
 @MainActor
-final class InboxSheetViewModel: ObservableObject {
-    // MARK: - Published State
-    @Published var selected: Set<UUID> = []
-    @Published var toastMessage: String? = nil
+final class InboxSheetViewModel {
+    // MARK: - State
+    var selected: Set<UUID> = []
+    var toastMessage: String? = nil
 
     // MARK: - Callbacks
     var onUpdateOrder: ((String) -> Void)?

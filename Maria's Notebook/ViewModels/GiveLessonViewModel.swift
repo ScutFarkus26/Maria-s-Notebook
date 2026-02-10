@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import Foundation
-import Combine
 
 // NOTE: Renamed type: GiveLessonViewModel -> LessonPickerViewModel
 
@@ -20,25 +19,26 @@ enum StudentLevelFilter: String, CaseIterable {
 
 // MARK: - View Model
 
+@Observable
 @MainActor
-final class LessonPickerViewModel: ObservableObject {
-    // MARK: - Published Properties
-    
-    @Published var selectedStudentIDs: Set<UUID> = []
-    @Published var scheduledFor: Date?
-    @Published var givenAt: Date?
-    @Published var notes: String = ""
-    @Published var needsPractice: Bool = false
-    @Published var needsAnotherPresentation: Bool = false
-    @Published var followUpWork: String = ""
-    @Published var selectedLessonID: UUID?
-    @Published var mode: GiveLessonMode = .plan
-    
+final class LessonPickerViewModel {
+    // MARK: - Properties
+
+    var selectedStudentIDs: Set<UUID> = []
+    var scheduledFor: Date?
+    var givenAt: Date?
+    var notes: String = ""
+    var needsPractice: Bool = false
+    var needsAnotherPresentation: Bool = false
+    var followUpWork: String = ""
+    var selectedLessonID: UUID?
+    var mode: GiveLessonMode = .plan
+
     // Search and UI state
-    @Published var lessonSearchText: String = ""
-    @Published var studentSearchText: String = ""
-    @Published var studentLevelFilter: StudentLevelFilter = .all
-    @Published var showFollowUpField: Bool = false
+    var lessonSearchText: String = ""
+    var studentSearchText: String = ""
+    var studentLevelFilter: StudentLevelFilter = .all
+    var showFollowUpField: Bool = false
     
     // MARK: - Private Properties
     

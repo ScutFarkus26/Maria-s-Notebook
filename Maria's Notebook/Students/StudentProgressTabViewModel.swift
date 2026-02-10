@@ -3,20 +3,20 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 #if os(macOS)
 import AppKit
 #else
 import UIKit
 #endif
 
+@Observable
 @MainActor
-final class StudentProgressTabViewModel: ObservableObject {
+final class StudentProgressTabViewModel {
     // MARK: - Public State
-    @Published private(set) var activeEnrollments: [StudentTrackEnrollment] = []
-    @Published private(set) var activeProjects: [Project] = []
-    @Published private(set) var activeReports: [WorkModel] = []
-    @Published private(set) var tracksByID: [String: Track] = [:]
+    private(set) var activeEnrollments: [StudentTrackEnrollment] = []
+    private(set) var activeProjects: [Project] = []
+    private(set) var activeReports: [WorkModel] = []
+    private(set) var tracksByID: [String: Track] = [:]
 
     // MARK: - Private State
     private var studentID: UUID?

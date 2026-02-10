@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 
 // MARK: - ViewModel
 // Manages data loading, subject selection, and matrix state.
@@ -15,19 +14,20 @@ import Combine
 // - ChecklistMatrixBuilder: Matrix state computation
 // - ChecklistBatchActionExecutor: Batch operations
 // - ChecklistDragSelectionManager: Drag selection (used in view)
+@Observable
 @MainActor
-class ClassSubjectChecklistViewModel: ObservableObject {
-    @Published var students: [Student] = []
+class ClassSubjectChecklistViewModel {
+    var students: [Student] = []
     private var allStudents: [Student] = []
-    @Published var lessons: [Lesson] = []
-    @Published var orderedGroups: [String] = []
-    @Published var availableSubjects: [String] = []
-    @Published var selectedSubject: String = ""
+    var lessons: [Lesson] = []
+    var orderedGroups: [String] = []
+    var availableSubjects: [String] = []
+    var selectedSubject: String = ""
 
-    @Published var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
+    var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
     // MARK: - Multi-Selection State
-    @Published var selectedCells: Set<CellIdentifier> = []
+    var selectedCells: Set<CellIdentifier> = []
     var isSelectionMode: Bool { !selectedCells.isEmpty }
     private let lessonsLogic = LessonsViewModel()
 

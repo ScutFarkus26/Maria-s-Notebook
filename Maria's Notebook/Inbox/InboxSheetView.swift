@@ -23,7 +23,7 @@ public struct InboxSheetView: View {
   @Environment(\.appRouter) private var appRouter
   @Environment(\.modelContext) private var modelContext
   @EnvironmentObject private var saveCoordinator: SaveCoordinator
-  @StateObject private var viewModel = InboxSheetViewModel()
+  @State private var viewModel = InboxSheetViewModel()
 
   @State private var itemFrames: [UUID: CGRect] = [:]
   @State private var spaceID = UUID()

@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
-import Combine
 
 // Conditional Import for Apple Intelligence features
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
@@ -14,33 +13,34 @@ import AppKit
 import UIKit
 #endif
 
+@Observable
 @MainActor
-class QuickNoteViewModel: ObservableObject {
-    // MARK: - Published Properties
-    
+class QuickNoteViewModel {
+    // MARK: - Properties
+
     // Content
-    @Published var bodyText: String = ""
-    @Published var category: NoteCategory = .general
-    @Published var selectedStudentIDs: Set<UUID> = []
-    @Published var includeInReport: Bool = false
-    @Published var noteDate: Date = Date()
-    
+    var bodyText: String = ""
+    var category: NoteCategory = .general
+    var selectedStudentIDs: Set<UUID> = []
+    var includeInReport: Bool = false
+    var noteDate: Date = Date()
+
     // Attachments
-    @Published var selectedPhotoItem: PhotosPickerItem? = nil
-    @Published var attachedImage: PlatformImage? = nil
-    @Published var attachedImagePath: String? = nil
-    
+    var selectedPhotoItem: PhotosPickerItem? = nil
+    var attachedImage: PlatformImage? = nil
+    var attachedImagePath: String? = nil
+
     // AI & Analysis State
-    @Published var detectedCandidateIDs: Set<UUID> = []
-    @Published var isProcessingAI: Bool = false
-    @Published var aiError: String? = nil
-    
+    var detectedCandidateIDs: Set<UUID> = []
+    var isProcessingAI: Bool = false
+    var aiError: String? = nil
+
     // UI State
-    @Published var isShowingStudentPicker: Bool = false
-    @Published var isShowingCamera: Bool = false
-    
+    var isShowingStudentPicker: Bool = false
+    var isShowingCamera: Bool = false
+
     // Track Context
-    @Published var selectedEnrollmentID: UUID? = nil
+    var selectedEnrollmentID: UUID? = nil
     
     // MARK: - Dependencies
     private let tagger = StudentTagger()

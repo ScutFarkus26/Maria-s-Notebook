@@ -40,7 +40,7 @@ struct StudentLessonDetailView: View {
 
     // Child ViewModel (LessonPicker)
     // We initialize it with a dummy state; it will be configured in onAppear
-    @StateObject private var lessonPickerVM = LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: UUID())
+    @State private var lessonPickerVM = LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: UUID())
 
     init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.studentLesson = studentLesson
@@ -108,7 +108,7 @@ struct StudentLessonDetailView: View {
 
 #if os(macOS)
 struct IndependentWorkflowWindow: View {
-    @ObservedObject var presentationViewModel: PostPresentationFormViewModel
+    @Bindable var presentationViewModel: PostPresentationFormViewModel
     let students: [Student]
     let lessonName: String
     let lessonID: UUID
@@ -169,7 +169,7 @@ struct IndependentWorkflowWindow: View {
 /// Extracts the content so `vm` can be treated as non-optional for Bindings
 struct StudentLessonDetailContentView: View {
     @Bindable var vm: StudentLessonDetailViewModel
-    @ObservedObject var lessonPickerVM: LessonPickerViewModel
+    @Bindable var lessonPickerVM: LessonPickerViewModel
     
     let lessons: [Lesson]
     let studentsAll: [Student]

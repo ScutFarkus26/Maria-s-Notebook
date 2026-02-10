@@ -21,14 +21,14 @@ struct QuickNoteSheet: View {
     }
 
     // MARK: - View Model
-    @StateObject private var viewModel: QuickNoteViewModel
-    
+    @State private var viewModel: QuickNoteViewModel
+
     // MARK: - UI State
     @FocusState private var isFocused: Bool
-    
+
     // MARK: - Init
     init(initialStudentID: UUID? = nil) {
-        _viewModel = StateObject(wrappedValue: QuickNoteViewModel(initialStudentID: initialStudentID))
+        _viewModel = State(wrappedValue: QuickNoteViewModel(initialStudentID: initialStudentID))
     }
     
     // MARK: - Body

@@ -21,7 +21,7 @@ struct MariasNotebookApp: App {
     @StateObject private var bootstrapper = AppBootstrapper.shared
     @StateObject private var restoreCoordinator = RestoreCoordinator()
     @StateObject private var appRouter = AppRouter.shared
-    @StateObject private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
+    @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
     @StateObject private var dependencies: AppDependencies
     
     #if os(macOS)

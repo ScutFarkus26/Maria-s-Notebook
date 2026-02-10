@@ -13,7 +13,7 @@ struct WorkDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var saveCoordinator: SaveCoordinator
 
-    @StateObject private var viewModel: WorkDetailViewModel
+    @State private var viewModel: WorkDetailViewModel
     @State private var showingRepresentSheet: Bool = false
     #if DEBUG
     @Query private var lessonAssignments: [LessonAssignment]
@@ -42,7 +42,7 @@ struct WorkDetailView: View {
         self.workID = workID
         self.onDone = onDone
         self.showRepresentButton = showRepresentButton
-        _viewModel = StateObject(wrappedValue: WorkDetailViewModel(workID: workID))
+        _viewModel = State(wrappedValue: WorkDetailViewModel(workID: workID))
 
         let workIDString = workID.uuidString
         _planItems = Query(filter: #Predicate<WorkPlanItem> { $0.workID == workIDString })

@@ -4,39 +4,39 @@
 
 import Foundation
 import SwiftData
-import Combine
 import SwiftUI
 
 /// View model backing StudentDetailView.
 /// Builds in-memory caches and exposes selection state for sheets.
 /// All methods maintain existing behavior; this refactor adds structure and docs only.
+@Observable
 @MainActor
-final class StudentDetailViewModel: ObservableObject {
+final class StudentDetailViewModel {
     // MARK: - Properties
     let student: Student
 
-    // MARK: - Published Caches
-    // Published caches and summaries
-    @Published private(set) var lessons: [Lesson] = []
-    @Published private(set) var studentLessons: [StudentLesson] = []
-    @Published private(set) var lessonsByID: [UUID: Lesson] = [:]
-    @Published private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
-    @Published private(set) var nextLessonsForStudent: [StudentLessonSnapshot] = []
+    // MARK: - Caches
+    // Caches and summaries
+    private(set) var lessons: [Lesson] = []
+    private(set) var studentLessons: [StudentLesson] = []
+    private(set) var lessonsByID: [UUID: Lesson] = [:]
+    private(set) var studentLessonsByID: [UUID: StudentLesson] = [:]
+    private(set) var nextLessonsForStudent: [StudentLessonSnapshot] = []
     /// Lessons that have been presented to this student (based on StudentLesson.isPresented)
-    @Published private(set) var presentedLessonIDs: Set<UUID> = []
+    private(set) var presentedLessonIDs: Set<UUID> = []
     /// Lessons that this student has mastered (based on LessonPresentation.state == .mastered)
-    @Published private(set) var masteredLessonIDs: Set<UUID> = []
-    @Published private(set) var plannedLessonIDs: Set<UUID> = []
+    private(set) var masteredLessonIDs: Set<UUID> = []
+    private(set) var plannedLessonIDs: Set<UUID> = []
 
-    @Published private(set) var workModelsForStudent: [WorkModel] = []
-    @Published private(set) var workSummary: WorkSummary = .empty
+    private(set) var workModelsForStudent: [WorkModel] = []
+    private(set) var workSummary: WorkSummary = .empty
 
     // MARK: - UI State
     // UI selection and toast state moved from the view
-    @Published var selectedLessonForGive: Lesson? = nil
-    @Published var giveStartGiven: Bool = false
-    @Published var selectedStudentLessonForDetail: StudentLesson? = nil
-    @Published var toastMessage: String? = nil
+    var selectedLessonForGive: Lesson? = nil
+    var giveStartGiven: Bool = false
+    var selectedStudentLessonForDetail: StudentLesson? = nil
+    var toastMessage: String? = nil
 
     private let dependencies: AppDependencies
     

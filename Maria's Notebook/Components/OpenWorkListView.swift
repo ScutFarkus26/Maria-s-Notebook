@@ -16,7 +16,7 @@ struct OpenWorkListView: View {
     @State private var selectedWork: WorkModel? = nil
 
     // Pagination state
-    @StateObject private var pagination = PaginationState(pageSize: 50)
+    @State private var pagination = PaginationState(pageSize: 50)
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {

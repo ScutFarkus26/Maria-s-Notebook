@@ -43,7 +43,7 @@ struct LessonsRootView: View {
     var lessons: [Lesson]
 
     // MARK: - UI State
-    @StateObject var filterState = LessonsFilterState()
+    @State var filterState = LessonsFilterState()
     @State var listSelectedSubject: String? = nil
 
     // MARK: - Scene Storage

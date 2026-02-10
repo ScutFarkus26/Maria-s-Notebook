@@ -5,15 +5,15 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
+@Observable
 @MainActor
-final class PresentationsViewModel: ObservableObject {
-    // MARK: - Published State
-    @Published var readyLessons: [StudentLesson] = []
-    @Published var blockedLessons: [StudentLesson] = []
-    @Published var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
-    @Published var daysSinceLastLessonByStudent: [UUID: Int] = [:]
+final class PresentationsViewModel {
+    // MARK: - State
+    var readyLessons: [StudentLesson] = []
+    var blockedLessons: [StudentLesson] = []
+    var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
+    var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
     var cachedStudents: [Student] {
