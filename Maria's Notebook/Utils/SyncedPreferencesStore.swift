@@ -1,5 +1,4 @@
 import Foundation
-@preconcurrency import Combine
 import OSLog
 import SwiftUI
 #if os(iOS)
@@ -13,8 +12,9 @@ import UIKit
 /// - KVS has a 1MB total limit across all keys
 /// - Automatically falls back to UserDefaults if KVS is unavailable
 /// - Handles migration from UserDefaults to KVS on first launch
+@Observable
 @MainActor
-public final class SyncedPreferencesStore: ObservableObject {
+public final class SyncedPreferencesStore {
     public static let shared = SyncedPreferencesStore()
 
     private let kvStore = NSUbiquitousKeyValueStore.default
@@ -29,11 +29,11 @@ public final class SyncedPreferencesStore: ObservableObject {
     /// Warning threshold (80% of max = ~838KB)
     private static let kvsWarningThreshold: Double = 0.80
 
-    /// Published quota status for UI display
-    @Published public private(set) var quotaUsageBytes: Int = 0
-    @Published public private(set) var quotaUsagePercent: Double = 0.0
-    @Published public private(set) var isQuotaWarning: Bool = false
-    @Published public private(set) var isQuotaViolation: Bool = false
+    /// Quota status for UI display
+    public private(set) var quotaUsageBytes: Int = 0
+    public private(set) var quotaUsagePercent: Double = 0.0
+    public private(set) var isQuotaWarning: Bool = false
+    public private(set) var isQuotaViolation: Bool = false
     
     /// Keys that should sync across devices
     private static let syncedKeys: Set<String> = [
@@ -264,7 +264,7 @@ public final class SyncedPreferencesStore: ObservableObject {
         syncTask = Task { @MainActor in
             do {
                 // Wait 1.5 seconds to batch multiple rapid changes
-                try await Task.sleep(nanoseconds: 1_500_000_000)
+                try await Task.sleep(for: .seconds(1.5))
                 guard !Task.isCancelled else { return }
                 flushPendingSync()
             } catch {
@@ -447,7 +447,7 @@ extension Notification.Name {
 /// Usage: @SyncedAppStorage("key") var value: Type = defaultValue
 @propertyWrapper
 public struct SyncedAppStorage<T>: DynamicProperty {
-    @ObservedObject private var store = SyncedPreferencesStore.shared
+    private var store = SyncedPreferencesStore.shared
     private let key: String
     private let defaultValue: T
     
@@ -477,8 +477,6 @@ public struct SyncedAppStorage<T>: DynamicProperty {
         }
         nonmutating set {
             store.set(newValue as Any?, forKey: key)
-            // Trigger update notification
-            store.objectWillChange.send()
         }
     }
     

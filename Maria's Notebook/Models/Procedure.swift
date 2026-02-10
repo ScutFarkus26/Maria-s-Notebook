@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Categories for classroom procedures
-enum ProcedureCategory: String, Codable, CaseIterable, Identifiable {
+enum ProcedureCategory: String, Codable, CaseIterable, Identifiable, Sendable {
     case dailyRoutines = "Daily Routines"
     case safety = "Safety & Emergency"
     case specialSchedules = "Special Schedules"

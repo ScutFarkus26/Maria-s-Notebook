@@ -2,7 +2,6 @@
 // Handles backup-related notifications and alerts
 
 import Foundation
-import Combine
 import UserNotifications
 import OSLog
 #if os(macOS)
@@ -10,8 +9,9 @@ import AppKit
 #endif
 
 /// Service for managing backup-related notifications
+@Observable
 @MainActor
-public final class BackupNotificationService: ObservableObject {
+public final class BackupNotificationService {
     
     // MARK: - Dependencies
     
@@ -19,7 +19,7 @@ public final class BackupNotificationService: ObservableObject {
 
     // MARK: - Types
 
-    public enum NotificationType: String, CaseIterable {
+    public enum NotificationType: String, CaseIterable, Sendable {
         case autoBackupComplete = "Auto-backup completed"
         case autoBackupFailed = "Auto-backup failed"
         case scheduledBackupComplete = "Scheduled backup completed"
@@ -74,25 +74,25 @@ public final class BackupNotificationService: ObservableObject {
 
     // MARK: - Settings
 
-    @Published public var notificationsEnabled: Bool {
+    public var notificationsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(notificationsEnabled, forKey: "BackupNotifications.enabled")
         }
     }
 
-    @Published public var showSuccessNotifications: Bool {
+    public var showSuccessNotifications: Bool {
         didSet {
             UserDefaults.standard.set(showSuccessNotifications, forKey: "BackupNotifications.showSuccess")
         }
     }
 
-    @Published public var showFailureNotifications: Bool {
+    public var showFailureNotifications: Bool {
         didSet {
             UserDefaults.standard.set(showFailureNotifications, forKey: "BackupNotifications.showFailure")
         }
     }
 
-    @Published public var showHealthWarnings: Bool {
+    public var showHealthWarnings: Bool {
         didSet {
             UserDefaults.standard.set(showHealthWarnings, forKey: "BackupNotifications.showHealthWarnings")
         }
@@ -100,8 +100,8 @@ public final class BackupNotificationService: ObservableObject {
 
     // MARK: - State
 
-    @Published private(set) var recentNotifications: [BackupNotification] = []
-    @Published private(set) var unreadCount: Int = 0
+    private(set) var recentNotifications: [BackupNotification] = []
+    private(set) var unreadCount: Int = 0
 
     // MARK: - Initialization
 

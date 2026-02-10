@@ -277,7 +277,7 @@ final class LessonAssignment: Identifiable {
 // MARK: - State Enum
 
 /// Lifecycle states for a presentation.
-enum LessonAssignmentState: String, Codable, CaseIterable {
+enum LessonAssignmentState: String, Codable, CaseIterable, Sendable {
     /// Created but not yet scheduled.
     case draft = "draft"
 

@@ -1,9 +1,9 @@
 import Foundation
-import Combine
 
 /// Service responsible for managing retry logic with exponential backoff
+@Observable
 @MainActor
-final class SyncRetryLogic: ObservableObject {
+final class SyncRetryLogic {
     // MARK: - State
     
     /// Current retry attempt count for failed syncs
@@ -58,8 +58,7 @@ final class SyncRetryLogic: ObservableObject {
             guard let self = self else { return }
             
             // Wait for the backoff delay
-            let delayNanoseconds = UInt64(delay * 1_000_000_000)
-            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
             
             // Check if conditions are now favorable

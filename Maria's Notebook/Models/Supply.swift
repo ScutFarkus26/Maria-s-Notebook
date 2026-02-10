@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Categories for classroom supplies
-enum SupplyCategory: String, Codable, CaseIterable, Identifiable {
+enum SupplyCategory: String, Codable, CaseIterable, Identifiable, Sendable {
     case art = "Art"
     case math = "Math"
     case language = "Language"
@@ -37,7 +37,7 @@ enum SupplyCategory: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Represents the stock status of a supply
-enum SupplyStatus: String, Codable {
+enum SupplyStatus: String, Codable, Sendable {
     case healthy = "Healthy"
     case low = "Low"
     case critical = "Critical"

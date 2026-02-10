@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Days of the week for scheduling
-enum Weekday: String, Codable, CaseIterable, Identifiable {
+enum Weekday: String, Codable, CaseIterable, Identifiable, Sendable {
     case sunday = "Sunday"
     case monday = "Monday"
     case tuesday = "Tuesday"

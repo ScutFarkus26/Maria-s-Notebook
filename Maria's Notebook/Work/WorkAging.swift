@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 // MARK: - Aging Types
-enum AgingBucket: Int, Codable, Comparable {
+enum AgingBucket: Int, Codable, Comparable, Sendable {
     case fresh = 0
     case aging = 1
     case stale = 2

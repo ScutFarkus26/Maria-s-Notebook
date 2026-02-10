@@ -2,7 +2,6 @@
 // Mock implementation for network monitoring in tests
 
 #if canImport(Testing)
-import Combine
 import Foundation
 import Network
 @testable import Maria_s_Notebook
@@ -27,10 +26,11 @@ protocol NetworkMonitoring: AnyObject {
 extension NWPathMonitor: NetworkMonitoring {}
 
 /// Mock network monitor for testing network state transitions
+@Observable
 @MainActor
-final class MockNetworkMonitor: ObservableObject {
+final class MockNetworkMonitor {
     /// Current simulated network status
-    @Published var isNetworkAvailable: Bool = true
+    var isNetworkAvailable: Bool = true
 
     /// Handlers to notify when network status changes
     private var statusChangeHandlers: [(Bool) -> Void] = []
@@ -65,10 +65,11 @@ final class MockNetworkMonitor: ObservableObject {
 }
 
 /// Mock iCloud availability checker for testing
+@Observable
 @MainActor
-final class MockICloudAvailability: ObservableObject {
+final class MockICloudAvailability {
     /// Current simulated iCloud availability
-    @Published var isICloudAvailable: Bool = true
+    var isICloudAvailable: Bool = true
 
     /// Handlers to notify when iCloud status changes
     private var statusChangeHandlers: [(Bool) -> Void] = []

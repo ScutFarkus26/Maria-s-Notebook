@@ -32,7 +32,7 @@ struct AttendanceSummary {
 // MARK: - Level Filter
 
 /// Filter for Lower/Upper/All levels. Used to reduce the visible items across sections.
-enum LevelFilter: String, CaseIterable, Identifiable {
+enum LevelFilter: String, CaseIterable, Identifiable, Sendable {
     case all = "All"
     case lower = "Lower"
     case upper = "Upper"

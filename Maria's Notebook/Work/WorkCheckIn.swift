@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-enum WorkCheckInStatus: String, Codable, CaseIterable {
+enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
     case scheduled = "Scheduled"
     case completed = "Completed"
     case skipped = "Skipped"

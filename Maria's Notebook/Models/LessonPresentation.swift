@@ -55,7 +55,7 @@ final class LessonPresentation: Identifiable {
     }
 }
 
-enum LessonPresentationState: String, Codable, CaseIterable {
+enum LessonPresentationState: String, Codable, CaseIterable, Sendable {
     case presented = "presented"
     case practicing = "practicing"
     case readyForAssessment = "readyForAssessment"

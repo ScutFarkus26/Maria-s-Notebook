@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
 /// Central dependency injection container for the application.
 ///
@@ -42,12 +41,10 @@ import Combine
 ///     }
 /// }
 /// ```
+@Observable
 @MainActor
-final class AppDependencies: ObservableObject {
+final class AppDependencies {
     let modelContext: ModelContext
-    
-    // Required for ObservableObject conformance
-    nonisolated let objectWillChange = ObservableObjectPublisher()
     
     // MARK: - Initialization
     

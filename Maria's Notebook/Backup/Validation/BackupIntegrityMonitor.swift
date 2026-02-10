@@ -3,12 +3,12 @@
 
 import Foundation
 import SwiftUI
-import Combine
 import OSLog
 
 /// Monitors backup integrity and provides health status
+@Observable
 @MainActor
-public final class BackupIntegrityMonitor: ObservableObject {
+public final class BackupIntegrityMonitor {
 
     // MARK: - Types
 
@@ -87,19 +87,34 @@ public final class BackupIntegrityMonitor: ObservableObject {
         public let fileSize: Int64
     }
 
-    // MARK: - Published State
+    // MARK: - State
 
-    @Published private(set) var latestReport: IntegrityReport?
-    @Published private(set) var isScanning = false
-    @Published private(set) var lastScanDate: Date?
-    @Published private(set) var nextScheduledScanDate: Date?
+    private(set) var latestReport: IntegrityReport?
+    private(set) var isScanning = false
+    private(set) var lastScanDate: Date?
+    private(set) var nextScheduledScanDate: Date?
 
-    // MARK: - Settings
+    // MARK: - Settings (using UserDefaults since @AppStorage conflicts with @Observable)
 
-    @AppStorage("BackupIntegrity.autoVerifyEnabled") private var autoVerifyEnabled = true
-    @AppStorage("BackupIntegrity.scheduledVerificationEnabled") private var scheduledVerificationEnabled = false
-    @AppStorage("BackupIntegrity.verificationIntervalHours") private var verificationIntervalHours = 24
-    @AppStorage("BackupIntegrity.warningDaysThreshold") private var warningDaysThreshold = 7
+    private var autoVerifyEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "BackupIntegrity.autoVerifyEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.autoVerifyEnabled") }
+    }
+    
+    private var scheduledVerificationEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "BackupIntegrity.scheduledVerificationEnabled") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.scheduledVerificationEnabled") }
+    }
+    
+    private var verificationIntervalHours: Int {
+        get { UserDefaults.standard.object(forKey: "BackupIntegrity.verificationIntervalHours") as? Int ?? 24 }
+        set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.verificationIntervalHours") }
+    }
+    
+    private var warningDaysThreshold: Int {
+        get { UserDefaults.standard.object(forKey: "BackupIntegrity.warningDaysThreshold") as? Int ?? 7 }
+        set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.warningDaysThreshold") }
+    }
 
     // MARK: - Properties
 

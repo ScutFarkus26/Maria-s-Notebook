@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Categories of classroom/facility issues
-enum IssueCategory: String, Codable, CaseIterable {
+enum IssueCategory: String, Codable, CaseIterable, Sendable {
     case behavioral = "Behavioral"
     case social = "Social"
     case facility = "Facility"
@@ -27,7 +27,7 @@ enum IssueCategory: String, Codable, CaseIterable {
 }
 
 /// Priority levels for issues
-enum IssuePriority: String, Codable, CaseIterable {
+enum IssuePriority: String, Codable, CaseIterable, Sendable {
     case low = "Low"
     case medium = "Medium"
     case high = "High"
@@ -44,7 +44,7 @@ enum IssuePriority: String, Codable, CaseIterable {
 }
 
 /// Current status of an issue
-enum IssueStatus: String, Codable, CaseIterable {
+enum IssueStatus: String, Codable, CaseIterable, Sendable {
     case open = "Open"
     case investigating = "Investigating"
     case inProgress = "In Progress"
@@ -63,7 +63,7 @@ enum IssueStatus: String, Codable, CaseIterable {
 }
 
 /// Type of action taken on an issue
-enum IssueActionType: String, Codable, CaseIterable {
+enum IssueActionType: String, Codable, CaseIterable, Sendable {
     case initialReport = "Initial Report"
     case conversation = "Conversation"
     case agreement = "Agreement"
