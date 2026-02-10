@@ -21,6 +21,7 @@ struct StudentInsightsView: View {
     @State private var selectedLookbackDays = 30
     @State private var showingParentSummary = false
     @State private var parentSummary = ""
+    @State private var showingAPIKeySettings = false
     
     private let lookbackOptions = [7, 14, 30, 60, 90]
     
@@ -56,6 +57,11 @@ struct StudentInsightsView: View {
         }
         .sheet(isPresented: $showingParentSummary) {
             ParentSummarySheet(summary: parentSummary, student: student)
+        }
+        .sheet(isPresented: $showingAPIKeySettings) {
+            NavigationStack {
+                APIKeySettingsView()
+            }
         }
     }
     
@@ -313,7 +319,7 @@ struct StudentInsightsView: View {
     // MARK: - Error Card
     
     private func errorCard(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Label("Error", systemImage: "exclamationmark.triangle.fill")
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -322,6 +328,17 @@ struct StudentInsightsView: View {
             Text(message)
                 .font(.body)
                 .foregroundColor(.primary)
+            
+            // Show settings button if API key is missing
+            if message.contains("API key") {
+                Button(action: { showingAPIKeySettings = true }) {
+                    Label("Configure API Key", systemImage: "gear")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
         .padding()
         .background(Color.red.opacity(0.1))
@@ -388,6 +405,13 @@ struct StudentInsightsView: View {
         Task {
             isGenerating = true
             errorMessage = nil
+            
+            // Check if API key is configured
+            if !AnthropicAPIClient.hasAPIKey() {
+                errorMessage = "Please configure your Anthropic API key in Settings → AI Features to use Development Insights."
+                isGenerating = false
+                return
+            }
             
             do {
                 let snapshot = try await dependencies.studentAnalysisService.analyzeStudent(

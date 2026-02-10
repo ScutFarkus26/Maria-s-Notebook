@@ -216,23 +216,26 @@ final class AppDependencies: ObservableObject {
     
     private var _mcpClient: MCPClientProtocol?
     var mcpClient: MCPClientProtocol {
-        if _mcpClient == nil {
-            // Use MockMCPClient for development
-            // In production, configure MCPClient with actual server URL
-            _mcpClient = MockMCPClient()
+        if let client = _mcpClient {
+            return client
         }
-        return _mcpClient!
+        // Use direct Anthropic API client
+        let client = AnthropicAPIClient()
+        _mcpClient = client
+        return client
     }
     
     private var _studentAnalysisService: StudentAnalysisService?
     var studentAnalysisService: StudentAnalysisService {
-        if _studentAnalysisService == nil {
-            _studentAnalysisService = StudentAnalysisService(
-                modelContext: modelContext,
-                mcpClient: mcpClient
-            )
+        if let service = _studentAnalysisService {
+            return service
         }
-        return _studentAnalysisService!
+        let service = StudentAnalysisService(
+            modelContext: modelContext,
+            mcpClient: mcpClient
+        )
+        _studentAnalysisService = service
+        return service
     }
     
     private var _reportGeneratorService: ReportGeneratorService?

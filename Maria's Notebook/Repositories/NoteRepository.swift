@@ -51,27 +51,27 @@ struct NoteRepository: SavingRepository {
     /// - Parameter studentID: The UUID of the student
     /// - Returns: Array of Notes visible to the student (scoped to them or all)
     func fetchNotesForStudent(studentID: UUID) -> [Note] {
-        // Fetch notes with direct student scope or all scope
-        let directPredicate = #Predicate<Note> { note in
+        // Avoid SwiftData predicate translation to reduce crash risk.
+        let allNotes = context.safeFetch(FetchDescriptor<Note>())
+        var notes = allNotes.filter { note in
             note.searchIndexStudentID == studentID || note.scopeIsAll
         }
-        var notes = fetchNotes(predicate: directPredicate)
 
         // Also fetch notes that have student links (for multi-student scope)
         // NoteStudentLink stores studentID as String for CloudKit compatibility
         let studentIDString = studentID.uuidString
-        let linkDescriptor = FetchDescriptor<NoteStudentLink>(
-            predicate: #Predicate<NoteStudentLink> { $0.studentID == studentIDString }
-        )
-        if let links = try? context.fetch(linkDescriptor) {
-            let linkedNotes = links.compactMap { $0.note }
-            let existingIds = Set(notes.map { $0.id })
-            for linkedNote in linkedNotes where !existingIds.contains(linkedNote.id) {
-                notes.append(linkedNote)
-            }
+        let allLinks = context.safeFetch(FetchDescriptor<NoteStudentLink>())
+        let linkedNotes = allLinks
+            .filter { $0.studentID == studentIDString }
+            .compactMap { $0.note }
+
+        if !linkedNotes.isEmpty {
+            notes.append(contentsOf: linkedNotes)
         }
 
-        return notes.sorted { $0.createdAt > $1.createdAt }
+        let deduped = Dictionary(grouping: notes, by: { $0.id })
+            .compactMap { $0.value.first }
+        return deduped.sorted { $0.createdAt > $1.createdAt }
     }
 
     // MARK: - Create

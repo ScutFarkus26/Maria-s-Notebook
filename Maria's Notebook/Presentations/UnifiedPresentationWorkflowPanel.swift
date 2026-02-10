@@ -160,76 +160,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         )
     }
     
-    // MARK: - Progress Indicator
-    
-    private var progressIndicator: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 16) {
-                // Understanding progress
-                HStack(spacing: 6) {
-                    Image(systemName: studentsWithUnderstanding == students.count ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(studentsWithUnderstanding == students.count ? .green : .secondary)
-                        .font(.system(size: 14))
-                    Text("\(studentsWithUnderstanding)/\(students.count) understanding set")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                
-                // Notes progress
-                HStack(spacing: 6) {
-                    Image(systemName: studentsWithNotes > 0 ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(studentsWithNotes > 0 ? .green : .secondary)
-                        .font(.system(size: 14))
-                    Text("\(studentsWithNotes)/\(students.count) with notes")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                
-                // Group observation
-                HStack(spacing: 6) {
-                    Image(systemName: hasGroupObservation ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(hasGroupObservation ? .green : .secondary)
-                        .font(.system(size: 14))
-                    Text("Group notes")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-            }
-            
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color.secondary.opacity(0.2))
-                        .frame(height: 6)
-                    
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color.accentColor)
-                        .frame(width: geometry.size.width * progressPercentage, height: 6)
-                }
-            }
-            .frame(height: 6)
-        }
-    }
-    
-    private var progressPercentage: Double {
-        let totalItems = 3.0 // understanding, notes, group observation
-        var completed = 0.0
-        
-        if studentsWithUnderstanding == students.count {
-            completed += 1.0
-        }
-        if studentsWithNotes > 0 {
-            completed += 1.0
-        }
-        if hasGroupObservation {
-            completed += 1.0
-        }
-        
-        return completed / totalItems
-    }
+
     
     // MARK: - Split Panel Layout (iPad/macOS)
     
@@ -285,10 +216,15 @@ struct UnifiedPresentationWorkflowPanel: View {
             Divider()
             
             // Progress Indicator
-            progressIndicator
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.primary.opacity(0.03))
+            WorkflowProgressIndicator(
+                totalStudents: students.count,
+                studentsWithUnderstanding: studentsWithUnderstanding,
+                studentsWithNotes: studentsWithNotes,
+                hasGroupObservation: hasGroupObservation
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.primary.opacity(0.03))
             
             Divider()
             
@@ -332,7 +268,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                         Spacer()
                         if let level = presentationViewModel.entries[student.id]?.understandingLevel {
                             Text("\(level)")
-                                .foregroundStyle(understandingColor(for: level))
+                                .foregroundStyle(UnderstandingLevel.color(for: level))
                         }
                     }
                 }
@@ -384,17 +320,10 @@ struct UnifiedPresentationWorkflowPanel: View {
                         Button {
                             applyUnderstandingToAll(level: level)
                         } label: {
-                            Circle()
-                                .fill(understandingColor(for: level))
-                                .frame(width: 28, height: 28)
-                                .overlay(
-                                    Text("\(level)")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(.white)
-                                )
+                            UnderstandingLevelIndicator(level: level, size: 28)
                         }
                         .buttonStyle(.plain)
-                        .help(understandingLabel(for: level))
+                        .help(UnderstandingLevel.label(for: level))
                     }
                 }
             }
@@ -610,7 +539,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                             presentationViewModel.entries[student.id]?.understandingLevel = level
                         } label: {
                             Circle()
-                                .fill(understandingColor(for: level).opacity(
+                                .fill(UnderstandingLevel.color(for: level).opacity(
                                     (presentationViewModel.entries[student.id]?.understandingLevel ?? 3) >= level ? 1.0 : 0.2
                                 ))
                                 .frame(width: 24, height: 24)
@@ -620,7 +549,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                     
                     Spacer()
                     
-                    Text(understandingLabel(for: presentationViewModel.entries[student.id]?.understandingLevel ?? 3))
+                    Text(UnderstandingLevel.label(for: presentationViewModel.entries[student.id]?.understandingLevel ?? 3))
                         .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
@@ -653,7 +582,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         return HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { i in
                 Circle()
-                    .fill(understandingColor(for: level).opacity(i <= level ? 1.0 : 0.2))
+                    .fill(UnderstandingLevel.color(for: level).opacity(i <= level ? 1.0 : 0.2))
                     .frame(width: 8, height: 8)
             }
         }
@@ -720,7 +649,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                             HStack(spacing: 2) {
                                 ForEach(1...5, id: \.self) { level in
                                     Circle()
-                                        .fill(understandingColor(for: level).opacity(
+                                        .fill(UnderstandingLevel.color(for: level).opacity(
                                             entry.understandingLevel >= level ? 1.0 : 0.2
                                         ))
                                         .frame(width: 6, height: 6)
@@ -807,7 +736,17 @@ struct UnifiedPresentationWorkflowPanel: View {
                 
                 HStack(spacing: 8) {
                     ForEach(WorkKind.allCases) { kind in
-                        workKindPill(kind: kind, draft: draft, studentID: studentID)
+                        SelectablePillButton(
+                            item: kind,
+                            isSelected: draft.kind == kind,
+                            color: kind.color,
+                            icon: kind.iconName,
+                            label: kind.shortLabel
+                        ) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.kind = kind }
+                            }
+                        }
                     }
                 }
             }
@@ -820,7 +759,17 @@ struct UnifiedPresentationWorkflowPanel: View {
                 
                 HStack(spacing: 8) {
                     ForEach(WorkStatus.allCases) { status in
-                        workStatusPill(status: status, draft: draft, studentID: studentID)
+                        SelectablePillButton(
+                            item: status,
+                            isSelected: draft.status == status,
+                            color: status.color,
+                            icon: status.iconName,
+                            label: status.displayName
+                        ) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.status = status }
+                            }
+                        }
                     }
                     
                     Spacer()
@@ -940,7 +889,17 @@ struct UnifiedPresentationWorkflowPanel: View {
                             
                             FlowLayout(spacing: 8) {
                                 ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
-                                    completionOutcomePill(outcome: outcome, draft: draft, studentID: studentID)
+                                    SelectablePillButton(
+                                        item: outcome,
+                                        isSelected: draft.completionOutcome == outcome,
+                                        color: outcome.color,
+                                        icon: outcome.iconName,
+                                        label: outcome.displayName
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionOutcome = outcome }
+                                        }
+                                    }
                                 }
                             }
                             
@@ -1089,90 +1048,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         )
     }
     
-    // MARK: - Work Draft Pill Buttons
-    
-    @ViewBuilder
-    private func workKindPill(kind: WorkKind, draft: WorkItemDraft, studentID: UUID) -> some View {
-        let isSelected = draft.kind == kind
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.kind = kind }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: kind.iconName)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(kind.shortLabel)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(isSelected ? .white : kind.color)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(isSelected ? kind.color : kind.color.opacity(0.12))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(kind.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-    
-    @ViewBuilder
-    private func workStatusPill(status: WorkStatus, draft: WorkItemDraft, studentID: UUID) -> some View {
-        let isSelected = draft.status == status
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.status = status }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: status.iconName)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(status.displayName)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(isSelected ? .white : status.color)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(isSelected ? status.color : status.color.opacity(0.12))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(status.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-    
-    @ViewBuilder
-    private func completionOutcomePill(outcome: CompletionOutcome, draft: WorkItemDraft, studentID: UUID) -> some View {
-        let isSelected = draft.completionOutcome == outcome
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionOutcome = outcome }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: outcome.iconName)
-                    .font(.system(size: 11, weight: .semibold))
-                Text(outcome.displayName)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(isSelected ? .white : outcome.color)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? outcome.color : outcome.color.opacity(0.12))
-            )
-        }
-        .buttonStyle(.plain)
-    }
+
     
     // MARK: - Work Draft Management
     
@@ -1308,7 +1184,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         
         // Show toast notification
         withAnimation(.easeInOut(duration: 0.3)) {
-            bulkAppliedMessage = "Applied \(understandingLabel(for: level)) to \(count) student\(count == 1 ? "" : "s")"
+            bulkAppliedMessage = "Applied \(UnderstandingLevel.label(for: level)) to \(count) student\(count == 1 ? "" : "s")"
             showBulkAppliedToast = true
         }
         
@@ -1321,25 +1197,4 @@ struct UnifiedPresentationWorkflowPanel: View {
         }
     }
     
-    private func understandingColor(for level: Int) -> Color {
-        switch level {
-        case 1: return .red
-        case 2: return .orange
-        case 3: return .yellow
-        case 4: return .green
-        case 5: return .blue
-        default: return .gray
-        }
-    }
-    
-    private func understandingLabel(for level: Int) -> String {
-        switch level {
-        case 1: return "Struggling"
-        case 2: return "Needs Support"
-        case 3: return "Developing"
-        case 4: return "Proficient"
-        case 5: return "Mastered"
-        default: return ""
-        }
-    }
 }

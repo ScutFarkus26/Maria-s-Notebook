@@ -75,6 +75,9 @@ final class StudentAnalysisService {
             rawAnalysisJSON: analysis.rawJSON
         )
         
+        // Insert the snapshot into the model context
+        modelContext.insert(snapshot)
+        
         return snapshot
     }
     
@@ -144,18 +147,16 @@ final class StudentAnalysisService {
     private func gatherStudentData(student: Student, since: Date) async throws -> StudentDataPackage {
         // Fetch notes for this student
         let studentID = student.id
-        let notesDescriptor = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { note in
-                note.searchIndexStudentID == studentID && note.createdAt >= since
-            },
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        let notes = try modelContext.fetch(notesDescriptor)
+        let sinceDate = since
+        let noteRepository = NoteRepository(context: modelContext)
+        let notes = noteRepository
+            .fetchNotesForStudent(studentID: studentID)
+            .filter { $0.createdAt >= sinceDate }
         
         // Fetch practice sessions
         let practiceDescriptor = FetchDescriptor<PracticeSession>(
             predicate: #Predicate<PracticeSession> { session in
-                session.date >= since
+                session.date >= sinceDate
             },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
@@ -165,7 +166,7 @@ final class StudentAnalysisService {
         // Fetch work completions
         let completionDescriptor = FetchDescriptor<WorkCompletionRecord>(
             predicate: #Predicate<WorkCompletionRecord> { record in
-                record.completedAt >= since
+                record.completedAt >= sinceDate
             },
             sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
         )
@@ -358,4 +359,3 @@ struct ProgressComparison {
         !improvements.isEmpty || !newMilestones.isEmpty || !emergingStrengths.isEmpty
     }
 }
-

@@ -22,6 +22,7 @@ struct MariasNotebookApp: App {
     @StateObject private var restoreCoordinator = RestoreCoordinator()
     @StateObject private var appRouter = AppRouter.shared
     @StateObject private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
+    @StateObject private var dependencies: AppDependencies
     
     #if os(macOS)
     @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
@@ -31,6 +32,8 @@ struct MariasNotebookApp: App {
     
     init() {
         AppBootstrapping.performInitialSetup()
+        let container = AppBootstrapping.getSharedModelContainer()
+        _dependencies = StateObject(wrappedValue: AppDependencies(modelContext: container.mainContext))
     }
 
     // MARK: - Computed Properties
@@ -81,6 +84,7 @@ struct MariasNotebookApp: App {
                                 RootView()
                                     .environment(\.calendar, AppCalendar.shared)
                                     .environment(\.appRouter, appRouter)
+                                    .environment(\.dependencies, dependencies)
                                     .environmentObject(saveCoordinator)
                                     .environmentObject(restoreCoordinator)
                             }

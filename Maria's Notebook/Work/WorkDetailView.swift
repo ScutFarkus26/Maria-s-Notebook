@@ -338,7 +338,17 @@ struct WorkDetailView: View {
 
                 HStack(spacing: 8) {
                     ForEach(WorkKind.allCases) { kind in
-                        kindPill(kind)
+                        SelectablePillButton(
+                            item: kind,
+                            isSelected: viewModel.workKind == kind,
+                            color: kind.color,
+                            icon: kind.iconName,
+                            label: kind.shortLabel
+                        ) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                viewModel.workKind = kind
+                            }
+                        }
                     }
                 }
             }
@@ -351,7 +361,27 @@ struct WorkDetailView: View {
 
                 HStack(spacing: 8) {
                     ForEach(WorkStatus.allCases) { s in
-                        statusPill(s)
+                        SelectablePillButton(
+                            item: s,
+                            isSelected: viewModel.status == s,
+                            color: s.color,
+                            icon: s.iconName,
+                            label: s.displayName
+                        ) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                viewModel.status = s
+                                
+                                // When marking as complete with good outcome, offer to unlock next lesson
+                                if s == .complete,
+                                   let outcome = viewModel.completionOutcome,
+                                   outcome == .mastered || outcome == .needsReview,
+                                   let work = viewModel.work,
+                                   let lessonID = UUID(uuidString: work.lessonID),
+                                   let studentID = UUID(uuidString: work.studentID) {
+                                    checkAndOfferUnlock(lessonID: lessonID, studentID: studentID)
+                                }
+                            }
+                        }
                     }
 
                     Spacer()
@@ -378,71 +408,7 @@ struct WorkDetailView: View {
         }
     }
 
-    @ViewBuilder private func kindPill(_ kind: WorkKind) -> some View {
-        let isSelected = viewModel.workKind == kind
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                viewModel.workKind = kind
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: kind.iconName)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(kind.shortLabel)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(isSelected ? .white : kind.color)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(isSelected ? kind.color : kind.color.opacity(0.12))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(kind.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
 
-    @ViewBuilder private func statusPill(_ s: WorkStatus) -> some View {
-        let isSelected = viewModel.status == s
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                viewModel.status = s
-                
-                // When marking as complete with good outcome, offer to unlock next lesson
-                if s == .complete, 
-                   let outcome = viewModel.completionOutcome,
-                   outcome == .mastered || outcome == .needsReview,
-                   let work = viewModel.work,
-                   let lessonID = UUID(uuidString: work.lessonID),
-                   let studentID = UUID(uuidString: work.studentID) {
-                    checkAndOfferUnlock(lessonID: lessonID, studentID: studentID)
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: s.iconName)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(s.displayName)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(isSelected ? .white : s.color)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(isSelected ? s.color : s.color.opacity(0.12))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(s.color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
 
     @ViewBuilder private func completionSection() -> some View {
         DetailSectionCard(title: "Completion", icon: "checkmark.seal.fill", accentColor: .green) {
@@ -454,27 +420,17 @@ struct WorkDetailView: View {
 
                 FlowLayout(spacing: 8) {
                     ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
-                        let isSelected = viewModel.completionOutcome == outcome
-                        Button {
+                        SelectablePillButton(
+                            item: outcome,
+                            isSelected: viewModel.completionOutcome == outcome,
+                            color: outcome.color,
+                            icon: outcome.iconName,
+                            label: outcome.displayName
+                        ) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.completionOutcome = outcome
                             }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: outcome.iconName)
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text(outcome.displayName)
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                            }
-                            .foregroundStyle(isSelected ? .white : outcome.color)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(isSelected ? outcome.color : outcome.color.opacity(0.12))
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                 }
 

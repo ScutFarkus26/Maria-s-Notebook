@@ -35,6 +35,11 @@ struct QuickNewWorkItemSheet: View {
     @State private var hasDueDate: Bool = false
     @State private var lessonSearchText: String = ""
     @State private var isSaving: Bool = false
+    
+    // Check-in states
+    @State private var hasCheckIn: Bool = false
+    @State private var checkInDate: Date = Date()
+    @State private var checkInReason: WorkPlanItem.Reason = .progressCheck
 
     // Popover states
     @State private var showingLessonPopover: Bool = false
@@ -341,6 +346,54 @@ struct QuickNewWorkItemSheet: View {
                     set: { dueDate = $0 }
                 ), displayedComponents: .date)
             }
+            
+            Divider()
+                .padding(.vertical, 8)
+            
+            // Check-in toggle and controls
+            Toggle("Schedule check-in", isOn: $hasCheckIn)
+                .onChange(of: hasCheckIn) { _, newValue in
+                    if newValue {
+                        checkInDate = AppCalendar.startOfDay(Date())
+                    }
+                }
+            
+            if hasCheckIn {
+                HStack(spacing: 12) {
+                    DatePicker("Check-in date", selection: $checkInDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                    
+                    Menu {
+                        ForEach(WorkPlanItem.Reason.allCases) { reason in
+                            Button {
+                                checkInReason = reason
+                            } label: {
+                                HStack {
+                                    Image(systemName: reason.icon)
+                                    Text(reason.label)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: checkInReason.icon)
+                                .font(.system(size: 12, weight: .medium))
+                            Text(checkInReason.label)
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.primary.opacity(0.06))
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -376,6 +429,17 @@ struct QuickNewWorkItemSheet: View {
                     kind: workKind,
                     scheduledDate: hasDueDate ? dueDate : nil
                 )
+                
+                // Create check-in if scheduled
+                if hasCheckIn {
+                    let planItem = WorkPlanItem(
+                        workID: work.id,
+                        scheduledDate: AppCalendar.startOfDay(checkInDate),
+                        reason: checkInReason
+                    )
+                    modelContext.insert(planItem)
+                }
+                
                 // Keep reference to first created work for "Create & Open"
                 if createdWorkID == nil {
                     createdWorkID = work.id

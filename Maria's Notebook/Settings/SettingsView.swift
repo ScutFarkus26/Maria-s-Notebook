@@ -40,11 +40,14 @@ struct SettingsView: View {
                         // MARK: - 5. Communication
                         communicationSection
 
-                        // MARK: - 6. Database
+                        // MARK: - 6. AI Features
+                        aiFeaturesSection
+
+                        // MARK: - 7. Database
                         databaseSection
 
                         #if DEBUG
-                        // MARK: - 7. Advanced (Debug Only)
+                        // MARK: - 8. Advanced (Debug Only)
                         advancedSection
                         #endif
                     }
@@ -223,7 +226,51 @@ struct SettingsView: View {
         }
     }
     
-    // 6. Database
+    // 6. AI Features
+    private var aiFeaturesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsCategoryHeader(title: "AI Features", systemImage: "brain.head.profile")
+            SettingsGroup(title: "Development Insights", systemImage: "sparkles") {
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Claude AI Integration")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.primary)
+                            
+                            if AnthropicAPIClient.hasAPIKey() {
+                                Label("API key configured", systemImage: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                            } else {
+                                Label("API key required", systemImage: "exclamationmark.triangle")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        Spacer()
+                    }
+                    
+                    Divider()
+                    
+                    NavigationLink {
+                        APIKeySettingsView()
+                    } label: {
+                        HStack {
+                            Text("Configure API Key")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+    
+    // 7. Database
     private var databaseSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Database", systemImage: "cylinder.fill")
