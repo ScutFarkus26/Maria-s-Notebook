@@ -3,7 +3,7 @@ import SwiftData
 
 struct CommunityMeetingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @Query(sort: [SortDescriptor(\CommunityTopic.createdAt, order: .reverse)])
     private var topics: [CommunityTopic]

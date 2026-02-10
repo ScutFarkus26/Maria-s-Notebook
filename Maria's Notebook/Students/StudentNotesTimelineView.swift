@@ -27,7 +27,7 @@ extension StudentNotesViewModel {
 struct StudentNotesTimelineView: View {
     let student: Student
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @State private var viewModel: StudentNotesViewModel?
 
     var body: some View {

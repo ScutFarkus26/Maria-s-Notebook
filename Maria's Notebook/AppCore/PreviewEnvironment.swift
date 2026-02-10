@@ -43,13 +43,13 @@ public extension View {
     func previewEnvironment() -> some View {
         self
             .modelContainer(ModelContainer.preview)
-            .environmentObject(SaveCoordinator.preview)
+            .environment(SaveCoordinator.preview)
     }
 
     /// Variant that uses a specific container (e.g., when seeding data in the preview)
     func previewEnvironment(using container: ModelContainer) -> some View {
         self
             .modelContainer(container)
-            .environmentObject(SaveCoordinator.preview)
+            .environment(SaveCoordinator.preview)
     }
 }

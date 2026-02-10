@@ -10,7 +10,11 @@ import SwiftData
 
 @Model
 final class Student: Identifiable {
-    enum Level: String, Codable, CaseIterable {
+    // Modern indexes for 2026 - optimized for common lookups
+    // Multiple indexes defined in one #Index macro (SwiftData limitation)
+    #Index<Student>([\.levelRaw], [\.manualOrder], [\.modifiedAt])
+    
+    enum Level: String, Codable, CaseIterable, Sendable {
         case lower = "Lower"
         case upper = "Upper"
     }

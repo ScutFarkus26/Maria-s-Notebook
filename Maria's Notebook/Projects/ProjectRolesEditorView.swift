@@ -5,7 +5,7 @@ struct ProjectRolesEditorView: View {
     let club: Project
 
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @Environment(\.dismiss) private var dismiss
 
     // Performance: Filter roles by projectID at query level
@@ -127,7 +127,7 @@ private struct ProjectRoleEditorSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var title: String = ""
     @State private var summary: String = ""

@@ -6,7 +6,7 @@ struct ProjectEditorSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false

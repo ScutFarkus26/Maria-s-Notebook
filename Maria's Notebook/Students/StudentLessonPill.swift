@@ -31,7 +31,7 @@ struct StudentLessonPill: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @SyncedAppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @SyncedAppStorage("LessonAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays

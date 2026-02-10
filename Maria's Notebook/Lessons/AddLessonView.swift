@@ -8,7 +8,7 @@ struct AddLessonView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: LessonRepository {
         LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)

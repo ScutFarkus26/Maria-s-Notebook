@@ -50,7 +50,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     // MARK: - Environment
     
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     
     @Query(sort: \Lesson.sortIndex) private var lessons: [Lesson]
     @Query private var studentLessons: [StudentLesson]

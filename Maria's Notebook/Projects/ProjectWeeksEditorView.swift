@@ -6,7 +6,7 @@ struct ProjectWeeksEditorView: View {
     let showHeader: Bool
 
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Performance: Use filtered query instead of loading all weeks
     @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)]) private var weeks: [ProjectTemplateWeek]
@@ -95,7 +95,7 @@ struct ProjectWeekEditorView: View, Identifiable {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false

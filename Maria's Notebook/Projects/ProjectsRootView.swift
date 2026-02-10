@@ -6,7 +6,7 @@ import UIKit
 
 struct ProjectsRootView: View {
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Data
     @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)]) private var clubsRaw: [Project]

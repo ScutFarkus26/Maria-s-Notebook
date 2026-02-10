@@ -9,7 +9,7 @@ import PDFKit
 struct WorksAgendaView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @EnvironmentObject private var restoreCoordinator: RestoreCoordinator
 
     @Query(filter: #Predicate<WorkModel> { $0.statusRaw != "complete" }, sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
@@ -438,5 +438,5 @@ struct WorksAgendaView: View {
 
     WorksAgendaView()
         .previewEnvironment(using: container)
-        .environmentObject(SaveCoordinator.preview)
+        .environment(SaveCoordinator.preview)
 }

@@ -9,7 +9,7 @@ struct DocumentImportSheet: View {
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: DocumentRepository {
         DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)

@@ -36,7 +36,7 @@ struct LessonsRootView: View {
     // MARK: - Environment
     @Environment(\.modelContext) var modelContext
     @Environment(\.appRouter) var appRouter
-    @EnvironmentObject var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) var saveCoordinator
 
     // MARK: - Data Query
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex), SortDescriptor(\Lesson.orderInGroup)])

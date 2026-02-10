@@ -10,7 +10,9 @@ import SwiftData
 import OSLog
 
 @Model final class StudentLesson: Identifiable {
-    #Index<StudentLesson>([\.lessonID], [\.scheduledForDay], [\.scheduledFor], [\.isPresented], [\.createdAt])
+    // Modern compound indexes for 2026 - optimized for common query patterns
+    // Multiple indexes defined in one #Index macro (SwiftData limitation)
+    #Index<StudentLesson>([\.lessonID, \.scheduledForDay], [\.scheduledForDay, \.isPresented], [\.isPresented], [\.createdAt])
     
     /// Logger for StudentLesson data issues
     private static let logger = Logger.app(category: "StudentLesson")

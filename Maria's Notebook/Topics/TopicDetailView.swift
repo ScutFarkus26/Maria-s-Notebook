@@ -6,7 +6,7 @@ struct TopicDetailView: View, Identifiable {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let topicID: UUID
     var onSave: (CommunityTopic) -> Void

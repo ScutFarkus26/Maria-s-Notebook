@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 struct WorkAgendaCalendarPane: View {
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let startDate: Date
     let daysCount: Int

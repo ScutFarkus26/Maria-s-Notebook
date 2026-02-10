@@ -16,7 +16,7 @@ struct AttendanceExpandedView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
     private var allStudentsRaw: [Student]

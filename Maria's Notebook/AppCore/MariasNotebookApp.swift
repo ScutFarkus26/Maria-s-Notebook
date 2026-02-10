@@ -17,7 +17,7 @@ struct MariasNotebookApp: App {
     
     // MARK: - State Objects
     
-    @StateObject private var saveCoordinator = SaveCoordinator()
+    @State private var saveCoordinator = SaveCoordinator()
     @StateObject private var bootstrapper = AppBootstrapper.shared
     @StateObject private var restoreCoordinator = RestoreCoordinator()
     @State private var appRouter = AppRouter.shared
@@ -85,7 +85,7 @@ struct MariasNotebookApp: App {
                                     .environment(\.calendar, AppCalendar.shared)
                                     .environment(\.appRouter, appRouter)
                                     .environment(\.dependencies, dependencies)
-                                    .environmentObject(saveCoordinator)
+                                    .environment(saveCoordinator)
                                     .environmentObject(restoreCoordinator)
                             }
                         }
@@ -276,7 +276,7 @@ struct MariasNotebookApp: App {
                     } else {
                         WorkDetailWindowHost(workID: id)
                             .environment(\.calendar, AppCalendar.shared)
-                            .environmentObject(saveCoordinator)
+                            .environment(saveCoordinator)
                             .environmentObject(restoreCoordinator)
                     }
                 }
@@ -304,7 +304,7 @@ struct MariasNotebookApp: App {
                     } else {
                         StudentDetailWindowHost(studentID: id)
                             .environment(\.calendar, AppCalendar.shared)
-                            .environmentObject(saveCoordinator)
+                            .environment(saveCoordinator)
                             .environmentObject(restoreCoordinator)
                     }
                 }
@@ -332,7 +332,7 @@ struct MariasNotebookApp: App {
                     } else {
                         LessonDetailWindowHost(lessonID: id)
                             .environment(\.calendar, AppCalendar.shared)
-                            .environmentObject(saveCoordinator)
+                            .environment(saveCoordinator)
                             .environmentObject(restoreCoordinator)
                     }
                 }

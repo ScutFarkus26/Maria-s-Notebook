@@ -30,7 +30,7 @@ struct TodayView: View {
     @Environment(\.appRouter) var appRouter
     @Environment(\.calendar) var calendar
     @EnvironmentObject var restoreCoordinator: RestoreCoordinator
-    @EnvironmentObject var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) var saveCoordinator
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif

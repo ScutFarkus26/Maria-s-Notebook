@@ -5,7 +5,7 @@ import SwiftData
 /// Provides a queue of students, context pane, and meeting form in a focused layout.
 struct MeetingsWorkflowView: View {
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Queries
 

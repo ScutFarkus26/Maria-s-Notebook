@@ -18,7 +18,7 @@ struct LessonDetailCard: View {
     var initialMode: LessonDetailInitialMode = .normal
 
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var isEditing = false
     @State private var draftName: String = ""

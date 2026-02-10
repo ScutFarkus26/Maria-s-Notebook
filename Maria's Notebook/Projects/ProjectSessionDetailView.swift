@@ -5,7 +5,7 @@ struct ProjectSessionDetailView: View {
     let session: ProjectSession
 
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
@@ -469,7 +469,7 @@ private struct AddWorkOfferSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var title: String = ""
     @State private var instructions: String = ""

@@ -540,5 +540,5 @@ struct PracticeSessionSheet: View {
     
     return PracticeSessionSheet(initialWorkItem: work1)
         .modelContainer(container)
-        .environmentObject(SaveCoordinator())
+        .environment(SaveCoordinator())
 }

@@ -8,7 +8,7 @@ struct PlanningWeekViewContent: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var studentLessonRepository: StudentLessonRepository {
         StudentLessonRepository(context: modelContext, saveCoordinator: saveCoordinator)

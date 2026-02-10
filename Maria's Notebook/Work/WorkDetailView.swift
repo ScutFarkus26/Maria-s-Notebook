@@ -11,7 +11,7 @@ struct WorkDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var viewModel: WorkDetailViewModel
     @State private var showingRepresentSheet: Bool = false

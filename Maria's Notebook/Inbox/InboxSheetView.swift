@@ -22,7 +22,7 @@ public struct InboxSheetView: View {
   @Environment(\.calendar) private var calendar
   @Environment(\.appRouter) private var appRouter
   @Environment(\.modelContext) private var modelContext
-  @EnvironmentObject private var saveCoordinator: SaveCoordinator
+  @Environment(SaveCoordinator.self) private var saveCoordinator
   @State private var viewModel = InboxSheetViewModel()
 
   @State private var itemFrames: [UUID: CGRect] = [:]

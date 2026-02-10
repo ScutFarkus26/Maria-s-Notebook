@@ -18,7 +18,7 @@ struct StudentFilesTab: View {
     let student: Student
     
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: DocumentRepository {
         DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)

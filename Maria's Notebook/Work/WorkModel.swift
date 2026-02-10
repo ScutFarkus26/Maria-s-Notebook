@@ -3,9 +3,12 @@ import SwiftData
 import SwiftUI
 
 @Model final class WorkModel: Identifiable {
-    #Index<WorkModel>([\.statusRaw], [\.createdAt], [\.completedAt], [\.dueAt], [\.studentID])
+    // Modern compound indexes for 2026 - optimized for common query patterns
+    // Multiple indexes defined in one #Index macro (SwiftData limitation)
+    // Compound indexes improve query performance for multi-field lookups
+    #Index<WorkModel>([\.studentID, \.statusRaw], [\.statusRaw, \.dueAt], [\.statusRaw, \.assignedAt], [\.presentationID], [\.completedAt])
     
-    enum WorkType: String, CaseIterable, Codable {
+    enum WorkType: String, CaseIterable, Codable, Sendable {
         case research = "Research"
         case followUp = "Follow Up"
         case practice = "Practice"

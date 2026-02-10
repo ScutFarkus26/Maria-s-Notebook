@@ -49,61 +49,39 @@ public final class BackupService {
         progress: @escaping (Double, String) -> Void
     ) throws -> BackupOperationSummary {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.0), "Collecting students…")
-
-        let students: [Student] = safeFetchInBatches(Student.self, using: modelContext)
+        
+        // Modern approach: Fetch and transform to DTOs in batches to reduce peak memory usage
+        // This avoids holding both full models and DTOs in memory simultaneously
+        let studentDTOs = fetchAndTransformInBatches(Student.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
-        let lessons: [Lesson] = safeFetchInBatches(Lesson.self, using: modelContext)
+        let lessonDTOs = fetchAndTransformInBatches(Lesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
-        let studentLessons: [StudentLesson] = safeFetchInBatches(StudentLesson.self, using: modelContext)
+        let studentLessonDTOs = fetchAndTransformInBatches(StudentLesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments…")
-        let lessonAssignments: [LessonAssignment] = safeFetchInBatches(LessonAssignment.self, using: modelContext)
+        let lessonAssignmentDTOs = fetchAndTransformInBatches(LessonAssignment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.21), "Collecting work plan items…")
-        let workPlanItems: [WorkPlanItem] = safeFetchInBatches(WorkPlanItem.self, using: modelContext)
+        let workPlanItemDTOs = fetchAndTransformInBatches(WorkPlanItem.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
-        // Removed: ScopedNote fetch
-        let notes: [Note] = safeFetchInBatches(Note.self, using: modelContext)
+        let noteDTOs = fetchAndTransformInBatches(Note.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.27), "Collecting calendar data…")
-        let nonSchoolDays: [NonSchoolDay] = safeFetchInBatches(NonSchoolDay.self, using: modelContext)
-        let schoolDayOverrides: [SchoolDayOverride] = safeFetchInBatches(SchoolDayOverride.self, using: modelContext)
+        let nonSchoolDTOs = fetchAndTransformInBatches(NonSchoolDay.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let schoolOverrideDTOs = fetchAndTransformInBatches(SchoolDayOverride.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings…")
-        let studentMeetings: [StudentMeeting] = safeFetchInBatches(StudentMeeting.self, using: modelContext)
+        let studentMeetingDTOs = fetchAndTransformInBatches(StudentMeeting.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data…")
-        let communityTopics: [CommunityTopic] = safeFetchInBatches(CommunityTopic.self, using: modelContext)
-        let proposedSolutions: [ProposedSolution] = safeFetchInBatches(ProposedSolution.self, using: modelContext)
-        // Removed: MeetingNote fetch
-        let communityAttachments: [CommunityAttachment] = safeFetchInBatches(CommunityAttachment.self, using: modelContext)
+        let topicDTOs = fetchAndTransformInBatches(CommunityTopic.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let solutionDTOs = fetchAndTransformInBatches(ProposedSolution.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let attachmentDTOs = fetchAndTransformInBatches(CommunityAttachment.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.36), "Collecting attendance and work completions…")
-        let attendance: [AttendanceRecord] = safeFetchInBatches(AttendanceRecord.self, using: modelContext)
-        let workCompletions: [WorkCompletionRecord] = safeFetchInBatches(WorkCompletionRecord.self, using: modelContext)
+        let attendanceDTOs = fetchAndTransformInBatches(AttendanceRecord.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let workCompletionDTOs = fetchAndTransformInBatches(WorkCompletionRecord.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting projects…")
-        let projects: [Project] = safeFetchInBatches(Project.self, using: modelContext)
-        let projectTemplates: [ProjectAssignmentTemplate] = safeFetchInBatches(ProjectAssignmentTemplate.self, using: modelContext)
-        let projectSessions: [ProjectSession] = safeFetchInBatches(ProjectSession.self, using: modelContext)
-        let projectRoles: [ProjectRole] = safeFetchInBatches(ProjectRole.self, using: modelContext)
-        let projectWeeks: [ProjectTemplateWeek] = safeFetchInBatches(ProjectTemplateWeek.self, using: modelContext)
-        let projectWeekAssignments: [ProjectWeekRoleAssignment] = safeFetchInBatches(ProjectWeekRoleAssignment.self, using: modelContext)
-
-        // Map to DTOs using shared helpers
-        let studentDTOs = BackupServiceHelpers.toDTOs(students)
-        let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
-        let studentLessonDTOs = BackupServiceHelpers.toDTOs(studentLessons)
-        let lessonAssignmentDTOs = BackupDTOTransformers.toDTOs(lessonAssignments)
-        let workPlanItemDTOs = BackupServiceHelpers.toDTOs(workPlanItems)
-        let noteDTOs = BackupServiceHelpers.toDTOs(notes)
-        let nonSchoolDTOs = BackupServiceHelpers.toDTOs(nonSchoolDays)
-        let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(schoolDayOverrides)
-        let studentMeetingDTOs = BackupServiceHelpers.toDTOs(studentMeetings)
-        let topicDTOs = BackupServiceHelpers.toDTOs(communityTopics)
-        let solutionDTOs = BackupServiceHelpers.toDTOs(proposedSolutions)
-        let attachmentDTOs = BackupServiceHelpers.toDTOs(communityAttachments)
-        let attendanceDTOs = BackupServiceHelpers.toDTOs(attendance)
-        let workCompletionDTOs = BackupServiceHelpers.toDTOs(workCompletions)
-        let projectDTOs = BackupServiceHelpers.toDTOs(projects)
-        let projectTemplateDTOs = BackupServiceHelpers.toDTOs(projectTemplates)
-        let projectSessionDTOs = BackupServiceHelpers.toDTOs(projectSessions)
-        let projectRoleDTOs = BackupServiceHelpers.toDTOs(projectRoles)
-        let projectWeekDTOs = BackupServiceHelpers.toDTOs(projectWeeks)
-        let projectWeekAssignDTOs = BackupServiceHelpers.toDTOs(projectWeekAssignments)
+        let projectDTOs = fetchAndTransformInBatches(Project.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let projectTemplateDTOs = fetchAndTransformInBatches(ProjectAssignmentTemplate.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let projectSessionDTOs = fetchAndTransformInBatches(ProjectSession.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let projectRoleDTOs = fetchAndTransformInBatches(ProjectRole.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let projectWeekDTOs = fetchAndTransformInBatches(ProjectTemplateWeek.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let projectWeekAssignDTOs = fetchAndTransformInBatches(ProjectWeekRoleAssignment.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
 
         let preferences = buildPreferencesDTO()
 
@@ -451,6 +429,9 @@ public final class BackupService {
     }
     
     
+    /// Modern batched fetch that processes entities in memory-efficient chunks.
+    /// Uses FetchDescriptor with offset/limit instead of loading everything at once.
+    /// The autoreleasepool ensures each batch is released before fetching the next.
     private func safeFetchInBatches<T: PersistentModel>(
         _ type: T.Type,
         using context: ModelContext,
@@ -458,19 +439,64 @@ public final class BackupService {
     ) -> [T] {
         var allEntities: [T] = []
         var offset = 0
+        
         while true {
+            // Use autoreleasepool to release each batch's memory after processing
             let batch: [T]? = autoreleasepool {
                 var descriptor = FetchDescriptor<T>()
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
                 return try? context.fetch(descriptor)
             }
+            
             guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
             allEntities.append(contentsOf: fetchedBatch)
+            
+            // Stop if we got fewer results than requested (end of data)
             if fetchedBatch.count < batchSize { break }
             offset += batchSize
         }
+        
         return allEntities
+    }
+    
+    /// Modern fetch-and-transform pattern that converts entities to DTOs in batches.
+    /// This reduces peak memory usage by not holding both models and DTOs simultaneously.
+    private func fetchAndTransformInBatches<T: PersistentModel, DTO>(
+        _ type: T.Type,
+        using context: ModelContext,
+        batchSize: Int = 1000,
+        transform: ([T]) -> [DTO]
+    ) -> [DTO] {
+        var allDTOs: [DTO] = []
+        var offset = 0
+        
+        while true {
+            // Fetch, transform, and release in one autoreleasepool
+            let dtos: [DTO]? = autoreleasepool {
+                var descriptor = FetchDescriptor<T>()
+                descriptor.fetchOffset = offset
+                descriptor.fetchLimit = batchSize
+                
+                guard let batch = try? context.fetch(descriptor), !batch.isEmpty else {
+                    return nil
+                }
+                
+                // Transform to DTOs immediately while models are in scope
+                let transformed = transform(batch)
+                
+                // Batch objects are released when autoreleasepool exits
+                return transformed
+            }
+            
+            guard let fetchedDTOs = dtos, !fetchedDTOs.isEmpty else { break }
+            allDTOs.append(contentsOf: fetchedDTOs)
+            
+            if fetchedDTOs.count < batchSize { break }
+            offset += batchSize
+        }
+        
+        return allDTOs
     }
 
     

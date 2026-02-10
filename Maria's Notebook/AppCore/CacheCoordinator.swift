@@ -1,13 +1,12 @@
 import Foundation
-import Combine
 import OSLog
 
 private let logger = Logger.cache
 
-/// Centralized cache lifecycle coordinator for Phase 7 state management.
+/// Centralized cache lifecycle coordinator with modern Swift observation.
 ///
 /// This coordinator provides unified cache management across the application,
-/// replacing manual cache invalidation with reactive patterns.
+/// using Swift's @Observable macro instead of Combine for better performance.
 ///
 /// **Before (scattered cache management):**
 /// ```swift
@@ -33,14 +32,13 @@ final class CacheCoordinator {
     private var caches: [String: any Caching] = [:]
     private var metrics: [String: CacheMetrics] = [:]
     
-    // MARK: - Invalidation Publisher
+    // MARK: - Invalidation Tracking
     
-    private let invalidationSubject = PassthroughSubject<CacheInvalidationEvent, Never>()
+    /// Most recent invalidation event - observers can watch this property
+    private(set) var lastInvalidation: CacheInvalidationEvent?
     
-    /// Publisher that emits cache invalidation events
-    var invalidationPublisher: AnyPublisher<CacheInvalidationEvent, Never> {
-        invalidationSubject.eraseToAnyPublisher()
-    }
+    /// Registered invalidation handlers
+    private var invalidationHandlers: [(CacheInvalidationEvent) -> Void] = []
     
     // MARK: - Registration
     
@@ -60,6 +58,14 @@ final class CacheCoordinator {
         logger.info("Unregistered cache '\(key)'")
     }
     
+    // MARK: - Invalidation Handler Registration
+    
+    /// Register a handler to be called when caches are invalidated
+    /// Returns a token that must be retained to keep the handler active
+    func onInvalidation(_ handler: @escaping (CacheInvalidationEvent) -> Void) {
+        invalidationHandlers.append(handler)
+    }
+    
     // MARK: - Invalidation
     
     /// Invalidate a specific cache by key
@@ -72,7 +78,9 @@ final class CacheCoordinator {
         cache.invalidate()
         metrics[key]?.recordInvalidation()
         
-        invalidationSubject.send(.specific(key))
+        let event = CacheInvalidationEvent.specific(key)
+        lastInvalidation = event
+        notifyHandlers(event)
         
         logger.info("Invalidated cache '\(key)'")
     }
@@ -84,7 +92,9 @@ final class CacheCoordinator {
             metrics[key]?.recordInvalidation()
         }
         
-        invalidationSubject.send(.all)
+        let event = CacheInvalidationEvent.all
+        lastInvalidation = event
+        notifyHandlers(event)
         
         logger.info("Invalidated all caches (\(self.caches.count) total)")
     }
@@ -94,12 +104,23 @@ final class CacheCoordinator {
         let matchingKeys = caches.keys.filter { $0.contains(pattern) }
         
         for key in matchingKeys {
-            invalidate(key: key)
+            if let cache = caches[key] {
+                cache.invalidate()
+                metrics[key]?.recordInvalidation()
+            }
         }
         
-        invalidationSubject.send(.pattern(pattern))
+        let event = CacheInvalidationEvent.pattern(pattern)
+        lastInvalidation = event
+        notifyHandlers(event)
         
         logger.info("Invalidated \(matchingKeys.count) caches matching '\(pattern)'")
+    }
+    
+    private func notifyHandlers(_ event: CacheInvalidationEvent) {
+        for handler in invalidationHandlers {
+            handler(event)
+        }
     }
     
     // MARK: - Metrics
@@ -194,13 +215,12 @@ struct CacheMetrics: Identifiable {
 
 // MARK: - Reactive Cache Base Class
 
-/// Base class for caches that support reactive invalidation
+/// Base class for caches that support reactive invalidation using Swift Observation
 @Observable
 @MainActor
 class ReactiveCache: Caching {
     private(set) var hasData: Bool = false
     
-    private var cancellables = Set<AnyCancellable>()
     private let coordinator: CacheCoordinator?
     private let key: String
     
@@ -211,12 +231,10 @@ class ReactiveCache: Caching {
         // Register with coordinator if provided
         coordinator?.register(self, key: key)
         
-        // Subscribe to invalidation events
-        coordinator?.invalidationPublisher
-            .sink { [weak self] event in
-                self?.handleInvalidation(event)
-            }
-            .store(in: &cancellables)
+        // Subscribe to invalidation events using modern Swift observation
+        coordinator?.onInvalidation { [weak self] event in
+            self?.handleInvalidation(event)
+        }
     }
     
     func invalidate() {
@@ -256,39 +274,43 @@ class ReactiveCache: Caching {
 // MARK: - Example Usage
 
 /*
- Example: TodayViewModel with reactive cache
+ Example: TodayViewModel with reactive cache using modern Swift Observation
  
+ @Observable
  @MainActor
- final class TodayViewModel: ObservableObject {
+ final class TodayViewModel {
      private let cacheCoordinator: CacheCoordinator
      private let todayCache: TodayDataCache
      
-     @Published var date: Date = .now
-     @Published var filter: LevelFilter = .all
-     @Published private(set) var lessons: [StudentLesson] = []
-     
-     private var cancellables = Set<AnyCancellable>()
+     var date: Date = .now {
+         didSet {
+             if date != oldValue {
+                 invalidateAndReload()
+             }
+         }
+     }
+     var filter: LevelFilter = .all {
+         didSet {
+             if filter != oldValue {
+                 invalidateAndReload()
+             }
+         }
+     }
+     private(set) var lessons: [StudentLesson] = []
      
      init(cacheCoordinator: CacheCoordinator) {
          self.cacheCoordinator = cacheCoordinator
          self.todayCache = TodayDataCache(coordinator: cacheCoordinator, key: "today")
-         
-         setupReactiveInvalidation()
      }
      
-     private func setupReactiveInvalidation() {
-         // Automatically reload when inputs change
-         Publishers.CombineLatest($date, $filter)
-             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-             .sink { [weak self] _, _ in
-                 self?.cacheCoordinator.invalidate(key: "today")
-                 self?.reload()
-             }
-             .store(in: &cancellables)
+     private func invalidateAndReload() {
+         cacheCoordinator.invalidate(key: "today")
+         reload()
      }
      
      private func reload() {
          // Reload implementation
+         // The @Observable macro handles change notifications automatically
      }
  }
  

@@ -1,18 +1,13 @@
 import Foundation
 import SwiftUI
 import SwiftData
-@preconcurrency import Combine
 
+@Observable
 @MainActor
-final class SaveCoordinator: ObservableObject {
-    // Removed 'nonisolated' to fix "variable with non-'Sendable' type" error.
-    // Since this class is @MainActor, this publisher becomes MainActor-isolated,
-    // which matches how ObservableObject is typically used in SwiftUI.
-    let objectWillChange = ObservableObjectPublisher()
-
-    @Published var lastSaveError: Error?
-    @Published var lastSaveErrorMessage: String?
-    @Published var isShowingSaveError: Bool = false
+final class SaveCoordinator {
+    var lastSaveError: Error?
+    var lastSaveErrorMessage: String?
+    var isShowingSaveError: Bool = false
 
     /// When true, suppress presenting UI alerts on save failures (used in previews)
     var suppressAlerts: Bool = false
@@ -130,7 +125,7 @@ extension SaveCoordinator {
 }
 // MARK: - Global save error alert modifier
 private struct SaveErrorAlertModifier: ViewModifier {
-    @EnvironmentObject private var saveCoordinator: SaveCoordinator
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     func body(content: Content) -> some View {
         content
