@@ -15,6 +15,9 @@ struct WorksAgendaView: View {
     @Query(filter: #Predicate<WorkModel> { $0.statusRaw != "complete" }, sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
     private var openWork: [WorkModel]
     
+    @Query(sort: [SortDescriptor(\WorkPlanItem.scheduledDate)])
+    private var allWorkPlanItems: [WorkPlanItem]
+    
     // MEMORY OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
@@ -35,6 +38,7 @@ struct WorksAgendaView: View {
 
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
     @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage("WorkAgenda.hideScheduled") private var hideScheduled: Bool = false
 
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
@@ -196,6 +200,15 @@ struct WorksAgendaView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 420)
+                    
+                    Button {
+                        hideScheduled.toggle()
+                    } label: {
+                        Image(systemName: hideScheduled ? "calendar.badge.minus" : "calendar")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
                     #if os(macOS)
                     Button {
                         printWorkView()
@@ -243,6 +256,13 @@ struct WorksAgendaView: View {
     private func openWorksFiltered() -> [WorkModel] {
         // Filter open work in memory (anything NOT .complete)
         var works = openWork
+        
+        // Hide scheduled work if enabled
+        if hideScheduled {
+            let scheduledWorkIDs = Set(allWorkPlanItems.compactMap { UUID(uuidString: $0.workID) })
+            works = works.filter { !scheduledWorkIDs.contains($0.id) }
+        }
+        
         // Optional search (use debounced text for filtering)
         if !debouncedSearchText.trimmed().isEmpty {
             let query = debouncedSearchText.lowercased()
@@ -320,7 +340,9 @@ struct WorksAgendaView: View {
         
         selected = nil
         let token = SelectionToken(id: UUID(), workID: w.id)
-        DispatchQueue.main.async { selected = token }
+        Task { @MainActor in
+            selected = token
+        }
     }
 
     private func markCompleted(_ w: WorkModel) {

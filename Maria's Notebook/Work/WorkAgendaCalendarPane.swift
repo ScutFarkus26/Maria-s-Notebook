@@ -15,6 +15,8 @@ struct WorkAgendaCalendarPane: View {
 
     private struct SelectionToken: Identifiable, Equatable { let id: UUID; let contractID: UUID }
     @State private var selected: SelectionToken? = nil
+    
+    @AppStorage("WorkCalendar.showPresentations") private var showPresentations: Bool = true
 
     struct PlanPrompt: Identifiable {
         let id = UUID()
@@ -25,17 +27,33 @@ struct WorkAgendaCalendarPane: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let days = computeDays()
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(days, id: \.self) { day in
-                        dayColumn(day, availableHeight: proxy.size.height)
-                    }
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    showPresentations.toggle()
+                } label: {
+                    Image(systemName: showPresentations ? "checkmark.square" : "square")
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-                .frame(height: proxy.size.height, alignment: .top)
+                .buttonStyle(.plain)
+                .help(showPresentations ? "Hide presentations" : "Show presentations")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            
+            GeometryReader { proxy in
+                let days = computeDays()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach(days, id: \.self) { day in
+                            dayColumn(day, availableHeight: proxy.size.height)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                    .frame(height: proxy.size.height, alignment: .top)
+                }
             }
         }
         // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
@@ -86,11 +104,11 @@ struct WorkAgendaCalendarPane: View {
 
     @ViewBuilder
     private func dayColumn(_ day: Date, availableHeight: CGFloat) -> some View {
-        WorkAgendaDayColumn(day: day, availableHeight: availableHeight) { item in
+        WorkAgendaDayColumn(day: day, availableHeight: availableHeight, showPresentations: showPresentations, onPillTap: { item in
             if let workID = item.workID.asUUID {
                 openDetail(workID: workID)
             }
-        }
+        })
         .onDrop(of: [.plainText], isTargeted: nil) { providers in
             handleDrop(providers: providers, onto: day)
         }

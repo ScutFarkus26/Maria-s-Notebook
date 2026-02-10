@@ -328,7 +328,7 @@ struct PDFKitView: NSViewRepresentable {
         // Defer document assignment to next run loop to avoid layout recursion
         // PDFView internally triggers layout when documents are assigned
         guard let document = PDFDocument(data: data) else { return }
-        DispatchQueue.main.async {
+        Task { @MainActor in
             pdfView.document = document
         }
     }

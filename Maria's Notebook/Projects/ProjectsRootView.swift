@@ -89,7 +89,7 @@ struct ProjectsRootView: View {
         .onAppear {
             // Auto-select first if none selected on iPad
             // Defer state changes to avoid layout recursion warnings
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 #if os(iOS)
                 if UIDevice.current.userInterfaceIdiom == .pad {
                     if selectedClubIDString.isEmpty, let first = clubs.first {

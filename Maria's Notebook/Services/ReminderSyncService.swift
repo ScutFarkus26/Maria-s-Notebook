@@ -79,7 +79,7 @@ class ReminderSyncService: ObservableObject {
         if #available(macOS 14.0, iOS 17.0, *) {
             return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
                 // Request must be called on main thread
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.eventStore.requestFullAccessToReminders { granted, error in
                         // Update status
                         Task { @MainActor in
@@ -106,7 +106,7 @@ class ReminderSyncService: ObservableObject {
         } else {
             // Fallback for older versions
             return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.eventStore.requestAccess(to: .reminder) { granted, error in
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)

@@ -243,7 +243,7 @@ final class StudentLessonDetailViewModel {
         onDone?()
 
         // Perform deletion asynchronously
-        DispatchQueue.main.async {
+        Task { @MainActor in
             var desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
             desc.fetchLimit = 1
             if let toDelete = try? ctx.fetch(desc).first {

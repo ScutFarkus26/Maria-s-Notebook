@@ -62,7 +62,8 @@ struct NoteEditSheet: View {
         .presentationSizingFitted()
         .onAppear {
             // Auto-focus text editor on macOS
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(200))
                 isTextEditorFocused = true
             }
         }
@@ -86,7 +87,8 @@ struct NoteEditSheet: View {
         .presentationDragIndicator(.visible)
         .onAppear {
             // Auto-focus text editor on iOS
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
                 isTextEditorFocused = true
             }
         }

@@ -16,6 +16,8 @@ struct PresentationsCalendarStrip: View {
     
     @Query private var studentLessons: [StudentLesson]
     
+    @AppStorage("PresentationsCalendar.showWork") private var showWork: Bool = true
+    
     // Find the earliest date with a scheduled lesson (including past dates)
     private var earliestDateWithLesson: Date? {
         let scheduledDates = studentLessons.compactMap { sl -> Date? in
@@ -51,6 +53,15 @@ struct PresentationsCalendarStrip: View {
                     Spacer()
                     Button { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.right") }
                         .buttonStyle(.plain)
+                    
+                    Button {
+                        showWork.toggle()
+                    } label: {
+                        Image(systemName: showWork ? "checkmark.square" : "square")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(showWork ? "Hide work items" : "Show work items")
                 }
                 .padding(.horizontal, 12)
                 
@@ -75,6 +86,7 @@ struct PresentationsCalendarStrip: View {
                             PresentationsDayColumn(
                                 day: day,
                                 allStudentLessons: studentLessons,
+                                showWork: showWork,
                                 onClear: onClear,
                                 onSelect: onSelect
                             )
@@ -88,7 +100,8 @@ struct PresentationsCalendarStrip: View {
             .onAppear {
                 // Scroll to the first day (which is the earliest of: first lesson date or today)
                 if let first = days.first {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
                         withAnimation {
                             proxy.scrollTo(first, anchor: .leading)
                         }
@@ -105,7 +118,8 @@ struct PresentationsCalendarStrip: View {
             .onChange(of: days) { _, _ in
                 // When days change, scroll to first day (earliest of: first lesson date or today)
                 if let first = days.first {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
                         withAnimation {
                             proxy.scrollTo(first, anchor: .leading)
                         }

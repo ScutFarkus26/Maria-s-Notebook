@@ -7,6 +7,7 @@ struct WorkAgendaDayColumn: View {
     
     let day: Date
     let availableHeight: CGFloat
+    let showPresentations: Bool
     let onPillTap: (WorkPlanItem) -> Void
     let onStudentLessonSelect: ((StudentLesson) -> Void)?
     
@@ -17,9 +18,10 @@ struct WorkAgendaDayColumn: View {
     @Query(filter: #Predicate<StudentLesson> { !$0.isPresented && $0.givenAt == nil })
     private var allStudentLessons: [StudentLesson]
     
-    init(day: Date, availableHeight: CGFloat, onPillTap: @escaping (WorkPlanItem) -> Void, onStudentLessonSelect: ((StudentLesson) -> Void)? = nil) {
+    init(day: Date, availableHeight: CGFloat, showPresentations: Bool = true, onPillTap: @escaping (WorkPlanItem) -> Void, onStudentLessonSelect: ((StudentLesson) -> Void)? = nil) {
         self.day = day
         self.availableHeight = availableHeight
+        self.showPresentations = showPresentations
         self.onPillTap = onPillTap
         self.onStudentLessonSelect = onStudentLessonSelect
         
@@ -57,7 +59,7 @@ struct WorkAgendaDayColumn: View {
     
     private var allItems: [CalendarItem] {
         let work = allWorkItems.map { CalendarItem.workPlanItem($0) }
-        let lessons = studentLessonsForDay.map { CalendarItem.studentLesson($0) }
+        let lessons = showPresentations ? studentLessonsForDay.map { CalendarItem.studentLesson($0) } : []
         return (work + lessons).sorted { $0.sortDate < $1.sortDate }
     }
     

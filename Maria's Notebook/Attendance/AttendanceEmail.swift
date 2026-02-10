@@ -166,7 +166,9 @@ public enum AttendanceEmail {
             sendUsingMailAppForCurrentPrefs(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar, completion: completion)
         } else {
             let opened = openMailtoFallbackForCurrentPrefs(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
-            DispatchQueue.main.async { completion(opened) }
+            Task { @MainActor in
+                completion(opened)
+            }
         }
     }
     #endif
@@ -278,7 +280,9 @@ public struct MailComposerView: UIViewControllerRepresentable {
 public enum MacOSMailSender {
     public static func send(to recipient: String?, subject: String, body: String, completion: @escaping (Bool) -> Void) {
         guard let service = NSSharingService(named: .composeEmail) else {
-            DispatchQueue.main.async { completion(false) }
+            Task { @MainActor in
+                completion(false)
+            }
             return
         }
         if let r = recipient {
@@ -289,7 +293,9 @@ public enum MacOSMailSender {
         }
         service.subject = subject
         let delegate = SharingDelegate { success in
-            DispatchQueue.main.async { completion(success) }
+            Task { @MainActor in
+                completion(success)
+            }
         }
         service.delegate = delegate
         // Keep the delegate alive until completion by retaining it on the service via associated object.

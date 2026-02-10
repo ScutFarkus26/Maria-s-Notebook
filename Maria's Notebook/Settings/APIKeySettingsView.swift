@@ -123,9 +123,10 @@ struct APIKeySettingsView: View {
         
         AnthropicAPIClient.saveAPIKey(trimmedKey)
         saveMessage = "API key saved successfully"
-        
+
         // Clear message after 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
             saveMessage = nil
         }
     }
@@ -134,8 +135,9 @@ struct APIKeySettingsView: View {
         AnthropicAPIClient.clearAPIKey()
         apiKey = ""
         saveMessage = "API key cleared"
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
             saveMessage = nil
         }
     }

@@ -206,7 +206,8 @@ struct StudentLessonDetailContentView: View {
         .onChange(of: vm.showWorkflowPanel) { _, isShowing in
             if isShowing {
                 // Force window to resize when entering workflow mode
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
                     if let window = NSApplication.shared.keyWindow {
                         let newSize = NSSize(width: 1600, height: 800)
                         window.setFrame(

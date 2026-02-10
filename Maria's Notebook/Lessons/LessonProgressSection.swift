@@ -85,7 +85,8 @@ struct LessonProgressSection: View {
                         givenAt = calendar.startOfDay(for: Date())
                         presentedMode = .just
                         showJustPresentedFlash = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(800))
                             showJustPresentedFlash = false
                         }
                     } label: {
@@ -385,7 +386,10 @@ struct LessonProgressSection: View {
         }
         didPlanNext = true
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { showPlannedBanner = false }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            showPlannedBanner = false
+        }
     }
 
     private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
@@ -394,7 +398,8 @@ struct LessonProgressSection: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             showQuickBanner = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds))
             withAnimation(.easeInOut(duration: 0.2)) { showQuickBanner = false }
         }
     }

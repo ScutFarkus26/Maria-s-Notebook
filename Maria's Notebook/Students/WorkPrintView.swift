@@ -301,7 +301,7 @@ struct WorkPrintController: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.printContent()
         }
 

@@ -180,14 +180,15 @@ struct LessonsCardsGridView: View {
                     .onPreferenceChange(ItemFramePreference.self) { frames in
                         // Defer state update to next run loop to avoid layout recursion
                         // PreferenceKey updates happen during layout, so we must defer state changes
-                        DispatchQueue.main.async {
+                        Task { @MainActor in
                             itemFrames = frames
                         }
                     }
             }
             .onChange(of: selectedLessonID) { _, newValue in
                 if let lessonID = newValue {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
                         withAnimation {
                             scrollProxy.scrollTo(lessonID, anchor: .center)
                         }
@@ -197,7 +198,7 @@ struct LessonsCardsGridView: View {
         }
         .onAppear {
             // Defer enabling animations until after the first layout to avoid initial appear animations
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 hasAppeared = true
             }
         }

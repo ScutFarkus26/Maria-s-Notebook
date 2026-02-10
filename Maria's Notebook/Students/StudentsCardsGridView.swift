@@ -174,12 +174,12 @@ struct StudentsCardsGridView: View {
         .onPreferenceChange(ItemFramePreference.self) { frames in
             // Defer state update to next run loop to avoid layout recursion
             // PreferenceKey updates happen during layout, so we must defer state changes
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 itemFrames = frames
             }
         }
         .onAppear {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 hasAppeared = true
             }
         }

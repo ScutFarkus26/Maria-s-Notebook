@@ -50,12 +50,12 @@ final class ResizableFlagView: NSView {
         }
         
         // Defer to next run loop to avoid triggering layout during active layout pass
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self = self, let win = self.window else {
                 self?.hasScheduledUpdate = false
                 return
             }
-            
+
             // Apply window mutations outside of layout pass
             self.apply(to: win)
             self.hasScheduledUpdate = false

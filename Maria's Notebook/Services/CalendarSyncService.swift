@@ -83,7 +83,7 @@ class CalendarSyncService: ObservableObject {
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
             return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.eventStore.requestFullAccessToEvents { granted, error in
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
@@ -105,7 +105,7 @@ class CalendarSyncService: ObservableObject {
             }
         } else {
             return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.eventStore.requestAccess(to: .event) { granted, error in
                         Task { @MainActor in
                             self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)

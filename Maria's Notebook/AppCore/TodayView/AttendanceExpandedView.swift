@@ -181,7 +181,7 @@ struct AttendanceExpandedView: View {
             loadData()
         }
         .onChange(of: localSortKey) { _, newValue in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 viewModel.sortKey = newValue
             }
         }

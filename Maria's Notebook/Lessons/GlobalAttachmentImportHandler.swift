@@ -171,7 +171,7 @@ struct AttachmentDropDelegate: DropDelegate {
                 return
             }
             
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 importHandler.importFile(url, forLesson: lesson, scope: .lesson)
             }
         }

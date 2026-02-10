@@ -39,7 +39,8 @@ struct SchedulesView: View {
         .sheet(item: $selectedSchedule) { schedule in
             ScheduleDetailSheet(schedule: schedule) { editSchedule in
                 selectedSchedule = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
                     scheduleToEdit = editSchedule
                 }
             }

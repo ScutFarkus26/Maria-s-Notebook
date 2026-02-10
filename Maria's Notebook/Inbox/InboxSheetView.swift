@@ -148,7 +148,7 @@ public struct InboxSheetView: View {
         .onPreferenceChange(InboxPillFramePreference.self) { prefs in
           // Defer state update to next run loop to avoid layout recursion
           // PreferenceKey updates happen during layout, so we must defer state changes
-          DispatchQueue.main.async {
+          Task { @MainActor in
               itemFrames = prefs
           }
         }

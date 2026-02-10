@@ -11,6 +11,7 @@ struct PresentationsDayColumn: View {
 
     let day: Date
     let allStudentLessons: [StudentLesson]
+    let showWork: Bool
     let onClear: (StudentLesson) -> Void
     let onSelect: (StudentLesson) -> Void
 
@@ -56,7 +57,7 @@ struct PresentationsDayColumn: View {
     
     private var allItemsForDay: [CalendarItem] {
         let lessons = scheduledLessonsForDay.map { CalendarItem.studentLesson($0) }
-        let work = workItemsForDay.map { CalendarItem.workPlanItem($0) }
+        let work = showWork ? workItemsForDay.map { CalendarItem.workPlanItem($0) } : []
         return (lessons + work).sorted { $0.sortDate < $1.sortDate }
     }
     
@@ -171,7 +172,7 @@ struct PresentationsDayColumn: View {
             .onPreferenceChange(PillFramePreference.self) { frames in
                 // Defer state update to next run loop to avoid layout recursion
                 // PreferenceKey updates happen during layout, so we must defer state changes
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     itemFrames = frames
                 }
             }

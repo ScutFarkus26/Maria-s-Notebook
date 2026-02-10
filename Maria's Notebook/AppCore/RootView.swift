@@ -258,7 +258,8 @@ struct RootView: View {
         .sheet(isPresented: $isShowingNewWorkItem) {
             QuickNewWorkItemSheet { workID in
                 // Delay slightly to allow sheet dismiss animation to complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
                     workDetailIDToOpen = workID
                 }
             }
@@ -331,7 +332,7 @@ struct RootView: View {
     // MARK: - Event Handlers
 
     private func handleMigration() {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
 
             var targetItem: RootView.NavigationItem? = nil
@@ -366,7 +367,7 @@ struct RootView: View {
     }
 
     private func handleNavigationDestinationChange(_ oldValue: AppRouter.NavigationDestination?, _ destination: AppRouter.NavigationDestination?) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             if case .openAttendance = destination {
                 let newValue = RootView.NavigationItem.attendance.rawValue
                 if self.selectedNavItemRaw != newValue {
@@ -378,7 +379,7 @@ struct RootView: View {
     }
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             if let item = item {
                 let newValue = item.rawValue
                 if self.selectedNavItemRaw != newValue {
@@ -390,7 +391,7 @@ struct RootView: View {
     }
 
     private func handleSelectedTabChange(_ oldValue: RootView.Tab?, _ tab: RootView.Tab?) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             guard let tab = tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
             let newValue: String
             if tab == .planning {

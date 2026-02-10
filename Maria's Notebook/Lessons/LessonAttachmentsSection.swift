@@ -340,7 +340,7 @@ struct LessonAttachmentsSection: View {
             }
             
             // Import on main thread
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.selectedScope = .lesson
                 self.handleFileImport(result: .success([fileURL]))
             }

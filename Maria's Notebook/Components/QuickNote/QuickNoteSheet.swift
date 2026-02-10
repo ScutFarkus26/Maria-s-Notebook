@@ -40,7 +40,8 @@ struct QuickNoteSheet: View {
                 viewModel.setupInitialState()
                 
                 // Delay focus to allow animation
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
                     isFocused = true
                 }
             }

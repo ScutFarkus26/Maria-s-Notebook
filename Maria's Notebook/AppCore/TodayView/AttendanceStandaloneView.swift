@@ -168,7 +168,8 @@ struct AttendanceStandaloneView: View {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toastMessage = message
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.0))
             withAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil
             }

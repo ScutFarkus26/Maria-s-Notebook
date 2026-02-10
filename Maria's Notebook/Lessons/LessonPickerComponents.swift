@@ -80,7 +80,9 @@ struct LessonSearchField: View {
             }
             .onChange(of: isPresented) { _, presented in
                 if presented {
-                    DispatchQueue.main.async { textFocused = true }
+                    Task { @MainActor in
+                        textFocused = true
+                    }
                 }
             }
             .onTapGesture {

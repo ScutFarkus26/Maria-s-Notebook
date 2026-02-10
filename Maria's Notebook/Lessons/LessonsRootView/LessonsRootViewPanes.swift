@@ -269,7 +269,8 @@ extension LessonsRootView {
                             onSelect: {
                                 guard displayMode != .plan else { return }
                                 selectedLessonDetail = lesson
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(100))
                                     withAnimation {
                                         scrollProxy.scrollTo(lesson.id, anchor: .center)
                                     }
@@ -293,7 +294,8 @@ extension LessonsRootView {
                             onSelect: {
                                 guard displayMode != .plan else { return }
                                 selectedLessonDetail = lesson
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(100))
                                     withAnimation {
                                         scrollProxy.scrollTo(lesson.id, anchor: .center)
                                     }
