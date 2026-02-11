@@ -142,9 +142,10 @@ final class AnthropicAPIClient: MCPClientProtocol {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.timeoutInterval = 30
         
         let requestBody: [String: Any] = [
-            "model": "claude-3-5-sonnet-20250122",
+            "model": "claude-opus-4-6",
             "max_tokens": maxTokens,
             "temperature": temperature,
             "messages": [
@@ -169,13 +170,29 @@ final class AnthropicAPIClient: MCPClientProtocol {
             guard httpResponse.statusCode == 200 else {
                 // Try to parse error message
                 let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                print("🔧 HTTP Status Code: \(httpResponse.statusCode)")
                 print("🔧 Error response body: \(responseString)")
                 
                 if let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let error = errorBody["error"] as? [String: Any],
-                   let message = error["message"] as? String {
+                   let message = error["message"] as? String,
+                   let errorType = error["type"] as? String {
+                    print("🔧 Error type: \(errorType)")
                     print("🔧 Parsed error message: \(message)")
-                    throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: message)
+                    
+                    // Provide more helpful error messages based on status code
+                    let helpfulMessage: String
+                    switch httpResponse.statusCode {
+                    case 401:
+                        helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
+                    case 429:
+                        helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
+                    case 529:
+                        helpfulMessage = "Claude API is temporarily overloaded. Please try again in a few moments. \(message)"
+                    default:
+                        helpfulMessage = message
+                    }
+                    throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: helpfulMessage)
                 }
                 throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: "Unknown error. Response: \(responseString)")
             }
@@ -235,7 +252,8 @@ final class AnthropicAPIClient: MCPClientProtocol {
     /// Check if API key is configured
     static func hasAPIKey() -> Bool {
         let key = loadAPIKey()
-        return !key.isEmpty && key.hasPrefix("sk-ant-")
+        // Modern Anthropic API keys should start with sk-ant-api03-
+        return !key.isEmpty && (key.hasPrefix("sk-ant-api03-") || key.hasPrefix("sk-ant-"))
     }
     
     /// Clear saved API key
