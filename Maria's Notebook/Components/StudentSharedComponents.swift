@@ -272,7 +272,7 @@ struct SectionHeaderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(iconColor != nil ? iconColor!.opacity(0.08) : .clear)
+        .background(iconColor?.opacity(0.08) ?? .clear)
     }
 }
 

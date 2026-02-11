@@ -38,7 +38,7 @@ extension LessonsRootView {
         VStack(spacing: 0) {
             // Filter chip bar (only show when a subject is selected or searching)
             let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
-            let shouldShowFilters = (selectedSubject != nil && !selectedSubject!.trimmed().isEmpty) || hasSearchText
+            let shouldShowFilters = (selectedSubject.map { !$0.trimmed().isEmpty } ?? false) || hasSearchText
 
             if shouldShowFilters && displayMode == .browse {
                 LessonsFilterChipBar(
@@ -53,7 +53,7 @@ extension LessonsRootView {
 
             // Main content
             Group {
-                let shouldShowLessons = (selectedSubject != nil && !selectedSubject!.trimmed().isEmpty) || hasSearchText
+                let shouldShowLessons = (selectedSubject.map { !$0.trimmed().isEmpty } ?? false) || hasSearchText
 
                 if shouldShowLessons {
                     if displayMode == .browse {

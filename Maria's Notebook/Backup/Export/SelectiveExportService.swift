@@ -435,7 +435,7 @@ public final class SelectiveExportService {
 
     private func collectStudents(modelContext: ModelContext, filter: ExportFilter) -> [StudentDTO] {
         let allStudents = (try? modelContext.fetch(FetchDescriptor<Student>())) ?? []
-        let filtered = filter.studentIDs != nil ? allStudents.filter { filter.studentIDs!.contains($0.id) } : allStudents
+        let filtered = filter.studentIDs.map { ids in allStudents.filter { ids.contains($0.id) } } ?? allStudents
         return BackupServiceHelpers.toDTOs(filtered)
     }
 

@@ -111,7 +111,7 @@ extension Presentation {
 extension Presentation {
     /// Whether this presentation is part of a track.
     var isPartOfTrack: Bool {
-        trackID != nil && !trackID!.isEmpty
+        trackID.map { !$0.isEmpty } ?? false
     }
 
     /// Track ID as UUID, if valid.

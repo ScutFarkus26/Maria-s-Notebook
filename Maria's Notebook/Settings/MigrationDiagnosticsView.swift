@@ -34,7 +34,7 @@ struct MigrationDiagnosticsView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isRunning)
 
-                if report != nil && !report!.isClean {
+                if let report, !report.isClean {
                     Button {
                         runFixes()
                     } label: {

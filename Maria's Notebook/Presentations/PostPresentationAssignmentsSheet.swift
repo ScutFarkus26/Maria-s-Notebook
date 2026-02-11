@@ -108,7 +108,7 @@ struct PostPresentationAssignmentsSheet: View {
                             DatePicker("Date", selection: Binding(
                                 get: { sch.date },
                                 set: { newDate in
-                                    var e = entries[s.id]!
+                                    guard var e = entries[s.id] else { return }
                                     e.schedule?.date = newDate
                                     entries[s.id] = e
                                 }
@@ -116,7 +116,7 @@ struct PostPresentationAssignmentsSheet: View {
                             Picker("Kind", selection: Binding(
                                 get: { sch.kind },
                                 set: { newKind in
-                                    var e = entries[s.id]!
+                                    guard var e = entries[s.id] else { return }
                                     e.schedule?.kind = newKind
                                     entries[s.id] = e
                                 }

@@ -10,7 +10,6 @@ import SwiftData
 #if os(macOS)
 import AppKit
 #endif
-import Combine
 
 struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext

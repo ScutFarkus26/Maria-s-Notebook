@@ -185,7 +185,7 @@ struct ProjectSessionDetailView: View {
         }
         .sheet(item: Binding(
             get: { showLessonPickerForWork.map { WorkIDWrapper(id: $0.id) } },
-            set: { wrapper in showLessonPickerForWork = wrapper != nil ? allWorkModels.first { $0.id == wrapper!.id } : nil }
+            set: { wrapper in showLessonPickerForWork = wrapper.flatMap { w in allWorkModels.first { $0.id == w.id } } }
         )) { wrapper in
             if let targetWork = allWorkModels.first(where: { $0.id == wrapper.id }) {
                 ProjectLessonPickerSheet(

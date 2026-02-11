@@ -56,22 +56,25 @@ final class AppDependencies {
     
     private var _lifecycleService: LifecycleService?
     var lifecycleService: LifecycleService {
-        if _lifecycleService == nil {
-            _lifecycleService = LifecycleService()
+        if let service = _lifecycleService {
+            return service
         }
-        return _lifecycleService!
+        let service = LifecycleService()
+        _lifecycleService = service
+        return service
     }
     
     private var _memoryPressureMonitor: MemoryPressureMonitor?
     var memoryPressureMonitor: MemoryPressureMonitor {
-        if _memoryPressureMonitor == nil {
-            let monitor = MemoryPressureMonitor()
-            monitor.startMonitoring { [weak self] in
-                self?.handleMemoryPressure()
-            }
-            _memoryPressureMonitor = monitor
+        if let monitor = _memoryPressureMonitor {
+            return monitor
         }
-        return _memoryPressureMonitor!
+        let monitor = MemoryPressureMonitor()
+        monitor.startMonitoring { [weak self] in
+            self?.handleMemoryPressure()
+        }
+        _memoryPressureMonitor = monitor
+        return monitor
     }
     
     // MARK: - Repositories
@@ -80,10 +83,12 @@ final class AppDependencies {
     /// Provides repositories for all entities with consistent context injection
     private var _repositories: RepositoryContainer?
     var repositories: RepositoryContainer {
-        if _repositories == nil {
-            _repositories = RepositoryContainer(context: modelContext, saveCoordinator: nil)
+        if let container = _repositories {
+            return container
         }
-        return _repositories!
+        let container = RepositoryContainer(context: modelContext, saveCoordinator: nil)
+        _repositories = container
+        return container
     }
     
     // MARK: - Data Services
@@ -93,128 +98,158 @@ final class AppDependencies {
     
     private var _workCheckInService: WorkCheckInService?
     var workCheckInService: WorkCheckInService {
-        if _workCheckInService == nil {
-            _workCheckInService = WorkCheckInService(context: modelContext)
+        if let service = _workCheckInService {
+            return service
         }
-        return _workCheckInService!
+        let service = WorkCheckInService(context: modelContext)
+        _workCheckInService = service
+        return service
     }
     
     private var _workStepService: WorkStepService?
     var workStepService: WorkStepService {
-        if _workStepService == nil {
-            _workStepService = WorkStepService(context: modelContext)
+        if let service = _workStepService {
+            return service
         }
-        return _workStepService!
+        let service = WorkStepService(context: modelContext)
+        _workStepService = service
+        return service
     }
     
     // Track services
     private var _groupTrackService: GroupTrackService?
     var groupTrackService: GroupTrackService {
-        if _groupTrackService == nil {
-            _groupTrackService = GroupTrackService()
+        if let service = _groupTrackService {
+            return service
         }
-        return _groupTrackService!
+        let service = GroupTrackService()
+        _groupTrackService = service
+        return service
     }
     
     private var _trackProgressResolver: TrackProgressResolver?
     var trackProgressResolver: TrackProgressResolver {
-        if _trackProgressResolver == nil {
-            _trackProgressResolver = TrackProgressResolver()
+        if let resolver = _trackProgressResolver {
+            return resolver
         }
-        return _trackProgressResolver!
+        let resolver = TrackProgressResolver()
+        _trackProgressResolver = resolver
+        return resolver
     }
     
     private var _groupTrackProgressResolver: GroupTrackProgressResolver?
     var groupTrackProgressResolver: GroupTrackProgressResolver {
-        if _groupTrackProgressResolver == nil {
-            _groupTrackProgressResolver = GroupTrackProgressResolver()
+        if let resolver = _groupTrackProgressResolver {
+            return resolver
         }
-        return _groupTrackProgressResolver!
+        let resolver = GroupTrackProgressResolver()
+        _groupTrackProgressResolver = resolver
+        return resolver
     }
     
     // MARK: - Sync Services
     
     private var _reminderSyncService: ReminderSyncService?
     var reminderSync: ReminderSyncService {
-        if _reminderSyncService == nil {
-            _reminderSyncService = ReminderSyncService.shared
-            _reminderSyncService?.modelContext = modelContext
+        if let service = _reminderSyncService {
+            return service
         }
-        return _reminderSyncService!
+        let service = ReminderSyncService.shared
+        service.modelContext = modelContext
+        _reminderSyncService = service
+        return service
     }
     
     private var _calendarSyncService: CalendarSyncService?
     var calendarSync: CalendarSyncService {
-        if _calendarSyncService == nil {
-            _calendarSyncService = CalendarSyncService()
+        if let service = _calendarSyncService {
+            return service
         }
-        return _calendarSyncService!
+        let service = CalendarSyncService()
+        _calendarSyncService = service
+        return service
     }
     
     // MARK: - Backup Services
     
     private var _backupService: BackupService?
     var backupService: BackupService {
-        if _backupService == nil {
-            _backupService = BackupService()
+        if let service = _backupService {
+            return service
         }
-        return _backupService!
+        let service = BackupService()
+        _backupService = service
+        return service
     }
     
     private var _selectiveRestoreService: SelectiveRestoreService?
     var selectiveRestoreService: SelectiveRestoreService {
-        if _selectiveRestoreService == nil {
-            _selectiveRestoreService = SelectiveRestoreService(backupService: backupService)
+        if let service = _selectiveRestoreService {
+            return service
         }
-        return _selectiveRestoreService!
+        let service = SelectiveRestoreService(backupService: backupService)
+        _selectiveRestoreService = service
+        return service
     }
     
     private var _cloudBackupService: CloudBackupService?
     var cloudBackupService: CloudBackupService {
-        if _cloudBackupService == nil {
-            _cloudBackupService = CloudBackupService(backupService: backupService)
+        if let service = _cloudBackupService {
+            return service
         }
-        return _cloudBackupService!
+        let service = CloudBackupService(backupService: backupService)
+        _cloudBackupService = service
+        return service
     }
     
     private var _incrementalBackupService: IncrementalBackupService?
     var incrementalBackupService: IncrementalBackupService {
-        if _incrementalBackupService == nil {
-            _incrementalBackupService = IncrementalBackupService(backupService: backupService)
+        if let service = _incrementalBackupService {
+            return service
         }
-        return _incrementalBackupService!
+        let service = IncrementalBackupService(backupService: backupService)
+        _incrementalBackupService = service
+        return service
     }
     
     private var _backupSharingService: BackupSharingService?
     var backupSharingService: BackupSharingService {
-        if _backupSharingService == nil {
-            _backupSharingService = BackupSharingService(backupService: backupService)
+        if let service = _backupSharingService {
+            return service
         }
-        return _backupSharingService!
+        let service = BackupSharingService(backupService: backupService)
+        _backupSharingService = service
+        return service
     }
     
     private var _backupTransactionManager: BackupTransactionManager?
     var backupTransactionManager: BackupTransactionManager {
-        if _backupTransactionManager == nil {
-            _backupTransactionManager = BackupTransactionManager(backupService: backupService)
+        if let manager = _backupTransactionManager {
+            return manager
         }
-        return _backupTransactionManager!
+        let manager = BackupTransactionManager(backupService: backupService)
+        _backupTransactionManager = manager
+        return manager
     }
     
     private var _selectiveExportService: SelectiveExportService?
     var selectiveExportService: SelectiveExportService {
-        if _selectiveExportService == nil {
-            _selectiveExportService = SelectiveExportService(backupService: backupService)
+        if let service = _selectiveExportService {
+            return service
         }
-        return _selectiveExportService!
+        let service = SelectiveExportService(backupService: backupService)
+        _selectiveExportService = service
+        return service
     }
     
     private var _autoBackupManager: AutoBackupManager?
     var autoBackupManager: AutoBackupManager {
-        if _autoBackupManager == nil {
-            _autoBackupManager = AutoBackupManager(backupService: backupService)
+        if let manager = _autoBackupManager {
+            return manager
         }
-        return _autoBackupManager!
+        let manager = AutoBackupManager(backupService: backupService)
+        _autoBackupManager = manager
+        return manager
     }
     
     // MARK: - Migration Services
@@ -227,10 +262,12 @@ final class AppDependencies {
     
     private var _followUpInboxEngine: FollowUpInboxEngine?
     var followUpInboxEngine: FollowUpInboxEngine {
-        if _followUpInboxEngine == nil {
-            _followUpInboxEngine = FollowUpInboxEngine()
+        if let engine = _followUpInboxEngine {
+            return engine
         }
-        return _followUpInboxEngine!
+        let engine = FollowUpInboxEngine()
+        _followUpInboxEngine = engine
+        return engine
     }
     
     // MARK: - MCP Services
@@ -261,20 +298,24 @@ final class AppDependencies {
     
     private var _reportGeneratorService: ReportGeneratorService?
     var reportGeneratorService: ReportGeneratorService {
-        if _reportGeneratorService == nil {
-            _reportGeneratorService = ReportGeneratorService()
+        if let service = _reportGeneratorService {
+            return service
         }
-        return _reportGeneratorService!
+        let service = ReportGeneratorService()
+        _reportGeneratorService = service
+        return service
     }
     
     // MARK: - UI Services
     
     private var _toastService: ToastService?
     var toastService: ToastService {
-        if _toastService == nil {
-            _toastService = ToastService.shared
+        if let service = _toastService {
+            return service
         }
-        return _toastService!
+        let service = ToastService.shared
+        _toastService = service
+        return service
     }
     
     // MARK: - Storage Services
@@ -286,31 +327,36 @@ final class AppDependencies {
     
     private var _schoolCalendarService: SchoolCalendarService?
     var schoolCalendarService: SchoolCalendarService {
-        if _schoolCalendarService == nil {
-            _schoolCalendarService = SchoolCalendarService.shared
+        if let service = _schoolCalendarService {
+            return service
         }
-        return _schoolCalendarService!
+        let service = SchoolCalendarService.shared
+        _schoolCalendarService = service
+        return service
     }
     
     private var _schoolDayLookupCache: SchoolDayLookupCache?
     var schoolDayLookupCache: SchoolDayLookupCache {
-        if _schoolDayLookupCache == nil {
-            _schoolDayLookupCache = SchoolDayLookupCache()
+        if let cache = _schoolDayLookupCache {
+            return cache
         }
-        return _schoolDayLookupCache!
+        let cache = SchoolDayLookupCache()
+        _schoolDayLookupCache = cache
+        return cache
     }
     
     // MARK: - Presentation Services
     
     private var _presentationsViewModel: PresentationsViewModel?
     var presentationsViewModel: PresentationsViewModel {
-        if _presentationsViewModel == nil {
-            let vm = PresentationsViewModel()
-            // MODERN: Inject repository for type-safe data access
-            vm.setRepository(repositories.studentLessons)
-            _presentationsViewModel = vm
+        if let vm = _presentationsViewModel {
+            return vm
         }
-        return _presentationsViewModel!
+        let vm = PresentationsViewModel()
+        // MODERN: Inject repository for type-safe data access
+        vm.setRepository(repositories.studentLessons)
+        _presentationsViewModel = vm
+        return vm
     }
     
     // MARK: - CloudKit Services
@@ -320,36 +366,44 @@ final class AppDependencies {
     
     private var _cloudKitSyncStatusService: CloudKitSyncStatusService?
     var cloudKitSyncStatusService: CloudKitSyncStatusService {
-        if _cloudKitSyncStatusService == nil {
-            _cloudKitSyncStatusService = CloudKitSyncStatusService()
+        if let service = _cloudKitSyncStatusService {
+            return service
         }
-        return _cloudKitSyncStatusService!
+        let service = CloudKitSyncStatusService()
+        _cloudKitSyncStatusService = service
+        return service
     }
     
     // MARK: - Router & Coordinators
     
     private var _appRouter: AppRouter?
     var appRouter: AppRouter {
-        if _appRouter == nil {
-            _appRouter = AppRouter.shared
+        if let router = _appRouter {
+            return router
         }
-        return _appRouter!
+        let router = AppRouter.shared
+        _appRouter = router
+        return router
     }
     
     private var _saveCoordinator: SaveCoordinator?
     var saveCoordinator: SaveCoordinator {
-        if _saveCoordinator == nil {
-            _saveCoordinator = SaveCoordinator()
+        if let coordinator = _saveCoordinator {
+            return coordinator
         }
-        return _saveCoordinator!
+        let coordinator = SaveCoordinator()
+        _saveCoordinator = coordinator
+        return coordinator
     }
     
     private var _restoreCoordinator: RestoreCoordinator?
     var restoreCoordinator: RestoreCoordinator {
-        if _restoreCoordinator == nil {
-            _restoreCoordinator = RestoreCoordinator()
+        if let coordinator = _restoreCoordinator {
+            return coordinator
         }
-        return _restoreCoordinator!
+        let coordinator = RestoreCoordinator()
+        _restoreCoordinator = coordinator
+        return coordinator
     }
     
     // MARK: - Preloading

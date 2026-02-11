@@ -185,7 +185,7 @@ final class ReminderSyncService {
         }
 
         // Check if sync is configured (prefer identifier, fall back to name for migration)
-        guard syncListIdentifier != nil || (syncListName != nil && !syncListName!.isEmpty) else {
+        guard syncListIdentifier != nil || (syncListName.map { !$0.isEmpty } ?? false) else {
             throw ReminderSyncError.noSyncListConfigured
         }
 
@@ -415,7 +415,7 @@ final class ReminderSyncService {
     /// Handle EventKit store changes by syncing reminders
     private func handleEventStoreChanged() async {
         // Only sync if we have a configured list (identifier or name) and access
-        guard syncListIdentifier != nil || (syncListName != nil && !syncListName!.isEmpty) else { return }
+        guard syncListIdentifier != nil || (syncListName.map { !$0.isEmpty } ?? false) else { return }
         guard hasFullAccess else { return }
         guard modelContext != nil else { return }
         

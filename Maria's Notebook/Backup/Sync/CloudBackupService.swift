@@ -370,7 +370,9 @@ public final class CloudBackupService {
             }
             
             // Return the first result (either success or timeout)
-            let result = try await group.next()!
+            guard let result = try await group.next() else {
+                throw BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: NSError(domain: "CloudBackup", code: 500, userInfo: [NSLocalizedDescriptionKey: "No task result available"])))
+            }
             group.cancelAll() // Cancel the other task
             return result
         }

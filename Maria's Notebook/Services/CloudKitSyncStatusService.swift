@@ -281,7 +281,8 @@ final class CloudKitSyncStatusService {
 
     private func handleRemoteChange() {
         // A remote change was received from CloudKit - this confirms sync is working
-        lastSuccessfulSync = Date()
+        let now = Date()
+        lastSuccessfulSync = now
         lastSyncError = nil
         isSyncing = false
         pendingSyncCount = 0
@@ -290,7 +291,7 @@ final class CloudKitSyncStatusService {
         syncingTask = nil
 
         // Persist
-        UserDefaults.standard.set(lastSuccessfulSync!.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
         updateSyncHealth()
@@ -341,8 +342,9 @@ final class CloudKitSyncStatusService {
                 // for outgoing-only syncs
                 self.isSyncing = false
                 self.pendingSyncCount = 0
-                self.lastSuccessfulSync = Date()
-                UserDefaults.standard.set(self.lastSuccessfulSync!.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+                let now = Date()
+                self.lastSuccessfulSync = now
+                UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
                 self.updateSyncHealth()
             }
         }
@@ -365,9 +367,10 @@ final class CloudKitSyncStatusService {
             try context.save()
 
             // Update success state
-            lastSuccessfulSync = Date()
+            let now = Date()
+            lastSuccessfulSync = now
             lastSyncError = nil
-            UserDefaults.standard.set(lastSuccessfulSync!.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+            UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
             // Keep syncing indicator briefly to show activity

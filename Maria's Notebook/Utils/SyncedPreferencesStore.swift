@@ -68,6 +68,7 @@ public final class SyncedPreferencesStore {
     // Swift 6: nonisolated(unsafe) required for deinit access despite compiler warning
     // See: https://github.com/swiftlang/swift/issues/81962
     nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var lifecycleObserver: NSObjectProtocol?
     
     // ENERGY OPTIMIZATION: Batch sync operations to reduce network activity
     // Instead of syncing immediately on every set(), we debounce and batch multiple changes
@@ -89,7 +90,7 @@ public final class SyncedPreferencesStore {
 
         // Set up app lifecycle observers to ensure sync on backgrounding
         #if os(iOS)
-        NotificationCenter.default.addObserver(
+        lifecycleObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.willResignActiveNotification,
             object: nil,
             queue: .main
@@ -104,6 +105,9 @@ public final class SyncedPreferencesStore {
     deinit {
         // Safe to access nonisolated(unsafe) property in deinit
         if let observer = changeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = lifecycleObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }

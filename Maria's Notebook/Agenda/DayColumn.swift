@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-@preconcurrency import Combine
 
 struct DayColumn: View {
     @Environment(\.calendar) private var calendar
