@@ -184,7 +184,14 @@ enum SchemaMigrationService {
                 guard (work.studentID.isEmpty || work.lessonID.isEmpty), let slID = work.studentLessonID else { continue }
                 guard let sl = studentLessonByID[slID] else { continue }
 
-                if work.lessonID.isEmpty { work.lessonID = sl.lessonID }
+                if work.lessonID.isEmpty {
+                    // Priority: Use lesson relationship if available, otherwise use lessonID string
+                    if let lesson = sl.lesson {
+                        work.lessonID = lesson.id.uuidString
+                    } else if !sl.lessonID.isEmpty {
+                        work.lessonID = sl.lessonID
+                    }
+                }
                 if work.studentID.isEmpty {
                     if let firstStudent = sl.studentIDs.first {
                         work.studentID = firstStudent
