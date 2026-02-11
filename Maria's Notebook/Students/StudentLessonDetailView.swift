@@ -1,12 +1,6 @@
 import SwiftUI
 import SwiftData
 
-#if os(iOS)
-import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
-
 struct StudentLessonDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -203,22 +197,6 @@ struct StudentLessonDetailContentView: View {
             minHeight: vm.showWorkflowPanel ? 700 : 800,
             idealHeight: vm.showWorkflowPanel ? 800 : 900
         )
-        .onChange(of: vm.showWorkflowPanel) { _, isShowing in
-            if isShowing {
-                // Force window to resize when entering workflow mode
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(100))
-                    if let window = NSApplication.shared.keyWindow {
-                        let newSize = NSSize(width: 1600, height: 800)
-                        window.setFrame(
-                            NSRect(origin: window.frame.origin, size: newSize),
-                            display: true,
-                            animate: true
-                        )
-                    }
-                }
-            }
-        }
         #endif
         #if os(macOS)
         .sheet(isPresented: $showIndependentWorkflowWindow) {
