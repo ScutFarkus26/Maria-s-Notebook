@@ -78,7 +78,7 @@ struct StudentsRootView: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         // Dismiss if the work is no longer available after a brief delay
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         if selectedWork != nil {
                             selectedWork = nil
                         }

@@ -326,7 +326,7 @@ struct ReminderRepositoryUpdateTests {
     }
 
     @Test("updateReminder updates updatedAt")
-    func updateReminderUpdatesUpdatedAt() throws {
+    func updateReminderUpdatesUpdatedAt() async throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
@@ -336,7 +336,7 @@ struct ReminderRepositoryUpdateTests {
         try context.save()
 
         // Small delay to ensure time difference
-        try? Thread.sleep(forTimeInterval: 0.01)
+        try await Task.sleep(for: .milliseconds(10))
 
         let repository = ReminderRepository(context: context)
         _ = repository.updateReminder(id: reminder.id, title: "Updated")

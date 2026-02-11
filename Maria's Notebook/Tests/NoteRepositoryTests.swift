@@ -321,7 +321,7 @@ struct NoteRepositoryUpdateTests {
     }
 
     @Test("updateNote updates updatedAt")
-    func updateNoteUpdatesUpdatedAt() throws {
+    func updateNoteUpdatesUpdatedAt() async throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
@@ -331,7 +331,7 @@ struct NoteRepositoryUpdateTests {
         try context.save()
 
         // Small delay to ensure time difference
-        Thread.sleep(forTimeInterval: 0.01)
+        try await Task.sleep(for: .milliseconds(10))
 
         let repository = NoteRepository(context: context)
         _ = repository.updateNote(id: note.id, body: "Updated content")

@@ -110,7 +110,9 @@ final class InboxDataLoader {
         guard !workIDs.isEmpty else { return [] }
 
         let workIDStrings = Set(workIDs.map { $0.uuidString })
-        let allItems = context.safeFetch(FetchDescriptor<WorkPlanItem>())
+        var descriptor = FetchDescriptor<WorkPlanItem>()
+        descriptor.fetchLimit = 2000 // Safety limit: prevents memory issues with large datasets
+        let allItems = context.safeFetch(descriptor)
         return allItems.filter { workIDStrings.contains($0.workID) }
     }
     
@@ -138,7 +140,9 @@ final class InboxDataLoader {
     func loadStudents(ids: Set<UUID>) -> [Student] {
         guard !ids.isEmpty else { return [] }
 
-        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        var descriptor = FetchDescriptor<Student>()
+        descriptor.fetchLimit = 500 // Safety limit: reasonable maximum for student roster
+        let allStudents = context.safeFetch(descriptor)
         let filtered = allStudents.filter { ids.contains($0.id) }
         return TestStudentsFilter.filterVisible(filtered)
     }
@@ -149,7 +153,9 @@ final class InboxDataLoader {
     func loadLessons(ids: Set<UUID>) -> [Lesson] {
         guard !ids.isEmpty else { return [] }
 
-        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        var descriptor = FetchDescriptor<Lesson>()
+        descriptor.fetchLimit = 1000 // Safety limit: reasonable maximum for lesson library
+        let allLessons = context.safeFetch(descriptor)
         return allLessons.filter { ids.contains($0.id) }
     }
 }

@@ -64,7 +64,7 @@ final class CloudKitSyncStatusService {
     private var pendingSyncCount: Int = 0
 
     /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
-    private let syncTimeoutNanoseconds: UInt64 = TimeoutConstants.defaultSyncTimeout
+    private let syncTimeout: Duration = TimeoutConstants.defaultSyncTimeout
 
     // MARK: - Initialization
 
@@ -111,7 +111,7 @@ final class CloudKitSyncStatusService {
         // We don't want to report these expected teardowns as errors
         Task { [weak self] in
             // Wait 2 seconds for initial CloudKit setup to complete
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
@@ -260,7 +260,7 @@ final class CloudKitSyncStatusService {
         // Schedule a delayed health check to see if CloudKit reconnects
         // If it doesn't reconnect within 3 seconds, we'll update the health status
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+            try? await Task.sleep(for: .seconds(3)) // 3 seconds
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
@@ -316,7 +316,7 @@ final class CloudKitSyncStatusService {
         // The handleRemoteChange() method will cancel this task if sync completes
         syncingTask = Task { [weak self] in
             // Use longer timeout for more accurate sync status
-            try? await Task.sleep(nanoseconds: self?.syncTimeoutNanoseconds ?? TimeoutConstants.defaultSyncTimeout)
+            try? await Task.sleep(for: self?.syncTimeout ?? TimeoutConstants.defaultSyncTimeout)
             guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 guard let self = self, self.isSyncing else { return }
@@ -371,7 +371,7 @@ final class CloudKitSyncStatusService {
             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
             // Keep syncing indicator briefly to show activity
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            try? await Task.sleep(for: .milliseconds(500))
             isSyncing = false
             updateSyncHealth()
             return true

@@ -497,7 +497,7 @@ struct ToastServiceTests {
         service.dismiss()
 
         // Allow animation to complete
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        try? await Task.sleep(for: .milliseconds(300))
 
         #expect(service.currentToast == nil)
     }
@@ -513,7 +513,7 @@ struct ToastServiceTests {
         service.clearAll()
 
         // Allow animation to complete
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        try? await Task.sleep(for: .milliseconds(300))
 
         #expect(service.currentToast == nil)
     }

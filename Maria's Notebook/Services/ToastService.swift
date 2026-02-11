@@ -131,7 +131,7 @@ final class ToastService {
 
         // Schedule auto-dismiss
         dismissTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(toast.duration * 1_000_000_000))
+            try? await Task.sleep(for: .seconds(toast.duration))
             guard !Task.isCancelled else { return }
             self?.dismiss()
         }
@@ -142,7 +142,7 @@ final class ToastService {
 
         // Small delay before showing next toast
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            try? await Task.sleep(for: .milliseconds(200)) // 0.2 seconds
             guard !Task.isCancelled else { return }
 
             if let nextToast = self?.toastQueue.first {

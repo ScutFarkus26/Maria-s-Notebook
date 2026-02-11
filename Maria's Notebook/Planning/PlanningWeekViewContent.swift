@@ -64,7 +64,7 @@ struct PlanningWeekViewContent: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         // Dismiss if the item is no longer available
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         if case .studentLessonDetail(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }
@@ -79,7 +79,7 @@ struct PlanningWeekViewContent: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         // Dismiss if the item is no longer available
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         if case .quickActions(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }
@@ -103,7 +103,7 @@ struct PlanningWeekViewContent: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         // Dismiss if the draft is no longer available
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }

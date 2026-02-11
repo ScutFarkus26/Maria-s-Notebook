@@ -130,7 +130,7 @@ final class TodayViewModel {
         reloadTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await Task.sleep(nanoseconds: 400_000_000) // 400ms debounce
+                try await Task.sleep(for: .milliseconds(400)) // 400ms debounce
                 guard !Task.isCancelled else { return }
                 reload()
             } catch {
@@ -222,7 +222,9 @@ final class TodayViewModel {
         
         // PERFORMANCE: Batch fetch all missing students in a single query instead of N queries
         if !missingStudentIDs.isEmpty {
-            let allStudents = context.safeFetch(FetchDescriptor<Student>())
+            var descriptor = FetchDescriptor<Student>()
+            descriptor.fetchLimit = 500 // Safety limit for student roster
+            let allStudents = context.safeFetch(descriptor)
             let missingStudents = allStudents.filter { missingStudentIDs.contains($0.id) }
             for student in missingStudents {
                 updatedRecentNoteStudents[student.id] = student

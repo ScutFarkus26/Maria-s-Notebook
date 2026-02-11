@@ -141,7 +141,7 @@ public actor BandwidthThrottler {
 
         if waitTime > 0 {
             totalThrottledTime += waitTime
-            try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+            try await Task.sleep(for: .seconds(waitTime))
         }
 
         // Refill after waiting

@@ -68,7 +68,9 @@ final class StudentDetailViewModel {
         let neededLessonIDs = Set(filteredStudentLessons.map { $0.resolvedLessonID })
         let fetchedLessons: [Lesson]
         if !neededLessonIDs.isEmpty {
-            let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>())
+            var descriptor = FetchDescriptor<Lesson>()
+            descriptor.fetchLimit = 1000 // Safety limit for lesson library
+            let allLessons = modelContext.safeFetch(descriptor)
             fetchedLessons = allLessons.filter { neededLessonIDs.contains($0.id) }
         } else {
             fetchedLessons = []
@@ -284,10 +286,11 @@ final class StudentDetailViewModel {
         let predicate = #Predicate<WorkModel> { work in
             work.studentID == sid && work.statusRaw != completeStatusRaw
         }
-        let descriptor = FetchDescriptor<WorkModel>(
+        var descriptor = FetchDescriptor<WorkModel>(
             predicate: predicate,
             sortBy: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
         )
+        descriptor.fetchLimit = 500 // Reasonable limit for incomplete work per student
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 

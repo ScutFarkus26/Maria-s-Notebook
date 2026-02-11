@@ -174,6 +174,7 @@ struct DataCleanupServiceDeduplicationTests {
         let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.studentModels)
 
         try DeduplicationTester.testDeduplication(
+            ofType: Student.self,
             setup: { ctx in
                 let sharedID = UUID()
                 let student1 = Student(

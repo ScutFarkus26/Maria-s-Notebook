@@ -229,7 +229,7 @@ struct DeltaSyncServiceTests {
             remoteBaseURL: nil,
             uploadChunk: { _, _, _ in
                 // Simulate upload delay
-                try await Task.sleep(nanoseconds: 10_000_000)
+                try await Task.sleep(for: .milliseconds(10))
             },
             progress: { progress, _ in
                 progressValues.append(progress)

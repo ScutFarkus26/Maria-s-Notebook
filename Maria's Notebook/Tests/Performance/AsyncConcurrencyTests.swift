@@ -46,13 +46,13 @@ struct TaskCancellationTests {
 
         let task = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000)
+                try? await Task.sleep(for: .milliseconds(10))
             }
             wasCancelled = Task.isCancelled
         }
 
         // Let it run briefly
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         task.cancel()
         await task.value
@@ -65,11 +65,11 @@ struct TaskCancellationTests {
         let startTime = Date()
 
         let task = Task {
-            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+            try? await Task.sleep(for: .seconds(10)) // 10 seconds
         }
 
         // Cancel after small delay
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
         task.cancel()
         await task.value
 
@@ -89,7 +89,7 @@ struct TaskCancellationTests {
                 for _ in 0..<5 {
                     group.addTask {
                         while !Task.isCancelled {
-                            try? await Task.sleep(nanoseconds: 10_000_000)
+                            try? await Task.sleep(for: .milliseconds(10))
                         }
                         childrenCancelled += 1
                     }
@@ -97,7 +97,7 @@ struct TaskCancellationTests {
             }
         }
 
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
         task.cancel()
         await task.value
 
@@ -117,7 +117,7 @@ struct AsyncAwaitPatternTests {
         var results: [Int] = []
 
         for i in 0..<5 {
-            try? await Task.sleep(nanoseconds: 10_000_000)
+            try? await Task.sleep(for: .milliseconds(10))
             results.append(i)
         }
 
@@ -131,7 +131,7 @@ struct AsyncAwaitPatternTests {
         await withTaskGroup(of: Int.self) { group in
             for i in 0..<5 {
                 group.addTask {
-                    try? await Task.sleep(nanoseconds: UInt64.random(in: 10_000_000...50_000_000))
+                    try? await Task.sleep(for: .milliseconds(Int64.random(in: 10...50)))
                     return i
                 }
             }
@@ -150,15 +150,15 @@ struct AsyncAwaitPatternTests {
 
         // Use direct async let without wrapping in Task - this enables true concurrency
         async let a: Int = {
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            try? await Task.sleep(for: .milliseconds(100))
             return 1
         }()
         async let b: Int = {
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            try? await Task.sleep(for: .milliseconds(100))
             return 2
         }()
         async let c: Int = {
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            try? await Task.sleep(for: .milliseconds(100))
             return 3
         }()
 
@@ -188,7 +188,7 @@ struct DebouncePatternTests {
         for _ in 0..<10 {
             currentTask?.cancel()
             currentTask = Task {
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms debounce
+                try? await Task.sleep(for: .milliseconds(50)) // 50ms debounce
                 guard !Task.isCancelled else { return }
                 executionCount += 1
             }
@@ -208,7 +208,7 @@ struct DebouncePatternTests {
         // Calls with enough delay between them
         for _ in 0..<3 {
             executionCount += 1
-            try? await Task.sleep(nanoseconds: 100_000_000) // Wait between calls
+            try? await Task.sleep(for: .milliseconds(100)) // Wait between calls
         }
 
         #expect(executionCount == 3)
@@ -421,7 +421,7 @@ struct NotificationObserverPatternTests {
         NotificationCenter.default.post(name: NSNotification.Name("TestNotification"), object: nil)
 
         // Give time for notification to be processed
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        try? await Task.sleep(for: .milliseconds(100))
 
         NotificationCenter.default.removeObserver(observer)
 
@@ -441,12 +441,12 @@ struct NotificationObserverPatternTests {
         }
 
         NotificationCenter.default.post(name: NSNotification.Name("TestNotification2"), object: nil)
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         NotificationCenter.default.removeObserver(observer)
 
         NotificationCenter.default.post(name: NSNotification.Name("TestNotification2"), object: nil)
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         // Should only have received the first notification
         #expect(receivedCount == 1)

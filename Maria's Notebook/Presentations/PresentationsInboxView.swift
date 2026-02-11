@@ -110,7 +110,7 @@ struct PresentationsInboxView: View {
                     .onChange(of: searchText) { _, newValue in
                         searchDebounceTask?.cancel()
                         searchDebounceTask = Task { @MainActor in
-                            try? await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
+                            try? await Task.sleep(for: .milliseconds(250)) // 250ms debounce
                             guard !Task.isCancelled else { return }
                             debouncedSearchText = newValue
                         }

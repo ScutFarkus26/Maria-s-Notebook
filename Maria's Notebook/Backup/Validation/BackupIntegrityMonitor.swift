@@ -354,7 +354,7 @@ public final class BackupIntegrityMonitor {
                 
                 // Wait until next scan time
                 if waitTime > 0 {
-                    try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                    try? await Task.sleep(for: .seconds(waitTime))
                 }
                 
                 // Check if still enabled and not cancelled

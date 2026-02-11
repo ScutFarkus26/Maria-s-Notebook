@@ -24,7 +24,7 @@ struct ClosureCaptureTests {
 
             func startTask() {
                 Task { [weak self] in
-                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    try? await Task.sleep(for: .milliseconds(100))
                     _ = self // Use self weakly
                 }
             }
@@ -37,7 +37,7 @@ struct ClosureCaptureTests {
         }
 
         // Give time for deallocation
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         #expect(objectDeallocated == true)
     }
@@ -77,7 +77,7 @@ struct ClosureCaptureTests {
             _ = TestObserver(tracker: tracker)
         }
 
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         let deallocated = tracker.isDeallocated
         #expect(deallocated == true)
@@ -162,12 +162,12 @@ struct TaskLifecycleTests {
             for _ in 0..<10 {
                 guard !Task.isCancelled else { break }
                 executionCount += 1
-                try? await Task.sleep(nanoseconds: 10_000_000)
+                try? await Task.sleep(for: .milliseconds(10))
             }
         }
 
         // Cancel after small delay
-        try? await Task.sleep(nanoseconds: 25_000_000)
+        try? await Task.sleep(for: .milliseconds(25))
         task.cancel()
 
         // Wait for task to finish
@@ -187,7 +187,7 @@ struct TaskLifecycleTests {
             try await withThrowingTaskGroup(of: Void.self) { group in
                 group.addTask {
                     childExecuted = true
-                    try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds - long enough to be cancelled
+                    try await Task.sleep(for: .seconds(10)) // 10 seconds - long enough to be cancelled
                     childCompleted = true
                 }
                 try await group.waitForAll()
@@ -195,7 +195,7 @@ struct TaskLifecycleTests {
         }
 
         // Longer delay to let child start (200ms)
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        try? await Task.sleep(for: .milliseconds(200))
 
         parentTask.cancel()
 
@@ -216,7 +216,7 @@ struct TaskLifecycleTests {
                 task = Task { [weak self] in
                     // Check cancellation before doing work
                     guard !Task.isCancelled else { return }
-                    try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds - long enough to be cancelled
+                    try? await Task.sleep(for: .seconds(10)) // 10 seconds - long enough to be cancelled
                     // Check cancellation after sleep (in case sleep was interrupted)
                     guard !Task.isCancelled else { return }
                     self?.completed = true
@@ -233,11 +233,11 @@ struct TaskLifecycleTests {
         holder.startLongTask()
 
         // Longer delay to let task start (200ms)
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        try? await Task.sleep(for: .milliseconds(200))
         holder.cancel()
 
         // Wait for task to process cancellation (500ms)
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        try? await Task.sleep(for: .milliseconds(500))
 
         #expect(holder.completed == false)
     }
@@ -308,7 +308,7 @@ struct CombineSubscriptionTests {
 
         subject.send(2) // Observer should be deallocated
 
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         #expect(objectDeallocated == true)
     }
@@ -331,11 +331,11 @@ struct ToastServiceMemoryTests {
 
         // Clear any existing state
         service.clearAll()
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        try? await Task.sleep(for: .milliseconds(100))
 
         // Show a toast with long duration
         service.show("Test Toast", duration: 60.0)
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         // Verify we can show a toast (it should be non-nil after showing)
         // Note: This may still be nil in test environment due to withAnimation
@@ -347,7 +347,7 @@ struct ToastServiceMemoryTests {
 
         // Clear all - this should cancel the dismiss task and clear the queue
         service.clearAll()
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(for: .milliseconds(50))
 
         // After clearAll, dismiss should work without errors and
         // showing a new toast should work
@@ -355,7 +355,7 @@ struct ToastServiceMemoryTests {
         service.show("Final Toast", duration: 0.1)
 
         // Wait for the final toast to auto-dismiss
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        try? await Task.sleep(for: .milliseconds(200))
 
         // The test passes if no crashes occurred
         // The queue clearing behavior is verified by the ability to show new toasts
@@ -369,12 +369,12 @@ struct ToastServiceMemoryTests {
         service.show("Test Toast", duration: 10.0)
 
         // Small delay to let toast appear
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        try? await Task.sleep(for: .milliseconds(100))
 
         // Dismiss
         service.dismiss()
 
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        try? await Task.sleep(for: .milliseconds(100))
 
         #expect(service.currentToast == nil)
     }

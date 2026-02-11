@@ -295,7 +295,7 @@ final class StudentLessonDetailViewModel {
         // Hide banner after delay
         Task { @MainActor [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await Task.sleep(for: .seconds(3))
             showMovedBanner = false
         }
     }
@@ -372,7 +372,7 @@ final class StudentLessonDetailViewModel {
         guard notesDirty else { return }
         
         notesAutosaveTask = Task {
-            try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s debounce
+            try? await Task.sleep(for: .milliseconds(600)) // 0.6s debounce
             guard !Task.isCancelled else { return }
             
             await MainActor.run {

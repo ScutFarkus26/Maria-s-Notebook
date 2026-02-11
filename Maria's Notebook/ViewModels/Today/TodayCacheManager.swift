@@ -99,7 +99,9 @@ final class TodayCacheManager {
 
         // PERFORMANCE: Fetch all students once and filter in memory
         // SwiftData #Predicate doesn't support capturing local Set variables
-        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        var descriptor = FetchDescriptor<Student>()
+        descriptor.fetchLimit = 500 // Safety limit for student roster
+        let allStudents = context.safeFetch(descriptor)
         
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)
@@ -121,7 +123,9 @@ final class TodayCacheManager {
 
         // PERFORMANCE: Fetch all lessons once and filter in memory
         // SwiftData #Predicate doesn't support capturing local Set variables
-        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        var descriptor = FetchDescriptor<Lesson>()
+        descriptor.fetchLimit = 1000 // Safety limit for lesson library
+        let allLessons = context.safeFetch(descriptor)
         
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)

@@ -14,8 +14,13 @@ enum AgingBucket: Int, Codable, Comparable, Sendable {
 
 struct AgingPolicy {
     /// First bucket boundary where items start to be considered aging.
+    /// Marked nonisolated(unsafe) because this is a static configuration constant accessed
+    /// from multiple isolation domains. Safe because it's initialized once and never mutated after app launch.
     nonisolated(unsafe) static var agingDays: Int = 5
+    
     /// Second bucket boundary where items are considered stale.
+    /// Marked nonisolated(unsafe) because this is a static configuration constant accessed
+    /// from multiple isolation domains. Safe because it's initialized once and never mutated after app launch.
     nonisolated(unsafe) static var staleDays: Int = 9
 }
 

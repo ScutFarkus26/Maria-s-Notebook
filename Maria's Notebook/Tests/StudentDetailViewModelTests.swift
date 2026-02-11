@@ -26,7 +26,7 @@ private enum StudentDetailTestHelpers {
 struct StudentDetailViewModelInitializationTests {
 
     @Test("StudentDetailViewModel initializes with student")
-    func initializesWithStudent() {
+    func initializesWithStudent() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 
@@ -35,7 +35,7 @@ struct StudentDetailViewModelInitializationTests {
     }
 
     @Test("StudentDetailViewModel starts with empty lessons")
-    func startsWithEmptyLessons() {
+    func startsWithEmptyLessons() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 
@@ -43,7 +43,7 @@ struct StudentDetailViewModelInitializationTests {
     }
 
     @Test("StudentDetailViewModel starts with empty studentLessons")
-    func startsWithEmptyStudentLessons() {
+    func startsWithEmptyStudentLessons() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 
@@ -51,7 +51,7 @@ struct StudentDetailViewModelInitializationTests {
     }
 
     @Test("StudentDetailViewModel starts with empty caches")
-    func startsWithEmptyCaches() {
+    func startsWithEmptyCaches() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 
@@ -60,7 +60,7 @@ struct StudentDetailViewModelInitializationTests {
     }
 
     @Test("StudentDetailViewModel starts with nil selections")
-    func startsWithNilSelections() {
+    func startsWithNilSelections() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 
@@ -70,7 +70,7 @@ struct StudentDetailViewModelInitializationTests {
     }
 
     @Test("StudentDetailViewModel giveStartGiven defaults to false")
-    func giveStartGivenDefaultsFalse() {
+    func giveStartGivenDefaultsFalse() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 
@@ -597,7 +597,7 @@ struct StudentDetailViewModelWorkMethodsTests {
 struct StudentDetailViewModelToastTests {
 
     @Test("showToast delegates to ToastService")
-    func showToastDelegatesToToastService() {
+    func showToastDelegatesToToastService() throws {
         let student = makeTestStudent(firstName: "Alice", lastName: "Anderson")
         let vm = StudentDetailViewModel(student: student, dependencies: try AppDependencies.makeTest())
 

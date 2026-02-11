@@ -85,7 +85,7 @@ struct SettingsStatsViewModelStudentCountTests {
         vm.loadCounts(context: context)
 
         // Wait for async Task to complete
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.studentsCount == 3)
     }
@@ -98,7 +98,7 @@ struct SettingsStatsViewModelStudentCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.studentsCount == 0)
     }
@@ -124,7 +124,7 @@ struct SettingsStatsViewModelLessonCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.lessonsCount == 2)
     }
@@ -152,7 +152,7 @@ struct SettingsStatsViewModelStudentLessonCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.studentLessonsCount == 3)
     }
@@ -177,7 +177,7 @@ struct SettingsStatsViewModelStudentLessonCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.plannedCount == 2)
         #expect(vm.givenCount == 1)
@@ -204,7 +204,7 @@ struct SettingsStatsViewModelWorkModelCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.workModelsCount == 2)
     }
@@ -230,7 +230,7 @@ struct SettingsStatsViewModelNoteCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.notesCount == 2)
     }
@@ -256,7 +256,7 @@ struct SettingsStatsViewModelMeetingCountTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.meetingsCount == 2)
     }
@@ -281,7 +281,7 @@ struct SettingsStatsViewModelCachingTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.studentsCount == 1)
 
@@ -322,7 +322,7 @@ struct SettingsStatsViewModelLoadingStateTests {
         #expect(vm.isLoading == true)
 
         // Wait for completion
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(for: .milliseconds(200))
 
         #expect(vm.isLoading == false)
     }
@@ -371,7 +371,7 @@ struct SettingsStatsViewModelComprehensiveTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await Task.sleep(for: .milliseconds(200))
 
         #expect(vm.studentsCount == 3)
         #expect(vm.lessonsCount == 2)
@@ -391,7 +391,7 @@ struct SettingsStatsViewModelComprehensiveTests {
 
         vm.loadCounts(context: context)
 
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(for: .milliseconds(100))
 
         #expect(vm.studentsCount == 0)
         #expect(vm.lessonsCount == 0)

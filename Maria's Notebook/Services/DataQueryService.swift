@@ -37,7 +37,9 @@ final class DataQueryService {
             return excludeTest ? TestStudentsFilter.filterVisible(cached) : cached
         }
 
-        let students = context.safeFetch(FetchDescriptor<Student>())
+        var descriptor = FetchDescriptor<Student>()
+        descriptor.fetchLimit = 1000 // Safety limit for cache population
+        let students = context.safeFetch(descriptor)
         studentsCache = students
 
         return excludeTest ? TestStudentsFilter.filterVisible(students) : students
@@ -54,7 +56,9 @@ final class DataQueryService {
 
         // PERFORMANCE: Fetch all students and filter with Set lookup (O(1) per check)
         // SwiftData #Predicate doesn't support capturing local Set variables
-        let allStudents = context.safeFetch(FetchDescriptor<Student>())
+        var descriptor = FetchDescriptor<Student>()
+        descriptor.fetchLimit = 1000 // Safety limit
+        let allStudents = context.safeFetch(descriptor)
         // ids is already a Set, so .contains() is O(1)
         return allStudents.filter { ids.contains($0.id) }
     }
@@ -93,7 +97,9 @@ final class DataQueryService {
             return Array(cached.values)
         }
 
-        let lessons = context.safeFetch(FetchDescriptor<Lesson>())
+        var descriptor = FetchDescriptor<Lesson>()
+        descriptor.fetchLimit = 2000 // Safety limit for lesson library cache
+        let lessons = context.safeFetch(descriptor)
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         lessonsCache = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return lessons

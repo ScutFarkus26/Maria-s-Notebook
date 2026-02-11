@@ -220,7 +220,7 @@ struct UnifiedNoteEditor: View {
         if shouldShowStudentSelection {
             nameDetectionTask?.cancel()
             nameDetectionTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 250_000_000)
+                try? await Task.sleep(for: .milliseconds(250))
                 if Task.isCancelled { return }
                 await analyzeTextForNames(newText)
             }

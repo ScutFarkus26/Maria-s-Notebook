@@ -117,7 +117,7 @@ final class AutoBackupManager {
 
                 // Wait until next backup time
                 if waitTime > 0 {
-                    try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                    try? await Task.sleep(for: .seconds(waitTime))
                 }
 
                 // Check if still enabled and not cancelled

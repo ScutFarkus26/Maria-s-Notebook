@@ -317,7 +317,7 @@ struct StudentLessonsRootView: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         // Dismiss if the item is no longer available after a brief delay
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         if selectedLessonID != nil {
                             selectedLessonID = nil
                         }
@@ -335,7 +335,7 @@ struct StudentLessonsRootView: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         // Dismiss if the item is no longer available after a brief delay
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                        try? await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         if quickActionsLessonID != nil {
                             quickActionsLessonID = nil
                         }

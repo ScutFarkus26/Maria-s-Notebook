@@ -459,7 +459,7 @@ public final class CloudBackupService {
 
                     Logger.backup.error("Attempt \(attempt + 1) failed: \(error.localizedDescription). Retrying in \(actualDelay)s...")
 
-                    try await Task.sleep(nanoseconds: UInt64(actualDelay * 1_000_000_000))
+                    try await Task.sleep(for: .seconds(actualDelay))
                     delay *= retryConfiguration.backoffMultiplier
                 } else {
                     break
@@ -532,7 +532,7 @@ public final class CloudBackupService {
 
                 // Wait until next backup time
                 if waitTime > 0 {
-                    try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                    try? await Task.sleep(for: .seconds(waitTime))
                 }
 
                 // Check if still enabled and not cancelled

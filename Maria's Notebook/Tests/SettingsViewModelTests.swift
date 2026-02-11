@@ -11,7 +11,7 @@ import SwiftData
 struct SettingsViewModelInitializationTests {
 
     @Test("SettingsViewModel initial state has zero progress")
-    func initialStateHasZeroProgress() {
+    func initialStateHasZeroProgress() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.backupProgress == 0)
@@ -19,7 +19,7 @@ struct SettingsViewModelInitializationTests {
     }
 
     @Test("SettingsViewModel initial state has empty messages")
-    func initialStateHasEmptyMessages() {
+    func initialStateHasEmptyMessages() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.backupMessage == "")
@@ -27,49 +27,49 @@ struct SettingsViewModelInitializationTests {
     }
 
     @Test("SettingsViewModel restoreMode defaults to merge")
-    func restoreModeDefaultsToMerge() {
+    func restoreModeDefaultsToMerge() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.restoreMode == BackupService.RestoreMode.merge)
     }
 
     @Test("SettingsViewModel resultSummary starts nil")
-    func resultSummaryStartsNil() {
+    func resultSummaryStartsNil() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.resultSummary == nil)
     }
 
     @Test("SettingsViewModel operationSummary starts nil")
-    func operationSummaryStartsNil() {
+    func operationSummaryStartsNil() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.operationSummary == nil)
     }
 
     @Test("SettingsViewModel restorePreviewData starts nil")
-    func restorePreviewDataStartsNil() {
+    func restorePreviewDataStartsNil() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.restorePreviewData == nil)
     }
 
     @Test("SettingsViewModel exportData starts nil")
-    func exportDataStartsNil() {
+    func exportDataStartsNil() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.exportData == nil)
     }
 
     @Test("SettingsViewModel importError starts nil")
-    func importErrorStartsNil() {
+    func importErrorStartsNil() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.importError == nil)
     }
 
     @Test("SettingsViewModel estimatedBackupSize starts nil")
-    func estimatedBackupSizeStartsNil() {
+    func estimatedBackupSizeStartsNil() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.estimatedBackupSize == nil)
@@ -83,7 +83,7 @@ struct SettingsViewModelInitializationTests {
 struct SettingsViewModelBackupFilenameTests {
 
     @Test("defaultBackupFilename includes date")
-    func defaultBackupFilenameIncludesDate() {
+    func defaultBackupFilenameIncludesDate() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         let filename = vm.defaultBackupFilename()
@@ -94,7 +94,7 @@ struct SettingsViewModelBackupFilenameTests {
     }
 
     @Test("defaultBackupFilename has correct prefix")
-    func defaultBackupFilenameHasCorrectPrefix() {
+    func defaultBackupFilenameHasCorrectPrefix() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         let filename = vm.defaultBackupFilename()
@@ -103,7 +103,7 @@ struct SettingsViewModelBackupFilenameTests {
     }
 
     @Test("defaultBackupFilename has date format")
-    func defaultBackupFilenameHasDateFormat() {
+    func defaultBackupFilenameHasDateFormat() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         let filename = vm.defaultBackupFilename()
@@ -116,13 +116,13 @@ struct SettingsViewModelBackupFilenameTests {
     }
 
     @Test("defaultBackupFilename is unique per call")
-    func defaultBackupFilenameIsUniquePerCall() {
+    func defaultBackupFilenameIsUniquePerCall() async throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         let filename1 = vm.defaultBackupFilename()
 
         // Wait a tiny bit to ensure different timestamp
-        Thread.sleep(forTimeInterval: 1.1)
+        try await Task.sleep(for: .seconds(1.1))
 
         let filename2 = vm.defaultBackupFilename()
 
@@ -138,7 +138,7 @@ struct SettingsViewModelBackupFilenameTests {
 struct SettingsViewModelLastBackupDateTests {
 
     @Test("lastBackupDate returns nil when not set")
-    func lastBackupDateReturnsNilWhenNotSet() {
+    func lastBackupDateReturnsNilWhenNotSet() throws {
         // Clear any existing value
         UserDefaults.standard.removeObject(forKey: "LastBackupTimeInterval")
 
@@ -148,7 +148,7 @@ struct SettingsViewModelLastBackupDateTests {
     }
 
     @Test("setLastBackupNow updates lastBackupDate")
-    func setLastBackupNowUpdatesLastBackupDate() {
+    func setLastBackupNowUpdatesLastBackupDate() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
         let beforeSet = Date()
 
@@ -164,13 +164,13 @@ struct SettingsViewModelLastBackupDateTests {
     }
 
     @Test("lastBackupDate persists to UserDefaults")
-    func lastBackupDatePersistsToUserDefaults() {
+    func lastBackupDatePersistsToUserDefaults() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.setLastBackupNow()
 
         // Create a new instance to verify persistence
-        let vm2 = SettingsViewModel()
+        let vm2 = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm2.lastBackupDate != nil)
         #expect(abs((vm.lastBackupDate ?? Date.distantPast).timeIntervalSince(vm2.lastBackupDate ?? Date.distantFuture)) < 1)
@@ -184,7 +184,7 @@ struct SettingsViewModelLastBackupDateTests {
 struct SettingsViewModelProgressUpdatesTests {
 
     @Test("backupProgress updates correctly")
-    func backupProgressUpdatesCorrectly() {
+    func backupProgressUpdatesCorrectly() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.backupProgress = 0.5
@@ -197,7 +197,7 @@ struct SettingsViewModelProgressUpdatesTests {
     }
 
     @Test("backupMessage updates correctly")
-    func backupMessageUpdatesCorrectly() {
+    func backupMessageUpdatesCorrectly() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.backupMessage = "Exporting..."
@@ -210,7 +210,7 @@ struct SettingsViewModelProgressUpdatesTests {
     }
 
     @Test("importProgress updates correctly")
-    func importProgressUpdatesCorrectly() {
+    func importProgressUpdatesCorrectly() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.importProgress = 0.25
@@ -219,7 +219,7 @@ struct SettingsViewModelProgressUpdatesTests {
     }
 
     @Test("importMessage updates correctly")
-    func importMessageUpdatesCorrectly() {
+    func importMessageUpdatesCorrectly() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.importMessage = "Importing..."
@@ -228,7 +228,7 @@ struct SettingsViewModelProgressUpdatesTests {
     }
 
     @Test("resultSummary can be set and cleared")
-    func resultSummaryCanBeSetAndCleared() {
+    func resultSummaryCanBeSetAndCleared() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.resultSummary = "Export successful"
@@ -241,7 +241,7 @@ struct SettingsViewModelProgressUpdatesTests {
     }
 
     @Test("importError can be set")
-    func importErrorCanBeSet() {
+    func importErrorCanBeSet() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.importError = "Failed to import"
@@ -250,7 +250,7 @@ struct SettingsViewModelProgressUpdatesTests {
     }
 
     @Test("estimatedBackupSize can be set")
-    func estimatedBackupSizeCanBeSet() {
+    func estimatedBackupSizeCanBeSet() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         let oneMB: Int64 = 1024 * 1024
@@ -267,7 +267,7 @@ struct SettingsViewModelProgressUpdatesTests {
 struct SettingsViewModelRestoreModeTests {
 
     @Test("restoreMode can be changed to replace")
-    func restoreModeCanBeChangedToReplace() {
+    func restoreModeCanBeChangedToReplace() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.restoreMode = BackupService.RestoreMode.replace
@@ -276,7 +276,7 @@ struct SettingsViewModelRestoreModeTests {
     }
 
     @Test("restoreMode can be changed back to merge")
-    func restoreModeCanBeChangedBackToMerge() {
+    func restoreModeCanBeChangedBackToMerge() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.restoreMode = BackupService.RestoreMode.replace
@@ -293,7 +293,7 @@ struct SettingsViewModelRestoreModeTests {
 struct SettingsViewModelStateResetTests {
 
     @Test("Multiple progress operations can be tracked")
-    func multipleProgressOperationsCanBeTracked() {
+    func multipleProgressOperationsCanBeTracked() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         // Simulate export progress
@@ -314,7 +314,7 @@ struct SettingsViewModelStateResetTests {
     }
 
     @Test("Import and export progress are independent")
-    func importAndExportProgressAreIndependent() {
+    func importAndExportProgressAreIndependent() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.backupProgress = 0.75
@@ -325,7 +325,7 @@ struct SettingsViewModelStateResetTests {
     }
 
     @Test("Messages are independent")
-    func messagesAreIndependent() {
+    func messagesAreIndependent() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.backupMessage = "Export message"
@@ -343,14 +343,14 @@ struct SettingsViewModelStateResetTests {
 struct SettingsViewModelDefaultFolderTests {
 
     @Test("defaultFolderName starts empty")
-    func defaultFolderNameStartsEmpty() {
+    func defaultFolderNameStartsEmpty() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         #expect(vm.defaultFolderName == "")
     }
 
     @Test("defaultFolderName can be set")
-    func defaultFolderNameCanBeSet() {
+    func defaultFolderNameCanBeSet() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
 
         vm.defaultFolderName = "Backups"
@@ -359,7 +359,7 @@ struct SettingsViewModelDefaultFolderTests {
     }
 
     @Test("loadDefaultFolderName updates defaultFolderName")
-    func loadDefaultFolderNameUpdatesDefaultFolderName() {
+    func loadDefaultFolderNameUpdatesDefaultFolderName() throws {
         let vm = SettingsViewModel(dependencies: try AppDependencies.makeTest())
         let initialValue = vm.defaultFolderName
 

@@ -20,7 +20,7 @@ struct QuickNoteGlassButton: View {
     @AppStorage("QuickNoteButton.offsetY") private var savedOffsetY: Double = 0
 
     private let pieMenuRadius: CGFloat = 95
-    private let longPressDuration: UInt64 = 400_000_000 // 0.4 seconds in nanoseconds
+    private let longPressDuration: Duration = .milliseconds(400) // 0.4 seconds
 
     var body: some View {
         // Main button with fixed size
@@ -180,7 +180,7 @@ struct QuickNoteGlassButton: View {
     private func startLongPressTask() {
         longPressTask = Task { @MainActor in
             do {
-                try await Task.sleep(nanoseconds: longPressDuration)
+                try await Task.sleep(for: longPressDuration)
 
                 // Check if still valid (not cancelled and finger hasn't moved)
                 let distance = hypot(dragTranslation.width, dragTranslation.height)
