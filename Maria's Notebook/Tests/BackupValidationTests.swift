@@ -158,7 +158,7 @@ struct BackupIntegrityMonitorTests {
         
         #expect(!result.isValid)
         #expect(result.errorMessage != nil)
-        #expect(!result.checksumValid)
+        #expect(result.checksumValid == false)
         #expect(result.createdAt == nil)
     }
 }

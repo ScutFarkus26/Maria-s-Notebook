@@ -97,14 +97,14 @@ struct ConflictResolutionServiceTests {
 @Suite("CloudBackupService Import Tests")
 struct CloudBackupServiceImportTests {
 
-    @Test("CloudBackupError descriptions")
-    func testCloudBackupErrorDescriptions() {
-        let errors: [CloudBackupService.CloudBackupError] = [
+    @Test("CloudError descriptions")
+    func testCloudErrorDescriptions() {
+        let errors: [BackupOperationError.CloudError] = [
             .iCloudNotAvailable,
             .containerNotFound,
-            .backupFailed(NSError(domain: "test", code: 1)),
-            .restoreFailed(NSError(domain: "test", code: 2)),
-            .fileNotFound("missing.backup")
+            .uploadFailed(underlying: NSError(domain: "test", code: 1)),
+            .downloadFailed(underlying: NSError(domain: "test", code: 2)),
+            .networkUnavailable
         ]
 
         for error in errors {
@@ -113,44 +113,44 @@ struct CloudBackupServiceImportTests {
         }
     }
 
-    @Test("CloudBackupError iCloudNotAvailable message")
+    @Test("CloudError iCloudNotAvailable message")
     func testICloudNotAvailableError() {
-        let error = CloudBackupService.CloudBackupError.iCloudNotAvailable
+        let error = BackupOperationError.CloudError.iCloudNotAvailable
         #expect(error.errorDescription?.contains("iCloud") == true)
-        #expect(error.errorDescription?.contains("sign in") == true || error.errorDescription?.contains("available") == true)
+        #expect(error.errorDescription?.contains("available") == true)
     }
 
-    @Test("CloudBackupError containerNotFound message")
+    @Test("CloudError containerNotFound message")
     func testContainerNotFoundError() {
-        let error = CloudBackupService.CloudBackupError.containerNotFound
+        let error = BackupOperationError.CloudError.containerNotFound
         #expect(error.errorDescription?.contains("container") == true || error.errorDescription?.contains("iCloud") == true)
     }
 
-    @Test("CloudBackupError backupFailed includes underlying error")
-    func testBackupFailedError() {
+    @Test("CloudError uploadFailed includes underlying error")
+    func testUploadFailedError() {
         let underlyingError = NSError(domain: "TestDomain", code: 42, userInfo: [NSLocalizedDescriptionKey: "Test failure"])
-        let error = CloudBackupService.CloudBackupError.backupFailed(underlyingError)
-        #expect(error.errorDescription?.contains("Backup") == true || error.errorDescription?.contains("failed") == true)
+        let error = BackupOperationError.CloudError.uploadFailed(underlying: underlyingError)
+        #expect(error.errorDescription?.contains("Upload") == true || error.errorDescription?.contains("failed") == true)
     }
 
-    @Test("CloudBackupError restoreFailed includes underlying error")
-    func testRestoreFailedError() {
-        let underlyingError = NSError(domain: "TestDomain", code: 43, userInfo: [NSLocalizedDescriptionKey: "Test restore failure"])
-        let error = CloudBackupService.CloudBackupError.restoreFailed(underlyingError)
-        #expect(error.errorDescription?.contains("Restore") == true || error.errorDescription?.contains("failed") == true)
+    @Test("CloudError downloadFailed includes underlying error")
+    func testDownloadFailedError() {
+        let underlyingError = NSError(domain: "TestDomain", code: 43, userInfo: [NSLocalizedDescriptionKey: "Test download failure"])
+        let error = BackupOperationError.CloudError.downloadFailed(underlying: underlyingError)
+        #expect(error.errorDescription?.contains("Download") == true || error.errorDescription?.contains("failed") == true)
     }
 
-    @Test("CloudBackupError fileNotFound includes filename")
+    @Test("ImportError fileNotFound includes filename")
     func testFileNotFoundError() {
-        let filename = "missing-backup-2024.mtbbackup"
-        let error = CloudBackupService.CloudBackupError.fileNotFound(filename)
-        #expect(error.errorDescription?.contains(filename) == true)
+        let url = URL(fileURLWithPath: "/tmp/missing-backup-2024.mtbbackup")
+        let error = BackupOperationError.ImportError.fileNotFound(url: url)
+        #expect(error.errorDescription?.contains("missing-backup-2024.mtbbackup") == true)
     }
 
     @Test("Delete cloud backup throws for non-existent file")
     @MainActor
     func testDeleteNonExistentBackup() async {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
 
         let fakeBackup = CloudBackupService.CloudBackupInfo(
             id: UUID(),
@@ -167,7 +167,7 @@ struct CloudBackupServiceImportTests {
         do {
             try service.deleteCloudBackup(fakeBackup)
             Issue.record("Expected fileNotFound error")
-        } catch CloudBackupService.CloudBackupError.fileNotFound {
+        } catch BackupOperationError.importFailed(.fileNotFound) {
             #expect(true)
         } catch {
             // Other errors acceptable
@@ -177,7 +177,7 @@ struct CloudBackupServiceImportTests {
     @Test("Download backup if needed returns URL when already downloaded")
     @MainActor
     func testDownloadBackupAlreadyDownloaded() async throws {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
 
         // Create a temporary file
         let tmpURL = FileManager.default.temporaryDirectory

@@ -119,7 +119,7 @@ struct CloudBackupServiceExportTests {
     @Test("iCloud availability check")
     @MainActor
     func testICloudAvailabilityCheck() async {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
         // This will return true or false depending on system state
         // Just verify it doesn't crash
         let _ = service.isICloudAvailable
@@ -128,7 +128,7 @@ struct CloudBackupServiceExportTests {
     @Test("Cloud backup directory URL generation")
     @MainActor
     func testCloudBackupDirectoryGeneration() async {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
 
         if service.isICloudAvailable {
             let dir = service.cloudBackupDirectory
@@ -197,14 +197,14 @@ struct CloudBackupServiceExportTests {
     @Test("Ensure cloud backup directory creation throws without iCloud")
     @MainActor
     func testEnsureDirectoryWithoutICloud() async {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
 
         // If iCloud is not available, should throw
         if !service.isICloudAvailable {
             do {
                 try service.ensureCloudBackupDirectoryExists()
                 Issue.record("Expected error when iCloud not available")
-            } catch CloudBackupService.CloudBackupError.containerNotFound {
+            } catch BackupOperationError.cloudOperationFailed(.containerNotFound) {
                 // Expected
                 #expect(true)
             } catch {
@@ -216,13 +216,13 @@ struct CloudBackupServiceExportTests {
     @Test("List cloud backups throws without iCloud")
     @MainActor
     func testListBackupsWithoutICloud() async {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
 
         if !service.isICloudAvailable {
             do {
                 _ = try await service.listCloudBackups()
                 Issue.record("Expected error when iCloud not available")
-            } catch CloudBackupService.CloudBackupError.iCloudNotAvailable {
+            } catch BackupOperationError.cloudOperationFailed(.iCloudNotAvailable) {
                 #expect(true)
             } catch {
                 // Other errors acceptable
@@ -233,7 +233,7 @@ struct CloudBackupServiceExportTests {
     @Test("Copy to cloud throws without iCloud")
     @MainActor
     func testCopyToCloudWithoutICloud() async {
-        let service = CloudBackupService()
+        let service = CloudBackupService(backupService: BackupService())
 
         if !service.isICloudAvailable {
             let localURL = URL(fileURLWithPath: "/tmp/test-backup.mtbbackup")
@@ -241,7 +241,7 @@ struct CloudBackupServiceExportTests {
             do {
                 _ = try service.copyToCloud(localURL)
                 Issue.record("Expected iCloudNotAvailable error")
-            } catch CloudBackupService.CloudBackupError.iCloudNotAvailable {
+            } catch BackupOperationError.cloudOperationFailed(.iCloudNotAvailable) {
                 #expect(true)
             } catch {
                 // Other errors acceptable
@@ -298,7 +298,7 @@ struct IncrementalBackupServiceTests {
     @Test("Reset incremental tracking")
     @MainActor
     func testResetIncrementalTracking() async {
-        let service = IncrementalBackupService()
+        let service = IncrementalBackupService(backupService: BackupService())
 
         // Set some values
         UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: "IncrementalBackup.lastDate")
@@ -327,7 +327,7 @@ struct IncrementalBackupServiceTests {
         ctx.insert(student)
         try ctx.save()
 
-        let service = IncrementalBackupService()
+        let service = IncrementalBackupService(backupService: BackupService())
         service.resetIncrementalTracking() // Ensure clean state
 
         let tmp = FileManager.default.temporaryDirectory
@@ -382,7 +382,7 @@ struct AutoBackupManagerTests {
     @Test("Settings access defaults")
     @MainActor
     func testSettingsAccessDefaults() async {
-        let manager = AutoBackupManager()
+        let manager = AutoBackupManager(backupService: BackupService())
 
         // Access default values - should not crash
         let _ = manager.enabled
@@ -394,7 +394,7 @@ struct AutoBackupManagerTests {
     @Test("Retention clamping")
     @MainActor
     func testRetentionClamping() async {
-        let manager = AutoBackupManager()
+        let manager = AutoBackupManager(backupService: BackupService())
 
         manager.retention = 0
         #expect(manager.retention >= 1)
@@ -409,7 +409,7 @@ struct AutoBackupManagerTests {
     @Test("Backup interval clamping")
     @MainActor
     func testBackupIntervalClamping() async {
-        let manager = AutoBackupManager()
+        let manager = AutoBackupManager(backupService: BackupService())
 
         manager.backupIntervalHours = 0
         #expect(manager.backupIntervalHours >= 1)
