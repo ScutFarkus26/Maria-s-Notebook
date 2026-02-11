@@ -38,16 +38,27 @@ struct OpenWorkListView: View {
     }
 
     private func linkedLesson(for work: WorkModel) -> Lesson? {
-        guard let sl = linkedStudentLesson(for: work) else { return nil }
-        
-        // Priority: Use lesson relationship if available
-        if let lesson = sl.lesson {
-            return lesson
+        // Priority 1: Try WorkModel.lessonID directly (most reliable)
+        if !work.lessonID.isEmpty, let lessonID = UUID(uuidString: work.lessonID) {
+            if let lesson = lessonsByID[lessonID] {
+                return lesson
+            }
         }
         
-        // Fallback: Convert String lessonID to UUID for lookup
-        guard let lessonIDUUID = UUID(uuidString: sl.lessonID), !sl.lessonID.isEmpty else { return nil }
-        return lessonsByID[lessonIDUUID]
+        // Priority 2: Try through StudentLesson relationship
+        if let sl = linkedStudentLesson(for: work) {
+            // Use lesson relationship if available
+            if let lesson = sl.lesson {
+                return lesson
+            }
+            
+            // Fallback: Convert StudentLesson.lessonID to UUID for lookup
+            if !sl.lessonID.isEmpty, let lessonIDUUID = UUID(uuidString: sl.lessonID) {
+                return lessonsByID[lessonIDUUID]
+            }
+        }
+        
+        return nil
     }
 
     private func workTitle(_ work: WorkModel) -> String {
