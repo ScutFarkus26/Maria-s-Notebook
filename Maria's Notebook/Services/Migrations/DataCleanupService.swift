@@ -17,6 +17,15 @@ enum DataCleanupService {
         // Fetch all students to build valid ID set
         let studentFetch = FetchDescriptor<Student>()
         let allStudents = context.safeFetch(studentFetch)
+        
+        // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
+        guard !allStudents.isEmpty else {
+            #if DEBUG
+            print("⚠️ cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
+            #endif
+            return
+        }
+        
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
 
         // Fetch all StudentLessons
@@ -53,6 +62,15 @@ enum DataCleanupService {
         // Fetch all students to build valid ID set
         let studentFetch = FetchDescriptor<Student>()
         let allStudents = context.safeFetch(studentFetch)
+        
+        // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
+        guard !allStudents.isEmpty else {
+            #if DEBUG
+            print("⚠️ cleanOrphanedWorkStudentIDs: No students found - skipping cleanup to prevent data loss")
+            #endif
+            return
+        }
+        
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
 
         // Fetch all WorkModels
@@ -144,8 +162,13 @@ enum DataCleanupService {
         var changed = false
         for (_, group) in groups {
             guard group.count > 1 else { continue }
-            // Choose canonical: earliest createdAt
-            guard let canonical = group.min(by: { $0.createdAt < $1.createdAt }) else { continue }
+            // Choose canonical: earliest createdAt, with stable tiebreaker by ID
+            guard let canonical = group.sorted(by: { lhs, rhs in
+                if lhs.createdAt != rhs.createdAt {
+                    return lhs.createdAt < rhs.createdAt
+                }
+                return lhs.id.uuidString < rhs.id.uuidString
+            }).first else { continue }
             let duplicates = group.filter { $0.id != canonical.id }
 
             // Merge flags conservatively

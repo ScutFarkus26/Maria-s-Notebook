@@ -70,7 +70,10 @@ final class ReminderSyncService {
     }
     
     deinit {
-        // `deinit` is not MainActor-isolated; schedule cleanup on the main actor.
+        // `deinit` is not MainActor-isolated
+        // The stopObservingChangesOnMainActor method is already designed to handle cleanup safely
+        // We can't await in deinit, but the Task will ensure cleanup happens asynchronously
+        // NotificationCenter's removeObserver is safe to call from any thread
         stopObservingChanges()
     }
     
@@ -388,12 +391,16 @@ final class ReminderSyncService {
     /// Stop observing EventKit changes (MainActor implementation)
     @MainActor
     private func stopObservingChangesOnMainActor() {
+        // Cancel any pending sync tasks
         pendingChangeTask?.cancel()
         pendingChangeTask = nil
+        
+        // Remove notification observer - safe to call even if observer is nil
         if let observer = changeObserver {
             NotificationCenter.default.removeObserver(observer)
             changeObserver = nil
         }
+        
         isObserving = false
     }
 

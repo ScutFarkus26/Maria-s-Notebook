@@ -62,13 +62,16 @@ final class SchoolDayCalculationCache {
         
         // Add weekends (unless overridden)
         var cursor = startDay
-        while cursor <= endDay {
+        var iterations = 0
+        let maxIterations = 10000 // ~27 years of days
+        while cursor <= endDay && iterations < maxIterations {
+            iterations += 1
             let weekday = calendar.component(.weekday, from: cursor)
             let isWeekend = (weekday == 1 || weekday == 7)
             if isWeekend && !overrideDates.contains(cursor) {
                 result.insert(cursor)
             }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
             cursor = next
         }
         
@@ -97,11 +100,14 @@ final class SchoolDayCalculationCache {
         // Calculate school days using cached non-school days
         var count = 0
         var cursor = startDay
-        while cursor < endDay {
+        var iterations = 0
+        let maxIterations = 10000 // ~27 years of days
+        while cursor < endDay && iterations < maxIterations {
+            iterations += 1
             if !nonSchoolDaysCache.contains(cursor) {
                 count += 1
             }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
             cursor = next
         }
         

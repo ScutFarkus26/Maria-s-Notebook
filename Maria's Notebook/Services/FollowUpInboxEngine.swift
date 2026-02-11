@@ -104,7 +104,8 @@ struct FollowUpInboxEngine {
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let allWorkModels = (try? modelContext.fetch(descriptor)) ?? []
-        let openWorkModels = allWorkModels.filter { $0.isOpen && $0.status != .complete }
+        // Filter for isOpen - status already handled by query predicate
+        let openWorkModels = allWorkModels.filter { $0.isOpen }
 
         // Helper: student display name for a set of IDs (single vs group)
         func childName(for ids: [UUID]) -> (UUID?, String) {
@@ -146,11 +147,24 @@ struct FollowUpInboxEngine {
         func schoolDaysSince(_ start: Date) -> Int {
             let startDay = AppCalendar.startOfDay(start)
             let today = AppCalendar.startOfDay(Date())
+            
+            // Guard against absurd date ranges before entering loop
+            let cal = AppCalendar.shared
+            let daysBetween = cal.dateComponents([.day], from: startDay, to: today).day ?? 0
+            
+            // If date range exceeds safety limit or is negative, return early
+            if daysBetween > BatchingConstants.maxDaysToIterate {
+                return BatchingConstants.maxDaysToIterate
+            }
+            if daysBetween <= 0 { return 0 }
+            
             var count = 0
             var cursor = startDay
             while cursor < today {
                 if !isNonSchoolDaySync(cursor) { count += 1 }
                 cursor = AppCalendar.addingDays(1, to: cursor)
+                
+                // Safety limit should never be hit due to guard above, but keep as failsafe
                 assert(count < BatchingConstants.maxDaysToIterate, "Date iteration safety limit exceeded")
                 if count > BatchingConstants.maxDaysToIterate { break }
             }

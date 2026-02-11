@@ -66,6 +66,7 @@ final class PresentationsViewModel {
     // MARK: - Change Detection Helpers
     
     /// Computes a hash for StudentLesson change detection
+    /// Includes all meaningful fields to ensure UI updates when any data changes
     private func computeStudentLessonHash(_ lessons: [StudentLesson]) -> Int {
         var hasher = Hasher()
         for lesson in lessons {
@@ -73,6 +74,12 @@ final class PresentationsViewModel {
             hasher.combine(lesson.scheduledFor?.timeIntervalSinceReferenceDate ?? -1)
             hasher.combine(lesson.givenAt?.timeIntervalSinceReferenceDate ?? -1)
             hasher.combine(lesson.isPresented)
+            hasher.combine(lesson.notes)
+            hasher.combine(lesson.followUpWork)
+            hasher.combine(lesson.studentIDs.joined(separator: ","))
+            hasher.combine(lesson.needsPractice)
+            hasher.combine(lesson.needsAnotherPresentation)
+            hasher.combine(lesson.lessonID)
         }
         return hasher.finalize()
     }

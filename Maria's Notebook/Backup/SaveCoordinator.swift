@@ -12,8 +12,19 @@ final class SaveCoordinator {
     /// When true, suppress presenting UI alerts on save failures (used in previews)
     var suppressAlerts: Bool = false
     
+    // Weak reference wrapper to safely hold ModelContext references
+    private class WeakContextHolder {
+        weak var context: ModelContext?
+        let reason: String?
+        
+        init(context: ModelContext, reason: String?) {
+            self.context = context
+            self.reason = reason
+        }
+    }
+    
     // Save batching to reduce database write contention
-    private var pendingSaves: [ObjectIdentifier: (context: ModelContext, reason: String?)] = [:]
+    private var pendingSaves: [ObjectIdentifier: WeakContextHolder] = [:]
     private var saveTimer: Timer?
     private let saveBatchInterval: TimeInterval = 0.5 // 500ms debounce
 
@@ -24,7 +35,7 @@ final class SaveCoordinator {
     ///   - reason: Optional, short description of why the save is occurring.
     func scheduleSave(_ context: ModelContext, reason: String? = nil) {
         let contextID = ObjectIdentifier(context)
-        pendingSaves[contextID] = (context, reason)
+        pendingSaves[contextID] = WeakContextHolder(context: context, reason: reason)
         
         saveTimer?.invalidate()
         saveTimer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
@@ -39,8 +50,10 @@ final class SaveCoordinator {
         let saves = pendingSaves
         pendingSaves.removeAll()
         
-        for (_, saveInfo) in saves {
-            save(saveInfo.context, reason: saveInfo.reason)
+        for (_, holder) in saves {
+            // Only save if context still exists
+            guard let context = holder.context else { continue }
+            save(context, reason: holder.reason)
         }
     }
     

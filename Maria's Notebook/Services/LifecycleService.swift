@@ -112,6 +112,9 @@ struct LifecycleService {
 
             // Convert student IDs from strings to UUIDs
             let studentUUIDs = studentIDStrs.compactMap { UUID(uuidString: $0) }
+            guard !studentUUIDs.isEmpty else {
+                throw LifecycleError.invalidStudentID("No valid student IDs in StudentLesson \(studentLesson.id)")
+            }
             guard let lessonUUID = UUID(uuidString: lessonIDStr) else {
                 throw LifecycleError.invalidLessonID(lessonIDStr)
             }
@@ -388,6 +391,14 @@ struct LifecycleService {
                 lesson = relationshipLesson
             } else {
                 lesson = lessonsByID[studentLesson.lessonID]
+            }
+            
+            // Validate lesson exists before attempting to sync
+            guard lesson != nil else {
+                #if DEBUG
+                print("⚠️ Skipping StudentLesson \(studentLesson.id): lesson not found for lessonID \(studentLesson.lessonID)")
+                #endif
+                continue
             }
 
             // Use the lifecycle service to create LessonAssignment and LessonPresentation records
