@@ -65,7 +65,8 @@ public final class SyncedPreferencesStore {
         "Attendance.locked."
     ]
     
-    // Marked unsafe to allow access in non-isolated deinit
+    // Swift 6: nonisolated(unsafe) required for deinit access despite compiler warning
+    // See: https://github.com/swiftlang/swift/issues/81962
     nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
     
     // ENERGY OPTIMIZATION: Batch sync operations to reduce network activity
@@ -101,7 +102,7 @@ public final class SyncedPreferencesStore {
     }
     
     deinit {
-        // Safe to access because it is nonisolated(unsafe)
+        // Safe to access nonisolated(unsafe) property in deinit
         if let observer = changeObserver {
             NotificationCenter.default.removeObserver(observer)
         }

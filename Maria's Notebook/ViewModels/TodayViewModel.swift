@@ -117,7 +117,8 @@ final class TodayViewModel {
 
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
     // during rapid changes (e.g., date picker scrolling, filter changes)
-    // Task is Sendable, but must use nonisolated(unsafe) for mutable stored properties
+    // Swift 6: nonisolated(unsafe) required for deinit access despite compiler warning
+    // See: https://github.com/swiftlang/swift/issues/81962
     nonisolated(unsafe) private var reloadTask: Task<Void, Never>?
 
     /// Schedules a debounced reload. Use this for data-driven changes that may happen rapidly.
@@ -149,10 +150,9 @@ final class TodayViewModel {
         scheduleReload()
     }
 
-    nonisolated deinit {
+    deinit {
         // Cancel any pending reload task to prevent leaks and unnecessary work
-        // reloadTask is marked nonisolated(unsafe) to allow access from deinit
-        // This is safe because Task.cancel() is thread-safe.
+        // Safe to access nonisolated(unsafe) property in deinit
         reloadTask?.cancel()
     }
 
