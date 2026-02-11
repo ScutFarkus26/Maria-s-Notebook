@@ -130,6 +130,35 @@ enum SchemaMigrationService {
         }
     }
 
+    // MARK: - StudentLesson LessonID Sync
+    
+    /// Sync StudentLesson.lessonID from lesson relationship where missing.
+    /// Fixes records where the lessonID string field is empty but the relationship exists.
+    /// Idempotent: only updates records where lessonID is empty and lesson relationship exists.
+    @MainActor
+    static func syncStudentLessonIDsFromRelationshipsIfNeeded(using context: ModelContext) async {
+        let flagKey = "Migration.studentLessonIDSync.v1"
+        await MigrationFlag.runIfNeeded(key: flagKey) {
+            let fetch = FetchDescriptor<StudentLesson>()
+            let lessons = context.safeFetch(fetch)
+            var synced = 0
+            
+            for (index, sl) in lessons.enumerated() {
+                if index % 100 == 0 { await Task.yield() }
+                
+                // Only sync if lessonID is empty and lesson relationship exists
+                if sl.lessonID.isEmpty, let lesson = sl.lesson {
+                    sl.lessonID = lesson.id.uuidString
+                    synced += 1
+                }
+            }
+            
+            if synced > 0 {
+                context.safeSave()
+            }
+        }
+    }
+
     // MARK: - WorkModel Migration
 
     /// Backfill WorkModel IDs from StudentLesson where needed.
@@ -185,6 +214,7 @@ enum SchemaMigrationService {
         migrateUUIDForeignKeysToStringsIfNeeded(using: context)
         migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
         migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
+        await syncStudentLessonIDsFromRelationshipsIfNeeded(using: context)
         await migrateWorkContractsToWorkModelsIfNeeded(using: context)
     }
 }

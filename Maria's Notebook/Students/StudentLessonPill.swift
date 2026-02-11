@@ -89,7 +89,13 @@ struct StudentLessonPill: View {
 
     private var lessonObject: Lesson? { lessons.first(where: { $0.id == snapshot.lessonID }) }
 
-    private var lessonName: String { lessonObject?.name ?? "Lesson" }
+    private var lessonName: String {
+        if let name = lessonObject?.name, !name.isEmpty {
+            return name
+        }
+        // Fallback: show lesson ID prefix for debugging
+        return "Lesson \(snapshot.lessonID.uuidString.prefix(6))"
+    }
 
     private var subjectColor: Color {
         if let subject = lessonObject?.subject { return AppColors.color(forSubject: subject) }

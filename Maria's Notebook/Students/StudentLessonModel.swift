@@ -174,7 +174,24 @@ import OSLog
     func snapshot() -> StudentLessonSnapshot {
         // Convert string IDs to UUIDs for CloudKit compatibility
         let studentUUIDs = studentIDs.compactMap { UUID(uuidString: $0) }
-        let lessonUUID = UUID(uuidString: lessonID) ?? UUID()
+        
+        // Priority: Use lesson relationship if available, otherwise use lessonID string
+        let lessonUUID: UUID
+        if let lesson = self.lesson {
+            lessonUUID = lesson.id
+            // Sync the lessonID field if it's missing or different
+            if self.lessonID.isEmpty || self.lessonID != lesson.id.uuidString {
+                self.lessonID = lesson.id.uuidString
+            }
+        } else if let uuid = UUID(uuidString: lessonID), !lessonID.isEmpty {
+            lessonUUID = uuid
+        } else {
+            // Log error for debugging - lesson data is missing
+            Self.logger.error("StudentLesson \(self.id) has no valid lessonID or lesson relationship")
+            // Use a zero UUID as fallback to make it obvious something is wrong
+            lessonUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+        }
+        
         return StudentLessonSnapshot(
             id: id,
             lessonID: lessonUUID,

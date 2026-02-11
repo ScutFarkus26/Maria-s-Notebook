@@ -39,8 +39,14 @@ struct OpenWorkListView: View {
 
     private func linkedLesson(for work: WorkModel) -> Lesson? {
         guard let sl = linkedStudentLesson(for: work) else { return nil }
-        // CloudKit compatibility: Convert String lessonID to UUID for lookup
-        guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { return nil }
+        
+        // Priority: Use lesson relationship if available
+        if let lesson = sl.lesson {
+            return lesson
+        }
+        
+        // Fallback: Convert String lessonID to UUID for lookup
+        guard let lessonIDUUID = UUID(uuidString: sl.lessonID), !sl.lessonID.isEmpty else { return nil }
         return lessonsByID[lessonIDUUID]
     }
 
