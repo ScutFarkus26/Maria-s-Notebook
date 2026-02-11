@@ -29,6 +29,7 @@ func makeTodayViewModelContainer() throws -> ModelContainer {
 // MARK: - TodayViewModel Test Assertions
 
 /// Asserts that a TodayViewModel has empty initial state
+@MainActor
 func expectEmptyViewModel(_ vm: TodayViewModel, sourceLocation: SourceLocation = #_sourceLocation) {
     #expect(vm.todaysLessons.isEmpty, sourceLocation: sourceLocation)
     #expect(vm.overdueSchedule.isEmpty, sourceLocation: sourceLocation)
@@ -39,6 +40,7 @@ func expectEmptyViewModel(_ vm: TodayViewModel, sourceLocation: SourceLocation =
 }
 
 /// Asserts that attendance summary has zero counts
+@MainActor
 func expectZeroAttendance(_ vm: TodayViewModel, sourceLocation: SourceLocation = #_sourceLocation) {
     #expect(vm.attendanceSummary.presentCount == 0, sourceLocation: sourceLocation)
     #expect(vm.attendanceSummary.tardyCount == 0, sourceLocation: sourceLocation)

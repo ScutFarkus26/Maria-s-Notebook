@@ -37,7 +37,7 @@ struct TodayViewModelInitializationTests {
 
         let today = Calendar.current.startOfDay(for: Date())
         #expect(vm.date == today)
-        #expect(vm.levelFilter == .all)
+        #expect(vm.levelFilter == LevelFilter.all)
         expectEmptyViewModel(vm)
     }
 }
@@ -142,12 +142,12 @@ struct TodayViewModelLevelFilterBehaviorTests {
         let context = ModelContext(container)
         let vm = TodayViewModel(context: context)
 
-        vm.levelFilter = .lower
-        #expect(vm.levelFilter == .lower)
-        vm.levelFilter = .upper
-        #expect(vm.levelFilter == .upper)
-        vm.levelFilter = .all
-        #expect(vm.levelFilter == .all)
+        vm.levelFilter = LevelFilter.lower
+        #expect(vm.levelFilter == LevelFilter.lower)
+        vm.levelFilter = LevelFilter.upper
+        #expect(vm.levelFilter == LevelFilter.upper)
+        vm.levelFilter = LevelFilter.all
+        #expect(vm.levelFilter == LevelFilter.all)
     }
 
     @Test("levelFilter controls which lessons appear")
@@ -172,18 +172,18 @@ struct TodayViewModelLevelFilterBehaviorTests {
         let vm = TodayViewModel(context: context, date: testDate)
 
         // Test .all filter
-        vm.levelFilter = .all
+        vm.levelFilter = LevelFilter.all
         vm.reload()
         #expect(vm.todaysLessons.count == 2)
 
         // Test .lower filter
-        vm.levelFilter = .lower
+        vm.levelFilter = LevelFilter.lower
         vm.reload()
         #expect(vm.todaysLessons.count == 1)
         #expect(vm.todaysLessons.first?.resolvedStudentIDs.contains(lowerStudent.id) == true)
 
         // Test .upper filter
-        vm.levelFilter = .upper
+        vm.levelFilter = LevelFilter.upper
         vm.reload()
         #expect(vm.todaysLessons.count == 1)
         #expect(vm.todaysLessons.first?.resolvedStudentIDs.contains(upperStudent.id) == true)
@@ -343,7 +343,7 @@ struct TodayViewModelAttendanceReloadTests {
         try context.save()
 
         let vm = TodayViewModel(context: context, date: testDate)
-        vm.levelFilter = .lower
+        vm.levelFilter = LevelFilter.lower
         vm.reload()
 
         #expect(vm.attendanceSummary.presentCount == 1)

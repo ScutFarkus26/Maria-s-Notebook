@@ -562,4 +562,331 @@ func makeTestReminderSet(listID: String = "test-reminder-list") -> [Reminder] {
     ]
 }
 
+// MARK: - TodayViewModel Test Helpers
+
+@MainActor
+func makeTodayViewModelContainer() throws -> ModelContainer {
+    return try makeTestContainer(for: [
+        Student.self,
+        Lesson.self,
+        StudentLesson.self,
+        AttendanceRecord.self,
+        WorkModel.self,
+        WorkParticipantEntity.self,
+        WorkCheckIn.self,
+        WorkPlanItem.self,
+        Note.self,
+        Document.self,
+        Reminder.self,
+        CalendarEvent.self,
+        GroupTrack.self,
+        StudentTrackEnrollment.self,
+    ])
+}
+
+/// Asserts that a TodayViewModel has empty initial state
+@MainActor
+func expectEmptyViewModel(_ vm: TodayViewModel, sourceLocation: SourceLocation = #_sourceLocation) {
+    #expect(vm.todaysLessons.isEmpty, sourceLocation: sourceLocation)
+    #expect(vm.overdueSchedule.isEmpty, sourceLocation: sourceLocation)
+    #expect(vm.todaysSchedule.isEmpty, sourceLocation: sourceLocation)
+    #expect(vm.staleFollowUps.isEmpty, sourceLocation: sourceLocation)
+    #expect(vm.studentsByID.isEmpty, sourceLocation: sourceLocation)
+    #expect(vm.lessonsByID.isEmpty, sourceLocation: sourceLocation)
+}
+
+/// Asserts that attendance summary has zero counts
+@MainActor
+func expectZeroAttendance(_ vm: TodayViewModel, sourceLocation: SourceLocation = #_sourceLocation) {
+    #expect(vm.attendanceSummary.presentCount == 0, sourceLocation: sourceLocation)
+    #expect(vm.attendanceSummary.tardyCount == 0, sourceLocation: sourceLocation)
+    #expect(vm.attendanceSummary.absentCount == 0, sourceLocation: sourceLocation)
+    #expect(vm.attendanceSummary.leftEarlyCount == 0, sourceLocation: sourceLocation)
+    #expect(vm.absentToday.isEmpty, sourceLocation: sourceLocation)
+    #expect(vm.leftEarlyToday.isEmpty, sourceLocation: sourceLocation)
+}
+
+// MARK: - FollowUpInbox Test Helpers
+
+@MainActor
+func makeFollowUpContainer() throws -> ModelContainer {
+    return try makeTestContainer(for: [
+        Student.self,
+        Lesson.self,
+        StudentLesson.self,
+        WorkModel.self,
+        WorkCheckIn.self,
+        Note.self,
+        NonSchoolDay.self,
+        SchoolDayOverride.self,
+    ])
+}
+
+/// Calculates a date that is N school days (weekdays) before today
+func schoolDaysAgo(_ n: Int) -> Date {
+    let today = AppCalendar.startOfDay(Date())
+    var count = 0
+    var cursor = today
+    while count < n {
+        cursor = AppCalendar.addingDays(-1, to: cursor)
+        let weekday = AppCalendar.shared.component(.weekday, from: cursor)
+        if weekday != 1 && weekday != 7 { count += 1 }
+    }
+    return cursor
+}
+
+struct FollowUpInboxItemBuilder {
+    var id: String = "test:123"
+    var underlyingID: UUID = UUID()
+    var childID: UUID? = UUID()
+    var childName: String = "Test Child"
+    var title: String = "Test Lesson"
+    var kind: FollowUpInboxItem.Kind = .lessonFollowUp
+    var statusText: String = "Due Today"
+    var ageDays: Int = 7
+    var bucket: FollowUpInboxItem.Bucket = .dueToday
+
+    func build() -> FollowUpInboxItem {
+        return FollowUpInboxItem(
+            id: id,
+            underlyingID: underlyingID,
+            childID: childID,
+            childName: childName,
+            title: title,
+            kind: kind,
+            statusText: statusText,
+            ageDays: ageDays,
+            bucket: bucket
+        )
+    }
+
+    func withBucket(_ bucket: FollowUpInboxItem.Bucket) -> FollowUpInboxItemBuilder {
+        var copy = self
+        copy.bucket = bucket
+        return copy
+    }
+
+    func withAge(_ ageDays: Int) -> FollowUpInboxItemBuilder {
+        var copy = self
+        copy.ageDays = ageDays
+        return copy
+    }
+
+    func withChildName(_ childName: String) -> FollowUpInboxItemBuilder {
+        var copy = self
+        copy.childName = childName
+        return copy
+    }
+
+    func withNoChild() -> FollowUpInboxItemBuilder {
+        var copy = self
+        copy.childID = nil
+        return copy
+    }
+}
+
+/// Generic helper to test enum property mappings
+func expectEnumProperty<T: Equatable, E>(
+    for cases: [(E, T)],
+    keyPath: KeyPath<E, T>,
+    sourceLocation: SourceLocation = #_sourceLocation
+) {
+    for (enumCase, expected) in cases {
+        #expect(enumCase[keyPath: keyPath] == expected, sourceLocation: sourceLocation)
+    }
+}
+
+// MARK: - Shared Test Helpers
+
+struct TestContainerFactory {
+
+    @MainActor
+    static func makeContainer(for models: [any PersistentModel.Type]) throws -> ModelContainer {
+        return try makeTestContainer(for: models)
+    }
+
+    @MainActor
+    static func makeStandardContainer() throws -> ModelContainer {
+        return try makeStandardTestContainer()
+    }
+
+    @MainActor
+    static func makeContainerWithContext(for models: [any PersistentModel.Type]) throws -> (ModelContainer, ModelContext) {
+        let container = try makeContainer(for: models)
+        let context = ModelContext(container)
+        return (container, context)
+    }
+}
+
+struct TestEntityBuilder {
+
+    let context: ModelContext
+
+    func buildStudent(
+        firstName: String = "Test",
+        lastName: String = "Student",
+        birthday: Date? = nil
+    ) throws -> Student {
+        let student = makeTestStudent(firstName: firstName, lastName: lastName)
+        if let birthday = birthday {
+            student.birthday = birthday
+        }
+        context.insert(student)
+        try context.save()
+        return student
+    }
+
+    func buildLesson(
+        name: String = "Test Lesson",
+        subject: String = "Math",
+        group: String = "Algebra"
+    ) throws -> Lesson {
+        let lesson = makeTestLesson(name: name, subject: subject, group: group)
+        context.insert(lesson)
+        try context.save()
+        return lesson
+    }
+
+    func buildStudentLesson(
+        lesson: Lesson,
+        students: [Student],
+        scheduledFor: Date? = nil,
+        givenAt: Date? = nil
+    ) throws -> StudentLesson {
+        let studentLesson = makeTestStudentLesson(
+            lessonID: lesson.id,
+            studentIDs: students.map { $0.id },
+            scheduledFor: scheduledFor,
+            givenAt: givenAt
+        )
+        studentLesson.lesson = lesson
+        studentLesson.students = students
+        context.insert(studentLesson)
+        try context.save()
+        return studentLesson
+    }
+
+    func buildAttendanceRecord(
+        studentID: UUID,
+        date: Date,
+        status: AttendanceStatus = .unmarked
+    ) throws -> AttendanceRecord {
+        let record = makeTestAttendanceRecord(studentID: studentID, date: date, status: status)
+        context.insert(record)
+        try context.save()
+        return record
+    }
+
+    func buildWorkModel(
+        studentID: String? = nil,
+        lessonID: String? = nil,
+        title: String = "Test Work"
+    ) throws -> WorkModel {
+        let work = makeTestWorkModel(
+            title: title,
+            studentID: studentID ?? "",
+            lessonID: lessonID ?? ""
+        )
+        context.insert(work)
+        try context.save()
+        return work
+    }
+}
+
+struct TestPatterns {
+
+    static func expectSameDayNormalized(_ date1: Date, _ date2: Date, file: StaticString = #file, line: UInt = #line) {
+        let normalized1 = Calendar.current.startOfDay(for: date1)
+        let normalized2 = Calendar.current.startOfDay(for: date2)
+        #expect(normalized1 == normalized2, sourceLocation: SourceLocation(fileID: "", filePath: file.description, line: Int(line), column: 0))
+    }
+
+    static func expectThrowsError<T, E: Error>(
+        _ expression: @autoclosure () throws -> T,
+        ofType errorType: E.Type,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        #expect(throws: errorType) {
+            _ = try expression()
+        }
+    }
+
+    static func expectEmpty<T: Collection>(
+        _ collection: T,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        #expect(collection.isEmpty, sourceLocation: SourceLocation(fileID: "", filePath: file.description, line: Int(line), column: 0))
+    }
+
+    static func expectCount<T: Collection>(
+        _ collection: T,
+        equals expected: Int,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        #expect(collection.count == expected, sourceLocation: SourceLocation(fileID: "", filePath: file.description, line: Int(line), column: 0))
+    }
+}
+
+struct ErrorDescriptionTester {
+
+    static func testErrorDescription<E: LocalizedError>(
+        _ error: E,
+        containsSubstring substring: String,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        let description = error.errorDescription ?? ""
+        #expect(description.contains(substring), sourceLocation: SourceLocation(fileID: "", filePath: file.description, line: Int(line), column: 0))
+    }
+
+    static func testErrorDescriptionEquals<E: LocalizedError>(
+        _ error: E,
+        expected: String,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        #expect(error.errorDescription == expected, sourceLocation: SourceLocation(fileID: "", filePath: file.description, line: Int(line), column: 0))
+    }
+}
+
+struct StatusCycleTester {
+
+    @MainActor
+    static func testStatusCycle(
+        from: AttendanceStatus,
+        to: AttendanceStatus,
+        using viewModel: AttendanceViewModel,
+        student: Student,
+        context: ModelContext
+    ) {
+        // Note: This test helper is outdated - AttendanceViewModel no longer has recordsByStudent
+        // Tests using this should be updated to use the new API
+        let record = makeTestAttendanceRecord(studentID: student.id, status: from)
+        context.insert(record)
+        viewModel.cycleStatus(for: student, modelContext: context)
+        // Cannot verify final status without recordsByStudent - this helper needs updating
+    }
+}
+
+struct DeduplicationTester {
+
+    static func testDeduplication<T: PersistentModel>(
+        ofType type: T.Type,
+        setup: (ModelContext) throws -> Void,
+        deduplicateAction: (ModelContext) -> Int,
+        verifyDeletedCount expectedDeletedCount: Int,
+        verifyRemainingCount expectedRemainingCount: Int,
+        context: ModelContext
+    ) throws {
+        try setup(context)
+        let deletedCount = deduplicateAction(context)
+        #expect(deletedCount == expectedDeletedCount)
+        let remaining = context.safeFetch(FetchDescriptor<T>())
+        #expect(remaining.count == expectedRemainingCount)
+    }
+}
+
 #endif

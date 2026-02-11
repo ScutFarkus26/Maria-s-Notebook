@@ -8,14 +8,17 @@ import SwiftData
 
 struct TestContainerFactory {
 
+    @MainActor
     static func makeContainer(for models: [any PersistentModel.Type]) throws -> ModelContainer {
         return try makeTestContainer(for: models)
     }
 
+    @MainActor
     static func makeStandardContainer() throws -> ModelContainer {
         return try makeStandardTestContainer()
     }
 
+    @MainActor
     static func makeContainerWithContext(for models: [any PersistentModel.Type]) throws -> (ModelContainer, ModelContext) {
         let container = try makeContainer(for: models)
         let context = ModelContext(container)
