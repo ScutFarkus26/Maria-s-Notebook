@@ -40,7 +40,7 @@ struct StudentsRootView: View {
     }
 
     // Workload specific state
-    @State private var selectedWork: WorkModel? = nil
+    @State private var selectedWork: WorkModel?
     
     // OPTIMIZATION: Cache workload data to avoid reloading on every view update
     @State private var cachedOpenWork: [WorkModel] = []

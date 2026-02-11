@@ -68,10 +68,10 @@ struct StudentLessonPill: View {
         (cachedStudents ?? studentsQuery).uniqueByID
     }
 
-    @State private var showTimeEditor: Bool = false
-    @State private var isValidDragTarget: Bool = false
-    @State private var selectedWorkForDetail: WorkModel? = nil
-    @State private var isMergeTargeted: Bool = false
+    @State private var showTimeEditor = false
+    @State private var isValidDragTarget = false
+    @State private var selectedWorkForDetail: WorkModel?
+    @State private var isMergeTargeted = false
 
     // Cached expensive computations to avoid recalculating during scroll
     @State private var cachedAttendanceStatuses: [UUID: AttendanceStatus] = [:]

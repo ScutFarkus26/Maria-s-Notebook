@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import Combine
 
 @Observable
 final class StudentLessonDetailViewModel {

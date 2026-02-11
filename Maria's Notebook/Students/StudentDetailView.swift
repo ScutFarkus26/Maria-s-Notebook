@@ -2,7 +2,6 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 
 struct StudentDetailView: View {
     // MARK: - Inputs

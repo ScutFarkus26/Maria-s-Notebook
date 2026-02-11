@@ -8,12 +8,6 @@
 
 import SwiftUI
 
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
-
 struct StudentNoteRowView: View {
     let item: UnifiedNoteItem
 
