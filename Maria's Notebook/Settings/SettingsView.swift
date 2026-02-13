@@ -302,6 +302,12 @@ struct SettingsView: View {
     private var advancedSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Advanced", systemImage: "wrench.and.screwdriver.fill")
+            
+            SettingsGroup(title: "Architecture Migration", systemImage: "arrow.triangle.branch") {
+                ArchitectureMigrationSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+            
             SettingsGroup(title: "Test Students", systemImage: "person.2.slash") {
                 TestStudentsSettingsView()
                     .frame(maxWidth: .infinity)

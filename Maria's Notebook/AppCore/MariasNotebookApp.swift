@@ -85,6 +85,7 @@ struct MariasNotebookApp: App {
                                     .environment(\.calendar, AppCalendar.shared)
                                     .environment(\.appRouter, appRouter)
                                     .environment(\.dependencies, dependencies)
+                                    .environment(\.featureFlags, FeatureFlags.shared)
                                     .environment(saveCoordinator)
                                     .environment(restoreCoordinator)
                             }
