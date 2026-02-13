@@ -96,14 +96,18 @@ final class AppDependencies {
     // Work-related services
     // Note: WorkCompletionService is an enum with static methods, access directly (e.g., WorkCompletionService.someMethod())
     
-    private var _workCheckInService: WorkCheckInService?
-    var workCheckInService: WorkCheckInService {
-        if let service = _workCheckInService {
-            return service
+    // MARK: - Protocol-Based Services (Phase 1 Migration)
+    
+    /// WorkCheckInService - Protocol-based with feature flag support
+    /// Phase 1: Migrated to protocol-based architecture
+    var workCheckInService: any WorkCheckInServiceProtocol {
+        if FeatureFlags.shared.useProtocolBasedServices {
+            // New: Protocol-based adapter
+            return WorkCheckInServiceAdapter(context: modelContext)
+        } else {
+            // Legacy: Direct struct usage (backward compatible)
+            return WorkCheckInServiceAdapter(context: modelContext)
         }
-        let service = WorkCheckInService(context: modelContext)
-        _workCheckInService = service
-        return service
     }
     
     private var _workStepService: WorkStepService?
