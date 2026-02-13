@@ -5,9 +5,10 @@ import Observation
 @MainActor
 final class RestoreCoordinator {
     var isRestoring: Bool = false
-    private let appRouter = AppRouter.shared
+    private let appRouter: AppRouter
 
-    init() {
+    init(appRouter: AppRouter = AppRouter.shared) {
+        self.appRouter = appRouter
         // Use withObservationTracking to observe @Observable AppRouter
         observeAppRouter()
     }

@@ -17,12 +17,12 @@ struct MariasNotebookApp: App {
     
     // MARK: - State Objects
     
-    @State private var saveCoordinator = SaveCoordinator()
     @State private var bootstrapper = AppBootstrapper.shared
-    @State private var restoreCoordinator = RestoreCoordinator()
     @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
     @State private var dependencies: AppDependencies
+    @State private var saveCoordinator: SaveCoordinator
+    @State private var restoreCoordinator: RestoreCoordinator
     
     #if os(macOS)
     @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
@@ -33,7 +33,12 @@ struct MariasNotebookApp: App {
     init() {
         AppBootstrapping.performInitialSetup()
         let container = AppBootstrapping.getSharedModelContainer()
-        _dependencies = State(wrappedValue: AppDependencies(modelContext: container.mainContext))
+        let deps = AppDependencies(modelContext: container.mainContext)
+        _dependencies = State(wrappedValue: deps)
+        // Initialize coordinators with dependencies
+        // This allows us to use dependency injection when feature flag is enabled
+        _saveCoordinator = State(wrappedValue: SaveCoordinator(toastService: deps.toastService))
+        _restoreCoordinator = State(wrappedValue: RestoreCoordinator(appRouter: deps.appRouter))
     }
 
     // MARK: - Computed Properties

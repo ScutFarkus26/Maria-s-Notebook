@@ -4,22 +4,22 @@ import SwiftData
 @MainActor
 enum StudentLessonMergeService {
     @discardableResult
-    static func merge(sourceID: UUID, targetID: UUID, context: ModelContext) -> Bool {
+    static func merge(sourceID: UUID, targetID: UUID, context: ModelContext, toastService: ToastService = ToastService.shared) -> Bool {
         guard sourceID != targetID else { return false }
 
         guard let source = fetchStudentLesson(id: sourceID, context: context),
               let target = fetchStudentLesson(id: targetID, context: context) else {
-            ToastService.shared.showInfo("Couldn't find those presentations.")
+            toastService.showInfo("Couldn't find those presentations.")
             return false
         }
 
         guard !source.isGiven, !target.isGiven else {
-            ToastService.shared.showInfo("Only planned presentations can be merged.")
+            toastService.showInfo("Only planned presentations can be merged.")
             return false
         }
 
         guard source.resolvedLessonID == target.resolvedLessonID else {
-            ToastService.shared.showInfo("Only presentations for the same lesson can be merged.")
+            toastService.showInfo("Only presentations for the same lesson can be merged.")
             return false
         }
 
@@ -38,7 +38,7 @@ enum StudentLessonMergeService {
         context.delete(source)
         context.safeSave()
         StudentLessonDetailUtilities.notifyInboxRefresh()
-        ToastService.shared.showSuccess("Presentations merged")
+        toastService.showSuccess("Presentations merged")
         return true
     }
 

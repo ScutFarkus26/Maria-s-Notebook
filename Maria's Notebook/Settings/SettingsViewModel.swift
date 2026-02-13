@@ -206,7 +206,8 @@ final class SettingsViewModel {
             let summary = try await backupService.importBackup(
                 modelContext: modelContext,
                 from: url,
-                mode: restoreMode
+                mode: restoreMode,
+                appRouter: dependencies.appRouter
             ) { [weak self] p, m in
                 guard let self else { return }
                 // Use MainActor.assumeIsolated since we're already on MainActor
@@ -230,7 +231,7 @@ final class SettingsViewModel {
                 entityCounts: summary.entityCounts,
                 warnings: summary.warnings
             )
-            AppRouter.shared.requestBackfillIsPresented()
+            dependencies.appRouter.requestBackfillIsPresented()
         } catch {
             importError = "Failed to restore: \(error.localizedDescription)"
         }

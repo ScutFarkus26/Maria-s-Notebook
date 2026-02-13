@@ -11,8 +11,17 @@ final class InboxSheetViewModel {
     var selected: Set<UUID> = []
     var toastMessage: String? = nil
 
+    // MARK: - Dependencies
+    private let toastService: ToastService
+    
     // MARK: - Callbacks
     var onUpdateOrder: ((String) -> Void)?
+    
+    // MARK: - Initialization
+    
+    init(toastService: ToastService = ToastService.shared) {
+        self.toastService = toastService
+    }
 
     // MARK: - Computed Properties
 
@@ -108,7 +117,7 @@ final class InboxSheetViewModel {
 
     func showToast(_ message: String) {
         // Delegate to centralized ToastService
-        ToastService.shared.showInfo(message)
+        toastService.showInfo(message)
     }
 
     // MARK: - Drop Handling

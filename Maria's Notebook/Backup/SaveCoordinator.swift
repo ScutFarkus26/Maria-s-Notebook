@@ -12,6 +12,12 @@ final class SaveCoordinator {
     /// When true, suppress presenting UI alerts on save failures (used in previews)
     var suppressAlerts: Bool = false
     
+    private let toastService: ToastService
+    
+    init(toastService: ToastService = ToastService.shared) {
+        self.toastService = toastService
+    }
+    
     // Weak reference wrapper to safely hold ModelContext references
     private class WeakContextHolder {
         weak var context: ModelContext?
@@ -100,7 +106,7 @@ final class SaveCoordinator {
     func saveWithToast(_ context: ModelContext, successMessage: String, reason: String? = nil) -> Bool {
         let success = save(context, reason: reason)
         if success {
-            ToastService.shared.showSuccess(successMessage)
+            toastService.showSuccess(successMessage)
         }
         return success
     }
@@ -115,7 +121,7 @@ final class SaveCoordinator {
     func saveWithInfoToast(_ context: ModelContext, infoMessage: String, reason: String? = nil) -> Bool {
         let success = save(context, reason: reason)
         if success {
-            ToastService.shared.showInfo(infoMessage)
+            toastService.showInfo(infoMessage)
         }
         return success
     }

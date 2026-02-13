@@ -239,6 +239,25 @@ public final class BackupService {
         password: String? = nil,
         progress: @escaping (Double, String) -> Void
     ) async throws -> BackupOperationSummary {
+        try await importBackup(
+            modelContext: modelContext,
+            from: url,
+            mode: mode,
+            password: password,
+            appRouter: AppRouter.shared,
+            progress: progress
+        )
+    }
+    
+    // Internal version that accepts AppRouter for dependency injection
+    func importBackup(
+        modelContext: ModelContext,
+        from url: URL,
+        mode: RestoreMode,
+        password: String? = nil,
+        appRouter: AppRouter,
+        progress: @escaping (Double, String) -> Void
+    ) async throws -> BackupOperationSummary {
 
         let (envelope, loadedPayload) = try withSecurityScopedResource(url) {
             try loadAndDecodeBackup(from: url, password: password, progress: progress)
@@ -254,7 +273,7 @@ public final class BackupService {
 
         if mode == .replace {
             progress(0.40, "Clearing existing data…")
-            AppRouter.shared.signalAppDataWillBeReplaced()
+            appRouter.signalAppDataWillBeReplaced()
             try deleteAll(modelContext: modelContext)
         }
 
@@ -407,7 +426,7 @@ public final class BackupService {
         }
 
         applyPreferencesDTO(payload.preferences)
-        AppRouter.shared.signalAppDataDidRestore()
+        appRouter.signalAppDataDidRestore()
 
         let counts = envelope.manifest.entityCounts
         progress(1.0, "Done")
