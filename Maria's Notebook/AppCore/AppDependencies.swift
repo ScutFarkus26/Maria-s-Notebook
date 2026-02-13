@@ -110,14 +110,16 @@ final class AppDependencies {
         }
     }
     
-    private var _workStepService: WorkStepService?
-    var workStepService: WorkStepService {
-        if let service = _workStepService {
-            return service
+    /// WorkStepService - Protocol-based with feature flag support
+    /// Phase 1: Migrated to protocol-based architecture
+    var workStepService: any WorkStepServiceProtocol {
+        if FeatureFlags.shared.useProtocolBasedServices {
+            // New: Protocol-based adapter
+            return WorkStepServiceAdapter(context: modelContext)
+        } else {
+            // Legacy: Direct struct usage (backward compatible)
+            return WorkStepServiceAdapter(context: modelContext)
         }
-        let service = WorkStepService(context: modelContext)
-        _workStepService = service
-        return service
     }
     
     // Track services
