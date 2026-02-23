@@ -92,68 +92,58 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
     var isUpcoming: Bool { status == .scheduled && date > Date() }
 
     // Mutating helpers
-    nonisolated func markCompleted(note: String? = nil, at date: Date = Date(), in context: ModelContext) {
+    @MainActor func markCompleted(note: String? = nil, at date: Date = Date(), in context: ModelContext) {
         self.status = .completed
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
         if let note = note {
-            Task { @MainActor in
-                _ = self.setLegacyNoteText(note, in: context)
-            }
+            _ = self.setLegacyNoteText(note, in: context)
         }
     }
 
-    nonisolated func reschedule(to date: Date, note: String? = nil, in context: ModelContext) {
+    @MainActor func reschedule(to date: Date, note: String? = nil, in context: ModelContext) {
         self.status = .scheduled
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
         if let note = note {
-            Task { @MainActor in
-                _ = self.setLegacyNoteText(note, in: context)
-            }
+            _ = self.setLegacyNoteText(note, in: context)
         }
     }
 
-    nonisolated func skip(note: String? = nil, at date: Date = Date(), in context: ModelContext) {
+    @MainActor func skip(note: String? = nil, at date: Date = Date(), in context: ModelContext) {
         self.status = .skipped
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
         if let note = note {
-            Task { @MainActor in
-                _ = self.setLegacyNoteText(note, in: context)
-            }
+            _ = self.setLegacyNoteText(note, in: context)
         }
     }
 }
 
 extension WorkModel {
-    func addCheckIn(date: Date, status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", in context: ModelContext) {
+    @MainActor func addCheckIn(date: Date, status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", in context: ModelContext) {
         let ci = WorkCheckIn(workID: self.id, date: date, status: status, purpose: purpose, note: "", work: self)
         context.insert(ci)
         if self.checkIns == nil { self.checkIns = [] }
         self.checkIns = (self.checkIns ?? []) + [ci]
         if !note.trimmed().isEmpty {
-            Task { @MainActor in
-                _ = ci.setLegacyNoteText(note, in: context)
-            }
+            _ = ci.setLegacyNoteText(note, in: context)
         }
     }
 
-    @discardableResult
+    @MainActor @discardableResult
     func scheduleCheckIn(on date: Date, purpose: String = "", note: String = "", in context: ModelContext) -> WorkCheckIn {
         let ci = WorkCheckIn(workID: self.id, date: date, status: .scheduled, purpose: purpose, note: "", work: self)
         context.insert(ci)
         if self.checkIns == nil { self.checkIns = [] }
         self.checkIns = (self.checkIns ?? []) + [ci]
         if !note.trimmed().isEmpty {
-            Task { @MainActor in
-                _ = ci.setLegacyNoteText(note, in: context)
-            }
+            _ = ci.setLegacyNoteText(note, in: context)
         }
         return ci
     }
 
-    func markCheckInCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date(), in context: ModelContext) {
+    @MainActor func markCheckInCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date(), in context: ModelContext) {
         checkIn.markCompleted(note: note, at: date, in: context)
     }
 }

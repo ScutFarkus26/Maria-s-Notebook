@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Helper for managing sheet presentations in StudentsView
+@MainActor
 struct StudentsViewSheetHelper {
     /// Standard sheet modifiers for student detail views
     static func studentDetailSheet<Content: View>(

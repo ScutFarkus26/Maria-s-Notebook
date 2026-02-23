@@ -98,7 +98,6 @@ final class MeetingTemplate: Identifiable {
     ]
 
     /// Seeds the built-in templates into the database if they don't exist.
-    @MainActor
     static func seedBuiltInTemplates(in context: ModelContext) {
         // Check if any built-in templates exist
         let fetch = FetchDescriptor<MeetingTemplate>(

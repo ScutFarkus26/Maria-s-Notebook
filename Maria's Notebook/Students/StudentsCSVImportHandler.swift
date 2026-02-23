@@ -6,6 +6,7 @@ import SwiftData
 ///
 /// This extracts the CSV import handling logic from StudentsView for better
 /// testability and separation of concerns.
+@MainActor
 enum StudentsCSVImportHandler {
     /// Alert model for displaying import results or errors
     struct ImportAlert: Identifiable {
@@ -32,9 +33,9 @@ enum StudentsCSVImportHandler {
     static func handleFileImport(
         _ result: Result<URL, Error>,
         cancellingTask existingTask: Task<Void, Never>?,
-        onHeadersScanned: @escaping (_ headers: [String], _ mapping: StudentCSVImporter.Mapping, _ fileURL: URL) -> Void,
-        onError: @escaping (ImportAlert) -> Void,
-        onFinally: @escaping () -> Void
+        onHeadersScanned: @Sendable @escaping (_ headers: [String], _ mapping: StudentCSVImporter.Mapping, _ fileURL: URL) -> Void,
+        onError: @Sendable @escaping (ImportAlert) -> Void,
+        onFinally: @Sendable @escaping () -> Void
     ) -> FileImportResult {
         existingTask?.cancel()
 
@@ -76,9 +77,9 @@ enum StudentsCSVImportHandler {
         fileURL: URL?,
         students: [Student],
         cancellingTask existingTask: Task<Void, Never>?,
-        onParsed: @escaping (StudentCSVImporter.Parsed) -> Void,
-        onError: @escaping (ImportAlert) -> Void,
-        onFinally: @escaping () -> Void
+        onParsed: @Sendable @escaping (StudentCSVImporter.Parsed) -> Void,
+        onError: @Sendable @escaping (ImportAlert) -> Void,
+        onFinally: @Sendable @escaping () -> Void
     ) -> Task<Void, Never>? {
         guard let fileURL = fileURL else { return nil }
 

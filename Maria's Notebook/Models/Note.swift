@@ -28,7 +28,7 @@ enum NoteScope: Codable, Equatable {
         case students
     }
 
-    init(from decoder: Decoder) throws {
+    nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(ScopeType.self, forKey: .type)
         switch type {
@@ -43,7 +43,7 @@ enum NoteScope: Codable, Equatable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    nonisolated func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .all:
@@ -141,7 +141,7 @@ final class Note: Identifiable {
     var studentLinks: [NoteStudentLink]? = []
 
     // Computed, Codable scope
-    @MainActor var scope: NoteScope {
+    var scope: NoteScope {
         get {
             let decoded = decodeScope() ?? .all
             // Ensure search index is synced (for existing notes that may not have it set)
@@ -178,7 +178,7 @@ final class Note: Identifiable {
     }
     
     // Helper to sync search index attributes with scope
-    @MainActor private func syncSearchIndex(with scope: NoteScope) {
+    private func syncSearchIndex(with scope: NoteScope) {
         switch scope {
         case .all:
             scopeIsAll = true
@@ -214,7 +214,7 @@ final class Note: Identifiable {
     }
 
     // Initializer with defaults
-    @MainActor init(
+    init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
@@ -291,7 +291,7 @@ final class Note: Identifiable {
     }
 
     // MARK: - Private helpers
-    @MainActor private func decodeScope() -> NoteScope? {
+    private func decodeScope() -> NoteScope? {
         guard let data = scopeBlob else { return nil }
         do {
             return try JSONDecoder().decode(NoteScope.self, from: data)
@@ -319,7 +319,6 @@ final class Note: Identifiable {
     /// Syncs the studentLinks relationship to match the current scope.
     /// Call this after setting scope to `.students([UUID])` and inserting the note.
     /// This enables efficient database-level queries for multi-student scoped notes.
-    @MainActor
     func syncStudentLinks(in context: ModelContext) {
         let currentScope = decodeScope() ?? .all
 

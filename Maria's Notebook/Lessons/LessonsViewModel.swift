@@ -5,6 +5,7 @@ import SwiftData
 
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
+@MainActor
 struct LessonsViewModel {
     // MARK: - Public API
 

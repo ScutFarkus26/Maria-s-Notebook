@@ -3,6 +3,7 @@ import SwiftData
 import SwiftUI
 
 @Observable
+@MainActor
 final class StudentLessonDetailViewModel {
     // MARK: - Dependencies
     var studentLesson: StudentLesson

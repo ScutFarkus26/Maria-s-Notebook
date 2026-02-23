@@ -1,15 +1,16 @@
 import Foundation
 import SwiftData
 
+@MainActor
 struct LessonsImportCoordinator {
     static func startImport(
         from url: URL,
         lessons: [Lesson],
-        onParsed: @escaping (LessonCSVImporter.Parsed) -> Void,
-        onError: @escaping (Error) -> Void,
-        onFinally: @escaping () -> Void
+        onParsed: @MainActor @Sendable @escaping (LessonCSVImporter.Parsed) -> Void,
+        onError: @MainActor @Sendable @escaping (Error) -> Void,
+        onFinally: @MainActor @Sendable @escaping () -> Void
     ) -> Task<Void, Never> {
-        return Task(priority: .userInitiated) {
+        return Task(priority: .userInitiated) { @MainActor in
             guard url.startAccessingSecurityScopedResource() else {
                 await MainActor.run {
                     onError(NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError, userInfo: nil))

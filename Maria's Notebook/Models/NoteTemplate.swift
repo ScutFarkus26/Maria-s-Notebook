@@ -57,7 +57,7 @@ final class NoteTemplate: Identifiable {
 
     // MARK: - Built-in Templates
 
-    static let builtInTemplates: [(title: String, body: String, category: NoteCategory)] = [
+    nonisolated(unsafe) static let builtInTemplates: [(title: String, body: String, category: NoteCategory)] = [
         // Academic
         ("Completed independently", "Completed work independently with confidence.", .academic),
         ("Showed mastery", "Demonstrated strong mastery of the material.", .academic),
@@ -89,7 +89,6 @@ final class NoteTemplate: Identifiable {
     ]
 
     /// Seeds the built-in templates into the database if they don't exist.
-    @MainActor
     static func seedBuiltInTemplates(in context: ModelContext) {
         // Check if any built-in templates exist
         let fetch = FetchDescriptor<NoteTemplate>(

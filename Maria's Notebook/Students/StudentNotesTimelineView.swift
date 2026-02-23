@@ -19,8 +19,8 @@ extension StudentNotesViewModel {
         set { objc_setAssociatedObject(self, &AssociatedKeys.reload, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     private struct AssociatedKeys {
-        static var lookup: UInt8 = 0
-        static var reload: UInt8 = 0
+        nonisolated(unsafe) static var lookup: UInt8 = 0
+        nonisolated(unsafe) static var reload: UInt8 = 0
     }
 }
 

@@ -1,9 +1,9 @@
 import Foundation
 import SwiftData
 
-enum LegacyNoteFieldConstants {
-    static let reporter = "legacyField"
-    static let reporterName = "system"
+enum LegacyNoteFieldConstants: Sendable {
+    nonisolated static let reporter = "legacyField"
+    nonisolated static let reporterName = "system"
 }
 
 extension Note {
@@ -22,7 +22,6 @@ extension Note {
         latestNote(in: notes, preferredReporter: preferredReporter)?.body ?? ""
     }
 
-    @MainActor
     @discardableResult
     static func upsertLegacyFieldNote(
         text: String?,
@@ -70,7 +69,6 @@ extension AttendanceRecord {
         Note.latestBody(in: notes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         let studentUUID = UUID(uuidString: studentID)
@@ -92,7 +90,6 @@ extension WorkModel {
         Note.latestBody(in: unifiedNotes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
@@ -112,7 +109,6 @@ extension WorkCheckIn {
         Note.latestBody(in: notes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         let scope: NoteScope
@@ -148,7 +144,6 @@ extension WorkCompletionRecord {
         Note.latestBody(in: notes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         let scope: NoteScope
@@ -175,7 +170,6 @@ extension StudentLesson {
         Note.latestBody(in: unifiedNotes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         let studentUUIDs = studentIDs.compactMap { UUID(uuidString: $0) }
@@ -205,7 +199,6 @@ extension ProjectSession {
         Note.latestBody(in: noteItems)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
@@ -225,7 +218,6 @@ extension StudentTrackEnrollment {
         Note.latestBody(in: richNotes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         let scope: NoteScope
@@ -252,7 +244,6 @@ extension SchoolDayOverride {
         Note.latestBody(in: notes)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
@@ -272,7 +263,6 @@ extension Reminder {
         Note.latestBody(in: noteItems)
     }
 
-    @MainActor
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(

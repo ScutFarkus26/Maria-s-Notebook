@@ -4,6 +4,7 @@ import SwiftData
 // MARK: - Student Lesson Assignment Service
 
 /// Service for creating follow-up assignments after lesson presentations.
+@MainActor
 enum StudentLessonAssignmentService {
 
     // MARK: - Create Follow-Up Assignments

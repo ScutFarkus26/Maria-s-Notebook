@@ -91,6 +91,7 @@ protocol WorkCheckInServiceProtocol {
 
 /// Adapter that wraps the existing WorkCheckInService struct
 /// Provides protocol-based interface for dependency injection and testing
+@MainActor
 final class WorkCheckInServiceAdapter: WorkCheckInServiceProtocol {
     let context: ModelContext
     private let legacyService: WorkCheckInService

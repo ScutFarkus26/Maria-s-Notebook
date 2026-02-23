@@ -69,20 +69,45 @@ struct LessonAttachmentsSection: View {
     }
     
     var body: some View {
+        attachmentsContent
+            .sheet(isPresented: $showingScopeSheet) {
+                scopeSheet
+            }
+            .fileImporter(
+                isPresented: $showingImporter,
+                allowedContentTypes: [.pdf, .png, .jpeg, UTType(filenameExtension: "pages") ?? .data],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFileImport(result: result)
+            }
+            .alert("Delete Attachment?", isPresented: $showingDeleteAlert, presenting: attachmentToDelete) { attachment in
+                Button("Delete", role: .destructive) {
+                    deleteAttachment(attachment)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { attachment in
+                Text("This will permanently delete \(attachment.fileName)")
+            }
+            .onDrop(of: [.pdf, .png, .jpeg, .fileURL], isTargeted: $isDropTargeted) { providers in
+                handleDrop(providers: providers)
+            }
+    }
+
+    private var attachmentsContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("Attachments", systemImage: "paperclip")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
-                
+
                 Spacer()
-                
+
                 Button(action: { showingScopeSheet = true }) {
                     Label("Add", systemImage: "plus.circle.fill")
                         .font(.system(size: 14, weight: .medium))
                 }
                 .buttonStyle(.borderless)
             }
-            
+
             if attachments.isEmpty {
                 emptyState
             } else {
@@ -90,11 +115,11 @@ struct LessonAttachmentsSection: View {
                     if !lessonAttachments.isEmpty {
                         attachmentGroup(title: "This Lesson", attachments: lessonAttachments)
                     }
-                    
+
                     if !groupAttachments.isEmpty {
                         attachmentGroup(title: "From Group: \(lesson.group)", attachments: groupAttachments, isInherited: true)
                     }
-                    
+
                     if !subjectAttachments.isEmpty {
                         attachmentGroup(title: "From Subject: \(lesson.subject)", attachments: subjectAttachments, isInherited: true)
                     }
@@ -104,7 +129,7 @@ struct LessonAttachmentsSection: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill(Color.controlBackgroundColor())
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(
@@ -113,39 +138,22 @@ struct LessonAttachmentsSection: View {
                         )
                 )
         )
-        .sheet(isPresented: $showingScopeSheet) {
-            AttachmentImportOptionsSheet(
-                lesson: lesson,
-                selectedScope: $selectedScope,
-                deleteOriginal: $deleteOriginalAfterImport,
-                onImport: {
-                    showingScopeSheet = false
-                    showingImporter = true
-                },
-                onCancel: {
-                    showingScopeSheet = false
-                }
-            )
-            .frame(width: 400, height: 300)
-        }
-        .fileImporter(
-            isPresented: $showingImporter,
-            allowedContentTypes: [.pdf, .png, .jpeg, UTType(filenameExtension: "pages") ?? .data],
-            allowsMultipleSelection: false
-        ) { result in
-            handleFileImport(result: result)
-        }
-        .alert("Delete Attachment?", isPresented: $showingDeleteAlert, presenting: attachmentToDelete) { attachment in
-            Button("Delete", role: .destructive) {
-                deleteAttachment(attachment)
+    }
+
+    private var scopeSheet: some View {
+        AttachmentImportOptionsSheet(
+            lesson: lesson,
+            selectedScope: $selectedScope,
+            deleteOriginal: $deleteOriginalAfterImport,
+            onImport: {
+                showingScopeSheet = false
+                showingImporter = true
+            },
+            onCancel: {
+                showingScopeSheet = false
             }
-            Button("Cancel", role: .cancel) {}
-        } message: { attachment in
-            Text("This will permanently delete \(attachment.fileName)")
-        }
-        .onDrop(of: [.pdf, .png, .jpeg, .fileURL], isTargeted: $isDropTargeted) { providers in
-            handleDrop(providers: providers)
-        }
+        )
+        .frame(width: 400, height: 300)
     }
     
     private var emptyState: some View {
@@ -425,7 +433,7 @@ struct AttachmentRow: View {
             }
         }
         .padding(8)
-        .background(isHovering ? Color(nsColor: .controlBackgroundColor) : Color.clear)
+        .background(isHovering ? Color.controlBackgroundColor() : Color.clear)
         .cornerRadius(6)
         .onHover { hovering in
             isHovering = hovering
@@ -464,19 +472,23 @@ struct AttachmentRow: View {
     private func openAttachment() {
         do {
             let fileURL = try LessonFileStorage.resolve(relativePath: attachment.fileRelativePath)
+            #if os(macOS)
             NSWorkspace.shared.open(fileURL)
+            #endif
         } catch {
             print("Failed to open attachment: \(error)")
         }
     }
-    
+
     private func shareAttachment() {
         do {
             let fileURL = try LessonFileStorage.resolve(relativePath: attachment.fileRelativePath)
+            #if os(macOS)
             let picker = NSSharingServicePicker(items: [fileURL])
             if let view = NSApp.keyWindow?.contentView {
                 picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
             }
+            #endif
         } catch {
             print("Failed to share attachment: \(error)")
         }
@@ -544,7 +556,9 @@ struct AttachmentImportOptionsSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                #if os(macOS)
                 .toggleStyle(.checkbox)
+                #endif
             }
             .padding(.horizontal, 20)
             

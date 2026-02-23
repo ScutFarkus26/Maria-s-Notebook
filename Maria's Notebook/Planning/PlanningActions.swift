@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+@MainActor
 enum PlanningActions {
     static func moveToInbox(_ sl: StudentLesson, context: ModelContext) {
         sl.setScheduledFor(nil, using: AppCalendar.shared)

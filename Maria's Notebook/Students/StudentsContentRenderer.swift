@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Helper for rendering student content (list/grid) with consistent empty state handling
+@MainActor
 struct StudentsContentRenderer {
     let students: [Student]
     let effectiveSortOrder: SortOrder

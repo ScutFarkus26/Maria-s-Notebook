@@ -3,6 +3,7 @@ import SwiftData
 import Observation
 
 @Observable
+@MainActor
 final class WorksPlanningViewModel {
     // UI state
     var activeSheet: ActiveSheet?

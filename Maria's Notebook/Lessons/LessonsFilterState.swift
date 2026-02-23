@@ -6,6 +6,7 @@ import Foundation
 import SwiftUI
 
 @Observable
+@MainActor
 final class LessonsFilterState {
     var selectedSubject: String? = nil
     var selectedGroup: String? = nil
