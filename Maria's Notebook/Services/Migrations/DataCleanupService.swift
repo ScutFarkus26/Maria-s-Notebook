@@ -220,18 +220,12 @@ enum DataCleanupService {
                 }
 
                 if let targetID = targetStudentID {
-                    let shouldFix = await Task { @MainActor in
-                        var needsFix = true
-                        if case .student(let currentID) = note.scope {
-                            if currentID == targetID { needsFix = false }
-                        }
-                        if needsFix {
-                            note.scope = .student(targetID)
-                        }
-                        return needsFix
-                    }.value
-
-                    if shouldFix {
+                    var needsFix = true
+                    if case .student(let currentID) = note.scope {
+                        if currentID == targetID { needsFix = false }
+                    }
+                    if needsFix {
+                        note.scope = .student(targetID)
                         changed += 1
                     }
                 }
@@ -245,7 +239,6 @@ enum DataCleanupService {
 
     /// Clean up orphaned note images that are no longer referenced by any Note.
     /// This should be run after note deletions to reclaim disk space.
-    @MainActor
     static func cleanupOrphanedNoteImages(using context: ModelContext) {
         do {
             let photosDir = try PhotoStorageService.photosDirectory()
@@ -277,7 +270,6 @@ enum DataCleanupService {
 
     /// Create NoteStudentLink records for existing notes with multi-student scope.
     /// This enables efficient database-level queries instead of in-memory filtering.
-    @MainActor
     static func createNoteStudentLinksForExistingNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { note in
@@ -433,7 +425,6 @@ enum DataCleanupService {
         deduplicate(Note.self, using: context, merge: mergeNote)
     }
 
-    @MainActor
     private static func mergeStudent(canonical: Student, duplicate: Student) {
         if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
@@ -450,7 +441,6 @@ enum DataCleanupService {
         mergeRelationship(from: duplicate.documents, to: &canonical.documents, setter: { $0.student = canonical })
     }
 
-    @MainActor
     private static func mergeLesson(canonical: Lesson, duplicate: Lesson) {
         if canonical.name.isEmpty { canonical.name = duplicate.name }
         if canonical.subject.isEmpty { canonical.subject = duplicate.subject }
@@ -469,7 +459,6 @@ enum DataCleanupService {
         mergeRelationship(from: duplicate.lessonAssignments, to: &canonical.lessonAssignments, setter: { $0.lesson = canonical })
     }
 
-    @MainActor
     private static func mergeLessonPresentation(canonical: LessonPresentation, duplicate: LessonPresentation) {
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
@@ -481,7 +470,6 @@ enum DataCleanupService {
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
     }
 
-    @MainActor
     private static func mergeWorkModel(canonical: WorkModel, duplicate: WorkModel) {
         if canonical.title.isEmpty { canonical.title = duplicate.title }
         if canonical.notes.isEmpty { canonical.notes = duplicate.notes }
@@ -506,7 +494,6 @@ enum DataCleanupService {
         mergeRelationship(from: duplicate.unifiedNotes, to: &canonical.unifiedNotes, setter: { $0.work = canonical })
     }
 
-    @MainActor
     private static func mergeNote(canonical: Note, duplicate: Note) {
         if canonical.body.isEmpty { canonical.body = duplicate.body }
         if !canonical.isPinned && duplicate.isPinned { canonical.isPinned = true }
@@ -594,8 +581,6 @@ enum DataCleanupService {
 
         // Other models
         results["Reminder"] = deduplicate(Reminder.self, using: context)
-        results["AlbumGroupOrder"] = deduplicate(AlbumGroupOrder.self, using: context)
-        results["AlbumGroupUIState"] = deduplicate(AlbumGroupUIState.self, using: context)
 
         // Filter out zero counts for cleaner output
         return results.filter { $0.value > 0 }

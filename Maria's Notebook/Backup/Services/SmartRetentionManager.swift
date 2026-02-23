@@ -7,7 +7,7 @@ public final class SmartRetentionManager {
     
     // MARK: - Types
     
-    public struct RetentionPolicy: Codable {
+    public struct RetentionPolicy: Codable, Sendable {
         public var dailyRetention: Int = 7      // Keep last 7 daily backups
         public var weeklyRetention: Int = 4     // Keep 4 weekly backups
         public var monthlyRetention: Int = 12   // Keep 12 monthly backups

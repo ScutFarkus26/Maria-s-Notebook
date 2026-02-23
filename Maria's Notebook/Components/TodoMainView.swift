@@ -9,7 +9,7 @@ struct TodoMainView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
     
-    @State private var selectedFilter: TodoListFilter = .inbox
+    @State private var selectedFilter: TodoListFilter? = .inbox
     @State private var searchText = ""
     @State private var selectedTodo: TodoItem?
     @State private var isShowingNewTodo = false
@@ -21,8 +21,8 @@ struct TodoMainView: View {
     
     private var filteredTodos: [TodoItem] {
         let todos: [TodoItem]
-        
-        switch selectedFilter {
+
+        switch selectedFilter ?? .inbox {
         case .inbox:
             todos = allTodos.filter { !$0.isCompleted && $0.category == .personal }
         case .today:
@@ -248,7 +248,7 @@ struct TodoMainView: View {
         #else
         .background(Color(nsColor: .controlBackgroundColor))
         #endif
-        .navigationTitle(selectedFilter.title)
+        .navigationTitle((selectedFilter ?? .inbox).title)
     }
     
     private var searchBar: some View {
@@ -354,9 +354,9 @@ struct TodoMainView: View {
     
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: selectedFilter.icon)
+            Image(systemName: (selectedFilter ?? .inbox).icon)
                 .font(.system(size: 56, weight: .thin))
-                .foregroundStyle(selectedFilter.color.opacity(0.3))
+                .foregroundStyle((selectedFilter ?? .inbox).color.opacity(0.3))
             
             Text(emptyStateMessage)
                 .font(.system(size: 17, weight: .medium))
@@ -381,7 +381,7 @@ struct TodoMainView: View {
             return "No todos found"
         }
         
-        switch selectedFilter {
+        switch selectedFilter ?? .inbox {
         case .inbox: return "No todos in inbox"
         case .today: return "Nothing scheduled for today"
         case .upcoming: return "No upcoming todos"

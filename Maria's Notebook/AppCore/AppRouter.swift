@@ -208,8 +208,8 @@ final class AppRouter {
 }
 
 /// Environment key for AppRouter
-struct AppRouterKey: EnvironmentKey {
-    static let defaultValue = AppRouter.shared
+struct AppRouterKey: @preconcurrency EnvironmentKey {
+    @MainActor static let defaultValue = AppRouter.shared
 }
 
 extension EnvironmentValues {

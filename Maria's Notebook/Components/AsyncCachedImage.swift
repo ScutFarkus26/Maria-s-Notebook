@@ -10,7 +10,7 @@ import UIKit
 
 /// In-memory cache for loaded images
 private class ImageCache {
-    static let shared: NSCache<NSString, PlatformImage> = {
+    nonisolated(unsafe) static let shared: NSCache<NSString, PlatformImage> = {
         let cache = NSCache<NSString, PlatformImage>()
         // Limit to ~100MB to prevent unbounded memory growth
         cache.totalCostLimit = 100 * 1024 * 1024

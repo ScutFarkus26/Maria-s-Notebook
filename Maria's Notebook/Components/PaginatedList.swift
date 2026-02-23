@@ -148,7 +148,7 @@ extension Array {
     /// Returns a paginated slice of the array.
     /// - Parameter state: The pagination state to use
     /// - Returns: Array containing only the items up to the displayed count
-    func paginated(using state: PaginationState) -> [Element] {
+    @MainActor func paginated(using state: PaginationState) -> [Element] {
         Array(prefix(state.displayedCount))
     }
 }

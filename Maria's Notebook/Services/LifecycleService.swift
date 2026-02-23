@@ -7,6 +7,7 @@ enum LifecycleError: Error {
     case invalidStudentID(String)
 }
 
+@MainActor
 struct LifecycleService {
     // MARK: - Helper Methods
 

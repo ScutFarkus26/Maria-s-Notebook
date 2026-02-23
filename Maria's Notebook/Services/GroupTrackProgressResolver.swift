@@ -2,6 +2,7 @@ import Foundation
 
 /// Helper struct for resolving group-based track progress without SwiftData fetches.
 /// All operations work on passed-in arrays.
+@MainActor
 struct GroupTrackProgressResolver {
     /// Returns the total number of lessons in the group track.
     static func totalLessons(track: GroupTrack, lessons: [Lesson]) -> Int {

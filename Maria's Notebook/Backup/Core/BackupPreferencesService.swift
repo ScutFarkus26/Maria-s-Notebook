@@ -29,7 +29,7 @@ enum BackupPreferencesService {
     // MARK: - Export
 
     /// Builds a PreferencesDTO from current user preferences.
-    static func buildPreferencesDTO() -> PreferencesDTO {
+    @MainActor static func buildPreferencesDTO() -> PreferencesDTO {
         let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
         var map: [String: PreferenceValueDTO] = [:]
@@ -68,7 +68,7 @@ enum BackupPreferencesService {
     // MARK: - Import
 
     /// Applies a PreferencesDTO to user preferences.
-    static func applyPreferencesDTO(_ dto: PreferencesDTO) {
+    @MainActor static func applyPreferencesDTO(_ dto: PreferencesDTO) {
         let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
 

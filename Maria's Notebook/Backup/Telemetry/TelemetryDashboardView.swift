@@ -2,6 +2,9 @@ import SwiftUI
 import Charts
 import UniformTypeIdentifiers
 import OSLog
+#if os(macOS)
+import AppKit
+#endif
 
 /// Telemetry dashboard for backup/restore statistics and monitoring
 struct TelemetryDashboardView: View {
@@ -109,7 +112,7 @@ struct TelemetryDashboardView: View {
                                 .frame(height: 200)
                         }
                         .padding()
-                        .background(Color(.controlBackgroundColor))
+                        .background(Color.controlBackgroundColor())
                         .cornerRadius(8)
                     }
                     
@@ -138,7 +141,7 @@ struct TelemetryDashboardView: View {
                             }
                         }
                         .padding()
-                        .background(Color(.controlBackgroundColor))
+                        .background(Color.controlBackgroundColor())
                         .cornerRadius(8)
                     }
                     
@@ -167,7 +170,7 @@ struct TelemetryDashboardView: View {
                         .font(.caption)
                     }
                     .padding()
-                    .background(Color(.controlBackgroundColor))
+                    .background(Color.controlBackgroundColor())
                     .cornerRadius(8)
                 }
                 
@@ -210,12 +213,13 @@ struct TelemetryDashboardView: View {
     }
     
     private func exportTelemetryData() {
+        #if os(macOS)
         do {
             let data = try telemetry.exportData()
             let panel = NSSavePanel()
             panel.nameFieldStringValue = "backup-telemetry.json"
             panel.allowedContentTypes = [.json]
-            
+
             panel.begin { response in
                 if response == .OK, let url = panel.url {
                     do {
@@ -228,6 +232,7 @@ struct TelemetryDashboardView: View {
         } catch {
             Logger.backup.error("Failed to export telemetry: \(error)")
         }
+        #endif
     }
 }
 
@@ -261,7 +266,7 @@ struct MetricCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.controlBackgroundColor))
+        .background(Color.controlBackgroundColor())
         .cornerRadius(8)
     }
 }

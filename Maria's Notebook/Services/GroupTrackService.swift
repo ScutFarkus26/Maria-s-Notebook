@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 /// Service for managing group-based tracks
+@MainActor
 struct GroupTrackService {
     // MARK: - Helper Methods
 

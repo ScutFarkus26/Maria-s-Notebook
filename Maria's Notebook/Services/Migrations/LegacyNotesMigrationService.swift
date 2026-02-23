@@ -13,7 +13,6 @@ enum LegacyNotesMigrationService {
     /// For each StudentLesson with a non-empty `notes` string and empty `unifiedNotes`,
     /// creates a new Note object with the content and clears the legacy notes field.
     /// Idempotent: only processes StudentLessons that haven't been migrated yet.
-    @MainActor
     static func migrateStudentLessonNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<StudentLesson>(
             predicate: #Predicate<StudentLesson> { sl in
@@ -60,7 +59,6 @@ enum LegacyNotesMigrationService {
     /// For each WorkModel with a non-empty `notes` string and empty `unifiedNotes`,
     /// creates a new Note object with the content and clears the legacy notes field.
     /// Idempotent: only processes WorkModels that haven't been migrated yet.
-    @MainActor
     static func migrateWorkNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<WorkModel>(
             predicate: #Predicate<WorkModel> { work in
@@ -103,7 +101,6 @@ enum LegacyNotesMigrationService {
     // MARK: - WorkCheckIn Notes
 
     /// Migrate legacy string notes on WorkCheckIn into Note objects.
-    @MainActor
     static func migrateWorkCheckInNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<WorkCheckIn>(
             predicate: #Predicate<WorkCheckIn> { wci in
@@ -157,7 +154,6 @@ enum LegacyNotesMigrationService {
     // MARK: - WorkCompletionRecord Notes
 
     /// Migrate legacy string notes on WorkCompletionRecord into Note objects.
-    @MainActor
     static func migrateWorkCompletionRecordNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<WorkCompletionRecord>(
             predicate: #Predicate<WorkCompletionRecord> { wcr in
@@ -201,7 +197,6 @@ enum LegacyNotesMigrationService {
     // MARK: - AttendanceRecord Notes
 
     /// Migrate legacy string notes on AttendanceRecord into Note objects.
-    @MainActor
     static func migrateAttendanceNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<AttendanceRecord>()
         let records = context.safeFetch(fetch)
@@ -243,7 +238,6 @@ enum LegacyNotesMigrationService {
     // MARK: - ProjectSession Notes
 
     /// Migrate legacy string notes on ProjectSession into Note objects.
-    @MainActor
     static func migrateProjectSessionNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<ProjectSession>()
         let sessions = context.safeFetch(fetch)
@@ -277,7 +271,6 @@ enum LegacyNotesMigrationService {
     // MARK: - StudentTrackEnrollment Notes
 
     /// Migrate legacy string notes on StudentTrackEnrollment into Note objects.
-    @MainActor
     static func migrateStudentTrackEnrollmentNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<StudentTrackEnrollment>()
         let enrollments = context.safeFetch(fetch)
@@ -319,7 +312,6 @@ enum LegacyNotesMigrationService {
     // MARK: - SchoolDayOverride Notes
 
     /// Migrate legacy string notes on SchoolDayOverride into Note objects.
-    @MainActor
     static func migrateSchoolDayOverrideNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<SchoolDayOverride>()
         let overrides = context.safeFetch(fetch)
@@ -355,7 +347,6 @@ enum LegacyNotesMigrationService {
     /// Migrate legacy string notes on Reminder into Note objects.
     /// Note: Reminders sync with EventKit, so notes field may be populated from external source.
     /// This migration preserves the sync behavior by not clearing notes field for EventKit-synced reminders.
-    @MainActor
     static func migrateReminderNotes(using context: ModelContext) {
         let fetch = FetchDescriptor<Reminder>()
         let reminders = context.safeFetch(fetch)
@@ -392,7 +383,6 @@ enum LegacyNotesMigrationService {
 
     /// Runs all legacy notes migrations in sequence.
     /// Safe to call repeatedly - each migration is idempotent.
-    @MainActor
     static func runAllLegacyNotesMigrations(using context: ModelContext) {
         migrateStudentLessonNotes(using: context)
         migrateWorkNotes(using: context)

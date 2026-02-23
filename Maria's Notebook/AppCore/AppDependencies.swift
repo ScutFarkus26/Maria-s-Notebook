@@ -477,8 +477,8 @@ final class AppDependencies {
 
 // MARK: - Environment Key
 
-struct AppDependenciesKey: EnvironmentKey {
-    static let defaultValue: AppDependencies = {
+struct AppDependenciesKey: @preconcurrency EnvironmentKey {
+    @MainActor static let defaultValue: AppDependencies = {
         // This should never be used in production - only for previews
         let schema = Schema([Student.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)

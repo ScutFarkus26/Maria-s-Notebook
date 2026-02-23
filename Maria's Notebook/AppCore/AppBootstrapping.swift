@@ -11,6 +11,7 @@ import CoreData
 import OSLog
 
 /// Handles all app initialization, database setup, and lifecycle management.
+@MainActor
 final class AppBootstrapping {
     
     // MARK: - Shared Instance

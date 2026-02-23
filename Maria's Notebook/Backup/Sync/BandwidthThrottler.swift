@@ -264,7 +264,7 @@ public final class ThrottledCloudUploader {
     public func uploadFile(
         from sourceURL: URL,
         to destinationURL: URL,
-        progress: @escaping (Double) -> Void
+        progress: @escaping @Sendable (Double) -> Void
     ) async throws -> BandwidthThrottler.TransferStats {
         let data = try Data(contentsOf: sourceURL)
         let totalSize = Double(data.count)

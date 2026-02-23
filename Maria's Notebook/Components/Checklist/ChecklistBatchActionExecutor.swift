@@ -5,6 +5,7 @@ import SwiftData
 
 /// Executes batch operations on checklist cells.
 /// Handles adding to inbox, marking presented/mastered, and clearing status.
+@MainActor
 enum ChecklistBatchActionExecutor {
 
     // MARK: - Batch Add to Inbox

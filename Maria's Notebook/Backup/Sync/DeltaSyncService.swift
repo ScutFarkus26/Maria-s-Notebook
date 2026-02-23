@@ -45,11 +45,11 @@ public final class DeltaSyncService {
     
     // MARK: - Configuration
     
-    public struct Configuration {
+    public struct Configuration: Sendable {
         public var chunkSize: Int = BackupConstants.deltaChunkSize
         public var compressionEnabled: Bool = true
         public var checksumValidation: Bool = true
-        
+
         public static let `default` = Configuration()
     }
     

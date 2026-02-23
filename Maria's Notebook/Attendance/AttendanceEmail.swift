@@ -60,6 +60,7 @@ public struct AttendanceEmailReport {
 
 /// Convenience helpers to read stored preferences and create prefilled mail senders.
 /// Includes platform-aware availability checks.
+@MainActor
 public enum AttendanceEmail {
     public static func storedToAddress() -> String? {
         let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmed()
@@ -277,6 +278,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
 /// Helper for composing email via the system Mail service on macOS.
 /// - Note: Uses NSSharingService(.composeEmail). Completion reflects success/failure callbacks provided by the service.
 #if os(macOS)
+@MainActor
 public enum MacOSMailSender {
     public static func send(to recipient: String?, subject: String, body: String, completion: @escaping (Bool) -> Void) {
         guard let service = NSSharingService(named: .composeEmail) else {

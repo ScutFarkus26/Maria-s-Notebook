@@ -14,7 +14,6 @@ import OSLog
 ///
 /// Use this after running `LessonAssignmentMigrationService.migrateAll()` to verify
 /// data integrity before proceeding with further migration phases.
-@MainActor
 final class LessonAssignmentMigrationValidator {
     private let context: ModelContext
     private let logger = Logger.app(category: "LessonAssignmentValidation")

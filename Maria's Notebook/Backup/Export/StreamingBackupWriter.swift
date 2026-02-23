@@ -8,7 +8,7 @@ public final class StreamingBackupWriter {
     
     // MARK: - Types
     
-    public struct Configuration {
+    public struct Configuration: Sendable {
         public var batchSize: Int = BackupConstants.streamingBatchSize
         /// Enable autoreleasepool for Objective-C interop (set to false for pure Swift workloads)
         public var useAutoreleasePool: Bool = false

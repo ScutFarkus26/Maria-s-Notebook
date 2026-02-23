@@ -97,6 +97,7 @@
 				Tests/Performance/CloudKitBackupPerformanceTests.swift,
 				Tests/Performance/DatabaseQueryPerformanceTests.swift,
 				Tests/Performance/MemoryManagementTests.swift,
+				Tests/Performance/PerformanceBenchmarkHelpers.swift,
 				Tests/Performance/PerformanceBenchmarks.swift,
 				Tests/Performance/PerformanceRegressionTests.swift,
 				Tests/Performance/UIPerformanceTests.swift,
@@ -135,6 +136,7 @@
 				Tests/TestCalendar.swift,
 				Tests/TestHelpers.swift,
 				Tests/TodayViewModelLogicTests.swift,
+				Tests/TodayViewModelTestHelpers.swift,
 				Tests/TodayViewModelTests.swift,
 				Tests/TopicDetailViewModelTests.swift,
 				Tests/TrackProgressResolverTests.swift,
@@ -435,11 +437,10 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG ENABLE_FOUNDATION_MODELS";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
@@ -510,11 +511,10 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = ENABLE_FOUNDATION_MODELS;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
@@ -660,8 +660,9 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maria's Notebook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maria's Notebook";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -686,8 +687,9 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maria's Notebook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maria's Notebook";
 				XROS_DEPLOYMENT_TARGET = 26.2;

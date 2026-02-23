@@ -32,7 +32,6 @@ enum DataMigrations {
     }
 
     /// Backfill WorkModel IDs from StudentLesson where needed.
-    @MainActor
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         await SchemaMigrationService.migrateWorkContractsToWorkModelsIfNeeded(using: context)
     }
@@ -94,13 +93,11 @@ enum DataMigrations {
     }
 
     /// Clean up orphaned note images that are no longer referenced by any Note.
-    @MainActor
     static func cleanupOrphanedNoteImages(using context: ModelContext) {
         DataCleanupService.cleanupOrphanedNoteImages(using: context)
     }
 
     /// Create NoteStudentLink records for existing notes with multi-student scope.
-    @MainActor
     static func createNoteStudentLinksForExistingNotes(using context: ModelContext) {
         DataCleanupService.createNoteStudentLinksForExistingNotes(using: context)
     }
@@ -115,7 +112,6 @@ enum DataMigrations {
     /// Backfill WorkCompletionRecord entries from existing WorkParticipantEntity.completedAt data.
     /// This ensures all historical completion data is preserved in the WorkCompletionRecord system.
     /// Safe to run multiple times (idempotent).
-    @MainActor
     static func backfillWorkCompletionRecords(using context: ModelContext) {
         RelationshipBackfillService.backfillWorkCompletionRecords(using: context)
     }
@@ -123,7 +119,6 @@ enum DataMigrations {
     /// Migrate WorkModel.workTypeRaw to WorkModel.kindRaw format.
     /// This consolidates the dual type systems into a single WorkKind enum.
     /// Safe to run multiple times (idempotent).
-    @MainActor
     static func migrateWorkTypeToKind(using context: ModelContext) {
         RelationshipBackfillService.migrateWorkTypeToKind(using: context)
     }
@@ -145,55 +140,46 @@ enum DataMigrations {
     // MARK: - Legacy Notes Migrations (delegated to LegacyNotesMigrationService)
 
     /// Migrate legacy string notes on WorkModels into Note objects.
-    @MainActor
     static func migrateLegacyWorkNotesToNoteObjects(using context: ModelContext) {
         LegacyNotesMigrationService.migrateWorkNotes(using: context)
     }
 
     /// Migrate legacy string notes on StudentLesson into Note objects.
-    @MainActor
     static func migrateLegacyStudentLessonNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateStudentLessonNotes(using: context)
     }
 
     /// Migrate legacy string notes on WorkCheckIn into Note objects.
-    @MainActor
     static func migrateLegacyWorkCheckInNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateWorkCheckInNotes(using: context)
     }
 
     /// Migrate legacy string notes on WorkCompletionRecord into Note objects.
-    @MainActor
     static func migrateLegacyWorkCompletionRecordNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateWorkCompletionRecordNotes(using: context)
     }
 
     /// Migrate legacy string notes on AttendanceRecord into Note objects.
-    @MainActor
     static func migrateLegacyAttendanceNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateAttendanceNotes(using: context)
     }
 
     /// Migrate legacy string notes on ProjectSession into Note objects.
-    @MainActor
     static func migrateLegacyProjectSessionNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateProjectSessionNotes(using: context)
     }
 
     /// Migrate legacy string notes on StudentTrackEnrollment into Note objects.
-    @MainActor
     static func migrateLegacyStudentTrackEnrollmentNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateStudentTrackEnrollmentNotes(using: context)
     }
 
     /// Migrate legacy string notes on SchoolDayOverride into Note objects.
-    @MainActor
     static func migrateLegacySchoolDayOverrideNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateSchoolDayOverrideNotes(using: context)
     }
 
     /// Migrate legacy string notes on Reminder into Note objects.
-    @MainActor
     static func migrateLegacyReminderNotes(using context: ModelContext) {
         LegacyNotesMigrationService.migrateReminderNotes(using: context)
     }
@@ -214,7 +200,6 @@ enum DataMigrations {
 
     /// Validates that the LessonAssignment migration completed successfully.
     /// Returns the validation result for logging/debugging purposes.
-    @MainActor
     static func validateLessonAssignmentMigration(using context: ModelContext) async -> LessonAssignmentValidationResult? {
         let validator = LessonAssignmentMigrationValidator(context: context)
         do {

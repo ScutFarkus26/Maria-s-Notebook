@@ -322,6 +322,7 @@ struct BatchEntityFetcher {
 // MARK: - Entity Count Helpers
 
 /// Helpers for counting and comparing entities
+@MainActor
 struct EntityCountHelpers {
 
     /// Counts entities that would be inserted vs skipped during merge

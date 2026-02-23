@@ -4,6 +4,7 @@ import SwiftData
 import SwiftUI
 
 /// AppDelegate to handle automatic backups on app termination
+@MainActor
 final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     private var modelContainer: ModelContainer?
     private var autoBackupManager: AutoBackupManager?

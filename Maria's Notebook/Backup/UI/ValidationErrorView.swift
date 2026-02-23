@@ -30,7 +30,7 @@ struct ValidationErrorView: View {
                 Spacer()
             }
             .padding()
-            .background(Color(.controlBackgroundColor))
+            .background(Color.controlBackgroundColor())
             .cornerRadius(8)
             
             // Errors List
@@ -148,7 +148,7 @@ struct ValidationErrorRow: View {
                 .cornerRadius(4)
         }
         .padding()
-        .background(Color(.controlBackgroundColor))
+        .background(Color.controlBackgroundColor())
         .cornerRadius(8)
     }
     

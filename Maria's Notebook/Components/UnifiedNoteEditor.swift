@@ -80,7 +80,7 @@ struct UnifiedNoteEditor: View {
     @State var selectedPhoto: PhotosPickerItem? = nil
 
     #if os(iOS)
-    @State private var showingCamera: Bool = false
+    @State var showingCamera: Bool = false
     #endif
 
     #if os(macOS)

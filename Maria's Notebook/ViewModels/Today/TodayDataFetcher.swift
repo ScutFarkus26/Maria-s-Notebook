@@ -203,7 +203,7 @@ enum TodayDataFetcher {
 
     /// Fetches and categorizes reminders.
     /// Only fetches reminders from the currently configured sync list.
-    static func fetchReminders(
+    @MainActor static func fetchReminders(
         day: Date,
         nextDay: Date,
         context: ModelContext

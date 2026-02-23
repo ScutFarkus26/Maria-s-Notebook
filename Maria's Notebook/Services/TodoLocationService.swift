@@ -81,19 +81,21 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     // MARK: - CLLocationManagerDelegate
     
     nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        let identifier = region.identifier
         Task { @MainActor in
-            handleRegionEvent(region: region, isEntry: true)
+            handleRegionEvent(regionIdentifier: identifier, isEntry: true)
         }
     }
-    
+
     nonisolated func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        let identifier = region.identifier
         Task { @MainActor in
-            handleRegionEvent(region: region, isEntry: false)
+            handleRegionEvent(regionIdentifier: identifier, isEntry: false)
         }
     }
-    
-    private func handleRegionEvent(region: CLRegion, isEntry: Bool) {
-        let todoID = region.identifier.replacingOccurrences(of: "todo-", with: "")
+
+    private func handleRegionEvent(regionIdentifier: String, isEntry: Bool) {
+        let todoID = regionIdentifier.replacingOccurrences(of: "todo-", with: "")
         guard let todo = monitoredTodos[todoID] else {
             return
         }

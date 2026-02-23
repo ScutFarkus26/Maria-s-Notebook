@@ -48,7 +48,7 @@ public final class BackupTelemetryService {
             self.metadata = metadata
         }
         
-        public enum EventType: String, Codable {
+        public enum EventType: String, Codable, Sendable {
             case backupStarted
             case backupCompleted
             case backupFailed
@@ -62,7 +62,7 @@ public final class BackupTelemetryService {
             case migrationPerformed
         }
         
-        public enum OperationType: String, Codable {
+        public enum OperationType: String, Codable, Sendable {
             case standardBackup
             case streamingBackup
             case incrementalBackup

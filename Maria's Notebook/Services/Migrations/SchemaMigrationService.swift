@@ -89,7 +89,6 @@ enum SchemaMigrationService {
     /// Sync StudentLesson.lessonID from lesson relationship where missing.
     /// Fixes records where the lessonID string field is empty but the relationship exists.
     /// Idempotent: only updates records where lessonID is empty and lesson relationship exists.
-    @MainActor
     static func syncStudentLessonIDsFromRelationshipsIfNeeded(using context: ModelContext) async {
         let flagKey = "Migration.studentLessonIDSync.v1"
         await MigrationFlag.runIfNeeded(key: flagKey) {
@@ -118,7 +117,6 @@ enum SchemaMigrationService {
     /// Backfill WorkModel IDs from StudentLesson where needed.
     /// Legacy migration from WorkContract is complete - this function now only handles
     /// WorkModels created via the StudentLesson path that need ID backfill.
-    @MainActor
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         do {
             let workModels = context.safeFetch(FetchDescriptor<WorkModel>())
@@ -173,7 +171,6 @@ enum SchemaMigrationService {
 
     /// Runs all schema migrations in sequence.
     /// Safe to call repeatedly - each migration is idempotent.
-    @MainActor
     static func runAllSchemaMigrations(using context: ModelContext) async {
         await normalizeGivenAtToDateOnlyIfNeeded(using: context)
         migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)

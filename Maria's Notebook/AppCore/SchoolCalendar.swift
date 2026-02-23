@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+@MainActor
 struct SchoolCalendar {
     /// Returns true if the given date is a non-school day (weekend or configured non-school date), taking overrides into account.
     static func isNonSchoolDay(_ date: Date, using context: ModelContext) async -> Bool {

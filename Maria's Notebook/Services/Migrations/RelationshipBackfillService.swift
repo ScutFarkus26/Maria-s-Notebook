@@ -144,7 +144,6 @@ enum RelationshipBackfillService {
     /// Backfill WorkCompletionRecord entries from WorkParticipantEntity.completedAt data.
     /// This ensures all historical completion data is preserved in the WorkCompletionRecord system.
     /// Safe to run multiple times (idempotent - won't create duplicates).
-    @MainActor
     static func backfillWorkCompletionRecords(using context: ModelContext) {
         let flagKey = "Backfill.workCompletionRecords.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
@@ -186,7 +185,6 @@ enum RelationshipBackfillService {
     /// Migrate WorkModel.workTypeRaw to WorkModel.kindRaw format.
     /// This consolidates the dual type systems into a single WorkKind enum.
     /// Safe to run multiple times (idempotent).
-    @MainActor
     static func migrateWorkTypeToKind(using context: ModelContext) {
         let flagKey = "Migration.workTypeToKind.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {

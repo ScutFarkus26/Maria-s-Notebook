@@ -214,7 +214,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dto.id })
+            let dtoID = dto.id
+            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dtoID })
             descriptor.fetchLimit = 1
             let existing: Student?
             do {
@@ -247,7 +248,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dto.id })
+            let dtoID = dto.id
+            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dtoID })
             descriptor.fetchLimit = 1
             let existing: Lesson?
             do {
@@ -280,7 +282,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dto.id })
+            let dtoID = dto.id
+            var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dtoID })
             descriptor.fetchLimit = 1
             let existing: StudentLesson?
             do {
@@ -316,7 +319,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dto.id })
+            let dtoID = dto.id
+            var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dtoID })
             descriptor.fetchLimit = 1
             let existing: Note?
             do {
@@ -352,7 +356,8 @@ public final class ConflictResolutionService {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
-            var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dto.id })
+            let dtoID = dto.id
+            var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dtoID })
             descriptor.fetchLimit = 1
             let existing: Project?
             do {
@@ -381,7 +386,8 @@ public final class ConflictResolutionService {
     // MARK: - Update Helpers
 
     private func updateStudent(_ dto: StudentDTO, in modelContext: ModelContext) throws {
-        var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dto.id })
+        let dtoID = dto.id
+        var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1
         let student: Student?
         do {
@@ -402,7 +408,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateLesson(_ dto: LessonDTO, in modelContext: ModelContext) throws {
-        var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dto.id })
+        let dtoID = dto.id
+        var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1
         let lesson: Lesson?
         do {
@@ -425,7 +432,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateStudentLesson(_ dto: StudentLessonDTO, in modelContext: ModelContext) throws {
-        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dto.id })
+        let dtoID = dto.id
+        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1
         let sl: StudentLesson?
         do {
@@ -445,7 +453,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateNote(_ dto: NoteDTO, in modelContext: ModelContext) throws {
-        var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dto.id })
+        let dtoID = dto.id
+        var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1
         let note: Note?
         do {
@@ -470,7 +479,8 @@ public final class ConflictResolutionService {
     }
 
     private func updateProject(_ dto: ProjectDTO, in modelContext: ModelContext) throws {
-        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dto.id })
+        let dtoID = dto.id
+        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1
         let project: Project?
         do {
