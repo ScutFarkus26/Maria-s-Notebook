@@ -450,6 +450,7 @@ extension Notification.Name {
 
 /// Property wrapper that automatically syncs preferences via iCloud Key-Value Storage
 /// Usage: @SyncedAppStorage("key") var value: Type = defaultValue
+@MainActor
 @propertyWrapper
 public struct SyncedAppStorage<T>: DynamicProperty {
     private var store = SyncedPreferencesStore.shared

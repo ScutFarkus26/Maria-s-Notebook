@@ -118,13 +118,11 @@ struct StudentProgressTabViewModelDataLoadingTests {
         let activeReport = makeTestWorkModel(
             title: "Active Report",
             kind: .report,
-            kind: .report,
             status: .active,
             studentID: student.id.uuidString
         )
         let completedReport = makeTestWorkModel(
             title: "Completed Report",
-            kind: .report,
             kind: .report,
             status: .complete,
             studentID: student.id.uuidString
@@ -194,7 +192,7 @@ struct StudentProgressTabViewModelTrackStatsTests {
         let work1 = WorkModel(
             id: UUID(),
             title: "Work 1",
-            workType: .practice,
+            kind: .practiceLesson,
             status: .active,
             studentID: student.id.uuidString,
             lessonID: ""
@@ -204,7 +202,7 @@ struct StudentProgressTabViewModelTrackStatsTests {
         let work2 = WorkModel(
             id: UUID(),
             title: "Work 2",
-            workType: .practice,
+            kind: .practiceLesson,
             status: .active,
             studentID: student.id.uuidString,
             lessonID: ""
@@ -241,7 +239,7 @@ struct StudentProgressTabViewModelTrackStatsTests {
         let work1 = WorkModel(
             id: UUID(),
             title: "Work 1",
-            workType: .practice,
+            kind: .practiceLesson,
             status: .active,
             studentID: student.id.uuidString,
             lessonID: ""
@@ -252,7 +250,7 @@ struct StudentProgressTabViewModelTrackStatsTests {
         let work2 = WorkModel(
             id: UUID(),
             title: "Work 2",
-            workType: .practice,
+            kind: .practiceLesson,
             status: .active,
             studentID: student.id.uuidString,
             lessonID: ""
@@ -439,7 +437,7 @@ struct StudentProgressTabViewModelReportHelperTests {
         context.insert(student)
         vm.configure(for: student, context: context)
 
-        let report = makeTestWorkModel(title: "My Book Report", kind: .report, kind: .report)
+        let report = makeTestWorkModel(title: "My Book Report", kind: .report)
 
         let title = vm.reportTitle(for: report)
 
@@ -456,7 +454,7 @@ struct StudentProgressTabViewModelReportHelperTests {
         context.insert(student)
         vm.configure(for: student, context: context)
 
-        let report = makeTestWorkModel(title: "   ", kind: .report, kind: .report) // whitespace only
+        let report = makeTestWorkModel(title: "   ", kind: .report) // whitespace only
 
         let title = vm.reportTitle(for: report)
 
@@ -477,7 +475,6 @@ struct StudentProgressTabViewModelReportHelperTests {
 
         let report = makeTestWorkModel(
             title: "",
-            kind: .report,
             kind: .report,
             lessonID: lesson.id.uuidString
         )

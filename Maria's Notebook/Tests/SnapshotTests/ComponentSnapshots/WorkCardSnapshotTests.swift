@@ -69,37 +69,37 @@ struct WorkCardSnapshotTests {
 
     // MARK: - Work Type Tests
 
-    @Test("Work type practice")
+    @Test("Work kind practiceLesson")
     @MainActor
-    func workType_practice() throws {
+    func workKind_practiceLesson() throws {
         let container = try makeSnapshotTestContainer()
-        let work = SnapshotTestData.makeWork(kind: .practice)
+        let work = SnapshotTestData.makeWork(kind: .practiceLesson)
         container.mainContext.insert(work)
         try container.mainContext.save()
 
-        #expect(work.workType == .practice)
+        #expect(work.kind == .practiceLesson)
     }
 
-    @Test("Work type follow-up")
+    @Test("Work kind followUpAssignment")
     @MainActor
-    func workType_followUp() throws {
+    func workKind_followUpAssignment() throws {
         let container = try makeSnapshotTestContainer()
-        let work = SnapshotTestData.makeWork(kind: .followUp)
+        let work = SnapshotTestData.makeWork(kind: .followUpAssignment)
         container.mainContext.insert(work)
         try container.mainContext.save()
 
-        #expect(work.workType == .followUp)
+        #expect(work.kind == .followUpAssignment)
     }
 
-    @Test("Work type report")
+    @Test("Work kind report")
     @MainActor
-    func workType_report() throws {
+    func workKind_report() throws {
         let container = try makeSnapshotTestContainer()
-        let work = SnapshotTestData.makeWork(kind: .report, kind: .report)
+        let work = SnapshotTestData.makeWork(kind: .report)
         container.mainContext.insert(work)
         try container.mainContext.save()
 
-        #expect(work.workType == .report)
+        #expect(work.kind == .report)
     }
 
     // MARK: - Work Set Tests
@@ -116,9 +116,9 @@ struct WorkCardSnapshotTests {
         try container.mainContext.save()
 
         #expect(workSet.count == 3)
-        #expect(workSet.contains { $0.workType == .practice })
-        #expect(workSet.contains { $0.workType == .followUp })
-        #expect(workSet.contains { $0.workType == .report })
+        #expect(workSet.contains { $0.kind == .practiceLesson })
+        #expect(workSet.contains { $0.kind == .followUpAssignment })
+        #expect(workSet.contains { $0.kind == .report })
     }
 
     // MARK: - Due Date Tests
@@ -174,13 +174,13 @@ struct WorkCardSnapshotTests {
 
     // MARK: - All Work Types Tests
 
-    @Test("All work types exist")
-    func allWorkTypes() {
-        let types = WorkModel.WorkType.allCases
-        #expect(types.count >= 3)
-        #expect(types.contains(.practice))
-        #expect(types.contains(.followUp))
-        #expect(types.contains(.report))
+    @Test("All work kinds exist")
+    func allWorkKinds() {
+        let kinds = WorkKind.allCases
+        #expect(kinds.count >= 3)
+        #expect(kinds.contains(.practiceLesson))
+        #expect(kinds.contains(.followUpAssignment))
+        #expect(kinds.contains(.report))
     }
 }
 

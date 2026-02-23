@@ -121,7 +121,7 @@ public enum DateParser {
         "yyyy-MM-dd'T'HH:mm:ssZ"
     ]
     
-    private static let iso: ISO8601DateFormatter = {
+    nonisolated(unsafe) private static let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         return f
     }()

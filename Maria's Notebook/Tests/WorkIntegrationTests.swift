@@ -272,7 +272,7 @@ struct WorkLessonRelationshipTests {
         let works = [
             WorkModel(title: "Practice 1", kind: .practiceLesson, lessonID: lesson.id.uuidString),
             WorkModel(title: "Practice 2", kind: .practiceLesson, lessonID: lesson.id.uuidString),
-            WorkModel(title: "Research", workType: .research, lessonID: lesson.id.uuidString)
+            WorkModel(title: "Research", kind: .research, lessonID: lesson.id.uuidString)
         ]
         works.forEach { tc.context.insert($0) }
         try tc.context.save()

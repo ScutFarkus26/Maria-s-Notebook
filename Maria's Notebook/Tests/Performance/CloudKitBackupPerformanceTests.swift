@@ -305,6 +305,7 @@ struct CloudKitSyncStatusBehaviorTests {
 
 /// Tests to verify retry logic behavior.
 @Suite("Retry Logic Tests")
+@MainActor
 struct RetryLogicTests {
 
     @Test("Exponential backoff calculates correctly")

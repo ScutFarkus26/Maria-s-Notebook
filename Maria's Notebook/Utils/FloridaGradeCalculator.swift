@@ -39,13 +39,13 @@ struct FloridaGradeCalculator {
     // MARK: - Configuration
 
     /// Month of the school year start (default: September)
-    static var schoolStartMonth: Int = 9
+    nonisolated(unsafe) static var schoolStartMonth: Int = 9
     /// Day of the school year start (default: 1st)
-    static var schoolStartDay: Int = 1
+    nonisolated(unsafe) static var schoolStartDay: Int = 1
     /// Minimum age (in whole years) on/before school start to be 1st grade (default: 6)
-    static var minimumFirstGradeAge: Int = 6
+    nonisolated(unsafe) static var minimumFirstGradeAge: Int = 6
     /// Ages at or above this threshold are considered "Graduated" (default: 12)
-    static var graduatedAgeThreshold: Int = 12
+    nonisolated(unsafe) static var graduatedAgeThreshold: Int = 12
 
     // MARK: - Helpers
 

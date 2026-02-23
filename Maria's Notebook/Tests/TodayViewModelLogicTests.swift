@@ -426,7 +426,7 @@ struct TodayViewModelWorkScheduleTests {
 
         let work = makeTestWorkModel(
             title: "Math Practice",
-            kind: .practice,
+            kind: .practiceLesson,
             status: .active,
             studentID: student.id.uuidString
         )

@@ -13,7 +13,7 @@ extension TimeInterval {
     var formattedAsDuration: String {
         String(format: FormattingConstants.threeDecimal, self) + "s"
     }
-    
+
     /// Formats the time interval as a duration string with single decimal
     /// - Returns: Formatted string (e.g., "1.2s")
     var formattedAsShortDuration: String {

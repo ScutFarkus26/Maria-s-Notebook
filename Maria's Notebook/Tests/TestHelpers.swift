@@ -559,17 +559,6 @@ func makeTestReminderSet(listID: String = "test-reminder-list") -> [Reminder] {
     ]
 }
 
-/// Asserts that attendance summary has zero counts
-@MainActor
-func expectZeroAttendance(_ vm: TodayViewModel, sourceLocation: SourceLocation = #_sourceLocation) {
-    #expect(vm.attendanceSummary.presentCount == 0, sourceLocation: sourceLocation)
-    #expect(vm.attendanceSummary.tardyCount == 0, sourceLocation: sourceLocation)
-    #expect(vm.attendanceSummary.absentCount == 0, sourceLocation: sourceLocation)
-    #expect(vm.attendanceSummary.leftEarlyCount == 0, sourceLocation: sourceLocation)
-    #expect(vm.absentToday.isEmpty, sourceLocation: sourceLocation)
-    #expect(vm.leftEarlyToday.isEmpty, sourceLocation: sourceLocation)
-}
-
 // MARK: - FollowUpInbox Test Helpers
 
 @MainActor

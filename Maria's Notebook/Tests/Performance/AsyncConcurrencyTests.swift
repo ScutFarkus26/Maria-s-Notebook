@@ -42,20 +42,18 @@ struct TaskCancellationTests {
 
     @Test("Task.isCancelled reflects cancellation state")
     func taskIsCancelledReflectsState() async {
-        var wasCancelled = false
-
-        let task = Task {
+        let task = Task<Bool, Never> {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(10))
             }
-            wasCancelled = Task.isCancelled
+            return Task.isCancelled
         }
 
         // Let it run briefly
         try? await Task.sleep(for: .milliseconds(50))
 
         task.cancel()
-        await task.value
+        let wasCancelled = await task.value
 
         #expect(wasCancelled == true)
     }
@@ -82,24 +80,27 @@ struct TaskCancellationTests {
 
     @Test("Task cancellation propagates to child withTaskGroup")
     func taskCancellationPropagatesToTaskGroup() async {
-        var childrenCancelled = 0
-
         let task = Task {
-            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: Bool.self, returning: Int.self) { group in
                 for _ in 0..<5 {
                     group.addTask {
                         while !Task.isCancelled {
                             try? await Task.sleep(for: .milliseconds(10))
                         }
-                        childrenCancelled += 1
+                        return true
                     }
                 }
+                var count = 0
+                for await cancelled in group where cancelled {
+                    count += 1
+                }
+                return count
             }
         }
 
         try? await Task.sleep(for: .milliseconds(50))
         task.cancel()
-        await task.value
+        let childrenCancelled = await task.value
 
         // All children should have been cancelled
         #expect(childrenCancelled == 5)

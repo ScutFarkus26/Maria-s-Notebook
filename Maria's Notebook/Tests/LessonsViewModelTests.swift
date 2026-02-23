@@ -426,7 +426,7 @@ struct LessonsViewModelLessonStatusTests {
 
         let work = WorkModel(
             title: "Practice",
-            kind: .practice,
+            kind: .practiceLesson,
             studentLessonID: sl.id,
             completedAt: nil // Not completed
         )

@@ -17,7 +17,7 @@ public enum PrintUtils {
     ///   - preferredSize: Optional preferred size. Pass width with height 0 (or <= 0) to allow natural height.
     ///   - scale: Rendering scale (iOS only). Defaults to 2.0 for a crisper print/share image.
     /// - Returns: A platform image (NSImage/UIImage) or nil if rendering failed.
-    public static func renderImage<V: View>(from view: V, preferredSize: CGSize? = nil, scale: CGFloat = 2.0) -> PlatformImage? {
+    @MainActor public static func renderImage<V: View>(from view: V, preferredSize: CGSize? = nil, scale: CGFloat = 2.0) -> PlatformImage? {
         let renderer = ImageRenderer(content: view)
         if let preferredSize {
             let w: CGFloat? = preferredSize.width > 0 ? preferredSize.width : nil
@@ -34,7 +34,7 @@ public enum PrintUtils {
 
     #if os(macOS)
     /// Presents the system print panel to print an image.
-    public static func printImage(_ image: NSImage, jobTitle: String) {
+    @MainActor public static func printImage(_ image: NSImage, jobTitle: String) {
         let imageView = NSImageView(frame: NSRect(origin: .zero, size: image.size))
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.image = image
@@ -49,14 +49,14 @@ public enum PrintUtils {
     }
 
     /// Convenience to render and print a SwiftUI view.
-    public static func printView<V: View>(view: V, jobTitle: String, preferredSize: CGSize? = nil) {
+    @MainActor public static func printView<V: View>(view: V, jobTitle: String, preferredSize: CGSize? = nil) {
         if let img = renderImage(from: view, preferredSize: preferredSize) {
             printImage(img, jobTitle: jobTitle)
         }
     }
 
     /// Exports an image to a single-page PDF and opens it in Preview.
-    public static func exportImageToPDFAndOpen(_ image: NSImage, jobTitle: String) {
+    @MainActor public static func exportImageToPDFAndOpen(_ image: NSImage, jobTitle: String) {
         // Convert NSImage to CGImage for drawing
         var proposedRect = CGRect(origin: .zero, size: image.size)
         guard let cg = image.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil) else { return }
@@ -80,4 +80,3 @@ public enum PrintUtils {
     }
     #endif
 }
-

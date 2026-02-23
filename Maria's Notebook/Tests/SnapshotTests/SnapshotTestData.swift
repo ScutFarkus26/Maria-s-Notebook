@@ -178,8 +178,7 @@ enum SnapshotTestData {
     static func makeWork(
         id: UUID = UUID(uuidString: "11111111-aaaa-1111-aaaa-111111111111")!,
         title: String = "Practice Sheet",
-        workType: WorkModel.WorkType = .practice,
-        kind: WorkKind? = nil,
+        kind: WorkKind = .practiceLesson,
         status: WorkStatus = .active,
         assignedAt: Date = SnapshotDates.fiveDaysAgo,
         completedAt: Date? = nil,
@@ -191,15 +190,12 @@ enum SnapshotTestData {
         WorkModel(
             id: id,
             title: title,
-            workType: workType,
-            completedAt: completedAt,
             kind: kind,
+            completedAt: completedAt,
             status: status,
             assignedAt: assignedAt,
             lastTouchedAt: lastTouchedAt,
-            dueAt: dueAt,
-            studentID: studentID,
-            lessonID: lessonID
+            dueAt: dueAt
         )
     }
 
@@ -215,13 +211,12 @@ enum SnapshotTestData {
             makeWork(
                 id: UUID(uuidString: "22222222-aaaa-2222-aaaa-222222222222")!,
                 title: "Reading Follow-up",
-                workType: .followUp,
+                kind: .followUpAssignment,
                 status: .active
             ),
             makeWork(
                 id: UUID(uuidString: "33333333-aaaa-3333-aaaa-333333333333")!,
                 title: "Progress Report",
-                workType: .report,
                 kind: .report,
                 status: .active
             ),

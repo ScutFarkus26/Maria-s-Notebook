@@ -7,6 +7,7 @@ import SwiftData
 // MARK: - Total Lessons Tests
 
 @Suite("GroupTrackProgressResolver Total Lessons Tests")
+@MainActor
 struct GroupTrackProgressResolverTotalLessonsTests {
 
     @Test("totalLessons returns zero for empty track")
@@ -51,6 +52,7 @@ struct GroupTrackProgressResolverTotalLessonsTests {
 // MARK: - Mastered Count Tests
 
 @Suite("GroupTrackProgressResolver Mastered Count Tests")
+@MainActor
 struct GroupTrackProgressResolverMasteredCountTests {
 
     @Test("masteredCount returns zero when no presentations")
@@ -209,6 +211,7 @@ struct GroupTrackProgressResolverMasteredCountTests {
 // MARK: - Current Lesson Tests
 
 @Suite("GroupTrackProgressResolver Current Lesson Tests")
+@MainActor
 struct GroupTrackProgressResolverCurrentLessonTests {
 
     @Test("currentLesson returns nil for non-sequential track")
@@ -310,6 +313,7 @@ struct GroupTrackProgressResolverCurrentLessonTests {
 // MARK: - Integration Tests
 
 @Suite("GroupTrackProgressResolver Integration Tests")
+@MainActor
 struct GroupTrackProgressResolverIntegrationTests {
 
     @Test("Complete workflow: sequential track progress")

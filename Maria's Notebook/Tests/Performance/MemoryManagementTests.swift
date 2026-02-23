@@ -18,8 +18,8 @@ struct ClosureCaptureTests {
         // This test verifies the pattern that should be used
         var objectDeallocated = false
 
-        class TestObject {
-            var onDeinit: (() -> Void)?
+        final class TestObject: Sendable {
+            nonisolated(unsafe) var onDeinit: (() -> Void)?
             deinit { onDeinit?() }
 
             func startTask() {
@@ -48,7 +48,7 @@ struct ClosureCaptureTests {
         let tracker = DeallocTracker()
 
         class TestObserver: @unchecked Sendable {
-            var observer: NSObjectProtocol?
+            nonisolated(unsafe) var observer: NSObjectProtocol?
             let tracker: DeallocTracker
 
             init(tracker: DeallocTracker) {
@@ -180,17 +180,25 @@ struct TaskLifecycleTests {
 
     @Test("Task cancellation propagates to child tasks")
     func taskCancellationPropagatesToChildren() async {
-        var childExecuted = false
-        var childCompleted = false
-
+        // Track child state via task group return values
         let parentTask = Task {
-            try await withThrowingTaskGroup(of: Void.self) { group in
+            try await withThrowingTaskGroup(of: (Bool, Bool).self, returning: (Bool, Bool).self) { group in
                 group.addTask {
-                    childExecuted = true
+                    let executed = true
                     try await Task.sleep(for: .seconds(10)) // 10 seconds - long enough to be cancelled
-                    childCompleted = true
+                    return (executed, true) // completed
                 }
-                try await group.waitForAll()
+                // If the child is cancelled, it throws CancellationError
+                // waitForAll will propagate the error
+                do {
+                    for try await result in group {
+                        return result
+                    }
+                } catch {
+                    // Child was cancelled — it executed but didn't complete
+                    return (true, false)
+                }
+                return (false, false)
             }
         }
 
@@ -199,8 +207,8 @@ struct TaskLifecycleTests {
 
         parentTask.cancel()
 
-        // Wait for parent to complete with timeout
-        try? await parentTask.value
+        // Wait for parent to complete
+        let (childExecuted, childCompleted) = (try? await parentTask.value) ?? (false, false)
 
         #expect(childExecuted == true)
         #expect(childCompleted == false) // Should have been cancelled
@@ -208,9 +216,9 @@ struct TaskLifecycleTests {
 
     @Test("Stored task reference allows cancellation")
     func storedTaskReferenceAllowsCancellation() async {
-        class TaskHolder {
-            var task: Task<Void, Never>?
-            var completed = false
+        final class TaskHolder: Sendable {
+            nonisolated(unsafe) var task: Task<Void, Never>?
+            nonisolated(unsafe) var completed = false
 
             func startLongTask() {
                 task = Task { [weak self] in
@@ -282,7 +290,7 @@ struct CombineSubscriptionTests {
         class Observer {
             var cancellables = Set<AnyCancellable>()
             var values: [Int] = []
-            var onDeinit: (() -> Void)?
+            nonisolated(unsafe) var onDeinit: (() -> Void)?
 
             func observe(_ publisher: PassthroughSubject<Int, Never>) {
                 publisher

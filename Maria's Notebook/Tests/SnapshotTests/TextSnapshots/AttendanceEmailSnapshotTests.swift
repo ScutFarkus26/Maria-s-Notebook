@@ -6,6 +6,7 @@ import Foundation
 /// Snapshot tests for attendance email subject and body formatting.
 /// These tests verify the text output is consistent and correctly formatted.
 @Suite("Attendance Email Snapshots")
+@MainActor
 struct AttendanceEmailSnapshotTests {
 
     // MARK: - Subject Line Tests

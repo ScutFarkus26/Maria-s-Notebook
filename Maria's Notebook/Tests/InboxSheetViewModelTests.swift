@@ -90,12 +90,8 @@ struct InboxSheetViewModelSelectionTests {
 @MainActor
 struct InboxSheetViewModelConsolidationTests {
 
-    private func makeContainer() throws -> ModelContainer {
-        return try makeTestContainer(for: [
-            Student.self,
-            Lesson.self,
-            StudentLesson.self,
-        ])
+    private func makeLessonAssignment(lessonID: UUID) -> LessonAssignment {
+        LessonAssignment(lessonID: lessonID)
     }
 
     @Test("canConsolidate returns false when selection is empty")
@@ -111,11 +107,11 @@ struct InboxSheetViewModelConsolidationTests {
     func canConsolidateReturnsFalseWithSingleItem() throws {
         let vm = InboxSheetViewModel()
         let lessonID = UUID()
-        let sl = makeTestStudentLesson(lessonID: lessonID)
+        let la = makeLessonAssignment(lessonID: lessonID)
 
-        vm.toggleSelection(sl.id)
+        vm.toggleSelection(la.id)
 
-        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [sl])
+        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [la])
 
         #expect(canConsolidate == false)
     }
@@ -123,13 +119,13 @@ struct InboxSheetViewModelConsolidationTests {
     @Test("canConsolidate returns false when selected items have different lesson IDs")
     func canConsolidateReturnsFalseWithDifferentLessons() throws {
         let vm = InboxSheetViewModel()
-        let sl1 = makeTestStudentLesson(lessonID: UUID())
-        let sl2 = makeTestStudentLesson(lessonID: UUID())
+        let la1 = makeLessonAssignment(lessonID: UUID())
+        let la2 = makeLessonAssignment(lessonID: UUID())
 
-        vm.toggleSelection(sl1.id)
-        vm.toggleSelection(sl2.id)
+        vm.toggleSelection(la1.id)
+        vm.toggleSelection(la2.id)
 
-        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [sl1, sl2])
+        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [la1, la2])
 
         #expect(canConsolidate == false)
     }
@@ -138,13 +134,13 @@ struct InboxSheetViewModelConsolidationTests {
     func canConsolidateReturnsTrueWithSameLessonID() throws {
         let vm = InboxSheetViewModel()
         let lessonID = UUID()
-        let sl1 = makeTestStudentLesson(lessonID: lessonID)
-        let sl2 = makeTestStudentLesson(lessonID: lessonID)
+        let la1 = makeLessonAssignment(lessonID: lessonID)
+        let la2 = makeLessonAssignment(lessonID: lessonID)
 
-        vm.toggleSelection(sl1.id)
-        vm.toggleSelection(sl2.id)
+        vm.toggleSelection(la1.id)
+        vm.toggleSelection(la2.id)
 
-        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [sl1, sl2])
+        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [la1, la2])
 
         #expect(canConsolidate == true)
     }
@@ -155,17 +151,17 @@ struct InboxSheetViewModelConsolidationTests {
         let lessonID1 = UUID()
         let lessonID2 = UUID()
 
-        let sl1 = makeTestStudentLesson(lessonID: lessonID1)
-        let sl2 = makeTestStudentLesson(lessonID: lessonID1)
-        let sl3 = makeTestStudentLesson(lessonID: lessonID2)
-        let sl4 = makeTestStudentLesson(lessonID: lessonID2)
+        let la1 = makeLessonAssignment(lessonID: lessonID1)
+        let la2 = makeLessonAssignment(lessonID: lessonID1)
+        let la3 = makeLessonAssignment(lessonID: lessonID2)
+        let la4 = makeLessonAssignment(lessonID: lessonID2)
 
-        vm.toggleSelection(sl1.id)
-        vm.toggleSelection(sl2.id)
-        vm.toggleSelection(sl3.id)
-        vm.toggleSelection(sl4.id)
+        vm.toggleSelection(la1.id)
+        vm.toggleSelection(la2.id)
+        vm.toggleSelection(la3.id)
+        vm.toggleSelection(la4.id)
 
-        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [sl1, sl2, sl3, sl4])
+        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [la1, la2, la3, la4])
 
         #expect(canConsolidate == true)
     }
@@ -177,16 +173,16 @@ struct InboxSheetViewModelConsolidationTests {
         let lessonID2 = UUID()
 
         // Group 1: two items (can consolidate)
-        let sl1 = makeTestStudentLesson(lessonID: lessonID1)
-        let sl2 = makeTestStudentLesson(lessonID: lessonID1)
+        let la1 = makeLessonAssignment(lessonID: lessonID1)
+        let la2 = makeLessonAssignment(lessonID: lessonID1)
         // Group 2: one item (cannot consolidate alone)
-        let sl3 = makeTestStudentLesson(lessonID: lessonID2)
+        let la3 = makeLessonAssignment(lessonID: lessonID2)
 
-        vm.toggleSelection(sl1.id)
-        vm.toggleSelection(sl2.id)
-        vm.toggleSelection(sl3.id)
+        vm.toggleSelection(la1.id)
+        vm.toggleSelection(la2.id)
+        vm.toggleSelection(la3.id)
 
-        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [sl1, sl2, sl3])
+        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [la1, la2, la3])
 
         // Should return true because group 1 has 2+ items
         #expect(canConsolidate == true)
@@ -197,14 +193,14 @@ struct InboxSheetViewModelConsolidationTests {
         let vm = InboxSheetViewModel()
         let lessonID = UUID()
 
-        let sl1 = makeTestStudentLesson(lessonID: lessonID)
-        let sl2 = makeTestStudentLesson(lessonID: lessonID)
-        let sl3 = makeTestStudentLesson(lessonID: lessonID)
+        let la1 = makeLessonAssignment(lessonID: lessonID)
+        let la2 = makeLessonAssignment(lessonID: lessonID)
+        let la3 = makeLessonAssignment(lessonID: lessonID)
 
         // Only select one item
-        vm.toggleSelection(sl1.id)
+        vm.toggleSelection(la1.id)
 
-        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [sl1, sl2, sl3])
+        let canConsolidate = vm.canConsolidate(orderedUnscheduledLessons: [la1, la2, la3])
 
         // Should return false because only one item is selected
         #expect(canConsolidate == false)

@@ -91,7 +91,7 @@ struct TestDataBuilder {
     ) -> [Lesson] {
         var lessons: [Lesson] = []
         for i in 0..<count {
-            let subject = subjectPrefix.map { "\($0) \(i / 20)" }
+            let subject = subjectPrefix.map { "\($0) \(i / 20)" } ?? "General"
             let lesson = makeTestLesson(name: "\(namePrefix) \(i)", subject: subject)
             context.insert(lesson)
             lessons.append(lesson)
