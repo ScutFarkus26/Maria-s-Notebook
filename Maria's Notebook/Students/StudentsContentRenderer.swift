@@ -1,0 +1,85 @@
+import SwiftUI
+
+/// Helper for rendering student content (list/grid) with consistent empty state handling
+struct StudentsContentRenderer {
+    let students: [Student]
+    let effectiveSortOrder: SortOrder
+    let daysSinceLastLesson: [UUID: Int]
+    let isParsing: Binding<Bool>
+    let parsingTask: Binding<Task<Void, Never>?>
+    let onAddStudent: () -> Void
+    let onTapStudent: ((Student) -> Void)?
+    let selectedStudentID: Binding<UUID?>?
+
+    #if os(iOS)
+    let horizontalSizeClass: UserInterfaceSizeClass?
+    #endif
+
+    /// Render content with empty state check
+    @ViewBuilder
+    func content<Content: View>(@ViewBuilder contentBuilder: () -> Content) -> some View {
+        Group {
+            if students.isEmpty {
+                NoStudentsEmptyState(onAddStudent: onAddStudent)
+            } else {
+                contentBuilder()
+            }
+        }
+        .overlay {
+            ParsingOverlay(isParsing: isParsing) {
+                parsingTask.wrappedValue?.cancel()
+            }
+        }
+    }
+
+    /// Render as grid view
+    var gridView: some View {
+        content {
+            StudentsCardsGridView(
+                students: students,
+                isBirthdayMode: effectiveSortOrder == .birthday,
+                isAgeMode: effectiveSortOrder == .age,
+                isLastLessonMode: effectiveSortOrder == .lastLesson,
+                lastLessonDays: effectiveSortOrder == .lastLesson ? daysSinceLastLesson : [:],
+                isManualMode: false,
+                onTapStudent: onTapStudent ?? { _ in },
+                onReorder: { _, _, _, _ in
+                    // Reordering not supported in grid view modes
+                }
+            )
+        }
+    }
+
+    /// Render as list view
+    @ViewBuilder
+    func listView(onMove: @escaping (IndexSet, Int) -> Void) -> some View {
+        content {
+            List(selection: selectedStudentID) {
+                ForEach(students, id: \.id) { student in
+                    StudentListRow(
+                        student: student,
+                        sortOrder: effectiveSortOrder,
+                        daysSinceLastLesson: daysSinceLastLesson[student.id]
+                    )
+                    .tag(student.id)
+                    #if os(iOS)
+                    .onTapGesture {
+                        handleTap(student)
+                    }
+                    #endif
+                }
+                .onMove(perform: onMove)
+            }
+        }
+    }
+
+    #if os(iOS)
+    private func handleTap(_ student: Student) {
+        if horizontalSizeClass == .compact, let onTap = onTapStudent {
+            onTap(student)
+        } else if let binding = selectedStudentID {
+            binding.wrappedValue = student.id
+        }
+    }
+    #endif
+}

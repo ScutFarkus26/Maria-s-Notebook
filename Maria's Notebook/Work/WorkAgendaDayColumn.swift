@@ -1,0 +1,305 @@
+import SwiftUI
+import SwiftData
+
+/// A day column for the Work agenda calendar that displays both work items and student lessons
+struct WorkAgendaDayColumn: View {
+    @Environment(\.modelContext) private var modelContext
+    
+    let day: Date
+    let availableHeight: CGFloat
+    let showPresentations: Bool
+    let onPillTap: (WorkCheckIn) -> Void
+    let onGroupTap: ((CheckInGroup) -> Void)?
+    let onStudentLessonSelect: ((StudentLesson) -> Void)?
+    
+    // Fetch work check-ins for this day (scheduled status only)
+    @Query private var allCheckIns: [WorkCheckIn]
+    
+    // Fetch scheduled student lessons (not yet given)
+    @Query(filter: #Predicate<StudentLesson> { !$0.isPresented && $0.givenAt == nil })
+    private var allStudentLessons: [StudentLesson]
+    
+    init(day: Date, availableHeight: CGFloat, showPresentations: Bool = true, onPillTap: @escaping (WorkCheckIn) -> Void, onGroupTap: ((CheckInGroup) -> Void)? = nil, onStudentLessonSelect: ((StudentLesson) -> Void)? = nil) {
+        self.day = day
+        self.availableHeight = availableHeight
+        self.showPresentations = showPresentations
+        self.onPillTap = onPillTap
+        self.onGroupTap = onGroupTap
+        self.onStudentLessonSelect = onStudentLessonSelect
+        
+        // Initialize work check-ins query for this day (scheduled status only)
+        let (start, end) = AppCalendar.dayRange(for: day)
+        let scheduledStatus = "Scheduled"
+        _allCheckIns = Query(filter: #Predicate { 
+            $0.statusRaw == scheduledStatus && $0.date >= start && $0.date < end 
+        })
+    }
+    
+    private var studentLessonsForDay: [StudentLesson] {
+        let (start, end) = AppCalendar.dayRange(for: day)
+        return allStudentLessons.filter { lesson in
+            guard let scheduledDate = lesson.scheduledFor else { return false }
+            return scheduledDate >= start && scheduledDate < end
+        }
+    }
+
+    // MARK: - Check-in Grouping
+
+    /// A resolved check-in group: one or more check-ins sharing the same lesson and purpose
+    struct CheckInGroup: Identifiable {
+        let id: UUID
+        /// All check-ins in this group (same lesson + purpose)
+        let checkIns: [WorkCheckIn]
+        let lessonTitle: String
+        let studentNames: [String]
+        let purpose: String
+        let sortDate: Date
+
+        /// Representative check-in (first) for actions like drag/tap
+        var primary: WorkCheckIn { checkIns[0] }
+        var isGrouped: Bool { checkIns.count > 1 }
+    }
+
+    /// Resolves lesson title for a work's lessonID
+    private func resolvedLessonTitle(for work: WorkModel) -> String {
+        if let lessonID = work.lessonID.asUUID {
+            let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+            if let lesson = modelContext.safeFetchFirst(descriptor) {
+                let name = lesson.name.trimmed()
+                if !name.isEmpty { return name }
+            }
+        }
+        return "Lesson \(String(work.lessonID.prefix(6)))"
+    }
+
+    /// Resolves display name for a work's studentID
+    private func resolvedStudentName(for work: WorkModel) -> String {
+        if let studentID = work.studentID.asUUID {
+            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+            if let student = modelContext.safeFetchFirst(descriptor) {
+                return StudentFormatter.displayName(for: student)
+            }
+        }
+        return ""
+    }
+
+    /// Groups check-ins that share the same lessonID and purpose into merged pills.
+    /// Respects the work's checkInStyle: individual items are never grouped.
+    private var groupedCheckIns: [CheckInGroup] {
+        // Resolve work for each check-in, skip any that can't be resolved
+        struct Resolved {
+            let checkIn: WorkCheckIn
+            let work: WorkModel
+            let lessonTitle: String
+            let studentName: String
+            let groupKey: String  // lessonID + purpose
+            let checkInStyle: CheckInStyle
+        }
+
+        var resolved: [Resolved] = []
+        for ci in allCheckIns {
+            guard let workID = ci.workID.asUUID else { continue }
+            let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+            guard let work = modelContext.safeFetchFirst(descriptor) else { continue }
+            let lessonTitle = resolvedLessonTitle(for: work)
+            let studentName = resolvedStudentName(for: work)
+            let groupKey = "\(work.lessonID)|\(ci.purpose)"
+            resolved.append(Resolved(checkIn: ci, work: work, lessonTitle: lessonTitle, studentName: studentName, groupKey: groupKey, checkInStyle: work.checkInStyle))
+        }
+
+        // Separate individual-style items from groupable items
+        var individualItems: [Resolved] = []
+        var groupableItems: [Resolved] = []
+        for r in resolved {
+            if r.checkInStyle == .individual {
+                individualItems.append(r)
+            } else {
+                groupableItems.append(r)
+            }
+        }
+
+        // Group groupable items by lessonID + purpose, preserving first-appearance order
+        var order: [String] = []
+        var buckets: [String: [Resolved]] = [:]
+        for r in groupableItems {
+            if buckets[r.groupKey] == nil { order.append(r.groupKey) }
+            buckets[r.groupKey, default: []].append(r)
+        }
+
+        var result: [CheckInGroup] = []
+
+        // Emit grouped items
+        for key in order {
+            guard let items = buckets[key], !items.isEmpty else { continue }
+            let checkIns = items.map { $0.checkIn }
+            let studentNames = items.map { $0.studentName }.filter { !$0.isEmpty }
+            result.append(CheckInGroup(
+                id: items[0].checkIn.id,
+                checkIns: checkIns,
+                lessonTitle: items[0].lessonTitle,
+                studentNames: studentNames,
+                purpose: items[0].checkIn.purpose,
+                sortDate: items[0].checkIn.date
+            ))
+        }
+
+        // Emit individual items as single-item groups
+        for r in individualItems {
+            result.append(CheckInGroup(
+                id: r.checkIn.id,
+                checkIns: [r.checkIn],
+                lessonTitle: r.lessonTitle,
+                studentNames: r.studentName.isEmpty ? [] : [r.studentName],
+                purpose: r.checkIn.purpose,
+                sortDate: r.checkIn.date
+            ))
+        }
+
+        return result
+    }
+
+    private enum CalendarItem: Identifiable {
+        case checkInGroup(CheckInGroup)
+        case studentLesson(StudentLesson)
+        
+        var id: UUID {
+            switch self {
+            case .checkInGroup(let g): return g.id
+            case .studentLesson(let sl): return sl.id
+            }
+        }
+        
+        var sortDate: Date {
+            switch self {
+            case .checkInGroup(let g): return g.sortDate
+            case .studentLesson(let sl): return sl.scheduledFor ?? .distantPast
+            }
+        }
+    }
+    
+    private var allItems: [CalendarItem] {
+        let work = groupedCheckIns.map { CalendarItem.checkInGroup($0) }
+        let lessons = showPresentations ? studentLessonsForDay.map { CalendarItem.studentLesson($0) } : []
+        return (work + lessons).sorted { $0.sortDate < $1.sortDate }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(day.formatted(Date.FormatStyle().weekday(.abbreviated).day()))
+                .font(.headline)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(allItems) { item in
+                    switch item {
+                    case .checkInGroup(let group):
+                        if group.isGrouped {
+                            GroupedWorkCheckInPill(group: group) {
+                                if let onGroupTap { onGroupTap(group) }
+                                else { onPillTap(group.primary) }
+                            }
+                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
+                                GroupedWorkCheckInPill(group: group)
+                                    .opacity(0.9)
+                            }
+                        } else {
+                            WorkCheckInPill(checkIn: group.primary, isDulled: false) {
+                                onPillTap(group.primary)
+                            }
+                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
+                                WorkCheckInPill(checkIn: group.primary, isDulled: false)
+                                    .opacity(0.9)
+                            }
+                        }
+                    case .studentLesson(let sl):
+                        StudentLessonPill(
+                            snapshot: sl.snapshot(),
+                            day: day,
+                            targetStudentLessonID: sl.id,
+                            showTimeBadge: false,
+                            enableMergeDrop: false,
+                            showAgeIndicator: false
+                        )
+                        .opacity(0.5)
+                        .draggable(UnifiedCalendarDragPayload.studentLesson(sl.id).stringRepresentation) {
+                            StudentLessonPill(
+                                snapshot: sl.snapshot(),
+                                day: day,
+                                targetStudentLessonID: sl.id,
+                                showTimeBadge: false,
+                                enableMergeDrop: false,
+                                showAgeIndicator: false
+                            )
+                            .opacity(0.45)
+                        }
+                        .onTapGesture {
+                            onStudentLessonSelect?(sl)
+                        }
+                    }
+                }
+            }
+            .padding(AppTheme.Spacing.small)
+            .frame(minWidth: 260, idealWidth: 260, maxWidth: 260, minHeight: 0, idealHeight: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
+            .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.faint), lineWidth: UIConstants.StrokeWidth.thin))
+        }
+        .frame(height: availableHeight, alignment: .topLeading)
+    }
+}
+
+// MARK: - Grouped Pill
+
+/// A pill that consolidates multiple check-ins for the same lesson and purpose into one row
+struct GroupedWorkCheckInPill: View {
+    let group: WorkAgendaDayColumn.CheckInGroup
+    var onTap: (() -> Void)? = nil
+
+    private var purposeIcon: String {
+        let purpose = group.purpose.lowercased()
+        if purpose.contains("progress") || purpose.contains("check") { return "checkmark.circle" }
+        else if purpose.contains("due") { return "calendar.badge.exclamationmark" }
+        else if purpose.contains("assessment") { return "chart.bar" }
+        else if purpose.contains("follow") { return "arrow.turn.down.right" }
+        else { return "calendar" }
+    }
+
+    private var studentNamesDisplay: String {
+        group.studentNames.joined(separator: ", ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                // Student count badge
+                Text("\(group.checkIns.count)")
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.accentColor))
+                Text(group.lessonTitle)
+                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            Text(studentNamesDisplay)
+                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            if !group.purpose.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: purposeIcon)
+                        .foregroundStyle(.secondary)
+                    Text(group.purpose)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.small)
+        .padding(.vertical, AppTheme.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large).fill(Color.accentColor.opacity(UIConstants.OpacityConstants.faint)))
+        .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large).stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin))
+        .contentShape(Rectangle())
+        .onTapGesture { onTap?() }
+    }
+}

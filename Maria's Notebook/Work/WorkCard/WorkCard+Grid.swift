@@ -1,0 +1,188 @@
+import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
+/// Grid mode content for WorkCard
+/// Displays: age indicator bar, title, student name, status, needs attention badge
+/// Supports: tap to open, context menu, drag for calendar scheduling
+struct WorkCardGridContent: View {
+    let config: WorkCard.GridModeConfig
+
+    @SyncedAppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
+    @SyncedAppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
+    @SyncedAppStorage("WorkAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
+    @SyncedAppStorage("WorkAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
+    @SyncedAppStorage("WorkAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
+
+    private var ageStatus: LessonAgeStatus {
+        if config.ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
+        if config.ageSchoolDays >= max(0, ageWarningDays) { return .warning }
+        return .fresh
+    }
+
+    private var ageColor: Color {
+        switch ageStatus {
+        case .fresh: return ColorUtils.color(from: ageFreshColorHex)
+        case .warning: return ColorUtils.color(from: ageWarningColorHex)
+        case .overdue: return ColorUtils.color(from: ageOverdueColorHex)
+        }
+    }
+
+    private var kindText: String {
+        switch config.work.status {
+        case .active: return "Practice"
+        case .review: return "Follow-Up"
+        case .complete: return "Completed"
+        }
+    }
+
+    private var displayTitle: String {
+        let trimmedTitle = config.work.title.trimmed()
+        if !trimmedTitle.isEmpty {
+            return trimmedTitle
+        }
+        return config.lessonTitle
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(ageColor)
+                .frame(width: UIConstants.ageIndicatorWidth)
+                .opacity(config.work.status == .complete ? 0.0 : 1.0)
+                .accessibilityHidden(true)
+
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text(displayTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(2)
+                        Spacer()
+                        if config.needsAttention {
+                            Text("Needs Attention")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.red.opacity(0.85)))
+                                .accessibilityLabel("Needs Attention")
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        Text(config.studentDisplay)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(kindText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(config.ageSchoolDays)d")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, minHeight: 60)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
+        .contentShape(Rectangle())
+        .onTapGesture { config.onOpen(config.work) }
+        .contextMenu {
+            Button {
+                config.onOpen(config.work)
+            } label: {
+                Label("Open", systemImage: "arrow.forward.circle")
+            }
+
+            #if os(macOS)
+            Button {
+                openWorkInNewWindow(config.work.id)
+            } label: {
+                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
+            }
+            #endif
+
+            Divider()
+
+            Button {
+                config.onMarkCompleted(config.work)
+            } label: {
+                Label("Mark Completed", systemImage: "checkmark.circle")
+            }
+
+            // Status change submenu
+            Menu {
+                Button {
+                    // Set to Practice (active)
+                } label: {
+                    Label("Practice", systemImage: config.work.status == .active ? "checkmark" : "circle")
+                }
+                Button {
+                    // Set to Follow-Up (review)
+                } label: {
+                    Label("Follow-Up", systemImage: config.work.status == .review ? "checkmark" : "circle")
+                }
+            } label: {
+                Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            Menu {
+                Button("Today") { config.onScheduleToday(config.work) }
+            } label: {
+                Label("Schedule", systemImage: "calendar")
+            }
+
+            Divider()
+
+            Button {
+                copyWorkTitle()
+            } label: {
+                Label("Copy Title", systemImage: "doc.on.doc")
+            }
+        }
+        .draggable(WorkAgendaDragPayload.work(config.work.id).stringRepresentation) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(displayTitle).font(.subheadline)
+                Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.06)))
+        }
+    }
+
+    private func copyWorkTitle() {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(displayTitle, forType: .string)
+        #else
+        UIPasteboard.general.string = displayTitle
+        #endif
+    }
+}
+
+#Preview {
+    WorkCard.grid(
+        work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
+        lessonTitle: "Long Division",
+        studentDisplay: "Ada Lovelace",
+        needsAttention: true,
+        ageSchoolDays: 7,
+        onOpen: { _ in },
+        onMarkCompleted: { _ in },
+        onScheduleToday: { _ in }
+    )
+    .padding()
+}

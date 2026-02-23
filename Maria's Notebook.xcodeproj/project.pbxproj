@@ -1,0 +1,730 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		51E891892F399AFD0054B16E /* TECHNICAL_DEBT.md in Resources */ = {isa = PBXBuildFile; fileRef = 51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		51F924312F1C43F900E480A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5141E7ED2ED77B0F004F918F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5141E7F42ED77B0F004F918F;
+			remoteInfo = "Maria's Notebook";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		513F2B352F40465F00D54727 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
+		513F2B362F40466000D54727 /* StudentError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentError.swift; sourceTree = "<group>"; };
+		513F2B372F4046AA00D54727 /* LessonError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonError.swift; sourceTree = "<group>"; };
+		513F2B382F4046AB00D54727 /* WorkError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkError.swift; sourceTree = "<group>"; };
+		513F2B392F4046F000D54727 /* AttendanceError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceError.swift; sourceTree = "<group>"; };
+		513F2B3A2F4046F000D54727 /* SyncError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncError.swift; sourceTree = "<group>"; };
+		513F2B3B2F40473100D54727 /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
+		513F2B3C2F40475700D54727 /* ErrorViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorViews.swift; sourceTree = "<group>"; };
+		513F2B3D2F4047AE00D54727 /* DOMAIN_ERRORS_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DOMAIN_ERRORS_GUIDE.md; sourceTree = "<group>"; };
+		513F2B3E2F40482E00D54727 /* StudentRepositoryExample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentRepositoryExample.swift; sourceTree = "<group>"; };
+		513F2B3F2F40488000D54727 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
+		51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
+		51EB8AED2F37B2A2005F1D80 /* StreamingBackupWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingBackupWriterTests.swift; sourceTree = "<group>"; };
+		51EB8AEE2F37B2BE005F1D80 /* BackupValidationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupValidationServiceTests.swift; sourceTree = "<group>"; };
+		51EB8AEF2F37B2D5005F1D80 /* ChecksumVerificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecksumVerificationServiceTests.swift; sourceTree = "<group>"; };
+		51EB8AF02F37B2FA005F1D80 /* DeltaSyncServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeltaSyncServiceTests.swift; sourceTree = "<group>"; };
+		51EB8AF12F37B323005F1D80 /* SmartRetentionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRetentionManagerTests.swift; sourceTree = "<group>"; };
+		51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Maria's Notebook Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5141E8022ED77B10004F918F /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				README.md,
+			);
+			target = 5141E7F42ED77B0F004F918F /* Maria's Notebook */;
+		};
+		51D2D3EC2F1DE9B600F5C9BF /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Tests/AgeUtilsTests.swift,
+				Tests/AttendanceModelsTests.swift,
+				Tests/AttendanceRepositoryTests.swift,
+				Tests/AttendanceStoreTests.swift,
+				Tests/AttendanceViewModelTests.swift,
+				Tests/BackupEncryptionTests.swift,
+				Tests/BackupExportTests.swift,
+				Tests/BackupImportTests.swift,
+				Tests/BackupValidationTests.swift,
+				Tests/CalendarSyncServiceTests.swift,
+				Tests/CloudKitSyncStatusServiceTests.swift,
+				Tests/CloudKitUUIDTests.swift,
+				Tests/CompileAudit.swift,
+				Tests/CSVUtilsTests.swift,
+				Tests/DataCleanupServiceTests.swift,
+				Tests/DataConsistencyTests.swift,
+				Tests/DataQueryServiceTests.swift,
+				Tests/DateCalculationsTests.swift,
+				Tests/DocumentRepositoryTests.swift,
+				Tests/ErrorHandlingTests.swift,
+				Tests/FloridaGradeCalculatorTests.swift,
+				Tests/FollowUpInboxEngineTests.swift,
+				Tests/GroupTrackProgressResolverTests.swift,
+				Tests/GroupTrackServiceTests.swift,
+				Tests/InboxDataLoaderTests.swift,
+				Tests/InboxSheetViewModelTests.swift,
+				Tests/LegacyNotesMigrationServiceTests.swift,
+				Tests/LessonLifecycleTests.swift,
+				Tests/LessonPickerViewModelTests.swift,
+				Tests/LessonRepositoryTests.swift,
+				Tests/LessonsReorderServiceTests.swift,
+				Tests/LessonsViewModelTests.swift,
+				Tests/Mocks/MockEventStore.swift,
+				Tests/Mocks/MockNetworkMonitor.swift,
+				Tests/Mocks/MockNotificationCenter.swift,
+				Tests/NoteRepositoryTests.swift,
+				Tests/NoteTemplateRepositoryTests.swift,
+				Tests/ObservationsFilterServiceTests.swift,
+				Tests/Performance/AsyncConcurrencyTests.swift,
+				Tests/Performance/CloudKitBackupPerformanceTests.swift,
+				Tests/Performance/DatabaseQueryPerformanceTests.swift,
+				Tests/Performance/MemoryManagementTests.swift,
+				Tests/Performance/PerformanceBenchmarks.swift,
+				Tests/Performance/PerformanceRegressionTests.swift,
+				Tests/Performance/UIPerformanceTests.swift,
+				Tests/PhotoStorageServiceTests.swift,
+				Tests/PresentationsViewModelTests.swift,
+				Tests/ProjectRepositoryTests.swift,
+				Tests/QuickNoteViewModelTests.swift,
+				Tests/RelationshipBackfillServiceTests.swift,
+				Tests/ReminderRepositoryTests.swift,
+				Tests/ReminderSyncServiceTests.swift,
+				Tests/ReportGeneratorServiceTests.swift,
+				Tests/SchemaMigrationServiceTests.swift,
+				Tests/SchoolDayLookupCacheTests.swift,
+				Tests/SettingsViewModelTests.swift,
+				Tests/SnapshotTests/ComponentSnapshots/StudentCardSnapshotTests.swift,
+				Tests/SnapshotTests/ComponentSnapshots/WorkCardSnapshotTests.swift,
+				Tests/SnapshotTests/SnapshotTestData.swift,
+				Tests/SnapshotTests/SnapshotTestHelpers.swift,
+				Tests/SnapshotTests/TextSnapshots/AttendanceEmailSnapshotTests.swift,
+				Tests/SnapshotTests/TextSnapshots/BackupManifestSnapshotTests.swift,
+				Tests/SnapshotTests/TextSnapshots/CSVParserSnapshotTests.swift,
+				Tests/SnapshotTests/TextSnapshots/MarkdownExportSnapshotTests.swift,
+				Tests/SnapshotTests/ViewSnapshots/ModalViewsSnapshotTests.swift,
+				Tests/SnapshotTests/ViewSnapshots/SettingsSnapshotTests.swift,
+				Tests/StringFuzzyMatchTests.swift,
+				Tests/StudentDetailViewModelTests.swift,
+				Tests/StudentLessonDetailViewModelTests.swift,
+				Tests/StudentLessonRepositoryTests.swift,
+				Tests/StudentLessonTests.swift,
+				Tests/StudentLifecycleTests.swift,
+				Tests/StudentNotesViewModelTests.swift,
+				Tests/StudentProgressTabViewModelTests.swift,
+				Tests/StudentRepositoryTests.swift,
+				Tests/StudentsFilterServiceTests.swift,
+				Tests/StudentsViewModelTests.swift,
+				Tests/TestCalendar.swift,
+				Tests/TestHelpers.swift,
+				Tests/TodayViewModelLogicTests.swift,
+				Tests/TodayViewModelTests.swift,
+				Tests/TopicDetailViewModelTests.swift,
+				Tests/TrackProgressResolverTests.swift,
+				Tests/UtilityEdgeCaseTests.swift,
+				Tests/WorkAgingPolicyTests.swift,
+				Tests/WorkCheckInServiceTests.swift,
+				Tests/WorkCompletionServiceTests.swift,
+				Tests/WorkConsolidationServiceTests.swift,
+				Tests/WorkIntegrationTests.swift,
+				Tests/WorkModelTests.swift,
+				Tests/WorkRepositoryTests.swift,
+				Tests/WorksPlanningViewModelTests.swift,
+			);
+			target = 51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5141E7F72ED77B0F004F918F /* Maria's Notebook */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5141E8022ED77B10004F918F /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook" target */,
+				51D2D3EC2F1DE9B600F5C9BF /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook Tests" target */,
+			);
+			path = "Maria's Notebook";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5141E7F22ED77B0F004F918F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		51F9242A2F1C43F900E480A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		513F2B342F40462F00D54727 /* Errors */ = {
+			isa = PBXGroup;
+			children = (
+				513F2B352F40465F00D54727 /* AppError.swift */,
+				513F2B362F40466000D54727 /* StudentError.swift */,
+				513F2B372F4046AA00D54727 /* LessonError.swift */,
+				513F2B382F4046AB00D54727 /* WorkError.swift */,
+				513F2B392F4046F000D54727 /* AttendanceError.swift */,
+				513F2B3A2F4046F000D54727 /* SyncError.swift */,
+				513F2B3B2F40473100D54727 /* ErrorHandling.swift */,
+				513F2B3C2F40475700D54727 /* ErrorViews.swift */,
+				513F2B3D2F4047AE00D54727 /* DOMAIN_ERRORS_GUIDE.md */,
+				513F2B3E2F40482E00D54727 /* StudentRepositoryExample.swift */,
+				513F2B3F2F40488000D54727 /* README.md */,
+			);
+			path = Errors;
+			sourceTree = "<group>";
+		};
+		5141E7EC2ED77B0F004F918F = {
+			isa = PBXGroup;
+			children = (
+				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
+				5193CB042F0B155C0017A069 /* Frameworks */,
+				5141E7F62ED77B0F004F918F /* Products */,
+				51EB8AEC2F37B28A005F1D80 /* BackupTests */,
+				51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */,
+				513F2B342F40462F00D54727 /* Errors */,
+			);
+			sourceTree = "<group>";
+		};
+		5141E7F62ED77B0F004F918F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5141E7F52ED77B0F004F918F /* Maria's Notebook.app */,
+				51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5193CB042F0B155C0017A069 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5193CB052F0B155C0017A069 /* FoundationModels.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		51EB8AEC2F37B28A005F1D80 /* BackupTests */ = {
+			isa = PBXGroup;
+			children = (
+				51EB8AED2F37B2A2005F1D80 /* StreamingBackupWriterTests.swift */,
+				51EB8AEE2F37B2BE005F1D80 /* BackupValidationServiceTests.swift */,
+				51EB8AEF2F37B2D5005F1D80 /* ChecksumVerificationServiceTests.swift */,
+				51EB8AF02F37B2FA005F1D80 /* DeltaSyncServiceTests.swift */,
+				51EB8AF12F37B323005F1D80 /* SmartRetentionManagerTests.swift */,
+			);
+			path = BackupTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5141E7F42ED77B0F004F918F /* Maria's Notebook */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Notebook" */;
+			buildPhases = (
+				5141E7F12ED77B0F004F918F /* Sources */,
+				5141E7F22ED77B0F004F918F /* Frameworks */,
+				5141E7F32ED77B0F004F918F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
+			);
+			name = "Maria's Notebook";
+			packageProductDependencies = (
+			);
+			productName = "Maria's Notebook";
+			productReference = 5141E7F52ED77B0F004F918F /* Maria's Notebook.app */;
+			productType = "com.apple.product-type.application";
+		};
+		51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 51F924332F1C43F900E480A1 /* Build configuration list for PBXNativeTarget "Maria's Notebook Tests" */;
+			buildPhases = (
+				51F924292F1C43F900E480A1 /* Sources */,
+				51F9242A2F1C43F900E480A1 /* Frameworks */,
+				51F9242B2F1C43F900E480A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				51F924322F1C43F900E480A1 /* PBXTargetDependency */,
+			);
+			name = "Maria's Notebook Tests";
+			packageProductDependencies = (
+			);
+			productName = "Maria's Notebook Tests";
+			productReference = 51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5141E7ED2ED77B0F004F918F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					5141E7F42ED77B0F004F918F = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
+					51F9242C2F1C43F900E480A1 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 5141E7F42ED77B0F004F918F;
+					};
+				};
+			};
+			buildConfigurationList = 5141E7F02ED77B0F004F918F /* Build configuration list for PBXProject "Maria's Notebook" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5141E7EC2ED77B0F004F918F;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5141E7F62ED77B0F004F918F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5141E7F42ED77B0F004F918F /* Maria's Notebook */,
+				51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5141E7F32ED77B0F004F918F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				51E891892F399AFD0054B16E /* TECHNICAL_DEBT.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		51F9242B2F1C43F900E480A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5141E7F12ED77B0F004F918F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		51F924292F1C43F900E480A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		51F924322F1C43F900E480A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5141E7F42ED77B0F004F918F /* Maria's Notebook */;
+			targetProxy = 51F924312F1C43F900E480A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5141E8042ED77B10004F918F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_ENTITLEMENTS = "Maria's Notebook/Maria_s_Notebook.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+				ENABLE_RESOURCE_ACCESS_PRINTING = YES;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG ENABLE_FOUNDATION_MODELS";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		5141E8052ED77B10004F918F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=macosx*]" = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_ENTITLEMENTS = "Maria's Notebook/Maria_s_Notebook.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+				ENABLE_RESOURCE_ACCESS_PRINTING = YES;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = NO;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = ENABLE_FOUNDATION_MODELS;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		5141E8062ED77B10004F918F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG ENABLE_FOUNDATION_MODELS $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5141E8072ED77B10004F918F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "ENABLE_FOUNDATION_MODELS $(inherited)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		51F924342F1C43F900E480A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Danny-De-Berry.Maria-s-Notebook-Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maria's Notebook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maria's Notebook";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		51F924352F1C43F900E480A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Danny-De-Berry.Maria-s-Notebook-Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maria's Notebook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maria's Notebook";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5141E7F02ED77B0F004F918F /* Build configuration list for PBXProject "Maria's Notebook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5141E8062ED77B10004F918F /* Debug */,
+				5141E8072ED77B10004F918F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5141E8032ED77B10004F918F /* Build configuration list for PBXNativeTarget "Maria's Notebook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5141E8042ED77B10004F918F /* Debug */,
+				5141E8052ED77B10004F918F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		51F924332F1C43F900E480A1 /* Build configuration list for PBXNativeTarget "Maria's Notebook Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				51F924342F1C43F900E480A1 /* Debug */,
+				51F924352F1C43F900E480A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5141E7ED2ED77B0F004F918F /* Project object */;
+}

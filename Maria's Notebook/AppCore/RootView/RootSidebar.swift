@@ -1,0 +1,238 @@
+// RootSidebar.swift
+// Sidebar navigation for RootView - extracted for maintainability
+
+import SwiftUI
+import SwiftData
+
+/// Sidebar with grouped sections (Source List style) for selecting navigation items.
+struct RootSidebar: View {
+    @Binding var selection: RootView.NavigationItem
+    @Environment(\.appRouter) private var appRouter
+
+    var body: some View {
+        #if os(macOS)
+        macOSSidebar
+        #else
+        iOSSidebar
+        #endif
+    }
+
+    #if os(macOS)
+    private var macOSSidebar: some View {
+        List(selection: $selection) {
+            Section("Daily") {
+                NavigationLink(value: RootView.NavigationItem.today) {
+                    Label("Today", systemImage: "sun.max")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.students) {
+                    Label("Students", systemImage: "person.3")
+                }
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewStudent()
+                    } label: {
+                        Label("New Student", systemImage: "person.badge.plus")
+                    }
+
+                    Button {
+                        appRouter.requestImportStudents()
+                    } label: {
+                        Label("Import Students…", systemImage: "square.and.arrow.down")
+                    }
+                }
+
+                NavigationLink(value: RootView.NavigationItem.meetings) {
+                    Label("Meetings", systemImage: "person.2")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.community) {
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
+                }
+            }
+
+            Section("Planning") {
+                NavigationLink(value: RootView.NavigationItem.todos) {
+                    Label("Todos", systemImage: "checkmark.circle")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.lessons) {
+                    Label("Lessons", systemImage: "book")
+                }
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewLesson()
+                    } label: {
+                        Label("New Lesson", systemImage: "plus.circle")
+                    }
+
+                    Button {
+                        appRouter.requestImportLessons()
+                    } label: {
+                        Label("Import Lessons…", systemImage: "square.and.arrow.down")
+                    }
+                }
+
+                NavigationLink(value: RootView.NavigationItem.planningChecklist) {
+                    Label("Checklist", systemImage: "list.clipboard")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.planningAgenda) {
+                    Label("Presentations", systemImage: "calendar")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.planningWork) {
+                    Label("Open Work", systemImage: "tray.full")
+                }
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewWork()
+                    } label: {
+                        Label("New Work…", systemImage: "plus.circle")
+                    }
+                }
+
+                NavigationLink(value: RootView.NavigationItem.planningProjects) {
+                    Label("Projects", systemImage: "folder")
+                }
+            }
+
+            Section("Resources") {
+                NavigationLink(value: RootView.NavigationItem.supplies) {
+                    Label("Supplies", systemImage: "shippingbox")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.procedures) {
+                    Label("Procedures", systemImage: "doc.text")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.schedules) {
+                    Label("Schedules", systemImage: "clock.badge.checkmark")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.issues) {
+                    Label("Issues", systemImage: "exclamationmark.triangle")
+                }
+            }
+
+            Section("System") {
+                NavigationLink(value: RootView.NavigationItem.logs) {
+                    Label("Logs", systemImage: "list.bullet")
+                }
+                NavigationLink(value: RootView.NavigationItem.settings) {
+                    Label("Settings", systemImage: "gear")
+                }
+            }
+        }
+        .listStyle(.sidebar)
+    }
+    #endif
+
+    private var iOSSidebar: some View {
+        List {
+            Section("Daily") {
+                Button { selection = .today } label: {
+                    Label("Today", systemImage: "sun.max")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View today's schedule, reminders, and tasks")
+
+                Button { selection = .students } label: {
+                    Label("Students", systemImage: "person.3")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Manage student profiles and records")
+
+                Button { selection = .meetings } label: {
+                    Label("Meetings", systemImage: "person.2")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Conduct weekly student meetings")
+
+                Button { selection = .community } label: {
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View community meetings and topics")
+            }
+
+            Section("Planning") {
+                Button { selection = .todos } label: {
+                    Label("Todos", systemImage: "checkmark.circle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Manage your personal todos and tasks")
+
+                Button { selection = .lessons } label: {
+                    Label("Lessons", systemImage: "book")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Browse and manage lesson plans")
+
+                Button { selection = .planningChecklist } label: {
+                    Label("Checklist", systemImage: "list.clipboard")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View class subject checklist")
+
+                Button { selection = .planningAgenda } label: {
+                    Label("Presentations", systemImage: "calendar")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Manage lesson presentations agenda")
+
+                Button { selection = .planningWork } label: {
+                    Label("Open Work", systemImage: "tray.full")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View and manage student work")
+
+                Button { selection = .planningProjects } label: {
+                    Label("Projects", systemImage: "folder")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Manage student projects")
+            }
+
+            Section("Resources") {
+                Button { selection = .supplies } label: {
+                    Label("Supplies", systemImage: "shippingbox")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track classroom supplies and inventory")
+
+                Button { selection = .procedures } label: {
+                    Label("Procedures", systemImage: "doc.text")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View classroom procedures and routines")
+
+                Button { selection = .schedules } label: {
+                    Label("Schedules", systemImage: "clock.badge.checkmark")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View recurring schedules")
+
+                Button { selection = .issues } label: {
+                    Label("Issues", systemImage: "exclamationmark.triangle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track and resolve classroom issues")
+            }
+
+            Section("System") {
+                Button { selection = .logs } label: {
+                    Label("Logs", systemImage: "list.bullet")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View activity and observation logs")
+
+                Button { selection = .settings } label: {
+                    Label("Settings", systemImage: "gear")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Configure app preferences and sync options")
+            }
+        }
+    }
+}

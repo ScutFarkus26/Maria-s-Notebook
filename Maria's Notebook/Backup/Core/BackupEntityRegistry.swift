@@ -1,0 +1,73 @@
+import Foundation
+import SwiftData
+
+/// Centralized registry of all entity types that need to be backed up and restored.
+/// This serves as the single source of truth to avoid hardcoding entity lists in multiple places.
+struct BackupEntityRegistry {
+    /// All entity types that should be included in backups
+    static let allTypes: [any PersistentModel.Type] = [
+        Student.self,
+        Lesson.self,
+        StudentLesson.self,
+        // WorkPlanItem.self, // PHASE 5: Removed from backups - migrated to WorkCheckIn
+        Note.self,
+        NonSchoolDay.self,
+        SchoolDayOverride.self,
+        StudentMeeting.self,
+        // Presentation removed - using LessonAssignment instead
+        LessonAssignment.self,
+        CommunityTopic.self,
+        ProposedSolution.self,
+        CommunityAttachment.self,
+        AttendanceRecord.self,
+        WorkCompletionRecord.self,
+        // Work tracking models
+        WorkModel.self,
+        WorkCheckIn.self,
+        WorkParticipantEntity.self,
+        PracticeSession.self,
+        // Project models
+        Project.self,
+        ProjectAssignmentTemplate.self,
+        ProjectSession.self,
+        ProjectRole.self,
+        ProjectTemplateWeek.self,
+        ProjectWeekRoleAssignment.self,
+        Issue.self,
+        IssueAction.self
+    ]
+    
+    /// Entity type names for progress reporting and error messages
+    static func entityName(for type: any PersistentModel.Type) -> String {
+        String(describing: type)
+    }
+}
+
+/// Structured progress tracking for backup operations
+struct BackupProgress {
+    enum Phase: Double {
+        case collecting = 0.0
+        case encoding = 0.30
+        case encrypting = 0.50
+        case writing = 0.70
+        case verifying = 0.90
+        case complete = 1.0
+    }
+    
+    /// Calculate progress percentage for a phase with optional sub-progress within that phase
+    static func progress(for phase: Phase, subProgress: Double = 0.0) -> Double {
+        let phaseStart = phase.rawValue
+        let phaseEnd: Double
+        switch phase {
+        case .collecting: phaseEnd = Phase.encoding.rawValue
+        case .encoding: phaseEnd = Phase.encrypting.rawValue
+        case .encrypting: phaseEnd = Phase.writing.rawValue
+        case .writing: phaseEnd = Phase.verifying.rawValue
+        case .verifying: phaseEnd = Phase.complete.rawValue
+        case .complete: return 1.0
+        }
+        let phaseRange = phaseEnd - phaseStart
+        return phaseStart + (phaseRange * subProgress)
+    }
+}
+

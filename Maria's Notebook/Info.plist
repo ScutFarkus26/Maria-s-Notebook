@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Maria's Notebook</string>
+	<key>CFBundleName</key>
+	<string>Maria's Notebook</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>We need full access to your calendars to show today's events in your Today view.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>We need access to your calendars to show today's events in your Today view.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to take photos for notes.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.$(CFBundleIdentifier)</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Maria's Notebook</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Maria's Notebook Backup</string>
+			<key>UTTypeIconFiles</key>
+			<array/>
+			<key>UTTypeIdentifier</key>
+			<string>com.marias-notebook.backup</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mtbbackup</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
