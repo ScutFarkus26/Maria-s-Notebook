@@ -197,13 +197,12 @@ enum RelationshipBackfillService {
                 // Skip if already has kindRaw set
                 guard work.kindRaw == nil else { continue }
                 
-                // Migration code: intentionally using deprecated workType to read legacy data
-                // This is a one-time migration from WorkType to WorkKind
-                let workKind: WorkKind = switch work.workType {
-                case .practice: .practiceLesson
-                case .followUp: .followUpAssignment
-                case .research: .research
-                case .report: .report
+                // Read legacy workTypeRaw directly to avoid deprecated workType property
+                let workKind: WorkKind = switch work.workTypeRaw {
+                case "Practice": .practiceLesson
+                case "Follow Up": .followUpAssignment
+                case "Report": .report
+                default: .research
                 }
                 
                 work.kind = workKind

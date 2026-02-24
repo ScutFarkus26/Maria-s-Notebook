@@ -20,7 +20,7 @@ import SwiftUI
     var title: String = ""
     // DEPRECATED: workTypeRaw is maintained for data migration only
     // New code should use kindRaw. After migration completes, workType reads from kind.
-    private var workTypeRaw: String = "Research"
+    private(set) var workTypeRaw: String = "Research"
     var studentLessonID: UUID? = nil
     var notes: String = ""
     var createdAt: Date = Date()
@@ -98,7 +98,7 @@ import SwiftUI
     ) {
         self.id = id
         self.title = title
-        self.workTypeRaw = kind.asWorkType.rawValue
+        self.workTypeRaw = Self.legacyWorkTypeRaw(for: kind)
         self.studentLessonID = studentLessonID
         self.notes = notes
         // Use AppCalendar.shared for consistent date normalization across the app
@@ -126,6 +126,16 @@ import SwiftUI
         self.sourceContextTypeRaw = sourceContextType?.rawValue
         self.sourceContextID = sourceContextID
         self.legacyStudentLessonID = legacyStudentLessonID
+    }
+
+    /// Maps WorkKind to the legacy workTypeRaw string without going through deprecated WorkType.
+    private static func legacyWorkTypeRaw(for kind: WorkKind) -> String {
+        switch kind {
+        case .practiceLesson: "Practice"
+        case .followUpAssignment: "Follow Up"
+        case .research: "Research"
+        case .report: "Report"
+        }
     }
 
     /// DEPRECATED: Use `kind` instead. This property is maintained for backwards compatibility.

@@ -588,29 +588,25 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 }
 
 #Preview {
-    do {
-        let container = ModelContainer.preview
-        let ctx = container.mainContext
-        let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "", writeUp: "")
-        let student = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-        ctx.insert(lesson); ctx.insert(student)
+    let container = ModelContainer.preview
+    let ctx = container.mainContext
+    let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "", writeUp: "")
+    let student = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
+    ctx.insert(lesson); ctx.insert(student)
 
-        let la = LessonAssignment(
-            lesson: lesson,
-            students: [student],
-            state: .presented,
-            scheduledFor: nil
-        )
-        la.presentedAt = Date()
-        la.lessonTitleSnapshot = lesson.name
-        ctx.insert(la)
+    let la = LessonAssignment(
+        lesson: lesson,
+        students: [student],
+        state: .presented,
+        scheduledFor: nil
+    )
+    la.presentedAt = Date()
+    la.lessonTitleSnapshot = lesson.name
+    ctx.insert(la)
 
-        let note = Note(body: "Group was engaged.", scope: .all, lessonAssignment: la)
-        ctx.insert(note)
+    let note = Note(body: "Group was engaged.", scope: .all, lessonAssignment: la)
+    ctx.insert(note)
 
-        return LessonAssignmentDetailSheet(assignmentID: la.id)
-            .previewEnvironment(using: container)
-    } catch {
-        return Text("Preview Error")
-    }
+    return LessonAssignmentDetailSheet(assignmentID: la.id)
+        .previewEnvironment(using: container)
 }

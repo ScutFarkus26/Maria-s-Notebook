@@ -65,8 +65,8 @@ public final class SyncedPreferencesStore {
         "Attendance.locked."
     ]
     
-    nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
-    nonisolated(unsafe) private var lifecycleObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var lifecycleObserver: NSObjectProtocol?
     
     // ENERGY OPTIMIZATION: Batch sync operations to reduce network activity
     // Instead of syncing immediately on every set(), we debounce and batch multiple changes

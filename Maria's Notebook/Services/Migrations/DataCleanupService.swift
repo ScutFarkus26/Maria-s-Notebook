@@ -204,7 +204,7 @@ enum DataCleanupService {
     /// Specifically targets Attendance, WorkCompletion, and StudentMeeting notes.
     static func repairScopeForContextualNotes(using context: ModelContext) async {
         let flagKey = "Repair.noteScopes.v1"
-        await MigrationFlag.runIfNeeded(key: flagKey) {
+        MigrationFlag.runIfNeeded(key: flagKey) {
             let notes = context.safeFetch(FetchDescriptor<Note>())
             var changed = 0
 
