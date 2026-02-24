@@ -77,16 +77,6 @@ final class CacheCoordinator {
         }
     }
     
-    /// Register a handler to be called when caches are invalidated (legacy API)
-    @available(*, deprecated, message: "Use observeInvalidations() instead")
-    func onInvalidation(_ handler: @escaping (CacheInvalidationEvent) -> Void) {
-        Task {
-            for await event in observeInvalidations() {
-                handler(event)
-            }
-        }
-    }
-    
     // MARK: - Invalidation
     
     /// Invalidate a specific cache by key

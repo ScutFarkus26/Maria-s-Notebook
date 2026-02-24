@@ -127,16 +127,6 @@ final class CloudKitHealthCheck {
         }
     }
     
-    /// Set a callback to be notified when iCloud account status changes (legacy API)
-    @available(*, deprecated, message: "Use observeICloudChanges() instead")
-    func setICloudChangeHandler(_ handler: @escaping (Bool) -> Void) {
-        Task {
-            for await isAvailable in observeICloudChanges() {
-                handler(isAvailable)
-            }
-        }
-    }
-    
     /// Start monitoring iCloud account changes
     func startICloudAccountMonitoring() {
         // Observe iCloud account changes (sign-in/sign-out)

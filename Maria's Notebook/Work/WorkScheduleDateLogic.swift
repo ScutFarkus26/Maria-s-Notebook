@@ -69,28 +69,6 @@ enum WorkScheduleDateLogic {
         }
     }
     
-    /// Phase 6: REMOVED - WorkPlanItem no longer exists in schema
-    /// This method has been replaced by compute(forCheckIns:)
-    @available(*, deprecated, message: "WorkPlanItem removed in Phase 6 - use compute(forCheckIns:) instead")
-    static func compute(forPlanItems items: [Any]) -> WorkScheduleDates {
-        // Phase 6: WorkPlanItem removed from schema - return empty result
-        return WorkScheduleDates(primaryDate: nil, primaryKind: nil, secondaryDate: nil, secondaryKind: nil)
-    }
-
-    /// Phase 6: REMOVED - WorkPlanItem no longer exists in schema
-    @available(*, deprecated, message: "WorkPlanItem removed in Phase 6 - use compute(forCheckIns:) instead")
-    static func compute(for work: WorkModel, allPlanItems: [Any]) -> WorkScheduleDates {
-        // Phase 6: WorkPlanItem removed from schema - return empty result
-        return WorkScheduleDates(primaryDate: nil, primaryKind: nil, secondaryDate: nil, secondaryKind: nil)
-    }
-
-    /// Phase 6: REMOVED - WorkPlanItem.Reason no longer exists
-    /// This has been replaced by WorkCheckIn.Purpose
-    @available(*, deprecated, message: "WorkPlanItem.Reason removed in Phase 6")
-    @MainActor static func reasonDisplayLabel(for reason: String) -> String {
-        return "Check-in"
-    }
-
     /// Optional icon for UI adornment.
     static func iconName(for kind: WorkScheduleDateKind) -> String {
         switch kind {
@@ -104,19 +82,12 @@ enum WorkScheduleDateLogic {
         return Self.dateFormatter.string(from: date)
     }
 
-    /// Label to display for a given WorkPlanItem.Reason using shared semantics.
+    /// Label to display for a given schedule date kind.
     static func label(for kind: WorkScheduleDateKind) -> String {
         switch kind {
         case .checkIn: return "Check-in"
         case .due: return "Due"
         }
-    }
-
-    /// Phase 6: REMOVED - WorkPlanItem no longer exists in schema
-    @available(*, deprecated, message: "WorkPlanItem removed in Phase 6")
-    static func nextAnyDate(forPlanItems items: [Any]) -> (date: Date, label: String)? {
-        // Phase 6: WorkPlanItem removed from schema - return nil
-        return nil
     }
 
     // MARK: - Private

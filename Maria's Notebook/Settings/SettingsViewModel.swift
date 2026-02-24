@@ -120,11 +120,7 @@ final class SettingsViewModel {
             panel.title = "Save Backup"
             panel.canCreateDirectories = true
             panel.isExtensionHidden = false
-            if #available(macOS 12.0, *) {
-                panel.allowedContentTypes = [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
-            } else {
-                panel.allowedFileTypes = [BackupFile.fileExtension]
-            }
+            panel.allowedContentTypes = [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
             let suggested = tmpName.hasSuffix("." + BackupFile.fileExtension) ? tmpName : (tmpName + "." + BackupFile.fileExtension)
             panel.nameFieldStringValue = suggested
 

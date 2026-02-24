@@ -359,15 +359,11 @@ struct DataManagementGrid: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
-        if #available(macOS 12.0, *) {
-            panel.allowedContentTypes = [
-                UTType(exportedAs: "com.marias-notebook.backup"),
-                UTType(filenameExtension: BackupFile.fileExtension) ?? .data,
-                .data  // Fallback to allow selecting any file when macOS doesn't recognize custom UTType
-            ]
-        } else {
-            panel.allowedFileTypes = [BackupFile.fileExtension]
-        }
+        panel.allowedContentTypes = [
+            UTType(exportedAs: "com.marias-notebook.backup"),
+            UTType(filenameExtension: BackupFile.fileExtension) ?? .data,
+            .data  // Fallback to allow selecting any file when macOS doesn't recognize custom UTType
+        ]
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 Task { @MainActor in

@@ -88,21 +88,10 @@ struct DatabaseErrorView: View {
                 }
                 .buttonStyle(.bordered)
                 #else
-                if #available(iOS 16.0, *) {
-                    ShareLink(item: errorCoordinator.exportDiagnostics()) {
-                        Label("Export Diagnostics", systemImage: "square.and.arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-                } else {
-                    Button {
-                        // Fallback for older iOS versions
-                        let pasteboard = UIPasteboard.general
-                        pasteboard.string = errorCoordinator.exportDiagnostics()
-                    } label: {
-                        Label("Copy Diagnostics", systemImage: "doc.on.doc")
-                    }
-                    .buttonStyle(.bordered)
+                ShareLink(item: errorCoordinator.exportDiagnostics()) {
+                    Label("Export Diagnostics", systemImage: "square.and.arrow.up")
                 }
+                .buttonStyle(.bordered)
                 #endif
             }
             .padding()

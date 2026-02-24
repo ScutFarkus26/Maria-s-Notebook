@@ -52,7 +52,6 @@ struct SummarySnippetView: View {
 }
 
 #if canImport(AppIntents)
-@available(iOS 16, macOS 13, *)
 struct SummarizeTodaysObservationsIntent: AppIntent, SnippetIntent {
     /// Marked nonisolated(unsafe) because AppIntent static metadata properties are accessed
     /// from the system's intent infrastructure, which operates outside our actor isolation.

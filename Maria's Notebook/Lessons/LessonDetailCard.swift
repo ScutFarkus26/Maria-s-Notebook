@@ -458,11 +458,7 @@ struct LessonDetailCard: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
-        if #available(macOS 12.0, *) {
-            panel.allowedContentTypes = pagesAllowedTypes
-        } else {
-            panel.allowedFileTypes = ["pages"]
-        }
+        panel.allowedContentTypes = pagesAllowedTypes
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 Task(priority: .userInitiated) {

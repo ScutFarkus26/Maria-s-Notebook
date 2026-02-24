@@ -45,16 +45,6 @@ final class NetworkMonitoring {
         }
     }
     
-    /// Set a callback to be notified when network status changes (legacy API)
-    @available(*, deprecated, message: "Use observeNetworkChanges() instead")
-    func setNetworkChangeHandler(_ handler: @escaping (Bool) -> Void) {
-        Task {
-            for await isAvailable in observeNetworkChanges() {
-                handler(isAvailable)
-            }
-        }
-    }
-    
     /// Stop network monitoring
     func stopNetworkMonitoring() {
         networkMonitor?.cancel()
