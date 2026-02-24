@@ -297,6 +297,105 @@ extension TodayView {
         .accessibilityElement(children: .combine)
     }
 
+    // MARK: - Presented Lessons Section
+
+    var presentedLessonsListSection: some View {
+        Section {
+            let presented = viewModel.todaysLessons.filter { $0.isPresented }
+            if presented.isEmpty {
+                emptyStateText("No lessons presented yet")
+            } else {
+                ForEach(presented) { sl in
+                    LessonListRow(
+                        lessonName: nameForLesson(sl.resolvedLessonID),
+                        studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
+                        isPresented: true
+                    )
+                    .id(sl.id)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedStudentLesson = sl
+                    }
+                }
+            }
+        } header: {
+            presentedLessonsSectionHeader
+        }
+    }
+
+    @ViewBuilder
+    var presentedLessonsSectionHeader: some View {
+        HStack {
+            Text("Lessons Presented")
+                .font(AppTheme.ScaledFont.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.8)
+            Spacer()
+            let count = viewModel.todaysLessons.filter { $0.isPresented }.count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.blue))
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Checked Work Section
+
+    var checkedWorkListSection: some View {
+        Section {
+            if viewModel.completedWork.isEmpty {
+                emptyStateText("No work checked yet")
+            } else {
+                ForEach(viewModel.completedWork) { work in
+                    CompletionListRow(
+                        studentName: resolveStudentName(for: work),
+                        lessonName: resolveLessonName(for: work),
+                        work: work
+                    )
+                    .id(work.id)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedWorkID = work.id
+                    }
+                }
+            }
+        } header: {
+            checkedWorkSectionHeader
+        }
+    }
+
+    @ViewBuilder
+    var checkedWorkSectionHeader: some View {
+        HStack {
+            Text("Work Checked")
+                .font(AppTheme.ScaledFont.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.8)
+            Spacer()
+            let count = viewModel.completedWork.count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.green))
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     // MARK: - Unified Agenda Section
 
     var agendaListSection: some View {

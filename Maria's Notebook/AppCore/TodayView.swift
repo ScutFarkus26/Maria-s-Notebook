@@ -238,11 +238,12 @@ struct TodayView: View {
         twoColumnLayout
         #else
         List {
+            presentedLessonsListSection
+            checkedWorkListSection
             todosListSection
             remindersListSection
             calendarEventsListSection
             agendaListSection
-            completedListSection
         }
         .listStyle(.insetGrouped)
         #endif
@@ -251,12 +252,13 @@ struct TodayView: View {
     #if os(macOS)
     private var twoColumnLayout: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Left column: Reminders + Calendar + Completed
+            // Left column: Presented + Checked + Reminders + Calendar + Todos
             List {
+                presentedLessonsListSection
+                checkedWorkListSection
                 todosListSection
                 remindersListSection
                 calendarEventsListSection
-                completedListSection
             }
             .listStyle(.inset)
             .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
