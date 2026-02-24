@@ -85,9 +85,42 @@ public final class BackupService {
         let projectWeekDTOs = fetchAndTransformInBatches(ProjectTemplateWeek.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         let projectWeekAssignDTOs = fetchAndTransformInBatches(ProjectWeekRoleAssignment.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
 
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.42), "Collecting work tracking…")
+        let workCheckInDTOs = fetchAndTransformInBatches(WorkCheckIn.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let workStepDTOs = fetchAndTransformInBatches(WorkStep.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let workParticipantDTOs = fetchAndTransformInBatches(WorkParticipantEntity.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let practiceSessionDTOs = fetchAndTransformInBatches(PracticeSession.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras…")
+        let lessonAttachmentDTOs = fetchAndTransformInBatches(LessonAttachment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let lessonPresentationDTOs = fetchAndTransformInBatches(LessonPresentation.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.55), "Collecting templates & tracks…")
+        let noteTemplateDTOs = fetchAndTransformInBatches(NoteTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let meetingTemplateDTOs = fetchAndTransformInBatches(MeetingTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let reminderDTOs = fetchAndTransformInBatches(Reminder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let calendarEventDTOs = fetchAndTransformInBatches(CalendarEvent.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let trackDTOs = fetchAndTransformInBatches(Track.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let trackStepDTOs = fetchAndTransformInBatches(TrackStep.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let enrollmentDTOs = fetchAndTransformInBatches(StudentTrackEnrollment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let groupTrackDTOs = fetchAndTransformInBatches(GroupTrack.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.65), "Collecting supplies, schedules & issues…")
+        let documentDTOs = fetchAndTransformInBatches(Document.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let supplyDTOs = fetchAndTransformInBatches(Supply.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let supplyTransactionDTOs = fetchAndTransformInBatches(SupplyTransaction.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let procedureDTOs = fetchAndTransformInBatches(Procedure.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let scheduleDTOs = fetchAndTransformInBatches(Schedule.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let scheduleSlotDTOs = fetchAndTransformInBatches(ScheduleSlot.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let issueDTOs = fetchAndTransformInBatches(Issue.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let issueActionDTOs = fetchAndTransformInBatches(IssueAction.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.75), "Collecting snapshots & todos…")
+        let snapshotDTOs = fetchAndTransformInBatches(DevelopmentSnapshot.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let todoItemDTOs = fetchAndTransformInBatches(TodoItem.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let todoSubtaskDTOs = fetchAndTransformInBatches(TodoSubtask.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let todoTemplateDTOs = fetchAndTransformInBatches(TodoTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let agendaOrderDTOs = fetchAndTransformInBatches(TodayAgendaOrder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+
         let preferences = buildPreferencesDTO()
 
-        let payload = BackupPayload(
+        var payload = BackupPayload(
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
@@ -110,6 +143,35 @@ public final class BackupService {
             projectWeekRoleAssignments: projectWeekAssignDTOs,
             preferences: preferences
         )
+        
+        // Format v8+ entity arrays
+        payload.workCheckIns = workCheckInDTOs
+        payload.workSteps = workStepDTOs
+        payload.workParticipants = workParticipantDTOs
+        payload.practiceSessions = practiceSessionDTOs
+        payload.lessonAttachments = lessonAttachmentDTOs
+        payload.lessonPresentations = lessonPresentationDTOs
+        payload.noteTemplates = noteTemplateDTOs
+        payload.meetingTemplates = meetingTemplateDTOs
+        payload.reminders = reminderDTOs
+        payload.calendarEvents = calendarEventDTOs
+        payload.tracks = trackDTOs
+        payload.trackSteps = trackStepDTOs
+        payload.studentTrackEnrollments = enrollmentDTOs
+        payload.groupTracks = groupTrackDTOs
+        payload.documents = documentDTOs
+        payload.supplies = supplyDTOs
+        payload.supplyTransactions = supplyTransactionDTOs
+        payload.procedures = procedureDTOs
+        payload.schedules = scheduleDTOs
+        payload.scheduleSlots = scheduleSlotDTOs
+        payload.issues = issueDTOs
+        payload.issueActions = issueActionDTOs
+        payload.developmentSnapshots = snapshotDTOs
+        payload.todoItems = todoItemDTOs
+        payload.todoSubtasks = todoSubtaskDTOs
+        payload.todoTemplates = todoTemplateDTOs
+        payload.todayAgendaOrders = agendaOrderDTOs
 
         progress(BackupProgress.progress(for: .encoding), "Encoding data…")
         let encoder = JSONEncoder.backupConfigured()
@@ -134,7 +196,7 @@ public final class BackupService {
             finalCompressed = compressedPayloadBytes
         }
 
-        let counts: [String: Int] = [
+        var counts: [String: Int] = [
             "Student": studentDTOs.count,
             "Lesson": lessonDTOs.count,
             "StudentLesson": studentLessonDTOs.count,
@@ -155,6 +217,34 @@ public final class BackupService {
             "ProjectTemplateWeek": projectWeekDTOs.count,
             "ProjectWeekRoleAssignment": projectWeekAssignDTOs.count
         ]
+        // Format v8+ counts
+        counts["WorkCheckIn"] = workCheckInDTOs.count
+        counts["WorkStep"] = workStepDTOs.count
+        counts["WorkParticipantEntity"] = workParticipantDTOs.count
+        counts["PracticeSession"] = practiceSessionDTOs.count
+        counts["LessonAttachment"] = lessonAttachmentDTOs.count
+        counts["LessonPresentation"] = lessonPresentationDTOs.count
+        counts["NoteTemplate"] = noteTemplateDTOs.count
+        counts["MeetingTemplate"] = meetingTemplateDTOs.count
+        counts["Reminder"] = reminderDTOs.count
+        counts["CalendarEvent"] = calendarEventDTOs.count
+        counts["Track"] = trackDTOs.count
+        counts["TrackStep"] = trackStepDTOs.count
+        counts["StudentTrackEnrollment"] = enrollmentDTOs.count
+        counts["GroupTrack"] = groupTrackDTOs.count
+        counts["Document"] = documentDTOs.count
+        counts["Supply"] = supplyDTOs.count
+        counts["SupplyTransaction"] = supplyTransactionDTOs.count
+        counts["Procedure"] = procedureDTOs.count
+        counts["Schedule"] = scheduleDTOs.count
+        counts["ScheduleSlot"] = scheduleSlotDTOs.count
+        counts["Issue"] = issueDTOs.count
+        counts["IssueAction"] = issueActionDTOs.count
+        counts["DevelopmentSnapshot"] = snapshotDTOs.count
+        counts["TodoItem"] = todoItemDTOs.count
+        counts["TodoSubtask"] = todoSubtaskDTOs.count
+        counts["TodoTemplate"] = todoTemplateDTOs.count
+        counts["TodayAgendaOrder"] = agendaOrderDTOs.count
 
         let env = BackupServiceHelpers.buildEnvelope(
             payload: finalPayload,
@@ -410,6 +500,249 @@ public final class BackupService {
             into: modelContext,
             existingCheck: { try fetchOne(ProjectSession.self, id: $0, using: modelContext) }
         )
+
+        // Format v8+ entities (nil-safe for older backups)
+        progress(0.70, "Importing work tracking…")
+        
+        if let workCheckIns = payload.workCheckIns {
+            try BackupEntityImporter.importWorkCheckIns(
+                workCheckIns,
+                into: modelContext,
+                existingCheck: { try fetchOne(WorkCheckIn.self, id: $0, using: modelContext) },
+                workCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let workSteps = payload.workSteps {
+            try BackupEntityImporter.importWorkSteps(
+                workSteps,
+                into: modelContext,
+                existingCheck: { try fetchOne(WorkStep.self, id: $0, using: modelContext) },
+                workCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let workParticipants = payload.workParticipants {
+            try BackupEntityImporter.importWorkParticipants(
+                workParticipants,
+                into: modelContext,
+                existingCheck: { try fetchOne(WorkParticipantEntity.self, id: $0, using: modelContext) },
+                workCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let practiceSessions = payload.practiceSessions {
+            try BackupEntityImporter.importPracticeSessions(
+                practiceSessions,
+                into: modelContext,
+                existingCheck: { try fetchOne(PracticeSession.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.74, "Importing lesson extras…")
+        
+        if let lessonAttachments = payload.lessonAttachments {
+            try BackupEntityImporter.importLessonAttachments(
+                lessonAttachments,
+                into: modelContext,
+                existingCheck: { try fetchOne(LessonAttachment.self, id: $0, using: modelContext) },
+                lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let lessonPresentations = payload.lessonPresentations {
+            try BackupEntityImporter.importLessonPresentations(
+                lessonPresentations,
+                into: modelContext,
+                existingCheck: { try fetchOne(LessonPresentation.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.76, "Importing templates…")
+        
+        if let noteTemplates = payload.noteTemplates {
+            try BackupEntityImporter.importNoteTemplates(
+                noteTemplates,
+                into: modelContext,
+                existingCheck: { try fetchOne(NoteTemplate.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let meetingTemplates = payload.meetingTemplates {
+            try BackupEntityImporter.importMeetingTemplates(
+                meetingTemplates,
+                into: modelContext,
+                existingCheck: { try fetchOne(MeetingTemplate.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let reminders = payload.reminders {
+            try BackupEntityImporter.importReminders(
+                reminders,
+                into: modelContext,
+                existingCheck: { try fetchOne(Reminder.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let calendarEvents = payload.calendarEvents {
+            try BackupEntityImporter.importCalendarEvents(
+                calendarEvents,
+                into: modelContext,
+                existingCheck: { try fetchOne(CalendarEvent.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.78, "Importing tracks…")
+        
+        if let tracks = payload.tracks {
+            try BackupEntityImporter.importTracks(
+                tracks,
+                into: modelContext,
+                existingCheck: { try fetchOne(Track.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let trackSteps = payload.trackSteps {
+            try BackupEntityImporter.importTrackSteps(
+                trackSteps,
+                into: modelContext,
+                existingCheck: { try fetchOne(TrackStep.self, id: $0, using: modelContext) },
+                trackCheck: { try fetchOne(Track.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let enrollments = payload.studentTrackEnrollments {
+            try BackupEntityImporter.importStudentTrackEnrollments(
+                enrollments,
+                into: modelContext,
+                existingCheck: { try fetchOne(StudentTrackEnrollment.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let groupTracks = payload.groupTracks {
+            try BackupEntityImporter.importGroupTracks(
+                groupTracks,
+                into: modelContext,
+                existingCheck: { try fetchOne(GroupTrack.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.80, "Importing documents & supplies…")
+        
+        if let documents = payload.documents {
+            try BackupEntityImporter.importDocuments(
+                documents,
+                into: modelContext,
+                existingCheck: { try fetchOne(Document.self, id: $0, using: modelContext) },
+                studentCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let supplies = payload.supplies {
+            try BackupEntityImporter.importSupplies(
+                supplies,
+                into: modelContext,
+                existingCheck: { try fetchOne(Supply.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let supplyTransactions = payload.supplyTransactions {
+            try BackupEntityImporter.importSupplyTransactions(
+                supplyTransactions,
+                into: modelContext,
+                existingCheck: { try fetchOne(SupplyTransaction.self, id: $0, using: modelContext) },
+                supplyCheck: { try fetchOne(Supply.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let procedures = payload.procedures {
+            try BackupEntityImporter.importProcedures(
+                procedures,
+                into: modelContext,
+                existingCheck: { try fetchOne(Procedure.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.82, "Importing schedules…")
+        
+        if let schedules = payload.schedules {
+            try BackupEntityImporter.importSchedules(
+                schedules,
+                into: modelContext,
+                existingCheck: { try fetchOne(Schedule.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let scheduleSlots = payload.scheduleSlots {
+            try BackupEntityImporter.importScheduleSlots(
+                scheduleSlots,
+                into: modelContext,
+                existingCheck: { try fetchOne(ScheduleSlot.self, id: $0, using: modelContext) },
+                scheduleCheck: { try fetchOne(Schedule.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.84, "Importing issues…")
+        
+        if let issues = payload.issues {
+            try BackupEntityImporter.importIssues(
+                issues,
+                into: modelContext,
+                existingCheck: { try fetchOne(Issue.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let issueActions = payload.issueActions {
+            try BackupEntityImporter.importIssueActions(
+                issueActions,
+                into: modelContext,
+                existingCheck: { try fetchOne(IssueAction.self, id: $0, using: modelContext) },
+                issueCheck: { try fetchOne(Issue.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        progress(0.86, "Importing snapshots & todos…")
+        
+        if let snapshots = payload.developmentSnapshots {
+            try BackupEntityImporter.importDevelopmentSnapshots(
+                snapshots,
+                into: modelContext,
+                existingCheck: { try fetchOne(DevelopmentSnapshot.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let todoItems = payload.todoItems {
+            try BackupEntityImporter.importTodoItems(
+                todoItems,
+                into: modelContext,
+                existingCheck: { try fetchOne(TodoItem.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let todoSubtasks = payload.todoSubtasks {
+            try BackupEntityImporter.importTodoSubtasks(
+                todoSubtasks,
+                into: modelContext,
+                existingCheck: { try fetchOne(TodoSubtask.self, id: $0, using: modelContext) },
+                todoCheck: { try fetchOne(TodoItem.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let todoTemplates = payload.todoTemplates {
+            try BackupEntityImporter.importTodoTemplates(
+                todoTemplates,
+                into: modelContext,
+                existingCheck: { try fetchOne(TodoTemplate.self, id: $0, using: modelContext) }
+            )
+        }
+        
+        if let agendaOrders = payload.todayAgendaOrders {
+            try BackupEntityImporter.importTodayAgendaOrders(
+                agendaOrders,
+                into: modelContext,
+                existingCheck: { try fetchOne(TodayAgendaOrder.self, id: $0, using: modelContext) }
+            )
+        }
 
         progress(0.90, "Saving…")
         try modelContext.save()

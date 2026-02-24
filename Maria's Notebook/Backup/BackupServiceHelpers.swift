@@ -378,7 +378,7 @@ enum BackupPayloadDeduplicator {
             }
         }
 
-        return BackupPayload(
+        var result = BackupPayload(
             items: payload.items,
             students: uniqueBy(payload.students) { $0.id },
             lessons: uniqueBy(payload.lessons) { $0.id },
@@ -401,5 +401,36 @@ enum BackupPayloadDeduplicator {
             projectWeekRoleAssignments: uniqueBy(payload.projectWeekRoleAssignments) { $0.id },
             preferences: payload.preferences
         )
+        
+        // Format v8+ entity deduplication
+        result.workCheckIns = payload.workCheckIns.map { uniqueBy($0) { $0.id } }
+        result.workSteps = payload.workSteps.map { uniqueBy($0) { $0.id } }
+        result.workParticipants = payload.workParticipants.map { uniqueBy($0) { $0.id } }
+        result.practiceSessions = payload.practiceSessions.map { uniqueBy($0) { $0.id } }
+        result.lessonAttachments = payload.lessonAttachments.map { uniqueBy($0) { $0.id } }
+        result.lessonPresentations = payload.lessonPresentations.map { uniqueBy($0) { $0.id } }
+        result.noteTemplates = payload.noteTemplates.map { uniqueBy($0) { $0.id } }
+        result.meetingTemplates = payload.meetingTemplates.map { uniqueBy($0) { $0.id } }
+        result.reminders = payload.reminders.map { uniqueBy($0) { $0.id } }
+        result.calendarEvents = payload.calendarEvents.map { uniqueBy($0) { $0.id } }
+        result.tracks = payload.tracks.map { uniqueBy($0) { $0.id } }
+        result.trackSteps = payload.trackSteps.map { uniqueBy($0) { $0.id } }
+        result.studentTrackEnrollments = payload.studentTrackEnrollments.map { uniqueBy($0) { $0.id } }
+        result.groupTracks = payload.groupTracks.map { uniqueBy($0) { $0.id } }
+        result.documents = payload.documents.map { uniqueBy($0) { $0.id } }
+        result.supplies = payload.supplies.map { uniqueBy($0) { $0.id } }
+        result.supplyTransactions = payload.supplyTransactions.map { uniqueBy($0) { $0.id } }
+        result.procedures = payload.procedures.map { uniqueBy($0) { $0.id } }
+        result.schedules = payload.schedules.map { uniqueBy($0) { $0.id } }
+        result.scheduleSlots = payload.scheduleSlots.map { uniqueBy($0) { $0.id } }
+        result.issues = payload.issues.map { uniqueBy($0) { $0.id } }
+        result.issueActions = payload.issueActions.map { uniqueBy($0) { $0.id } }
+        result.developmentSnapshots = payload.developmentSnapshots.map { uniqueBy($0) { $0.id } }
+        result.todoItems = payload.todoItems.map { uniqueBy($0) { $0.id } }
+        result.todoSubtasks = payload.todoSubtasks.map { uniqueBy($0) { $0.id } }
+        result.todoTemplates = payload.todoTemplates.map { uniqueBy($0) { $0.id } }
+        result.todayAgendaOrders = payload.todayAgendaOrders.map { uniqueBy($0) { $0.id } }
+        
+        return result
     }
 }

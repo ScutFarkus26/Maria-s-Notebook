@@ -4,37 +4,75 @@ import SwiftData
 /// Centralized registry of all entity types that need to be backed up and restored.
 /// This serves as the single source of truth to avoid hardcoding entity lists in multiple places.
 struct BackupEntityRegistry {
-    /// All entity types that should be included in backups
+    /// All entity types that should be included in backups.
+    /// This must stay in sync with AppSchema — every user-data model should appear here.
     static let allTypes: [any PersistentModel.Type] = [
+        // Core
         Student.self,
         Lesson.self,
+        LessonAttachment.self,
         StudentLesson.self,
-        // WorkPlanItem.self, // PHASE 5: Removed from backups - migrated to WorkCheckIn
+        LessonAssignment.self,
+        LessonPresentation.self,
         Note.self,
+        NoteStudentLink.self,
+        // Calendar
         NonSchoolDay.self,
         SchoolDayOverride.self,
+        // Meetings
         StudentMeeting.self,
-        // Presentation removed - using LessonAssignment instead
-        LessonAssignment.self,
+        MeetingTemplate.self,
+        // Community
         CommunityTopic.self,
         ProposedSolution.self,
         CommunityAttachment.self,
+        // Attendance
         AttendanceRecord.self,
-        WorkCompletionRecord.self,
-        // Work tracking models
+        // Work tracking
         WorkModel.self,
+        WorkCompletionRecord.self,
         WorkCheckIn.self,
         WorkParticipantEntity.self,
+        WorkStep.self,
         PracticeSession.self,
-        // Project models
+        // Projects
         Project.self,
         ProjectAssignmentTemplate.self,
         ProjectSession.self,
         ProjectRole.self,
         ProjectTemplateWeek.self,
         ProjectWeekRoleAssignment.self,
+        // Issues
         Issue.self,
-        IssueAction.self
+        IssueAction.self,
+        // Tracks
+        Track.self,
+        TrackStep.self,
+        StudentTrackEnrollment.self,
+        GroupTrack.self,
+        // Templates
+        NoteTemplate.self,
+        // Reminders & Calendar events
+        Reminder.self,
+        CalendarEvent.self,
+        // Documents (metadata only)
+        Document.self,
+        // Supplies
+        Supply.self,
+        SupplyTransaction.self,
+        // Procedures
+        Procedure.self,
+        // Schedules
+        Schedule.self,
+        ScheduleSlot.self,
+        // Development
+        DevelopmentSnapshot.self,
+        // Todos
+        TodoItem.self,
+        TodoSubtask.self,
+        TodoTemplate.self,
+        // Agenda
+        TodayAgendaOrder.self,
     ]
     
     /// Entity type names for progress reporting and error messages

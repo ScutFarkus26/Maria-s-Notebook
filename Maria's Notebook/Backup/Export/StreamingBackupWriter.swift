@@ -151,11 +151,111 @@ public final class StreamingBackupWriter {
         let projectWeekAssignments: [ProjectWeekRoleAssignment] = try await streamFetchRaw(ProjectWeekRoleAssignment.self, from: modelContext)
         let projectWeekAssignDTOs = BackupDTOTransformers.toDTOs(projectWeekAssignments)
         
+        progress(0.40, "Processing work tracking…", processedEntities, nil)
+        
+        // Work tracking entities (format v8+)
+        let workCheckIns: [WorkCheckIn] = try await streamFetchRaw(WorkCheckIn.self, from: modelContext)
+        let workCheckInDTOs = BackupDTOTransformers.toDTOs(workCheckIns)
+        
+        let workSteps: [WorkStep] = try await streamFetchRaw(WorkStep.self, from: modelContext)
+        let workStepDTOs = BackupDTOTransformers.toDTOs(workSteps)
+        
+        let workParticipants: [WorkParticipantEntity] = try await streamFetchRaw(WorkParticipantEntity.self, from: modelContext)
+        let workParticipantDTOs = BackupDTOTransformers.toDTOs(workParticipants)
+        
+        let practiceSessions: [PracticeSession] = try await streamFetchRaw(PracticeSession.self, from: modelContext)
+        let practiceSessionDTOs = BackupDTOTransformers.toDTOs(practiceSessions)
+        
+        progress(0.44, "Processing lesson extras…", processedEntities, nil)
+        
+        let lessonAttachments: [LessonAttachment] = try await streamFetchRaw(LessonAttachment.self, from: modelContext)
+        let lessonAttachmentDTOs = BackupDTOTransformers.toDTOs(lessonAttachments)
+        
+        let lessonPresentations: [LessonPresentation] = try await streamFetchRaw(LessonPresentation.self, from: modelContext)
+        let lessonPresentationDTOs = BackupDTOTransformers.toDTOs(lessonPresentations)
+        
+        progress(0.46, "Processing templates…", processedEntities, nil)
+        
+        let noteTemplates: [NoteTemplate] = try await streamFetchRaw(NoteTemplate.self, from: modelContext)
+        let noteTemplateDTOs = BackupDTOTransformers.toDTOs(noteTemplates)
+        
+        let meetingTemplates: [MeetingTemplate] = try await streamFetchRaw(MeetingTemplate.self, from: modelContext)
+        let meetingTemplateDTOs = BackupDTOTransformers.toDTOs(meetingTemplates)
+        
+        progress(0.48, "Processing reminders & calendar…", processedEntities, nil)
+        
+        let reminders: [Reminder] = try await streamFetchRaw(Reminder.self, from: modelContext)
+        let reminderDTOs = BackupDTOTransformers.toDTOs(reminders)
+        
+        let calendarEvents: [CalendarEvent] = try await streamFetchRaw(CalendarEvent.self, from: modelContext)
+        let calendarEventDTOs = BackupDTOTransformers.toDTOs(calendarEvents)
+        
+        progress(0.50, "Processing tracks…", processedEntities, nil)
+        
+        let tracks: [Track] = try await streamFetchRaw(Track.self, from: modelContext)
+        let trackDTOs = BackupDTOTransformers.toDTOs(tracks)
+        
+        let trackSteps: [TrackStep] = try await streamFetchRaw(TrackStep.self, from: modelContext)
+        let trackStepDTOs = BackupDTOTransformers.toDTOs(trackSteps)
+        
+        let enrollments: [StudentTrackEnrollment] = try await streamFetchRaw(StudentTrackEnrollment.self, from: modelContext)
+        let enrollmentDTOs = BackupDTOTransformers.toDTOs(enrollments)
+        
+        let groupTracks: [GroupTrack] = try await streamFetchRaw(GroupTrack.self, from: modelContext)
+        let groupTrackDTOs = BackupDTOTransformers.toDTOs(groupTracks)
+        
+        progress(0.52, "Processing documents & supplies…", processedEntities, nil)
+        
+        let documents: [Document] = try await streamFetchRaw(Document.self, from: modelContext)
+        let documentDTOs = BackupDTOTransformers.toDTOs(documents)
+        
+        let supplies: [Supply] = try await streamFetchRaw(Supply.self, from: modelContext)
+        let supplyDTOs = BackupDTOTransformers.toDTOs(supplies)
+        
+        let supplyTransactions: [SupplyTransaction] = try await streamFetchRaw(SupplyTransaction.self, from: modelContext)
+        let supplyTransactionDTOs = BackupDTOTransformers.toDTOs(supplyTransactions)
+        
+        let procedures: [Procedure] = try await streamFetchRaw(Procedure.self, from: modelContext)
+        let procedureDTOs = BackupDTOTransformers.toDTOs(procedures)
+        
+        progress(0.54, "Processing schedules…", processedEntities, nil)
+        
+        let schedules: [Schedule] = try await streamFetchRaw(Schedule.self, from: modelContext)
+        let scheduleDTOs = BackupDTOTransformers.toDTOs(schedules)
+        
+        let scheduleSlots: [ScheduleSlot] = try await streamFetchRaw(ScheduleSlot.self, from: modelContext)
+        let scheduleSlotDTOs = BackupDTOTransformers.toDTOs(scheduleSlots)
+        
+        progress(0.56, "Processing issues…", processedEntities, nil)
+        
+        let issues: [Issue] = try await streamFetchRaw(Issue.self, from: modelContext)
+        let issueDTOs = BackupDTOTransformers.toDTOs(issues)
+        
+        let issueActions: [IssueAction] = try await streamFetchRaw(IssueAction.self, from: modelContext)
+        let issueActionDTOs = BackupDTOTransformers.toDTOs(issueActions)
+        
+        progress(0.57, "Processing snapshots & todos…", processedEntities, nil)
+        
+        let snapshots: [DevelopmentSnapshot] = try await streamFetchRaw(DevelopmentSnapshot.self, from: modelContext)
+        let snapshotDTOs = BackupDTOTransformers.toDTOs(snapshots)
+        
+        let todoItems: [TodoItem] = try await streamFetchRaw(TodoItem.self, from: modelContext)
+        let todoItemDTOs = BackupDTOTransformers.toDTOs(todoItems)
+        
+        let todoSubtasks: [TodoSubtask] = try await streamFetchRaw(TodoSubtask.self, from: modelContext)
+        let todoSubtaskDTOs = BackupDTOTransformers.toDTOs(todoSubtasks)
+        
+        let todoTemplates: [TodoTemplate] = try await streamFetchRaw(TodoTemplate.self, from: modelContext)
+        let todoTemplateDTOs = BackupDTOTransformers.toDTOs(todoTemplates)
+        
+        let agendaOrders: [TodayAgendaOrder] = try await streamFetchRaw(TodayAgendaOrder.self, from: modelContext)
+        let agendaOrderDTOs = BackupDTOTransformers.toDTOs(agendaOrders)
+        
         progress(0.60, "Building payload…", processedEntities, nil)
         
         // Build payload
         let preferences = buildPreferencesDTO()
-        let payload = BackupPayload(
+        var payload = BackupPayload(
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
@@ -178,6 +278,35 @@ public final class StreamingBackupWriter {
             projectWeekRoleAssignments: projectWeekAssignDTOs,
             preferences: preferences
         )
+        
+        // Format v8+ entity arrays
+        payload.workCheckIns = workCheckInDTOs
+        payload.workSteps = workStepDTOs
+        payload.workParticipants = workParticipantDTOs
+        payload.practiceSessions = practiceSessionDTOs
+        payload.lessonAttachments = lessonAttachmentDTOs
+        payload.lessonPresentations = lessonPresentationDTOs
+        payload.noteTemplates = noteTemplateDTOs
+        payload.meetingTemplates = meetingTemplateDTOs
+        payload.reminders = reminderDTOs
+        payload.calendarEvents = calendarEventDTOs
+        payload.tracks = trackDTOs
+        payload.trackSteps = trackStepDTOs
+        payload.studentTrackEnrollments = enrollmentDTOs
+        payload.groupTracks = groupTrackDTOs
+        payload.documents = documentDTOs
+        payload.supplies = supplyDTOs
+        payload.supplyTransactions = supplyTransactionDTOs
+        payload.procedures = procedureDTOs
+        payload.schedules = scheduleDTOs
+        payload.scheduleSlots = scheduleSlotDTOs
+        payload.issues = issueDTOs
+        payload.issueActions = issueActionDTOs
+        payload.developmentSnapshots = snapshotDTOs
+        payload.todoItems = todoItemDTOs
+        payload.todoSubtasks = todoSubtaskDTOs
+        payload.todoTemplates = todoTemplateDTOs
+        payload.todayAgendaOrders = agendaOrderDTOs
         
         progress(0.70, "Encoding and compressing…", processedEntities, nil)
         
@@ -260,11 +389,11 @@ public final class StreamingBackupWriter {
     private func collectEntityCounts(modelContext: ModelContext) async throws -> [String: Int] {
         var counts: [String: Int] = [:]
         
+        // Core entities
         counts["Student"] = try modelContext.fetchCount(FetchDescriptor<Student>())
         counts["Lesson"] = try modelContext.fetchCount(FetchDescriptor<Lesson>())
         counts["StudentLesson"] = try modelContext.fetchCount(FetchDescriptor<StudentLesson>())
         counts["LessonAssignment"] = try modelContext.fetchCount(FetchDescriptor<LessonAssignment>())
-        // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         counts["Note"] = try modelContext.fetchCount(FetchDescriptor<Note>())
         counts["NonSchoolDay"] = try modelContext.fetchCount(FetchDescriptor<NonSchoolDay>())
         counts["SchoolDayOverride"] = try modelContext.fetchCount(FetchDescriptor<SchoolDayOverride>())
@@ -280,6 +409,34 @@ public final class StreamingBackupWriter {
         counts["ProjectRole"] = try modelContext.fetchCount(FetchDescriptor<ProjectRole>())
         counts["ProjectTemplateWeek"] = try modelContext.fetchCount(FetchDescriptor<ProjectTemplateWeek>())
         counts["ProjectWeekRoleAssignment"] = try modelContext.fetchCount(FetchDescriptor<ProjectWeekRoleAssignment>())
+        // Format v8+ entities
+        counts["WorkCheckIn"] = try modelContext.fetchCount(FetchDescriptor<WorkCheckIn>())
+        counts["WorkStep"] = try modelContext.fetchCount(FetchDescriptor<WorkStep>())
+        counts["WorkParticipantEntity"] = try modelContext.fetchCount(FetchDescriptor<WorkParticipantEntity>())
+        counts["PracticeSession"] = try modelContext.fetchCount(FetchDescriptor<PracticeSession>())
+        counts["LessonAttachment"] = try modelContext.fetchCount(FetchDescriptor<LessonAttachment>())
+        counts["LessonPresentation"] = try modelContext.fetchCount(FetchDescriptor<LessonPresentation>())
+        counts["NoteTemplate"] = try modelContext.fetchCount(FetchDescriptor<NoteTemplate>())
+        counts["MeetingTemplate"] = try modelContext.fetchCount(FetchDescriptor<MeetingTemplate>())
+        counts["Reminder"] = try modelContext.fetchCount(FetchDescriptor<Reminder>())
+        counts["CalendarEvent"] = try modelContext.fetchCount(FetchDescriptor<CalendarEvent>())
+        counts["Track"] = try modelContext.fetchCount(FetchDescriptor<Track>())
+        counts["TrackStep"] = try modelContext.fetchCount(FetchDescriptor<TrackStep>())
+        counts["StudentTrackEnrollment"] = try modelContext.fetchCount(FetchDescriptor<StudentTrackEnrollment>())
+        counts["GroupTrack"] = try modelContext.fetchCount(FetchDescriptor<GroupTrack>())
+        counts["Document"] = try modelContext.fetchCount(FetchDescriptor<Document>())
+        counts["Supply"] = try modelContext.fetchCount(FetchDescriptor<Supply>())
+        counts["SupplyTransaction"] = try modelContext.fetchCount(FetchDescriptor<SupplyTransaction>())
+        counts["Procedure"] = try modelContext.fetchCount(FetchDescriptor<Procedure>())
+        counts["Schedule"] = try modelContext.fetchCount(FetchDescriptor<Schedule>())
+        counts["ScheduleSlot"] = try modelContext.fetchCount(FetchDescriptor<ScheduleSlot>())
+        counts["Issue"] = try modelContext.fetchCount(FetchDescriptor<Issue>())
+        counts["IssueAction"] = try modelContext.fetchCount(FetchDescriptor<IssueAction>())
+        counts["DevelopmentSnapshot"] = try modelContext.fetchCount(FetchDescriptor<DevelopmentSnapshot>())
+        counts["TodoItem"] = try modelContext.fetchCount(FetchDescriptor<TodoItem>())
+        counts["TodoSubtask"] = try modelContext.fetchCount(FetchDescriptor<TodoSubtask>())
+        counts["TodoTemplate"] = try modelContext.fetchCount(FetchDescriptor<TodoTemplate>())
+        counts["TodayAgendaOrder"] = try modelContext.fetchCount(FetchDescriptor<TodayAgendaOrder>())
         
         return counts
     }
@@ -366,6 +523,60 @@ public final class StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(weeks)
         case let roleAssignments as [ProjectWeekRoleAssignment]:
             return BackupDTOTransformers.toDTOs(roleAssignments)
+        case let checkIns as [WorkCheckIn]:
+            return BackupDTOTransformers.toDTOs(checkIns)
+        case let steps as [WorkStep]:
+            return BackupDTOTransformers.toDTOs(steps)
+        case let participants as [WorkParticipantEntity]:
+            return BackupDTOTransformers.toDTOs(participants)
+        case let sessions as [PracticeSession]:
+            return BackupDTOTransformers.toDTOs(sessions)
+        case let attachments as [LessonAttachment]:
+            return BackupDTOTransformers.toDTOs(attachments)
+        case let presentations as [LessonPresentation]:
+            return BackupDTOTransformers.toDTOs(presentations)
+        case let templates as [NoteTemplate]:
+            return BackupDTOTransformers.toDTOs(templates)
+        case let templates as [MeetingTemplate]:
+            return BackupDTOTransformers.toDTOs(templates)
+        case let reminders as [Reminder]:
+            return BackupDTOTransformers.toDTOs(reminders)
+        case let events as [CalendarEvent]:
+            return BackupDTOTransformers.toDTOs(events)
+        case let tracks as [Track]:
+            return BackupDTOTransformers.toDTOs(tracks)
+        case let steps as [TrackStep]:
+            return BackupDTOTransformers.toDTOs(steps)
+        case let enrollments as [StudentTrackEnrollment]:
+            return BackupDTOTransformers.toDTOs(enrollments)
+        case let groupTracks as [GroupTrack]:
+            return BackupDTOTransformers.toDTOs(groupTracks)
+        case let documents as [Document]:
+            return BackupDTOTransformers.toDTOs(documents)
+        case let supplies as [Supply]:
+            return BackupDTOTransformers.toDTOs(supplies)
+        case let transactions as [SupplyTransaction]:
+            return BackupDTOTransformers.toDTOs(transactions)
+        case let procedures as [Procedure]:
+            return BackupDTOTransformers.toDTOs(procedures)
+        case let schedules as [Schedule]:
+            return BackupDTOTransformers.toDTOs(schedules)
+        case let slots as [ScheduleSlot]:
+            return BackupDTOTransformers.toDTOs(slots)
+        case let issues as [Issue]:
+            return BackupDTOTransformers.toDTOs(issues)
+        case let actions as [IssueAction]:
+            return BackupDTOTransformers.toDTOs(actions)
+        case let snapshots as [DevelopmentSnapshot]:
+            return BackupDTOTransformers.toDTOs(snapshots)
+        case let items as [TodoItem]:
+            return BackupDTOTransformers.toDTOs(items)
+        case let subtasks as [TodoSubtask]:
+            return BackupDTOTransformers.toDTOs(subtasks)
+        case let templates as [TodoTemplate]:
+            return BackupDTOTransformers.toDTOs(templates)
+        case let orders as [TodayAgendaOrder]:
+            return BackupDTOTransformers.toDTOs(orders)
         default:
             return []
         }
