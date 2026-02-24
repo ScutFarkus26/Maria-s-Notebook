@@ -94,70 +94,47 @@ public struct ReminderSyncSettingsView: View {
     }
     
     private func requestAccess() async {
-        await MainActor.run {
-            isRefreshing = true
-            lastSyncStatus = nil
-        }
+        isRefreshing = true
+        lastSyncStatus = nil
         
         do {
             let granted = try await syncService.requestAuthorization()
-            await MainActor.run {
-                if granted {
-                    lastSyncStatus = "Access granted! Loading reminder lists..."
-                    isRefreshing = false
-                } else {
-                    lastSyncStatus = "Access was denied. Please enable it in System Settings > Privacy & Security > Reminders."
-                    isRefreshing = false
-                }
-            }
-            
             if granted {
+                lastSyncStatus = "Access granted! Loading reminder lists..."
+                isRefreshing = false
                 await loadAvailableLists()
-            }
-        } catch {
-            await MainActor.run {
-                lastSyncStatus = "Failed to request access: \(error.localizedDescription)"
+            } else {
+                lastSyncStatus = "Access was denied. Please enable it in System Settings > Privacy & Security > Reminders."
                 isRefreshing = false
             }
+        } catch {
+            lastSyncStatus = "Failed to request access: \(error.localizedDescription)"
+            isRefreshing = false
         }
     }
     
     private func loadAvailableLists() async {
-        await MainActor.run {
-            isRefreshing = true
-        }
-
-        let lists = await MainActor.run {
-            syncService.getAvailableReminderListsWithIdentifiers()
-        }
-
-        await MainActor.run {
-            availableLists = lists
-            isRefreshing = false
-            if lastSyncStatus?.contains("Loading") == true {
-                lastSyncStatus = nil
-            }
+        isRefreshing = true
+        let lists = syncService.getAvailableReminderListsWithIdentifiers()
+        availableLists = lists
+        isRefreshing = false
+        if lastSyncStatus?.contains("Loading") == true {
+            lastSyncStatus = nil
         }
     }
     
     private func syncReminders() async {
-        await MainActor.run {
-            isRefreshing = true
-            lastSyncStatus = "Syncing..."
-        }
+        isRefreshing = true
+        lastSyncStatus = "Syncing..."
 
         do {
             // Use force: true to bypass throttle for explicit user action
             try await syncService.syncReminders(force: true)
-            await MainActor.run {
-                lastSyncStatus = "Sync completed successfully"
-                isRefreshing = false
-            }
+            lastSyncStatus = "Sync completed successfully"
+            isRefreshing = false
         } catch {
-            await MainActor.run {
-                lastSyncStatus = "Sync failed: \(error.localizedDescription)"
-                isRefreshing = false
-            }
+            lastSyncStatus = "Sync failed: \(error.localizedDescription)"
+            isRefreshing = false
         }
     }
 }

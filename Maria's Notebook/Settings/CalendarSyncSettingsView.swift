@@ -108,73 +108,51 @@ public struct CalendarSyncSettingsView: View {
     }
 
     private func requestAccess() async {
-        await MainActor.run {
-            isRefreshing = true
-            lastSyncStatus = nil
-        }
+        isRefreshing = true
+        lastSyncStatus = nil
 
         do {
             let granted = try await syncService.requestAuthorization()
             if granted {
                 // Load calendars first, then update status
                 await loadAvailableCalendars()
-                await MainActor.run {
-                    if availableCalendars.isEmpty {
-                        lastSyncStatus = "Access granted but no calendars found."
-                    } else {
-                        lastSyncStatus = "Access granted! Select calendars below."
-                    }
-                    isRefreshing = false
+                if availableCalendars.isEmpty {
+                    lastSyncStatus = "Access granted but no calendars found."
+                } else {
+                    lastSyncStatus = "Access granted! Select calendars below."
                 }
+                isRefreshing = false
             } else {
-                await MainActor.run {
-                    lastSyncStatus = "Access was denied. Please enable it in System Settings > Privacy & Security > Calendars."
-                    isRefreshing = false
-                }
-            }
-        } catch {
-            await MainActor.run {
-                lastSyncStatus = "Failed to request access: \(error.localizedDescription)"
+                lastSyncStatus = "Access was denied. Please enable it in System Settings > Privacy & Security > Calendars."
                 isRefreshing = false
             }
+        } catch {
+            lastSyncStatus = "Failed to request access: \(error.localizedDescription)"
+            isRefreshing = false
         }
     }
 
     private func loadAvailableCalendars() async {
-        await MainActor.run {
-            isRefreshing = true
-        }
-
-        let calendars = await MainActor.run {
-            syncService.getAvailableCalendarsWithIdentifiers()
-        }
-
-        await MainActor.run {
-            availableCalendars = calendars
-            isRefreshing = false
-            if lastSyncStatus?.contains("Loading") == true {
-                lastSyncStatus = nil
-            }
+        isRefreshing = true
+        let calendars = syncService.getAvailableCalendarsWithIdentifiers()
+        availableCalendars = calendars
+        isRefreshing = false
+        if lastSyncStatus?.contains("Loading") == true {
+            lastSyncStatus = nil
         }
     }
 
     private func syncCalendarEvents() async {
-        await MainActor.run {
-            isRefreshing = true
-            lastSyncStatus = "Syncing..."
-        }
+        isRefreshing = true
+        lastSyncStatus = "Syncing..."
 
         do {
             try await syncService.syncEvents(force: true)
-            await MainActor.run {
-                lastSyncStatus = "Sync completed successfully"
-                isRefreshing = false
-            }
+            lastSyncStatus = "Sync completed successfully"
+            isRefreshing = false
         } catch {
-            await MainActor.run {
-                lastSyncStatus = "Sync failed: \(error.localizedDescription)"
-                isRefreshing = false
-            }
+            lastSyncStatus = "Sync failed: \(error.localizedDescription)"
+            isRefreshing = false
         }
     }
 }
