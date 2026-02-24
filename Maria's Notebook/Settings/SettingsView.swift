@@ -275,23 +275,76 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "Database", systemImage: "cylinder.fill")
             SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
-                // Row 1: Core (Existing)
-                OverviewStatsGrid(
-                    studentsCount: statsViewModel.studentsCount,
-                    lessonsCount: statsViewModel.lessonsCount,
-                    plannedCount: statsViewModel.plannedCount,
-                    givenCount: statsViewModel.givenCount,
-                    columns: overviewColumns
-                )
-                
-                Divider()
-                
-                // Row 2: Detail (New)
-                LazyVGrid(columns: overviewColumns, spacing: 16) {
-                    StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
-                    StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
-                    StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
-                    StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
+                VStack(spacing: 16) {
+                    // Total records summary at the top
+                    DatabaseTotalSummary(totalRecords: statsViewModel.totalRecordsCount)
+
+                    // MARK: Teaching
+                    DatabaseStatsSubsection(
+                        title: "Teaching",
+                        systemImage: "book.fill",
+                        summaryValue: "\(statsViewModel.studentsCount + statsViewModel.lessonsCount + statsViewModel.presentationsCount + statsViewModel.notesCount + statsViewModel.meetingsCount + statsViewModel.workModelsCount + statsViewModel.practiceSessionsCount) records"
+                    ) {
+                        LazyVGrid(columns: overviewColumns, spacing: 16) {
+                            StatCard(title: "Students", value: "\(statsViewModel.studentsCount)", subtitle: nil, systemImage: "person.3.fill")
+                            StatCard(title: "Lessons", value: "\(statsViewModel.lessonsCount)", subtitle: nil, systemImage: "text.book.closed.fill")
+                            StatCard(title: "Lessons Planned", value: "\(statsViewModel.plannedCount)", subtitle: nil, systemImage: "books.vertical.fill")
+                            StatCard(title: "Lessons Given", value: "\(statsViewModel.givenCount)", subtitle: nil, systemImage: "checkmark.circle.fill")
+                            StatCard(title: "Work Items", value: "\(statsViewModel.workModelsCount)", subtitle: "Assigned", systemImage: "doc.text.fill")
+                            StatCard(title: "Presentations", value: "\(statsViewModel.presentationsCount)", subtitle: "History", systemImage: "paintpalette.fill")
+                            StatCard(title: "Observations", value: "\(statsViewModel.notesCount)", subtitle: "Notes", systemImage: "note.text")
+                            StatCard(title: "Meetings", value: "\(statsViewModel.meetingsCount)", subtitle: "Records", systemImage: "person.2.fill")
+                            StatCard(title: "Practice", value: "\(statsViewModel.practiceSessionsCount)", subtitle: "Sessions", systemImage: "music.note.list")
+                        }
+                    }
+
+                    // MARK: Planning
+                    DatabaseStatsSubsection(
+                        title: "Planning",
+                        systemImage: "checklist",
+                        summaryValue: "\(statsViewModel.todoItemsCount + statsViewModel.remindersCount + statsViewModel.tracksCount + statsViewModel.calendarEventsCount + statsViewModel.projectsCount) records"
+                    ) {
+                        LazyVGrid(columns: overviewColumns, spacing: 16) {
+                            StatCard(title: "To-Do Items", value: "\(statsViewModel.todoItemsCount)", subtitle: "\(statsViewModel.todoCompletedCount) completed", systemImage: "checklist")
+                            StatCard(title: "Reminders", value: "\(statsViewModel.remindersCount)", subtitle: "Synced", systemImage: "bell.fill")
+                            StatCard(title: "Tracks", value: "\(statsViewModel.tracksCount)", subtitle: "\(statsViewModel.trackEnrollmentsCount) enrollments", systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                            StatCard(title: "Calendar Events", value: "\(statsViewModel.calendarEventsCount)", subtitle: "Events", systemImage: "calendar")
+                            StatCard(title: "Projects", value: "\(statsViewModel.projectsCount)", subtitle: nil, systemImage: "folder.fill")
+                        }
+                    }
+
+                    // MARK: Classroom
+                    DatabaseStatsSubsection(
+                        title: "Classroom",
+                        systemImage: "building.2.fill",
+                        summaryValue: "\(statsViewModel.attendanceRecordsCount + statsViewModel.suppliesCount + statsViewModel.issuesCount + statsViewModel.communityTopicsCount + statsViewModel.proceduresCount + statsViewModel.nonSchoolDaysCount) records"
+                    ) {
+                        LazyVGrid(columns: overviewColumns, spacing: 16) {
+                            StatCard(title: "Attendance", value: "\(statsViewModel.attendanceRecordsCount)", subtitle: "Records", systemImage: "checkmark.square.fill")
+                            StatCard(title: "Supplies", value: "\(statsViewModel.suppliesCount)", subtitle: "Items", systemImage: "shippingbox.fill")
+                            StatCard(title: "Issues", value: "\(statsViewModel.issuesCount)", subtitle: "\(statsViewModel.issuesResolvedCount) resolved", systemImage: "exclamationmark.triangle.fill")
+                            StatCard(title: "Community", value: "\(statsViewModel.communityTopicsCount)", subtitle: "Topics", systemImage: "bubble.left.and.bubble.right.fill")
+                            StatCard(title: "Procedures", value: "\(statsViewModel.proceduresCount)", subtitle: nil, systemImage: "list.clipboard.fill")
+                            StatCard(title: "Non-School Days", value: "\(statsViewModel.nonSchoolDaysCount)", subtitle: "Configured", systemImage: "calendar.badge.minus")
+                        }
+                    }
+
+                    // MARK: Storage
+                    DatabaseStatsSubsection(
+                        title: "Storage & Templates",
+                        systemImage: "archivebox.fill",
+                        summaryValue: "\(statsViewModel.documentsCount + statsViewModel.lessonAttachmentsCount + statsViewModel.communityAttachmentsCount + statsViewModel.noteTemplatesCount + statsViewModel.meetingTemplatesCount + statsViewModel.todoTemplatesCount + statsViewModel.developmentSnapshotsCount) records"
+                    ) {
+                        LazyVGrid(columns: overviewColumns, spacing: 16) {
+                            StatCard(title: "Documents", value: "\(statsViewModel.documentsCount)", subtitle: "Files", systemImage: "doc.fill")
+                            StatCard(title: "Lesson Files", value: "\(statsViewModel.lessonAttachmentsCount)", subtitle: "Attachments", systemImage: "paperclip")
+                            StatCard(title: "Community Files", value: "\(statsViewModel.communityAttachmentsCount)", subtitle: "Attachments", systemImage: "paperclip.badge.ellipsis")
+                            StatCard(title: "Note Templates", value: "\(statsViewModel.noteTemplatesCount)", subtitle: nil, systemImage: "note.text.badge.plus")
+                            StatCard(title: "Meeting Templates", value: "\(statsViewModel.meetingTemplatesCount)", subtitle: nil, systemImage: "person.2.fill")
+                            StatCard(title: "To-Do Templates", value: "\(statsViewModel.todoTemplatesCount)", subtitle: nil, systemImage: "checklist")
+                            StatCard(title: "Dev Snapshots", value: "\(statsViewModel.developmentSnapshotsCount)", subtitle: "Analytics", systemImage: "camera.viewfinder")
+                        }
+                    }
                 }
             }
         }
