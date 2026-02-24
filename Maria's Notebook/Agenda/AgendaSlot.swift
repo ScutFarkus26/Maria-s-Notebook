@@ -408,7 +408,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         if let src = allStudentLessons.first(where: { $0.id == srcID }) {
                             src.studentIDs.removeAll { $0 == studentID.uuidString }
                             src.students.removeAll { $0.id == studentID }
-                            if src.studentIDs.isEmpty { modelContext.delete(src) } else { /* Removed src.syncSnapshotsFromRelationships() */ }
+                            if src.studentIDs.isEmpty { modelContext.delete(src) }
                         }
                         do {
                             try modelContext.save()

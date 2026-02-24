@@ -417,7 +417,9 @@ struct LessonsViewModel {
             nsDescriptor.fetchLimit = 1
             let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
-        } catch {}
+        } catch {
+            print("⚠️ [LessonsViewModel.isNonSchoolDaySync] Failed to fetch NonSchoolDay: \(error)")
+        }
         
         let weekday = cal.component(.weekday, from: day)
         let isWeekend = (weekday == 1 || weekday == 7)
@@ -428,7 +430,9 @@ struct LessonsViewModel {
             ovDescriptor.fetchLimit = 1
             let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
-        } catch {}
+        } catch {
+            print("⚠️ [LessonsViewModel.isNonSchoolDaySync] Failed to fetch SchoolDayOverride: \(error)")
+        }
         
         return true
     }

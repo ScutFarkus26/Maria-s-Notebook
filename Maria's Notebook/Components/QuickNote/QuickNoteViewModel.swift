@@ -225,8 +225,8 @@ class QuickNoteViewModel {
         guard !trimmed.isEmpty else { return }
         
         let scope: NoteScope
-        if selectedStudentIDs.count == 1 {
-            scope = .student(selectedStudentIDs.first!)
+        if selectedStudentIDs.count == 1, let firstID = selectedStudentIDs.first {
+            scope = .student(firstID)
         } else if selectedStudentIDs.count > 1 {
             scope = .students(selectedStudentIDs.sorted { $0.uuidString < $1.uuidString })
         } else {
@@ -320,7 +320,7 @@ class QuickNoteViewModel {
     private func isAtWordBoundary(_ text: String) -> Bool {
         guard !text.isEmpty else { return true }
         
-        let lastChar = text.last!
+        guard let lastChar = text.last else { return true }
         return lastChar.isWhitespace || lastChar.isPunctuation
     }
     

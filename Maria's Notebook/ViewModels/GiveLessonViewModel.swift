@@ -255,7 +255,6 @@ final class LessonPickerViewModel {
         let fetchedStudents = allStudents.filter { selectedSet.contains($0.id) }
         studentLesson.students = fetchedStudents
         studentLesson.lesson = finalLesson
-        // Removed call to syncSnapshotsFromRelationships()
         
         if isNew {
             context.insert(studentLesson)

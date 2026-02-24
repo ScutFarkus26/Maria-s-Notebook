@@ -82,9 +82,10 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
             return calendar.date(byAdding: .day, value: 1, to: date)
         case .weekdays:
             // Find next weekday
-            var nextDate = calendar.date(byAdding: .day, value: 1, to: date)!
+            guard var nextDate = calendar.date(byAdding: .day, value: 1, to: date) else { return nil }
             while calendar.isDateInWeekend(nextDate) {
-                nextDate = calendar.date(byAdding: .day, value: 1, to: nextDate)!
+                guard let next = calendar.date(byAdding: .day, value: 1, to: nextDate) else { return nil }
+                nextDate = next
             }
             return nextDate
         case .weekly:

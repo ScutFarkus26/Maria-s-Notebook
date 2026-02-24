@@ -263,14 +263,6 @@ public final class BackupSharingService {
         }
     }
 
-    /// Lists all available sharing services for a backup.
-    #if os(macOS)
-    @available(macOS, deprecated: 13.0, message: "Use NSSharingServicePicker.standardShareMenuItem instead")
-    public func availableSharingServices(for url: URL) -> [NSSharingService] {
-        NSSharingService.sharingServices(forItems: [url])
-    }
-    #endif
-
     // MARK: - Private Helpers
 
     private func createEncryptedCopy(

@@ -130,7 +130,7 @@ struct BackupCodec {
 
     /// Derives an encryption key from a password and salt using HKDF-SHA256
     private func deriveKey(password: String, salt: Data) -> SymmetricKey {
-        let inputKey = SymmetricKey(data: password.data(using: .utf8)!)
+        let inputKey = SymmetricKey(data: Data(password.utf8))
         return HKDF<SHA256>.deriveKey(inputKeyMaterial: inputKey, salt: salt, outputByteCount: 32)
     }
 
@@ -213,13 +213,11 @@ struct BackupCodec {
     ///   - rotationID: Optional key rotation identifier
     /// - Returns: Derived symmetric key
     func deriveKeyWithRotation(password: String, salt: Data, rotationID: String? = nil) -> SymmetricKey {
-        var passwordData = password.data(using: .utf8)!
+        var passwordData = Data(password.utf8)
         
         // If rotation ID provided, append it to password before derivation
         if let rotationID = rotationID {
-            if let rotationData = rotationID.data(using: .utf8) {
-                passwordData.append(rotationData)
-            }
+            passwordData.append(Data(rotationID.utf8))
         }
         
         let inputKey = SymmetricKey(data: passwordData)

@@ -15,7 +15,7 @@ struct TodoAnalyticsView: View {
     }
     
     private var completedLast7Days: [TodoItem] {
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         return completedTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return false }
             return completedAt >= sevenDaysAgo
@@ -23,7 +23,7 @@ struct TodoAnalyticsView: View {
     }
     
     private var completedLast30Days: [TodoItem] {
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         return completedTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return false }
             return completedAt >= thirtyDaysAgo
@@ -54,7 +54,7 @@ struct TodoAnalyticsView: View {
         }.reversed()
         
         return last7Days.map { date in
-            let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: date) ?? date
             let count = completedTodos.filter { todo in
                 guard let completedAt = todo.completedAt else { return false }
                 return completedAt >= date && completedAt < nextDay

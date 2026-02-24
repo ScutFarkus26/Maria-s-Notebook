@@ -49,7 +49,7 @@ final class AttendanceViewModel {
             }
             self.recordsByStudentID = recordsByStudentID
         } catch {
-            // For now, ignore errors; UI will simply show unmarked
+            print("⚠️ [AttendanceViewModel.load] Failed to load records: \(error)")
         }
     }
 
@@ -96,7 +96,9 @@ final class AttendanceViewModel {
             for rec in updated where allowed.contains(rec.studentID) {
                 recordsByStudentID[rec.studentID] = rec
             }
-        } catch { }
+        } catch {
+            print("⚠️ [AttendanceViewModel.markAllPresent] Failed: \(error)")
+        }
     }
 
     func resetDay(students: [Student], modelContext: ModelContext) {
@@ -108,7 +110,9 @@ final class AttendanceViewModel {
             for rec in updated where allowed.contains(rec.studentID) {
                 recordsByStudentID[rec.studentID] = rec
             }
-        } catch { }
+        } catch {
+            print("⚠️ [AttendanceViewModel.resetDay] Failed: \(error)")
+        }
     }
 
     // MARK: - Stats

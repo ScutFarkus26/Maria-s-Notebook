@@ -2081,7 +2081,7 @@ struct TodoEditSheet: View {
     private func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
             let attachmentsDir = documentsDir.appendingPathComponent("TodoAttachments", isDirectory: true)
             
             try? FileManager.default.createDirectory(at: attachmentsDir, withIntermediateDirectories: true)

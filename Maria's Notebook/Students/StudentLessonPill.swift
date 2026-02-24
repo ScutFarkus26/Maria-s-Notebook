@@ -629,7 +629,7 @@ struct StudentLessonPill: View {
                                     }
                                 }
                             }
-                            // Removed: target.syncSnapshotsFromRelationships()
+
                         }
                         source.studentIDs.removeAll { $0 == studentIDString }
                         if source.studentIDs.isEmpty {
@@ -648,7 +648,7 @@ struct StudentLessonPill: View {
                             }
                             let fetched = allStudents.filter { remainingSet.contains($0.id) }
                             source.students = fetched
-                            // Removed: source.syncSnapshotsFromRelationships()
+
                         }
                         onDidMutate("Move student between lessons")
                         appRouter.refreshPlanningInbox()
