@@ -10,12 +10,15 @@ enum TodayDataFetcher {
     // MARK: - Lesson Fetching
 
     /// Fetches lessons for a specific day.
+    /// Includes lessons scheduled for the day AND lessons presented (givenAt) on the day,
+    /// so that the "Lessons Presented" section shows all presentations regardless of original schedule.
     static func fetchLessons(
         day: Date,
         nextDay: Date,
         context: ModelContext
     ) -> [StudentLesson] {
         do {
+            // Fetch lessons scheduled for this day
             let byDayDescriptor = FetchDescriptor<StudentLesson>(
                 predicate: #Predicate { sl in
                     sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
@@ -23,6 +26,27 @@ enum TodayDataFetcher {
                 sortBy: []
             )
             var dayLessons = try context.fetch(byDayDescriptor)
+
+            // Also fetch lessons that were presented (givenAt) on this day but not scheduled for it.
+            // This catches inbox items or lessons scheduled for other days that were presented today.
+            let presentedDescriptor = FetchDescriptor<StudentLesson>(
+                predicate: #Predicate { sl in
+                    if let givenAt = sl.givenAt {
+                        return sl.isPresented == true &&
+                            givenAt >= day && givenAt < nextDay &&
+                            (sl.scheduledForDay < day || sl.scheduledForDay >= nextDay)
+                    } else {
+                        return false
+                    }
+                },
+                sortBy: []
+            )
+            let presentedLessons = try context.fetch(presentedDescriptor)
+
+            // Deduplicate against already-fetched scheduled lessons
+            let scheduledIDs = Set(dayLessons.map { $0.id })
+            let additionalPresented = presentedLessons.filter { !scheduledIDs.contains($0.id) }
+            dayLessons.append(contentsOf: additionalPresented)
 
             // Stable sort
             dayLessons.sort { lhs, rhs in
