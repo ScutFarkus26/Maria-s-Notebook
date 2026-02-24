@@ -134,47 +134,58 @@ final class InboxSheetViewModel {
     ) -> Bool {
         guard let itemProvider = providers.first else { return false }
         if itemProvider.canLoadObject(ofClass: NSString.self) {
-            // These captures are safe because:
-            // 1. The outer loadObject callback runs on an arbitrary queue but only extracts the string
-            // 2. The inner Task is @MainActor isolated, ensuring all SwiftData access happens on main
-            // 3. The captured arrays are read-only snapshots from the caller's @MainActor context
-            // Using nonisolated(unsafe) to silence warnings while maintaining the safe pattern.
-            nonisolated(unsafe) let lessonAssignmentsRef = lessonAssignments
-            nonisolated(unsafe) let orderedUnscheduledLessonsRef = orderedUnscheduledLessons
-            nonisolated(unsafe) let modelContextRef = modelContext
-
-            _ = itemProvider.loadObject(ofClass: NSString.self) { [weak self] reading, _ in
-                guard let ns = reading as? NSString else { return }
-                let raw = ns as String
-                Task { @MainActor [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    guard let raw = try await Self.loadDropPayload(from: itemProvider) else { return }
                     if raw.hasPrefix("STUDENT_TO_INBOX:") {
-                        self?.handleStudentToInboxDrop(
+                        self.handleStudentToInboxDrop(
                             payload: raw,
                             location: location,
-                            lessonAssignments: lessonAssignmentsRef,
-                            orderedUnscheduledLessons: orderedUnscheduledLessonsRef,
+                            lessonAssignments: lessonAssignments,
+                            orderedUnscheduledLessons: orderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContextRef,
+                            modelContext: modelContext,
                             saveCoordinator: saveCoordinator
                         )
                     } else if let droppedId = UUID(uuidString: raw.trimmed()) {
-                        self?.handleLessonDrop(
+                        self.handleLessonDrop(
                             droppedId: droppedId,
                             location: location,
-                            lessonAssignments: lessonAssignmentsRef,
-                            orderedUnscheduledLessons: orderedUnscheduledLessonsRef,
+                            lessonAssignments: lessonAssignments,
+                            orderedUnscheduledLessons: orderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContextRef,
+                            modelContext: modelContext,
                             saveCoordinator: saveCoordinator
                         )
                     }
+                } catch {
+                    #if DEBUG
+                    print("InboxSheetViewModel: Failed to load drop payload: \(error.localizedDescription)")
+                    #endif
                 }
             }
             return true
         }
         return false
+    }
+
+    private nonisolated static func loadDropPayload(from itemProvider: NSItemProvider) async throws -> String? {
+        try await withCheckedThrowingContinuation { continuation in
+            _ = itemProvider.loadObject(ofClass: NSString.self) { reading, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let ns = reading as? NSString else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: ns as String)
+            }
+        }
     }
 
     private func handleStudentToInboxDrop(

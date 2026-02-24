@@ -447,13 +447,9 @@ struct PDFThumbnail: View {
             return
         }
 
-        // Load PDF document off the main thread to avoid blocking scrolling
-        let loadedPage = await Task.detached(priority: .userInitiated) {
-            guard let pdfDocument = PDFDocument(data: pdfData) else { return nil as PDFPage? }
-            return pdfDocument.page(at: 0)
-        }.value
-
-        self.page = loadedPage
+        // Keep PDFKit objects on the current actor to avoid crossing non-Sendable types.
+        let pdfDocument = PDFDocument(data: pdfData)
+        self.page = pdfDocument?.page(at: 0)
         self.isLoading = false
     }
 }
@@ -550,12 +546,19 @@ struct PDFPageViewRepresentable: UIViewRepresentable {
 }
 #endif
 
+private enum StudentFilesTabPreviewFactory {
+    @MainActor
+    static func makeView() -> some View {
+        let container = ModelContainer.preview
+        let context = container.mainContext
+        let student = Student(firstName: "Alan", lastName: "Turing", birthday: Date(timeIntervalSince1970: 0), level: .upper)
+        context.insert(student)
+        return StudentFilesTab(student: student)
+            .previewEnvironment(using: container)
+            .padding()
+    }
+}
+
 #Preview {
-    let container = ModelContainer.preview
-    let context = container.mainContext
-    let student = Student(firstName: "Alan", lastName: "Turing", birthday: Date(timeIntervalSince1970: 0), level: .upper)
-    context.insert(student)
-    return StudentFilesTab(student: student)
-        .previewEnvironment(using: container)
-        .padding()
+    StudentFilesTabPreviewFactory.makeView()
 }

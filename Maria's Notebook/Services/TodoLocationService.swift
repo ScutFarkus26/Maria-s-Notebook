@@ -10,6 +10,7 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     
     private let locationManager = CLLocationManager()
     private var monitoredTodos: [String: TodoItem] = [:] // todoID -> TodoItem
+    private var activeLocationRequests: [UUID: (manager: CLLocationManager, delegate: LocationDelegate)] = [:]
     
     private override init() {
         super.init()
@@ -64,17 +65,21 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     
     /// Get current location
     func getCurrentLocation() async -> CLLocation? {
-        return await withCheckedContinuation { continuation in
-            let delegate = LocationDelegate { location in
+        await withCheckedContinuation { continuation in
+            let requestID = UUID()
+            let manager = CLLocationManager()
+            let delegate = LocationDelegate { [weak self] location in
+                guard let self else {
+                    continuation.resume(returning: location)
+                    return
+                }
+                self.activeLocationRequests.removeValue(forKey: requestID)
                 continuation.resume(returning: location)
             }
-            
-            let manager = CLLocationManager()
+
             manager.delegate = delegate
+            activeLocationRequests[requestID] = (manager, delegate)
             manager.requestLocation()
-            
-            // Keep delegate alive
-            withExtendedLifetime(delegate) {}
         }
     }
     
@@ -126,18 +131,25 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
 }
 
 // Helper delegate for one-time location requests
-private class LocationDelegate: NSObject, CLLocationManagerDelegate {
-    let completion: (CLLocation?) -> Void
+@MainActor
+private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
+    private var completion: ((CLLocation?) -> Void)?
     
     init(completion: @escaping (CLLocation?) -> Void) {
         self.completion = completion
     }
+
+    private func complete(with location: CLLocation?) {
+        guard let completion else { return }
+        self.completion = nil
+        completion(location)
+    }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        completion(locations.first)
+        complete(with: locations.first)
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        completion(nil)
+        complete(with: nil)
     }
 }
