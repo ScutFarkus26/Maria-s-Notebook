@@ -197,6 +197,13 @@ struct StudentLessonDetailContentView: View {
             minHeight: vm.showWorkflowPanel ? 700 : 800,
             idealHeight: vm.showWorkflowPanel ? 800 : 900
         )
+        .background(
+            SheetWindowResizer(
+                targetSize: vm.showWorkflowPanel
+                    ? NSSize(width: 1600, height: 800)
+                    : NSSize(width: 720, height: 900)
+            )
+        )
         #endif
         #if os(macOS)
         .sheet(isPresented: $showIndependentWorkflowWindow) {

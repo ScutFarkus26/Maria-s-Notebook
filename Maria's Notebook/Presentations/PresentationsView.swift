@@ -388,7 +388,6 @@ struct PresentationsView: View {
                     coordinator.dismissSheet()
                 }
                 #if os(macOS)
-                .frame(minWidth: 720, minHeight: 640)
                 .presentationSizingFitted()
                 #else
                 .presentationDetents([.large])

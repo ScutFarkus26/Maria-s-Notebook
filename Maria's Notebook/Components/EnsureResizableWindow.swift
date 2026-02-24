@@ -88,5 +88,73 @@ final class ResizableFlagView: NSView {
         scheduleWindowUpdate()
     }
 }
+
+/// Inserts a zero-size NSView that programmatically resizes its hosting window
+/// when `targetSize` changes. Useful for sheet windows that don't respond to
+/// SwiftUI `.frame()` changes after initial presentation.
+struct SheetWindowResizer: NSViewRepresentable {
+    var targetSize: NSSize
+
+    func makeNSView(context: Context) -> SheetResizeView {
+        let v = SheetResizeView()
+        v.targetSize = targetSize
+        return v
+    }
+
+    func updateNSView(_ nsView: SheetResizeView, context: Context) {
+        guard nsView.targetSize != targetSize else { return }
+        nsView.targetSize = targetSize
+        if nsView.window != nil {
+            nsView.scheduleResize()
+        }
+    }
+}
+
+final class SheetResizeView: NSView {
+    var targetSize: NSSize = .zero
+    private var lastAppliedSize: NSSize = .zero
+    private var hasScheduledResize = false
+
+    func scheduleResize() {
+        guard !hasScheduledResize else { return }
+        guard targetSize != lastAppliedSize else { return }
+        hasScheduledResize = true
+
+        Task { @MainActor [weak self] in
+            guard let self, let win = self.window else {
+                self?.hasScheduledResize = false
+                return
+            }
+            self.resizeWindow(win)
+            self.hasScheduledResize = false
+        }
+    }
+
+    private func resizeWindow(_ window: NSWindow) {
+        let newSize = targetSize
+        guard newSize != lastAppliedSize else { return }
+        lastAppliedSize = newSize
+
+        // Anchor the top-left corner: grow downward and to the right
+        var frame = window.frame
+        let dw = newSize.width - frame.size.width
+        let dh = newSize.height - frame.size.height
+        frame.size = NSSize(width: newSize.width, height: newSize.height)
+        frame.origin.y -= dh  // keep top edge pinned
+        _ = dw // width grows to the right naturally
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(frame, display: true)
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        scheduleResize()
+    }
+}
 #endif
 
