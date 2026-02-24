@@ -264,4 +264,22 @@ extension TodayView {
             filteredPlanItemIDs = []
         }
     }
+
+    // MARK: - Todo Actions
+
+    func toggleTodoItem(_ todo: TodoItem) {
+        withAnimation(.snappy(duration: 0.2)) {
+            todo.isCompleted.toggle()
+            if todo.isCompleted {
+                todo.completedAt = Date()
+            } else {
+                todo.completedAt = nil
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to save todo: \(error)")
+            }
+        }
+    }
 }

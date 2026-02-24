@@ -727,7 +727,8 @@ enum BackupDTOTransformers {
             priorityRaw: t.priority.rawValue,
             defaultEstimatedMinutes: t.defaultEstimatedMinutes,
             defaultStudentIDs: t.defaultStudentIDs,
-            useCount: t.useCount
+            useCount: t.useCount,
+            tags: t.tags
         )
     }
 

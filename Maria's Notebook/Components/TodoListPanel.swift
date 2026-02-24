@@ -1,5 +1,10 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
+import QuickLook
+#if os(macOS)
+import QuickLookUI
+#endif
 
 enum TodoFilter: String, CaseIterable, Identifiable {
     case all = "All"
@@ -23,6 +28,32 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .overdue: return "exclamationmark.triangle.fill"
         case .highPriority: return "flag.fill"
         case .hasSubtasks: return "checklist"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .all: return .primary
+        case .active: return .blue
+        case .completed: return .green
+        case .today: return .orange
+        case .thisWeek: return .purple
+        case .overdue: return .red
+        case .highPriority: return .red
+        case .hasSubtasks: return .indigo
+        }
+    }
+    
+    var emptyMessage: String {
+        switch self {
+        case .all: return "Add a task to get started"
+        case .active: return "All done! No active tasks"
+        case .completed: return "No completed tasks yet"
+        case .today: return "No tasks due today"
+        case .thisWeek: return "No tasks due this week"
+        case .overdue: return "You're all caught up!"
+        case .highPriority: return "No high priority tasks"
+        case .hasSubtasks: return "No tasks with checklists"
         }
     }
     
@@ -70,24 +101,7 @@ struct TodoListPanel: View {
     }
     
     private var emptyStateMessage: String {
-        switch selectedFilter {
-        case .all:
-            return "Add a task to get started"
-        case .active:
-            return "All done! No active tasks"
-        case .completed:
-            return "No completed tasks yet"
-        case .today:
-            return "No tasks due today"
-        case .thisWeek:
-            return "No tasks due this week"
-        case .overdue:
-            return "You're all caught up!"
-        case .highPriority:
-            return "No high priority tasks"
-        case .hasSubtasks:
-            return "No tasks with checklists"
-        }
+        selectedFilter.emptyMessage
     }
     
     var body: some View {
@@ -754,6 +768,9 @@ struct TodoEditSheet: View {
     @State private var locationLongitude: Double?
     @State private var notifyOnEntry: Bool
     @State private var notifyOnExit: Bool
+    @State private var isShowingFileImporter = false
+    @State private var previewingAttachmentURL: URL?
+    @State private var isShowingMapPicker = false
     @FocusState private var isTitleFocused: Bool
     
     init(todo: TodoItem) {
@@ -797,11 +814,23 @@ struct TodoEditSheet: View {
     }
     
     var body: some View {
-        #if os(macOS)
-        macOSLayout
-        #else
-        iOSLayout
-        #endif
+        Group {
+            #if os(macOS)
+            macOSLayout
+            #else
+            iOSLayout
+            #endif
+        }
+        .fileImporter(
+            isPresented: $isShowingFileImporter,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true
+        ) { result in
+            handleFileImport(result)
+        }
+        .sheet(item: $previewingAttachmentURL) { url in
+            AttachmentPreviewSheet(url: url)
+        }
     }
     
     // MARK: - macOS Layout
@@ -1394,14 +1423,18 @@ struct TodoEditSheet: View {
                     .font(.subheadline)
                     .padding(.vertical, 8)
             } else {
+                let sortedSubtasks = todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })
                 VStack(spacing: 6) {
-                    ForEach(todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })) { subtask in
+                    ForEach(sortedSubtasks) { subtask in
                         SubtaskRow(
                             subtask: subtask,
                             onToggle: { toggleSubtask(subtask) },
                             onDelete: { deleteSubtask(subtask) },
                             onUpdate: { newTitle in updateSubtask(subtask, title: newTitle) }
                         )
+                    }
+                    .onMove { source, destination in
+                        reorderSubtasks(from: source, to: destination)
                     }
                 }
             }
@@ -1494,25 +1527,14 @@ struct TodoEditSheet: View {
                 
                 Spacer()
                 
-                #if os(iOS)
                 Button {
-                    // iOS: Photo picker will be shown
+                    isShowingFileImporter = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 18))
                         .foregroundStyle(.brown)
                 }
                 .buttonStyle(.plain)
-                #else
-                Button {
-                    // macOS: File picker will be shown
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.brown)
-                }
-                .buttonStyle(.plain)
-                #endif
             }
             
             if todo.attachmentPaths.isEmpty {
@@ -1551,6 +1573,13 @@ struct TodoEditSheet: View {
                         .padding(10)
                         .background(Color.primary.opacity(0.04))
                         .cornerRadius(8)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            let url = URL(fileURLWithPath: path)
+                            if FileManager.default.fileExists(atPath: path) {
+                                previewingAttachmentURL = url
+                            }
+                        }
                     }
                 }
             }
@@ -1931,8 +1960,43 @@ struct TodoEditSheet: View {
             
             if hasLocationReminder {
                 VStack(spacing: 12) {
-                    TextField("Location name (e.g., School, Home)", text: $locationName)
-                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 8) {
+                        TextField("Location name (e.g., School, Home)", text: $locationName)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        Button {
+                            isShowingMapPicker = true
+                        } label: {
+                            Image(systemName: "map")
+                                .font(.system(size: 16))
+                                .padding(8)
+                                .background(Color.blue.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    if let lat = locationLatitude, let lon = locationLongitude {
+                        HStack(spacing: 6) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundStyle(.red)
+                            Text(String(format: "%.4f, %.4f", lat, lon))
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            
+                            Spacer()
+                            
+                            Button {
+                                locationLatitude = nil
+                                locationLongitude = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                     
                     HStack {
                         Toggle("Notify on arrival", isOn: $notifyOnEntry)
@@ -1943,10 +2007,6 @@ struct TodoEditSheet: View {
                         Toggle("Notify on departure", isOn: $notifyOnExit)
                         Spacer()
                     }
-                    
-                    Text("Location coordinates will be set when you save")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 .padding(12)
                 .background(Color.blue.opacity(0.08))
@@ -1957,6 +2017,13 @@ struct TodoEditSheet: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)
             }
+        }
+        .sheet(isPresented: $isShowingMapPicker) {
+            TodoLocationPickerView(
+                locationName: $locationName,
+                latitude: $locationLatitude,
+                longitude: $locationLongitude
+            )
         }
     }
     
@@ -2008,6 +2075,42 @@ struct TodoEditSheet: View {
             } catch {
                 print("⚠️ [\(#function)] Failed to save todo: \(error)")
             }
+        }
+    }
+    
+    private func handleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let attachmentsDir = documentsDir.appendingPathComponent("TodoAttachments", isDirectory: true)
+            
+            try? FileManager.default.createDirectory(at: attachmentsDir, withIntermediateDirectories: true)
+            
+            for url in urls {
+                guard url.startAccessingSecurityScopedResource() else { continue }
+                defer { url.stopAccessingSecurityScopedResource() }
+                
+                let destURL = attachmentsDir.appendingPathComponent(url.lastPathComponent)
+                do {
+                    if FileManager.default.fileExists(atPath: destURL.path) {
+                        try FileManager.default.removeItem(at: destURL)
+                    }
+                    try FileManager.default.copyItem(at: url, to: destURL)
+                    todo.attachmentPaths.append(destURL.path)
+                } catch {
+                    print("⚠️ [\(#function)] Failed to copy attachment: \(error)")
+                }
+            }
+            
+            if let context = todo.modelContext {
+                do {
+                    try context.save()
+                } catch {
+                    print("⚠️ [\(#function)] Failed to save attachments: \(error)")
+                }
+            }
+        case .failure(let error):
+            print("⚠️ [\(#function)] File import failed: \(error)")
         }
     }
     
@@ -2090,6 +2193,21 @@ struct TodoEditSheet: View {
                 try context.save()
             } catch {
                 print("⚠️ [\(#function)] Failed to update subtask: \(error)")
+            }
+        }
+    }
+
+    private func reorderSubtasks(from source: IndexSet, to destination: Int) {
+        var sorted = todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })
+        sorted.move(fromOffsets: source, toOffset: destination)
+        for (index, subtask) in sorted.enumerated() {
+            subtask.orderIndex = index
+        }
+        if let context = todo.modelContext {
+            do {
+                try context.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to reorder subtasks: \(error)")
             }
         }
     }
@@ -2216,7 +2334,8 @@ struct TodoEditSheet: View {
             notes: notes,
             priority: priority,
             defaultEstimatedMinutes: totalEstimated > 0 ? totalEstimated : nil,
-            defaultStudentIDs: Array(selectedStudentIDs)
+            defaultStudentIDs: Array(selectedStudentIDs),
+            tags: todo.tags
         )
 
         context.insert(template)
@@ -2429,3 +2548,71 @@ private struct TodoStudentChip: View {
         .clipShape(Capsule())
     }
 }
+// MARK: - URL Identifiable Conformance
+
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
+}
+
+// MARK: - Attachment Preview Sheet
+
+private struct AttachmentPreviewSheet: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            QuickLookPreview(url: url)
+                .navigationTitle(url.lastPathComponent)
+                #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+#if os(iOS)
+private struct QuickLookPreview: UIViewControllerRepresentable {
+    let url: URL
+    
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let controller = QLPreviewController()
+        controller.dataSource = context.coordinator
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: QLPreviewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator { Coordinator(url: url) }
+    
+    class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+        init(url: URL) { self.url = url }
+        
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> any QLPreviewItem {
+            url as NSURL
+        }
+    }
+}
+#else
+private struct QuickLookPreview: NSViewRepresentable {
+    let url: URL
+    
+    func makeNSView(context: Context) -> QLPreviewView {
+        let view = QLPreviewView(frame: .zero, style: .normal)!
+        view.previewItem = url as NSURL
+        return view
+    }
+    
+    func updateNSView(_ nsView: QLPreviewView, context: Context) {
+        nsView.previewItem = url as NSURL
+    }
+}
+#endif
+

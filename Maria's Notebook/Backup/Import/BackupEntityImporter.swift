@@ -1158,6 +1158,7 @@ enum BackupEntityImporter {
             t.defaultEstimatedMinutes = dto.defaultEstimatedMinutes
             t.defaultStudentIDs = dto.defaultStudentIDs
             t.useCount = dto.useCount
+            t.tags = dto.tags ?? []
             return t
         }
     }

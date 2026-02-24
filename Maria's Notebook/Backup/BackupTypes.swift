@@ -885,6 +885,7 @@ public struct TodoTemplateDTO: Codable, Sendable {
     public var defaultEstimatedMinutes: Int?
     public var defaultStudentIDs: [String]
     public var useCount: Int
+    public var tags: [String]?
 }
 
 // MARK: - Agenda Order DTO

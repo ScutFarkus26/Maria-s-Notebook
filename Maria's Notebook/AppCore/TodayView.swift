@@ -51,6 +51,10 @@ struct TodayView: View {
     // MARK: - Toast State
     @State var toastMessage: String? = nil
 
+    // MARK: - Todo State
+    @State var selectedTodoItem: TodoItem? = nil
+    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted }, sort: \TodoItem.createdAt, order: .reverse) var todayTodoItems: [TodoItem]
+
     // MARK: - Filtered Query State
     // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
     @State var filteredStudentLessonIDs: [UUID] = []
@@ -126,6 +130,22 @@ struct TodayView: View {
         }
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet()
+        }
+        .sheet(item: $selectedTodoItem) { todo in
+            NavigationStack {
+                TodoDetailView(todo: todo, onClose: {
+                    selectedTodoItem = nil
+                }, onEdit: {
+                    selectedTodoItem = nil
+                })
+            }
+#if os(macOS)
+            .frame(minWidth: 520, minHeight: 420)
+            .presentationSizingFitted()
+#else
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+#endif
         }
         .sheet(item: $noteBeingEdited) { note in
             NoteEditSheet(note: note) {
@@ -218,6 +238,7 @@ struct TodayView: View {
         twoColumnLayout
         #else
         List {
+            todosListSection
             remindersListSection
             calendarEventsListSection
             agendaListSection
@@ -232,6 +253,7 @@ struct TodayView: View {
         HStack(alignment: .top, spacing: 0) {
             // Left column: Reminders + Calendar + Completed
             List {
+                todosListSection
                 remindersListSection
                 calendarEventsListSection
                 completedListSection

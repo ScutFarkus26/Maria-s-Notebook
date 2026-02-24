@@ -18,23 +18,17 @@ struct TodoMainView: View {
     @State private var editingTodo: TodoItem?
     @State private var showingSortOptions = false
     @State private var sortBy: TodoSortOption = .dueDate
+    @State private var isSelectMode = false
+    @State private var selectedTodoIDs: Set<UUID> = []
+    @State private var selectedTag: String?
     
     private var filteredTodos: [TodoItem] {
         let todos: [TodoItem]
-
-        switch selectedFilter ?? .inbox {
-        case .inbox:
-            todos = allTodos.filter { !$0.isCompleted && $0.tags.isEmpty }
-        case .today:
-            todos = allTodos.filter { !$0.isCompleted && $0.isScheduledForToday }
-        case .upcoming:
-            todos = allTodos.filter { !$0.isCompleted && $0.dueDate != nil && !$0.isScheduledForToday }
-        case .anytime:
-            todos = allTodos.filter { !$0.isCompleted && $0.dueDate == nil }
-        case .completed:
-            todos = allTodos.filter { $0.isCompleted }
-        case .all:
-            todos = allTodos
+        if let tag = selectedTag {
+            todos = allTodos.filter { $0.tags.contains(tag) }
+        } else {
+            let filter = selectedFilter ?? .inbox
+            todos = allTodos.filter { filter.matches($0) }
         }
         
         let searchFiltered = searchText.isEmpty ? todos : todos.filter {
@@ -66,22 +60,36 @@ struct TodoMainView: View {
     }
     
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             sidebar
-        } detail: {
+                .frame(width: 220)
+            
+            Divider()
+            
             if let selectedTodo = selectedTodo {
                 TodoDetailView(todo: selectedTodo, onClose: {
                     self.selectedTodo = nil
                 }, onEdit: {
                     editingTodo = selectedTodo
                 })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 todoListContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("")
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        isSelectMode.toggle()
+                        if !isSelectMode { selectedTodoIDs.removeAll() }
+                    }
+                } label: {
+                    Label(isSelectMode ? "Done" : "Select", systemImage: isSelectMode ? "checkmark.circle" : "checklist.unchecked")
+                }
+                
                 Menu {
                     ForEach(TodoSortOption.allCases) { option in
                         Button {
@@ -164,6 +172,80 @@ struct TodoMainView: View {
         }
     }
     
+    private func toggleSelection(_ todo: TodoItem) {
+        if selectedTodoIDs.contains(todo.id) {
+            selectedTodoIDs.remove(todo.id)
+        } else {
+            selectedTodoIDs.insert(todo.id)
+        }
+    }
+    
+    private func batchComplete() {
+        withAnimation(.snappy(duration: 0.2)) {
+            let todosToComplete = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            for todo in todosToComplete {
+                todo.isCompleted = true
+                todo.completedAt = Date()
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to batch complete: \(error)")
+            }
+            selectedTodoIDs.removeAll()
+            isSelectMode = false
+        }
+    }
+    
+    private func batchSetHighPriority() {
+        withAnimation(.snappy(duration: 0.2)) {
+            let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            for todo in todos {
+                todo.priority = .high
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to batch set priority: \(error)")
+            }
+            selectedTodoIDs.removeAll()
+            isSelectMode = false
+        }
+    }
+    
+    private func batchSetDueToday() {
+        withAnimation(.snappy(duration: 0.2)) {
+            let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            let today = Calendar.current.startOfDay(for: Date())
+            for todo in todos {
+                todo.dueDate = today
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to batch set due date: \(error)")
+            }
+            selectedTodoIDs.removeAll()
+            isSelectMode = false
+        }
+    }
+    
+    private func batchDelete() {
+        withAnimation(.snappy(duration: 0.2)) {
+            let todosToDelete = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            for todo in todosToDelete {
+                modelContext.delete(todo)
+            }
+            do {
+                try modelContext.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to batch delete: \(error)")
+            }
+            selectedTodoIDs.removeAll()
+            isSelectMode = false
+        }
+    }
+    
     private func editTodoSheet(todo: TodoItem) -> some View {
         NavigationStack {
             EditTodoForm(todo: todo)
@@ -183,11 +265,24 @@ struct TodoMainView: View {
     
     // MARK: - Sidebar
     
+    private var allUsedTags: [String] {
+        var tagSet = Set<String>()
+        for todo in allTodos {
+            for tag in todo.tags {
+                tagSet.insert(tag)
+            }
+        }
+        return tagSet.sorted { TodoTagHelper.tagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending }
+    }
+    
     private var sidebar: some View {
-        List(selection: $selectedFilter) {
+        List {
             Section {
                 ForEach(TodoListFilter.allCases) { filter in
-                    NavigationLink(value: filter) {
+                    Button {
+                        selectedTag = nil
+                        selectedFilter = filter
+                    } label: {
                         HStack(spacing: 12) {
                             Image(systemName: filter.icon)
                                 .foregroundStyle(filter.color)
@@ -207,24 +302,98 @@ struct TodoMainView: View {
                         }
                         .padding(.vertical, 4)
                     }
+                    .buttonStyle(.plain)
+                    .listRowBackground(
+                        selectedTag == nil && selectedFilter == filter
+                            ? Color.accentColor.opacity(0.15)
+                            : Color.clear
+                    )
+                }
+            }
+            
+            if !allUsedTags.isEmpty {
+                Section {
+                    ForEach(allUsedTags, id: \.self) { tag in
+                        Button {
+                            selectedFilter = nil
+                            selectedTag = tag
+                        } label: {
+                            HStack(spacing: 10) {
+                                Circle()
+                                    .fill(TodoTagHelper.tagColor(tag).color)
+                                    .frame(width: 10, height: 10)
+                                
+                                Text(TodoTagHelper.tagName(tag))
+                                    .font(.system(size: 15))
+                                
+                                Spacer()
+                                
+                                Text("\(countForTag(tag))")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(
+                            selectedTag == tag
+                                ? Color.accentColor.opacity(0.15)
+                                : Color.clear
+                        )
+                    }
+                } header: {
+                    HStack {
+                        Text("Tags")
+                        Spacer()
+                        if hasUnusedTags {
+                            Button("Remove Unused") {
+                                removeUnusedTags()
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        }
+                    }
                 }
             }
         }
         .listStyle(.sidebar)
-        .navigationTitle("Todos")
-        #if !os(macOS)
-        .navigationBarTitleDisplayMode(.large)
-        #endif
     }
     
     // MARK: - Todo List Content
     
     private var todoListContent: some View {
         VStack(spacing: 0) {
+            // Select mode header
+            if isSelectMode {
+                HStack {
+                    Button {
+                        if selectedTodoIDs.count == filteredTodos.count {
+                            selectedTodoIDs.removeAll()
+                        } else {
+                            selectedTodoIDs = Set(filteredTodos.map(\.id))
+                        }
+                    } label: {
+                        Text(selectedTodoIDs.count == filteredTodos.count ? "Deselect All" : "Select All")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.accent)
+                    
+                    Spacer()
+                    
+                    Text("\(selectedTodoIDs.count) selected")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
             // Search bar
             searchBar
                 .padding(.horizontal, 20)
-                .padding(.top, 16)
+                .padding(.top, isSelectMode ? 4 : 16)
                 .padding(.bottom, 12)
             
             if filteredTodos.isEmpty {
@@ -239,8 +408,14 @@ struct TodoMainView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
+                    .padding(.bottom, isSelectMode ? 100 : 40)
                 }
+            }
+            
+            // Batch action bar
+            if isSelectMode && !selectedTodoIDs.isEmpty {
+                batchActionBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         #if os(iOS)
@@ -248,7 +423,59 @@ struct TodoMainView: View {
         #else
         .background(Color(nsColor: .controlBackgroundColor))
         #endif
-        .navigationTitle((selectedFilter ?? .inbox).title)
+        .navigationTitle(selectedTag != nil ? TodoTagHelper.tagName(selectedTag!) : (selectedFilter ?? .inbox).title)
+    }
+    
+    // MARK: - Batch Action Bar
+    
+    private var batchActionBar: some View {
+        HStack(spacing: 0) {
+            batchButton(title: "Complete", icon: "checkmark.circle", color: .green) {
+                batchComplete()
+            }
+            
+            Divider().frame(height: 30)
+            
+            batchButton(title: "Priority", icon: "flag", color: .orange) {
+                batchSetHighPriority()
+            }
+            
+            Divider().frame(height: 30)
+            
+            batchButton(title: "Today", icon: "calendar", color: .blue) {
+                batchSetDueToday()
+            }
+            
+            Divider().frame(height: 30)
+            
+            batchButton(title: "Delete", icon: "trash", color: .red) {
+                batchDelete()
+            }
+        }
+        .padding(.vertical, 8)
+        #if os(iOS)
+        .background(.ultraThinMaterial)
+        #else
+        .background(.regularMaterial)
+        #endif
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+    }
+    
+    private func batchButton(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
     
     private var searchBar: some View {
@@ -331,13 +558,32 @@ struct TodoMainView: View {
             // Todo cards
             VStack(spacing: 1) {
                 ForEach(todos) { todo in
-                    TodoRowCard(todo: todo, onSelect: {
-                        selectedTodo = todo
-                    }, onEdit: {
-                        editingTodo = todo
-                    }, onDelete: {
-                        deleteTodo(todo)
-                    })
+                    HStack(spacing: 0) {
+                        if isSelectMode {
+                            Button {
+                                toggleSelection(todo)
+                            } label: {
+                                Image(systemName: selectedTodoIDs.contains(todo.id) ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(selectedTodoIDs.contains(todo.id) ? Color.accentColor : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, 12)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+                        
+                        TodoRowCard(todo: todo, onSelect: {
+                            if isSelectMode {
+                                toggleSelection(todo)
+                            } else {
+                                selectedTodo = todo
+                            }
+                        }, onEdit: {
+                            editingTodo = todo
+                        }, onDelete: {
+                            deleteTodo(todo)
+                        })
+                    }
                 }
             }
             #if os(iOS)
@@ -354,15 +600,26 @@ struct TodoMainView: View {
     
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: (selectedFilter ?? .inbox).icon)
-                .font(.system(size: 56, weight: .thin))
-                .foregroundStyle((selectedFilter ?? .inbox).color.opacity(0.3))
+            if let tag = selectedTag {
+                Circle()
+                    .fill(TodoTagHelper.tagColor(tag).color.opacity(0.3))
+                    .frame(width: 56, height: 56)
+                    .overlay {
+                        Image(systemName: "tag")
+                            .font(.system(size: 24, weight: .thin))
+                            .foregroundStyle(TodoTagHelper.tagColor(tag).color)
+                    }
+            } else {
+                Image(systemName: (selectedFilter ?? .inbox).icon)
+                    .font(.system(size: 56, weight: .thin))
+                    .foregroundStyle((selectedFilter ?? .inbox).color.opacity(0.3))
+            }
             
             Text(emptyStateMessage)
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.secondary)
             
-            if selectedFilter == .inbox || selectedFilter == .all {
+            if selectedTag == nil && (selectedFilter == .inbox || selectedFilter == .all) {
                 Button {
                     isShowingNewTodo = true
                 } label: {
@@ -380,15 +637,10 @@ struct TodoMainView: View {
         if !searchText.isEmpty {
             return "No todos found"
         }
-        
-        switch selectedFilter ?? .inbox {
-        case .inbox: return "No todos in inbox"
-        case .today: return "Nothing scheduled for today"
-        case .upcoming: return "No upcoming todos"
-        case .anytime: return "No todos without a date"
-        case .completed: return "No completed todos"
-        case .all: return "No todos yet"
+        if let tag = selectedTag {
+            return "No todos tagged \"\(TodoTagHelper.tagName(tag))\""
         }
+        return (selectedFilter ?? .inbox).emptyMessage
     }
     
     // MARK: - New Todo Sheet
@@ -413,19 +665,35 @@ struct TodoMainView: View {
     // MARK: - Helper Functions
     
     private func countForFilter(_ filter: TodoListFilter) -> Int {
-        switch filter {
-        case .inbox:
-            return allTodos.filter { !$0.isCompleted && $0.tags.isEmpty }.count
-        case .today:
-            return allTodos.filter { !$0.isCompleted && $0.isScheduledForToday }.count
-        case .upcoming:
-            return allTodos.filter { !$0.isCompleted && $0.dueDate != nil && !$0.isScheduledForToday }.count
-        case .anytime:
-            return allTodos.filter { !$0.isCompleted && $0.dueDate == nil }.count
-        case .completed:
-            return allTodos.filter { $0.isCompleted }.count
-        case .all:
-            return 0
+        guard filter != .all else { return 0 }
+        return allTodos.filter { filter.matches($0) }.count
+    }
+    
+    private func countForTag(_ tag: String) -> Int {
+        allTodos.filter { $0.tags.contains(tag) }.count
+    }
+    
+    private var hasUnusedTags: Bool {
+        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tags })
+        let allTags = Set(allTodos.flatMap { $0.tags })
+        return allTags.subtracting(activeTags).isEmpty == false
+    }
+    
+    private func removeUnusedTags() {
+        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tags })
+        let allTags = Set(allTodos.flatMap { $0.tags })
+        let unusedTags = allTags.subtracting(activeTags)
+        
+        guard !unusedTags.isEmpty else { return }
+        
+        for todo in allTodos where todo.isCompleted {
+            todo.tags.removeAll { unusedTags.contains($0) }
+        }
+        
+        // Clear tag selection if the selected tag was removed
+        if let selected = selectedTag, unusedTags.contains(selected) {
+            selectedTag = nil
+            selectedFilter = .inbox
         }
     }
 }
@@ -472,6 +740,34 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .anytime: return .gray
         case .completed: return .green
         case .all: return .primary
+        }
+    }
+    
+    var emptyMessage: String {
+        switch self {
+        case .inbox: return "Your inbox is empty"
+        case .today: return "No tasks scheduled for today"
+        case .upcoming: return "No upcoming tasks"
+        case .anytime: return "No unscheduled tasks"
+        case .completed: return "No completed tasks yet"
+        case .all: return "Add a task to get started"
+        }
+    }
+    
+    func matches(_ todo: TodoItem) -> Bool {
+        switch self {
+        case .inbox:
+            return !todo.isCompleted && todo.tags.isEmpty
+        case .today:
+            return !todo.isCompleted && todo.isScheduledForToday
+        case .upcoming:
+            return !todo.isCompleted && todo.dueDate != nil && !todo.isScheduledForToday
+        case .anytime:
+            return !todo.isCompleted && todo.dueDate == nil
+        case .completed:
+            return todo.isCompleted
+        case .all:
+            return true
         }
     }
 }
@@ -650,92 +946,201 @@ struct TodoRowCard: View {
 struct NewTodoForm: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudents: [Student]
+
     @State private var title = ""
     @State private var notes = ""
-    @State private var dueDate: Date?
+    @State private var dueDate = Date()
     @State private var hasDueDate = false
     @State private var priority: TodoPriority = .none
+    @State private var recurrence: RecurrencePattern = .none
     @State private var selectedTags: [String] = []
-    
+    @State private var selectedStudentIDs: Set<UUID> = []
+    @State private var subtaskTitles: [String] = []
+    @State private var newSubtaskTitle = ""
+    @State private var estimatedHours = 0
+    @State private var estimatedMinutes = 0
+
     var body: some View {
         Form {
+            // Title & Notes
             Section {
-                TextField("Title", text: $title)
+                TextField("What do you need to do?", text: $title)
                     .font(.system(size: 17))
-                
+
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
                     .font(.system(size: 15))
             }
-            
-            Section {
-                Toggle("Due Date", isOn: $hasDueDate)
-                
-                if hasDueDate {
-                    DatePicker("Date", selection: Binding(
-                        get: { dueDate ?? Date() },
-                        set: { dueDate = $0 }
-                    ), displayedComponents: [.date, .hourAndMinute])
+
+            // Students
+            if !allStudents.isEmpty {
+                Section("Students") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(allStudents) { student in
+                                let isSelected = selectedStudentIDs.contains(student.id)
+                                Button {
+                                    if isSelected {
+                                        selectedStudentIDs.remove(student.id)
+                                    } else {
+                                        selectedStudentIDs.insert(student.id)
+                                    }
+                                } label: {
+                                    Text(student.firstName)
+                                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
+                                        .foregroundStyle(isSelected ? .white : .primary)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
                 }
             }
-            
+
+            // Schedule
+            Section("Schedule") {
+                Toggle("Due Date", isOn: $hasDueDate)
+
+                if hasDueDate {
+                    DatePicker("Date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+
+                    Picker("Repeats", selection: $recurrence) {
+                        ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
+                            Text(pattern.rawValue).tag(pattern)
+                        }
+                    }
+                }
+            }
+
+            // Priority
             Section {
                 Picker("Priority", selection: $priority) {
                     ForEach(TodoPriority.allCases, id: \.self) { p in
                         HStack {
-                            Circle().fill(priorityColorForPicker(p)).frame(width: 8, height: 8)
+                            Circle().fill(p.color).frame(width: 8, height: 8)
                             Text(p.rawValue)
                         }
                         .tag(p)
                     }
                 }
-                
             }
-            
+
+            // Subtasks / Checklist
+            Section("Checklist") {
+                ForEach(subtaskTitles.indices, id: \.self) { index in
+                    HStack(spacing: 10) {
+                        Image(systemName: "circle")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                        Text(subtaskTitles[index])
+                            .font(.system(size: 15))
+                        Spacer()
+                        Button {
+                            subtaskTitles.remove(at: index)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.red.opacity(0.7))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.accentColor)
+                    TextField("Add subtask", text: $newSubtaskTitle)
+                        .font(.system(size: 15))
+                        .onSubmit {
+                            addSubtask()
+                        }
+                }
+            }
+
+            // Time Estimate
+            Section("Time Estimate") {
+                HStack {
+                    Picker("Hours", selection: $estimatedHours) {
+                        ForEach(0..<13) { h in Text("\(h)h").tag(h) }
+                    }
+                    .pickerStyle(.menu)
+                    Picker("Minutes", selection: $estimatedMinutes) {
+                        ForEach([0, 5, 10, 15, 20, 30, 45], id: \.self) { m in Text("\(m)m").tag(m) }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+
+            // Tags
             Section("Tags") {
                 TagPicker(selectedTags: $selectedTags)
             }
-            
+
+            // Create
             Section {
-                Button("Create Todo") {
+                Button {
                     createTodo()
+                } label: {
+                    HStack {
+                        Spacer()
+                        Label("Create Todo", systemImage: "plus.circle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                        Spacer()
+                    }
                 }
-                .disabled(title.isEmpty)
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
     }
-    
+
+    private func addSubtask() {
+        let trimmed = newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        subtaskTitles.append(trimmed)
+        newSubtaskTitle = ""
+    }
+
     private func createTodo() {
         let todo = TodoItem(
-            title: title,
-            notes: notes,
-            studentIDs: [],
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            studentIDs: selectedStudentIDs.map(\.uuidString),
             priority: priority
         )
-        
+
         if hasDueDate {
             todo.dueDate = dueDate
+            todo.recurrence = recurrence
         }
-        
+
         todo.tags = selectedTags
 
+        let totalEstimated = estimatedHours * 60 + estimatedMinutes
+        if totalEstimated > 0 {
+            todo.estimatedMinutes = totalEstimated
+        }
+
         modelContext.insert(todo)
+
+        // Create subtasks
+        for (index, subtaskTitle) in subtaskTitles.enumerated() {
+            let subtask = TodoSubtask(title: subtaskTitle, orderIndex: index)
+            subtask.todo = todo
+            modelContext.insert(subtask)
+        }
+
         do {
             try modelContext.save()
         } catch {
             print("⚠️ [\(#function)] Failed to create todo: \(error)")
         }
         dismiss()
-    }
-    
-    private func priorityColorForPicker(_ priority: TodoPriority) -> Color {
-        switch priority {
-        case .none: return .gray
-        case .low: return .blue
-        case .medium: return .orange
-        case .high: return .red
-        }
     }
 }
 
@@ -744,88 +1149,236 @@ struct NewTodoForm: View {
 struct TodoDetailView: View {
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudents: [Student]
     let onClose: () -> Void
     let onEdit: () -> Void
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Title
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Button {
+                // Title + Checkbox
+                HStack(alignment: .top, spacing: 14) {
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) {
                             todo.isCompleted.toggle()
-                            if todo.isCompleted {
-                                todo.completedAt = Date()
-                            } else {
-                                todo.completedAt = nil
-                            }
-                            do {
-                                try modelContext.save()
-                            } catch {
-                                print("⚠️ [\(#function)] Failed to save todo completion state: \(error)")
-                            }
-                        } label: {
-                            Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 28))
-                                .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                            todo.completedAt = todo.isCompleted ? Date() : nil
+                            try? modelContext.save()
                         }
-                        .buttonStyle(.plain)
-                        
-                        Text(todo.title)
-                            .font(.system(size: 28, weight: .bold))
-                            .strikethrough(todo.isCompleted)
+                    } label: {
+                        Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 28))
+                            .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                            .contentTransition(.symbolEffect(.replace))
                     }
+                    .buttonStyle(.plain)
+
+                    Text(todo.title)
+                        .font(.system(size: 28, weight: .bold))
+                        .strikethrough(todo.isCompleted)
                 }
-                
-                // Notes
-                if !todo.notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Notes")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        
-                        Text(todo.notes)
-                            .font(.system(size: 15))
-                    }
-                }
-                
-                // Metadata
-                VStack(alignment: .leading, spacing: 12) {
-                    if let dueDate = todo.dueDate {
-                        metadataRow(icon: "calendar", label: "Due", value: formatDate(dueDate))
-                    }
-                    
-                    if todo.priority != .none {
-                        HStack {
-                            Image(systemName: "flag")
-                            Text("Priority")
-                            Spacer()
-                            HStack(spacing: 6) {
-                                Circle().fill(priorityColorForDetail(todo.priority)).frame(width: 8, height: 8)
-                                Text(todo.priority.rawValue)
+
+                // Students
+                if !todo.studentIDs.isEmpty {
+                    detailSection("Students", icon: "person.2.fill") {
+                        FlowLayout(spacing: 8) {
+                            ForEach(todo.studentUUIDs, id: \.self) { studentID in
+                                let name = allStudents.first(where: { $0.id == studentID })
+                                    .map { "\($0.firstName) \($0.lastName)" } ?? "Unknown"
+                                Text(name)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.accentColor.opacity(0.12))
+                                    .foregroundStyle(Color.accentColor)
+                                    .clipShape(Capsule())
                             }
                         }
-                        .font(.system(size: 15))
                     }
-                    
                 }
-                
+
+                // Due Date & Recurrence
+                if todo.dueDate != nil || todo.recurrence != .none {
+                    detailSection("Schedule", icon: "calendar") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if let dueDate = todo.dueDate {
+                                metadataRow(icon: "calendar", label: "Due", value: formatDate(dueDate), valueColor: todo.isOverdue ? .red : .secondary)
+                            }
+                            if todo.recurrence != .none {
+                                metadataRow(icon: todo.recurrence.icon, label: "Repeats", value: todo.recurrence.description, valueColor: .purple)
+                            }
+                        }
+                    }
+                }
+
+                // Priority
+                if todo.priority != .none {
+                    detailSection("Priority", icon: "flag.fill") {
+                        HStack(spacing: 8) {
+                            Circle().fill(todo.priority.color).frame(width: 10, height: 10)
+                            Text(todo.priority.rawValue)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(todo.priority.color)
+                        }
+                    }
+                }
+
                 // Tags
                 if !todo.tags.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Tags")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        
+                    detailSection("Tags", icon: "tag.fill") {
                         FlowLayout(spacing: 8) {
                             ForEach(todo.tags, id: \.self) { tag in
                                 TagBadge(tag: tag)
                             }
                         }
                     }
+                }
+
+                // Subtasks
+                if !todo.subtasks.isEmpty {
+                    detailSection("Checklist", icon: "checklist") {
+                        VStack(alignment: .leading, spacing: 2) {
+                            // Progress bar
+                            let completed = todo.subtasks.filter(\.isCompleted).count
+                            let total = todo.subtasks.count
+                            HStack(spacing: 8) {
+                                ProgressView(value: Double(completed), total: Double(total))
+                                    .tint(completed == total ? .green : .accentColor)
+                                Text("\(completed)/\(total)")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.bottom, 8)
+
+                            ForEach(todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })) { subtask in
+                                HStack(spacing: 10) {
+                                    Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(subtask.isCompleted ? .green : .secondary)
+                                    Text(subtask.title)
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
+                                        .strikethrough(subtask.isCompleted)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                }
+
+                // Time Tracking
+                if todo.estimatedMinutes != nil || todo.actualMinutes != nil {
+                    detailSection("Time", icon: "clock.fill") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if let est = todo.estimatedMinutes {
+                                metadataRow(icon: "hourglass", label: "Estimated", value: formatMinutes(est), valueColor: .secondary)
+                            }
+                            if let actual = todo.actualMinutes {
+                                metadataRow(icon: "stopwatch", label: "Actual", value: formatMinutes(actual), valueColor: .secondary)
+                            }
+                            if let est = todo.estimatedMinutes, let actual = todo.actualMinutes, est > 0 {
+                                let variance = actual - est
+                                let color: Color = variance > 0 ? .red : (variance < 0 ? .green : .secondary)
+                                metadataRow(icon: "chart.bar", label: "Variance", value: "\(variance > 0 ? "+" : "")\(formatMinutes(abs(variance)))", valueColor: color)
+                            }
+                        }
+                    }
+                }
+
+                // Reminder
+                if let reminderDate = todo.reminderDate {
+                    detailSection("Reminder", icon: "bell.fill") {
+                        metadataRow(icon: "bell", label: "Alert at", value: formatDate(reminderDate), valueColor: .yellow)
+                    }
+                }
+
+                // Location Reminder
+                if todo.hasLocationReminder, let locationName = todo.locationName {
+                    detailSection("Location", icon: "location.fill") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            metadataRow(icon: "mappin", label: "Place", value: locationName, valueColor: .teal)
+                            HStack(spacing: 12) {
+                                if todo.notifyOnEntry {
+                                    Label("On arrival", systemImage: "arrow.right.circle")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.secondary)
+                                }
+                                if todo.notifyOnExit {
+                                    Label("On departure", systemImage: "arrow.left.circle")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Linked Work Item
+                if todo.linkedWorkItemID != nil {
+                    detailSection("Work Item", icon: "link") {
+                        HStack(spacing: 6) {
+                            Image(systemName: "briefcase.fill")
+                                .foregroundStyle(.indigo)
+                            Text("Linked work item")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.indigo)
+                        }
+                    }
+                }
+
+                // Attachments
+                if todo.hasAttachments {
+                    detailSection("Attachments", icon: "paperclip") {
+                        Text("\(todo.attachmentPaths.count) file\(todo.attachmentPaths.count == 1 ? "" : "s")")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Mood & Reflection
+                if todo.hasMoodOrReflection {
+                    detailSection("Mood & Reflection", icon: "face.smiling") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if let mood = todo.mood {
+                                HStack(spacing: 8) {
+                                    Text(mood.emoji)
+                                        .font(.system(size: 24))
+                                    Text(mood.rawValue)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(mood.color)
+                                }
+                            }
+                            let reflection = todo.reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !reflection.isEmpty {
+                                Text(reflection)
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.secondary.opacity(0.06))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                        }
+                    }
+                }
+
+                // Notes
+                if !todo.notes.isEmpty {
+                    detailSection("Notes", icon: "text.alignleft") {
+                        Text(todo.notes)
+                            .font(.system(size: 15))
+                    }
+                }
+
+                // Completed timestamp
+                if todo.isCompleted, let completedAt = todo.completedAt {
+                    detailSection("Completed", icon: "checkmark.seal.fill") {
+                        metadataRow(icon: "checkmark", label: "Completed", value: formatDate(completedAt), valueColor: .green)
+                    }
+                }
+
+                // Created timestamp
+                detailSection("Created", icon: "clock.arrow.circlepath") {
+                    metadataRow(icon: "plus.circle", label: "Created", value: formatDate(todo.createdAt), valueColor: .secondary)
                 }
             }
             .padding(24)
@@ -848,56 +1401,70 @@ struct TodoDetailView: View {
                     }
                 }
             }
-            
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    onEdit()
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
+                Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
             }
             #else
             ToolbarItem(placement: .automatic) {
-                Button("Back") {
-                    onClose()
-                }
+                Button("Back") { onClose() }
             }
-            
             ToolbarItem(placement: .automatic) {
-                Button {
-                    onEdit()
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
+                Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
             }
             #endif
         }
     }
-    
-    private func metadataRow(icon: String, label: String, value: String) -> some View {
+
+    // MARK: - Detail Helpers
+
+    @ViewBuilder
+    private func detailSection(_ title: String, icon: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+            content()
+        }
+    }
+
+    private func metadataRow(icon: String, label: String, value: String, valueColor: Color = .secondary) -> some View {
         HStack {
             Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
             Text(label)
+                .font(.system(size: 15))
             Spacer()
             Text(value)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 15))
+                .foregroundStyle(valueColor)
         }
-        .font(.system(size: 15))
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
-    
-    private func priorityColorForDetail(_ priority: TodoPriority) -> Color {
-        switch priority {
-        case .none: return .gray
-        case .low: return .blue
-        case .medium: return .orange
-        case .high: return .red
+
+    private func formatMinutes(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours > 0 && mins > 0 {
+            return "\(hours)h \(mins)m"
+        } else if hours > 0 {
+            return "\(hours)h"
+        } else {
+            return "\(mins)m"
         }
     }
 }

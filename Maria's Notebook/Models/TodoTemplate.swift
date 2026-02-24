@@ -16,6 +16,9 @@ final class TodoTemplate {
     // Store default student IDs (can be empty)
     var defaultStudentIDs: [String] = []
     
+    // Default tags for todos created from this template
+    var tags: [String] = []
+    
     // Template metadata
     var useCount: Int = 0 // Track how many times this template has been used
     
@@ -32,7 +35,8 @@ final class TodoTemplate {
         createdAt: Date = Date(),
         priority: TodoPriority = .none,
         defaultEstimatedMinutes: Int? = nil,
-        defaultStudentIDs: [String] = []
+        defaultStudentIDs: [String] = [],
+        tags: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -42,6 +46,7 @@ final class TodoTemplate {
         self.priorityRaw = priority.rawValue
         self.defaultEstimatedMinutes = defaultEstimatedMinutes
         self.defaultStudentIDs = defaultStudentIDs
+        self.tags = tags
     }
     
     /// Create a new TodoItem from this template
@@ -56,6 +61,8 @@ final class TodoTemplate {
         if let estimatedMinutes = defaultEstimatedMinutes {
             todo.estimatedMinutes = estimatedMinutes
         }
+        
+        todo.tags = tags
         
         context.insert(todo)
         

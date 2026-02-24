@@ -144,6 +144,16 @@ private struct TemplateRow: View {
                         .foregroundStyle(.cyan)
                     }
                     
+                    if !template.tags.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "tag")
+                                .font(.caption2)
+                            Text("\(template.tags.count)")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.purple)
+                    }
+                    
                     if template.useCount > 0 {
                         HStack(spacing: 4) {
                             Image(systemName: "doc.on.doc")
@@ -227,6 +237,8 @@ private struct TodoTemplateEditSheet: View {
     @State private var estimatedHours: Int
     @State private var estimatedMinutes: Int
     @State private var selectedStudentIDs: Set<String>
+    @State private var selectedTags: [String]
+    @State private var isShowingTagPicker = false
     
     init(template: TodoTemplate?) {
         self.template = template
@@ -239,6 +251,7 @@ private struct TodoTemplateEditSheet: View {
         _estimatedHours = State(initialValue: estTotal / 60)
         _estimatedMinutes = State(initialValue: estTotal % 60)
         _selectedStudentIDs = State(initialValue: Set(template?.defaultStudentIDs ?? []))
+        _selectedTags = State(initialValue: template?.tags ?? [])
     }
     
     private var canSave: Bool {
@@ -265,45 +278,13 @@ private struct TodoTemplateEditSheet: View {
                     }
                 }
                 
-                Section("Estimated Time") {
-                    HStack {
-                        Picker("Hours", selection: $estimatedHours) {
-                            ForEach(0..<24, id: \.self) { hour in
-                                Text("\(hour) hr").tag(hour)
-                            }
-                        }
-                        
-                        Picker("Minutes", selection: $estimatedMinutes) {
-                            ForEach([0, 15, 30, 45], id: \.self) { minute in
-                                Text("\(minute) min").tag(minute)
-                            }
-                        }
-                    }
-                }
+                estimatedTimeSection
                 
                 if !students.isEmpty {
-                    Section("Default Students") {
-                        ForEach(students) { student in
-                            Button {
-                                if selectedStudentIDs.contains(student.id.uuidString) {
-                                    selectedStudentIDs.remove(student.id.uuidString)
-                                } else {
-                                    selectedStudentIDs.insert(student.id.uuidString)
-                                }
-                            } label: {
-                                HStack {
-                                    Text("\(student.firstName) \(student.lastName)")
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    if selectedStudentIDs.contains(student.id.uuidString) {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(.blue)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    studentsSection
                 }
+                
+                tagsSection
                 
                 Section("Notes") {
                     TextEditor(text: $notes)
@@ -323,7 +304,92 @@ private struct TodoTemplateEditSheet: View {
                         .disabled(!canSave)
                 }
             }
+            .sheet(isPresented: $isShowingTagPicker) {
+                TagPicker(selectedTags: $selectedTags)
+            }
         }
+    }
+    
+    private var estimatedTimeSection: some View {
+        Section("Estimated Time") {
+            HStack {
+                Picker("Hours", selection: $estimatedHours) {
+                    ForEach(0..<24, id: \.self) { hour in
+                        Text("\(hour) hr").tag(hour)
+                    }
+                }
+                
+                Picker("Minutes", selection: $estimatedMinutes) {
+                    ForEach([0, 15, 30, 45], id: \.self) { minute in
+                        Text("\(minute) min").tag(minute)
+                    }
+                }
+            }
+        }
+    }
+    
+    private var studentsSection: some View {
+        Section("Default Students") {
+            ForEach(students) { student in
+                Button {
+                    if selectedStudentIDs.contains(student.id.uuidString) {
+                        selectedStudentIDs.remove(student.id.uuidString)
+                    } else {
+                        selectedStudentIDs.insert(student.id.uuidString)
+                    }
+                } label: {
+                    HStack {
+                        Text("\(student.firstName) \(student.lastName)")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selectedStudentIDs.contains(student.id.uuidString) {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var tagsSection: some View {
+        Section("Tags") {
+            if selectedTags.isEmpty {
+                Text("No tags")
+                    .foregroundStyle(.secondary)
+            } else {
+                FlowLayout(spacing: 6) {
+                    ForEach(selectedTags, id: \.self) { tag in
+                        templateTagBadge(tag)
+                    }
+                }
+            }
+            
+            Button {
+                isShowingTagPicker = true
+            } label: {
+                Label("Edit Tags", systemImage: "tag")
+            }
+        }
+    }
+    
+    private func templateTagBadge(_ tag: String) -> some View {
+        HStack(spacing: 4) {
+            Text(TodoTagHelper.tagName(tag))
+                .font(.system(size: 13, weight: .medium))
+            Button {
+                selectedTags.removeAll { $0 == tag }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(TodoTagHelper.tagColor(tag).lightColor)
+        .foregroundStyle(TodoTagHelper.tagColor(tag).color)
+        .clipShape(Capsule())
     }
     
     private func save() {
@@ -341,6 +407,7 @@ private struct TodoTemplateEditSheet: View {
             existing.priority = priority
             existing.defaultEstimatedMinutes = totalEstimated > 0 ? totalEstimated : nil
             existing.defaultStudentIDs = Array(selectedStudentIDs)
+            existing.tags = selectedTags
         } else {
             // Create new template
             let newTemplate = TodoTemplate(
@@ -349,7 +416,8 @@ private struct TodoTemplateEditSheet: View {
                 notes: trimmedNotes,
                 priority: priority,
                 defaultEstimatedMinutes: totalEstimated > 0 ? totalEstimated : nil,
-                defaultStudentIDs: Array(selectedStudentIDs)
+                defaultStudentIDs: Array(selectedStudentIDs),
+                tags: selectedTags
             )
             modelContext.insert(newTemplate)
         }
