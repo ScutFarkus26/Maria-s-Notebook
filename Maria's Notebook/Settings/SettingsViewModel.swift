@@ -94,13 +94,8 @@ final class SettingsViewModel {
                 to: tmp,
                 password: encryptBackups ? "defaultPassword" : nil
             ) { [weak self] progress, message in
-                guard let self else { return }
-                // Use MainActor.assumeIsolated since we're already on MainActor
-                // This avoids creating racing Task blocks that cause simultaneous access violations
-                MainActor.assumeIsolated {
-                    self.backupProgress = progress
-                    self.backupMessage = message
-                }
+                self?.backupProgress = progress
+                self?.backupMessage = message
             }
             // Attempt seamless save to default folder if configured
             if let folder = BackupDestination.resolveDefaultFolder() {
@@ -177,13 +172,8 @@ final class SettingsViewModel {
                 from: url,
                 mode: restoreMode
             ) { [weak self] p, m in
-                guard let self else { return }
-                // Use MainActor.assumeIsolated since we're already on MainActor
-                // This avoids creating racing Task blocks that cause simultaneous access violations
-                MainActor.assumeIsolated {
-                    self.importProgress = p
-                    self.importMessage = m
-                }
+                self?.importProgress = p
+                self?.importMessage = m
             }
             // Reset progress and present preview
             importProgress = 0
@@ -209,13 +199,8 @@ final class SettingsViewModel {
                 mode: restoreMode,
                 appRouter: dependencies.appRouter
             ) { [weak self] p, m in
-                guard let self else { return }
-                // Use MainActor.assumeIsolated since we're already on MainActor
-                // This avoids creating racing Task blocks that cause simultaneous access violations
-                MainActor.assumeIsolated {
-                    self.importProgress = p
-                    self.importMessage = m
-                }
+                self?.importProgress = p
+                self?.importMessage = m
             }
             restorePreviewData = nil
             pendingImportURL = nil

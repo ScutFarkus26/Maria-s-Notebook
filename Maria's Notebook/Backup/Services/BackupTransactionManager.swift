@@ -77,7 +77,7 @@ public final class BackupTransactionManager {
     public func createCheckpoint(
         modelContext: ModelContext,
         operationName: String,
-        progress: ((Double, String) -> Void)? = nil
+        progress: BackupService.ProgressCallback? = nil
     ) async throws -> URL {
         // Ensure checkpoint directory exists
         try FileManager.default.createDirectory(
@@ -127,7 +127,7 @@ public final class BackupTransactionManager {
         mode: BackupService.RestoreMode,
         password: String? = nil,
         shouldCreateCheckpoint createCheckpointOption: Bool? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
 
         // Determine if we should create a checkpoint
@@ -217,7 +217,7 @@ public final class BackupTransactionManager {
     public func rollback(
         modelContext: ModelContext,
         from checkpointURL: URL,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws {
         guard FileManager.default.fileExists(atPath: checkpointURL.path) else {
             throw TransactionError.noCheckpointExists
@@ -243,7 +243,7 @@ public final class BackupTransactionManager {
     ///   - progress: Progress callback
     public func rollbackToActiveCheckpoint(
         modelContext: ModelContext,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws {
         guard let checkpointURL = activeCheckpointURL else {
             throw TransactionError.noCheckpointExists

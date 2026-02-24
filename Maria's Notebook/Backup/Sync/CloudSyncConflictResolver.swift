@@ -148,7 +148,7 @@ public final class CloudSyncConflictResolver {
         strategy: ConflictResolutionStrategy,
         to outputURL: URL,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> MergeResult {
         
         progress(0.0, "Analyzing conflicts…")
@@ -224,7 +224,7 @@ public final class CloudSyncConflictResolver {
         remoteInfo: BackupInfo,
         to outputURL: URL,
         conflicts: [Conflict],
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> MergeResult {
         
         let sourceURL: URL
@@ -261,7 +261,7 @@ public final class CloudSyncConflictResolver {
         remoteInfo: BackupInfo,
         to outputURL: URL,
         conflicts: [Conflict],
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> MergeResult {
         
         let sourceURL: URL
@@ -299,7 +299,7 @@ public final class CloudSyncConflictResolver {
         to outputURL: URL,
         password: String?,
         conflicts: [Conflict],
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> MergeResult {
         
         progress(0.2, "Loading both backups…")
@@ -346,7 +346,7 @@ public final class CloudSyncConflictResolver {
         to outputURL: URL,
         password: String?,
         conflicts: [Conflict],
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> MergeResult {
         
         progress(0.1, "Performing three-way merge…")

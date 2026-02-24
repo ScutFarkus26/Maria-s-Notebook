@@ -70,7 +70,7 @@ public final class EnhancedBackupService {
         to url: URL,
         password: String? = nil,
         mode: ExportMode? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> EnhancedBackupOperationSummary {
         
         let exportMode = mode ?? preferredExportMode
@@ -153,7 +153,7 @@ public final class EnhancedBackupService {
         mode: RestoreMode,
         password: String? = nil,
         importMode: ImportMode? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> EnhancedRestoreResult {
         
         let startTime = Date()
@@ -209,7 +209,7 @@ public final class EnhancedBackupService {
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> EnhancedRestorePreview {
         
         let preview = try await backupService.previewImport(
@@ -438,7 +438,7 @@ public final class EnhancedBackupService {
         strategy: CloudSyncConflictResolver.ConflictResolutionStrategy,
         to outputURL: URL,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> CloudSyncConflictResolver.MergeResult {
         return try await conflictResolver.resolve(
             local: localURL,
@@ -458,7 +458,7 @@ public final class EnhancedBackupService {
         to url: URL,
         password: String? = nil,
         forceFullBackup: Bool = false,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> IncrementalBackupService.IncrementalBackupResult {
         return try await incrementalService.createIncrementalBackup(
             modelContext: modelContext,

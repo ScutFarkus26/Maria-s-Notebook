@@ -6,6 +6,10 @@ import Compression
 
 @MainActor
 public final class BackupService {
+    /// Progress callback type for backup operations.
+    /// Guaranteed to run on MainActor so callers can update UI state directly.
+    public typealias ProgressCallback = @MainActor @Sendable (Double, String) -> Void
+
     public enum RestoreMode: String, CaseIterable, Identifiable, Codable, Sendable {
         case merge
         case replace
@@ -35,7 +39,7 @@ public final class BackupService {
         modelContext: ModelContext,
         to url: URL,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) async throws -> BackupOperationSummary {
         return try withSecurityScopedResource(url) {
             try performExport(modelContext: modelContext, to: url, password: password, progress: progress)
@@ -46,7 +50,7 @@ public final class BackupService {
         modelContext: ModelContext,
         to url: URL,
         password: String?,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) throws -> BackupOperationSummary {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.0), "Collecting students…")
         
@@ -200,7 +204,7 @@ public final class BackupService {
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) async throws -> RestorePreview {
 
         let (_, payload) = try withSecurityScopedResource(url) {
@@ -242,7 +246,7 @@ public final class BackupService {
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) async throws -> BackupOperationSummary {
         try await importBackup(
             modelContext: modelContext,
@@ -261,7 +265,7 @@ public final class BackupService {
         mode: RestoreMode,
         password: String? = nil,
         appRouter: AppRouter,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) async throws -> BackupOperationSummary {
 
         let (envelope, loadedPayload) = try withSecurityScopedResource(url) {
@@ -574,7 +578,7 @@ public final class BackupService {
     private func loadAndDecodeBackup(
         from url: URL,
         password: String?,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) throws -> (envelope: BackupEnvelope, payload: BackupPayload) {
         progress(0.05, "Reading file…")
         let data = try Data(contentsOf: url)
@@ -627,7 +631,7 @@ public final class BackupService {
     private func extractPayloadBytes(
         from envelope: BackupEnvelope,
         password: String?,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) throws -> Data {
         let isCompressed = envelope.manifest.compression != nil
 
@@ -658,7 +662,7 @@ public final class BackupService {
     private func validateChecksum(
         _ payloadBytes: Data,
         against expectedSHA: String,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping ProgressCallback
     ) throws {
         progress(0.20, "Validating checksum…")
         if !expectedSHA.isEmpty {

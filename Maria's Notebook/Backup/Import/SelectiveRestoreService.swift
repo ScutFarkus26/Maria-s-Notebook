@@ -135,7 +135,7 @@ public final class SelectiveRestoreService {
     public func analyzeBackup(
         from url: URL,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> [RestorableEntityType: Int] {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
@@ -177,7 +177,7 @@ public final class SelectiveRestoreService {
         options: SelectiveRestoreOptions,
         modelContext: ModelContext,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> SelectiveRestorePreview {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
@@ -254,7 +254,7 @@ public final class SelectiveRestoreService {
         options: SelectiveRestoreOptions,
         modelContext: ModelContext,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> SelectiveRestoreResult {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }

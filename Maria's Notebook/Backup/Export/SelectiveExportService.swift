@@ -125,7 +125,7 @@ public final class SelectiveExportService {
         to url: URL,
         filter: ExportFilter,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
 
         progress(0.0, "Preparing selective export…")
@@ -303,7 +303,7 @@ public final class SelectiveExportService {
         modelContext: ModelContext,
         to url: URL,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
         let filter = ExportFilter(
             entityTypes: [.projects, .students],
@@ -327,7 +327,7 @@ public final class SelectiveExportService {
         to url: URL,
         includeHistory: Bool = true,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
         var entityTypes: Set<EntityType> = [.students]
         if includeHistory {
@@ -358,7 +358,7 @@ public final class SelectiveExportService {
     private func collectFilteredPayload(
         modelContext: ModelContext,
         filter: ExportFilter,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) throws -> (BackupPayload, [String: Int]) {
         var counts: [String: Int] = [:]
 

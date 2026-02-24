@@ -88,7 +88,7 @@ public final class IncrementalBackupService {
         to url: URL,
         password: String? = nil,
         forceFullBackup: Bool = false,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> IncrementalBackupResult {
 
         let sinceDate = forceFullBackup ? nil : lastBackupDate
@@ -201,7 +201,7 @@ public final class IncrementalBackupService {
         backupURLs: [URL],
         to outputURL: URL,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> ConsolidationResult {
         guard !backupURLs.isEmpty else {
             throw NSError(domain: "IncrementalBackupService", code: 1, userInfo: [
@@ -419,7 +419,7 @@ public final class IncrementalBackupService {
     private func collectPayload(
         modelContext: ModelContext,
         sinceDate: Date?,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) throws -> (BackupPayload, [String: Int], [String: Int]) {
 
         var changedCounts: [String: Int] = [:]

@@ -193,7 +193,7 @@ public final class DeltaSyncService {
         localURL: URL,
         remoteBaseURL: URL?,
         uploadChunk: @escaping (DeltaChunk, Int, Int) async throws -> Void,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> SyncResult {
         
         let startTime = Date()
@@ -296,7 +296,7 @@ public final class DeltaSyncService {
     private func uploadFullFile(
         localURL: URL,
         uploadChunk: @escaping (DeltaChunk, Int, Int) async throws -> Void,
-        progress: @escaping (Double, String) -> Void,
+        progress: @escaping BackupService.ProgressCallback,
         startTime: Date
     ) async throws -> SyncResult {
         
@@ -376,7 +376,7 @@ extension CloudBackupService {
         localURL: URL,
         to cloudURL: URL,
         previousVersion: URL? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> DeltaSyncService.SyncResult {
         let deltaService = DeltaSyncService()
         let startTime = Date()

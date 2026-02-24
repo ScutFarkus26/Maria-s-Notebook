@@ -105,7 +105,7 @@ public final class BackupDiffService {
         backupURL: URL,
         modelContext: ModelContext,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupDiff {
         let access = backupURL.startAccessingSecurityScopedResource()
         defer { if access { backupURL.stopAccessingSecurityScopedResource() } }
@@ -190,7 +190,7 @@ public final class BackupDiffService {
         newerBackupURL: URL,
         olderPassword: String? = nil,
         newerPassword: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupDiff {
         let accessOlder = olderBackupURL.startAccessingSecurityScopedResource()
         let accessNewer = newerBackupURL.startAccessingSecurityScopedResource()

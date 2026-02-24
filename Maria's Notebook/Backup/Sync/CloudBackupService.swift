@@ -181,7 +181,7 @@ public final class CloudBackupService {
     public func exportToCloud(
         modelContext: ModelContext,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> URL {
         guard isICloudAvailable else {
             throw BackupOperationError.cloudOperationFailed(.iCloudNotAvailable)
@@ -490,7 +490,7 @@ public final class CloudBackupService {
     public func exportToCloudWithRetry(
         modelContext: ModelContext,
         password: String? = nil,
-        progress: @escaping (Double, String) -> Void
+        progress: @escaping BackupService.ProgressCallback
     ) async throws -> URL {
         try await withRetry {
             try await self.exportToCloud(
