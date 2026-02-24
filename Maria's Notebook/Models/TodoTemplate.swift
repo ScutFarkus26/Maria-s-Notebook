@@ -10,8 +10,6 @@ final class TodoTemplate {
     var notes: String
     var createdAt: Date
     private var priorityRaw: String = TodoPriority.none.rawValue
-    private var categoryRaw: String = TodoCategory.general.rawValue
-    
     // Store default time estimate in minutes
     var defaultEstimatedMinutes: Int?
     
@@ -26,11 +24,6 @@ final class TodoTemplate {
         set { priorityRaw = newValue.rawValue }
     }
     
-    var category: TodoCategory {
-        get { TodoCategory(rawValue: categoryRaw) ?? .general }
-        set { categoryRaw = newValue.rawValue }
-    }
-    
     init(
         id: UUID = UUID(),
         name: String,
@@ -38,7 +31,6 @@ final class TodoTemplate {
         notes: String = "",
         createdAt: Date = Date(),
         priority: TodoPriority = .none,
-        category: TodoCategory = .general,
         defaultEstimatedMinutes: Int? = nil,
         defaultStudentIDs: [String] = []
     ) {
@@ -48,7 +40,6 @@ final class TodoTemplate {
         self.notes = notes
         self.createdAt = createdAt
         self.priorityRaw = priority.rawValue
-        self.categoryRaw = category.rawValue
         self.defaultEstimatedMinutes = defaultEstimatedMinutes
         self.defaultStudentIDs = defaultStudentIDs
     }
@@ -59,8 +50,7 @@ final class TodoTemplate {
             title: title,
             notes: notes,
             studentIDs: defaultStudentIDs,
-            priority: priority,
-            category: category
+            priority: priority
         )
         
         if let estimatedMinutes = defaultEstimatedMinutes {

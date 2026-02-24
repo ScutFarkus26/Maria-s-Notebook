@@ -57,7 +57,6 @@ struct TodoListPanel: View {
     @State private var newTodoTitle = ""
     @State private var editingTodo: TodoItem?
     @State private var selectedFilter: TodoFilter = .all
-    @State private var selectedCategory: TodoCategory?
     @State private var isParsingWithAI = false
     @State private var showAnalytics = false
     @State private var showTemplates = false
@@ -66,9 +65,7 @@ struct TodoListPanel: View {
     
     private var filteredTodos: [TodoItem] {
         todos.filter { todo in
-            let matchesFilter = selectedFilter.matches(todo)
-            let matchesCategory = selectedCategory == nil || todo.category == selectedCategory
-            return matchesFilter && matchesCategory
+            selectedFilter.matches(todo)
         }
     }
     
@@ -130,46 +127,6 @@ struct TodoListPanel: View {
                     }
                     .buttonStyle(.plain)
                     
-                    Menu {
-                        Button {
-                            withAnimation {
-                                selectedCategory = nil
-                            }
-                        } label: {
-                            HStack {
-                                Text("All Categories")
-                                if selectedCategory == nil {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                        
-                        Divider()
-                        
-                        ForEach(TodoCategory.allCases, id: \.self) { category in
-                            Button {
-                                withAnimation {
-                                    selectedCategory = category
-                                }
-                            } label: {
-                                HStack {
-                                    Circle()
-                                        .fill(category.color)
-                                        .frame(width: 8, height: 8)
-                                    Text(category.rawValue)
-                                    if selectedCategory == category {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .font(.title2)
-                            .foregroundStyle(selectedCategory != nil ? .blue : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                    
                     Button {
                         dismiss()
                     } label: {
@@ -200,39 +157,6 @@ struct TodoListPanel: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                }
-                
-                // Category filter
-                if selectedCategory != nil {
-                    HStack {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(selectedCategory!.color)
-                                .frame(width: 8, height: 8)
-                            Text("Filtered by: \(selectedCategory!.rawValue)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(selectedCategory!.color.opacity(0.1))
-                        .cornerRadius(12)
-                        
-                        Button {
-                            withAnimation {
-                                selectedCategory = nil
-                            }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
                 }
                 
                 Divider()
@@ -364,19 +288,6 @@ struct TodoListPanel: View {
                 }
             }()
             
-            // Parse category
-            let category: TodoCategory = {
-                switch parsed.category.lowercased() {
-                case "work": return .work
-                case "personal": return .personal
-                case "student": return .student
-                case "meeting": return .meeting
-                case "administrative": return .administrative
-                case "planning": return .planning
-                default: return .general
-                }
-            }()
-            
             // Parse due date
             let dueDate: Date? = {
                 guard !parsed.dueDate.isEmpty else { return nil }
@@ -402,7 +313,6 @@ struct TodoListPanel: View {
                 orderIndex: todos.count,
                 dueDate: dueDate,
                 priority: priority,
-                category: category,
                 recurrence: recurrence
             )
 
@@ -436,7 +346,6 @@ struct TodoListPanel: View {
                     studentIDs: todo.studentIDs,
                     dueDate: nextDueDate,
                     priority: todo.priority,
-                    category: todo.category,
                     recurrence: todo.recurrence
                 )
                 modelContext.insert(newTodo)
@@ -551,9 +460,6 @@ struct TodoRow: View {
             text += "\(priorityEmoji) Priority: \(todo.priority.rawValue)\n"
         }
         
-        // Category
-        text += "🏷️ Category: \(todo.category.rawValue)\n"
-        
         // Due date
         if let dueDate = todo.dueDate {
             let formatter = DateFormatter()
@@ -620,9 +526,6 @@ struct TodoRow: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Circle()
-                        .fill(todo.category.color)
-                        .frame(width: 6, height: 6)
                     Text(todo.title)
                         .font(AppTheme.ScaledFont.body)
                         .foregroundStyle(todo.isCompleted ? .secondary : .primary)
@@ -825,7 +728,6 @@ struct TodoEditSheet: View {
     @State private var hasDueDate: Bool
     @State private var dueDate: Date
     @State private var priority: TodoPriority
-    @State private var category: TodoCategory
     @State private var recurrence: RecurrencePattern
     @State private var estimatedHours: Int
     @State private var estimatedMinutes: Int
@@ -854,7 +756,6 @@ struct TodoEditSheet: View {
         _hasDueDate = State(initialValue: todo.dueDate != nil)
         _dueDate = State(initialValue: todo.dueDate ?? AppCalendar.startOfDay(Date()))
         _priority = State(initialValue: todo.priority)
-        _category = State(initialValue: todo.category)
         _recurrence = State(initialValue: todo.recurrence)
         
         // Parse time estimates
@@ -968,11 +869,6 @@ struct TodoEditSheet: View {
                     
                     // Priority Section
                     prioritySection
-                    
-                    Divider()
-                    
-                    // Category Section
-                    categorySection
                     
                     Divider()
                     
@@ -1094,11 +990,6 @@ struct TodoEditSheet: View {
                     
                     // Priority Section
                     prioritySection
-                    
-                    Divider()
-                    
-                    // Category Section
-                    categorySection
                     
                     Divider()
                     
@@ -1395,51 +1286,6 @@ struct TodoEditSheet: View {
         case .low: return .blue
         case .medium: return .orange
         case .high: return .red
-        }
-    }
-    
-    // MARK: - Category Section
-    @ViewBuilder
-    private var categorySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Category")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(TodoCategory.allCases, id: \.self) { cat in
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                category = cat
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(cat.color)
-                                    .frame(width: 8, height: 8)
-                                Text(cat.rawValue)
-                                    .font(.system(size: 14, weight: category == cat ? .semibold : .regular, design: .rounded))
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background {
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(category == cat ? cat.color.opacity(0.15) : Color.secondary.opacity(0.1))
-                            }
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .strokeBorder(category == cat ? cat.color.opacity(0.4) : Color.clear, lineWidth: 1.5)
-                            }
-                            .foregroundStyle(category == cat ? cat.color : .primary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 2)
-            }
         }
     }
     
@@ -2277,9 +2123,6 @@ struct TodoEditSheet: View {
             text += "\(priorityEmoji) Priority: \(priority.rawValue)\n"
         }
         
-        // Category
-        text += "🏷️ Category: \(category.rawValue)\n"
-        
         // Due date
         if hasDueDate {
             let formatter = DateFormatter()
@@ -2360,7 +2203,6 @@ struct TodoEditSheet: View {
             title: title,
             notes: notes,
             priority: priority,
-            category: category,
             defaultEstimatedMinutes: totalEstimated > 0 ? totalEstimated : nil,
             defaultStudentIDs: Array(selectedStudentIDs)
         )
@@ -2381,7 +2223,6 @@ struct TodoEditSheet: View {
         todo.studentIDs = Array(selectedStudentIDs)
         todo.dueDate = hasDueDate ? dueDate : nil
         todo.priority = priority
-        todo.category = category
         todo.recurrence = hasDueDate ? recurrence : .none
         
         // Save time estimates

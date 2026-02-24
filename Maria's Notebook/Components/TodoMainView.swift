@@ -24,7 +24,7 @@ struct TodoMainView: View {
 
         switch selectedFilter ?? .inbox {
         case .inbox:
-            todos = allTodos.filter { !$0.isCompleted && $0.category == .personal }
+            todos = allTodos.filter { !$0.isCompleted && $0.tags.isEmpty }
         case .today:
             todos = allTodos.filter { !$0.isCompleted && $0.isScheduledForToday }
         case .upcoming:
@@ -415,7 +415,7 @@ struct TodoMainView: View {
     private func countForFilter(_ filter: TodoListFilter) -> Int {
         switch filter {
         case .inbox:
-            return allTodos.filter { !$0.isCompleted && $0.category == .personal }.count
+            return allTodos.filter { !$0.isCompleted && $0.tags.isEmpty }.count
         case .today:
             return allTodos.filter { !$0.isCompleted && $0.isScheduledForToday }.count
         case .upcoming:
@@ -656,7 +656,6 @@ struct NewTodoForm: View {
     @State private var dueDate: Date?
     @State private var hasDueDate = false
     @State private var priority: TodoPriority = .none
-    @State private var category: TodoCategory = .personal
     @State private var selectedTags: [String] = []
     
     var body: some View {
@@ -692,11 +691,6 @@ struct NewTodoForm: View {
                     }
                 }
                 
-                Picker("Category", selection: $category) {
-                    ForEach(TodoCategory.allCases, id: \.self) { c in
-                        Text(c.rawValue).tag(c)
-                    }
-                }
             }
             
             Section("Tags") {
@@ -717,8 +711,7 @@ struct NewTodoForm: View {
             title: title,
             notes: notes,
             studentIDs: [],
-            priority: priority,
-            category: category
+            priority: priority
         )
         
         if hasDueDate {
@@ -817,7 +810,6 @@ struct TodoDetailView: View {
                         .font(.system(size: 15))
                     }
                     
-                    metadataRow(icon: "folder", label: "Category", value: todo.category.rawValue)
                 }
                 
                 // Tags
@@ -953,11 +945,6 @@ struct EditTodoForm: View {
                     }
                 }
                 
-                Picker("Category", selection: $todo.category) {
-                    ForEach(TodoCategory.allCases, id: \.self) { c in
-                        Text(c.rawValue).tag(c)
-                    }
-                }
             }
             
             Section("Tags") {

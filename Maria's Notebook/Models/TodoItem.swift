@@ -133,52 +133,6 @@ enum TodoPriority: String, Codable, CaseIterable, Sendable {
     }
 }
 
-enum TodoCategory: String, Codable, CaseIterable, Sendable {
-    case general = "General"
-    case work = "Work"
-    case personal = "Personal"
-    case student = "Student"
-    case meeting = "Meeting"
-    case administrative = "Administrative"
-    case planning = "Planning"
-    case lessonPlanning = "Lesson Planning"
-    case grading = "Grading"
-    case communication = "Communication"
-    case professional = "Professional Development"
-    
-    var icon: String {
-        switch self {
-        case .general: return "circle"
-        case .work: return "briefcase"
-        case .personal: return "person"
-        case .student: return "person.3"
-        case .meeting: return "calendar"
-        case .administrative: return "paperclip"
-        case .planning: return "list.clipboard"
-        case .lessonPlanning: return "book"
-        case .grading: return "checkmark.square"
-        case .communication: return "envelope"
-        case .professional: return "graduationcap"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .general: return .gray
-        case .work: return .blue
-        case .personal: return .cyan
-        case .student: return .green
-        case .meeting: return .purple
-        case .administrative: return .orange
-        case .planning: return .pink
-        case .lessonPlanning: return .blue
-        case .grading: return .orange
-        case .communication: return .green
-        case .professional: return .pink
-        }
-    }
-}
-
 @Model
 final class TodoItem {
     var id: UUID
@@ -190,7 +144,6 @@ final class TodoItem {
     var orderIndex: Int
     var dueDate: Date?
     private var priorityRaw: String = TodoPriority.none.rawValue
-    private var categoryRaw: String = TodoCategory.general.rawValue
     private var recurrenceRaw: String = RecurrencePattern.none.rawValue
     
     // Store student IDs as strings for CloudKit compatibility
@@ -234,11 +187,6 @@ final class TodoItem {
         set { priorityRaw = newValue.rawValue }
     }
     
-    var category: TodoCategory {
-        get { TodoCategory(rawValue: categoryRaw) ?? .general }
-        set { categoryRaw = newValue.rawValue }
-    }
-    
     var recurrence: RecurrencePattern {
         get { RecurrencePattern(rawValue: recurrenceRaw) ?? .none }
         set { recurrenceRaw = newValue.rawValue }
@@ -266,7 +214,6 @@ final class TodoItem {
         studentIDs: [String] = [],
         dueDate: Date? = nil,
         priority: TodoPriority = .none,
-        category: TodoCategory = .general,
         recurrence: RecurrencePattern = .none,
         linkedWorkItemID: String? = nil
     ) {
@@ -280,7 +227,6 @@ final class TodoItem {
         self.studentIDs = studentIDs
         self.dueDate = dueDate
         self.priorityRaw = priority.rawValue
-        self.categoryRaw = category.rawValue
         self.recurrenceRaw = recurrence.rawValue
         self.linkedWorkItemID = linkedWorkItemID
     }

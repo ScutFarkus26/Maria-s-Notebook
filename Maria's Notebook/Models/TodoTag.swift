@@ -41,7 +41,13 @@ struct TodoTagHelper {
         ("Planning", TagColor.green),
         ("Research", TagColor.yellow),
         ("Review", TagColor.pink),
-        ("Follow-up", TagColor.gray)
+        ("Follow-up", TagColor.gray),
+        ("Student", TagColor.green),
+        ("Administrative", TagColor.orange),
+        ("Lesson Planning", TagColor.blue),
+        ("Grading", TagColor.orange),
+        ("Communication", TagColor.green),
+        ("Professional Development", TagColor.pink)
     ]
     
     /// Extract color from tag string (format: "tagName|colorRaw")

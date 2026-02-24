@@ -124,14 +124,6 @@ private struct TemplateRow: View {
                     .foregroundStyle(.secondary)
                 
                 HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(template.category.color)
-                            .frame(width: 6, height: 6)
-                        Text(template.category.rawValue)
-                            .font(.caption)
-                    }
-                    
                     if template.priority != .none {
                         HStack(spacing: 4) {
                             Image(systemName: template.priority.icon)
@@ -232,7 +224,6 @@ private struct TodoTemplateEditSheet: View {
     @State private var title: String
     @State private var notes: String
     @State private var priority: TodoPriority
-    @State private var category: TodoCategory
     @State private var estimatedHours: Int
     @State private var estimatedMinutes: Int
     @State private var selectedStudentIDs: Set<String>
@@ -243,7 +234,6 @@ private struct TodoTemplateEditSheet: View {
         _title = State(initialValue: template?.title ?? "")
         _notes = State(initialValue: template?.notes ?? "")
         _priority = State(initialValue: template?.priority ?? .none)
-        _category = State(initialValue: template?.category ?? .general)
         
         let estTotal = template?.defaultEstimatedMinutes ?? 0
         _estimatedHours = State(initialValue: estTotal / 60)
@@ -267,22 +257,10 @@ private struct TodoTemplateEditSheet: View {
                     TextField("Task title", text: $title)
                 }
                 
-                Section("Priority & Category") {
+                Section("Priority") {
                     Picker("Priority", selection: $priority) {
                         ForEach(TodoPriority.allCases, id: \.self) { priority in
                             Text(priority.rawValue).tag(priority)
-                        }
-                    }
-                    
-                    Picker("Category", selection: $category) {
-                        ForEach(TodoCategory.allCases, id: \.self) { category in
-                            HStack {
-                                Circle()
-                                    .fill(category.color)
-                                    .frame(width: 8, height: 8)
-                                Text(category.rawValue)
-                            }
-                            .tag(category)
                         }
                     }
                 }
@@ -361,7 +339,6 @@ private struct TodoTemplateEditSheet: View {
             existing.title = trimmedTitle
             existing.notes = trimmedNotes
             existing.priority = priority
-            existing.category = category
             existing.defaultEstimatedMinutes = totalEstimated > 0 ? totalEstimated : nil
             existing.defaultStudentIDs = Array(selectedStudentIDs)
         } else {
@@ -371,7 +348,6 @@ private struct TodoTemplateEditSheet: View {
                 title: trimmedTitle,
                 notes: trimmedNotes,
                 priority: priority,
-                category: category,
                 defaultEstimatedMinutes: totalEstimated > 0 ? totalEstimated : nil,
                 defaultStudentIDs: Array(selectedStudentIDs)
             )

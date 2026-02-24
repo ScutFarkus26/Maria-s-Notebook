@@ -39,8 +39,10 @@ class TodoNotificationService {
         content.body = todo.title
         content.sound = .default
         
-        // Add category badge if available
-        content.subtitle = todo.category.rawValue
+        // Add tag info as subtitle if available
+        if let firstTag = todo.tags.first {
+            content.subtitle = TodoTagHelper.tagName(firstTag)
+        }
         
         // Set user info for handling notification tap
         content.userInfo = ["todoID": todo.id.uuidString]

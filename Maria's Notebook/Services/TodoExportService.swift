@@ -68,7 +68,7 @@ class TodoExportService {
     // MARK: - CSV Export
     
     static func exportAsCSV(todos: [TodoItem]) -> String {
-        var output = "Title,Status,Priority,Category,Due Date,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
+        var output = "Title,Status,Priority,Tags,Due Date,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .short
@@ -77,7 +77,7 @@ class TodoExportService {
             let title = escapeCSV(todo.title)
             let status = todo.isCompleted ? "Completed" : "Active"
             let priority = todo.priority.rawValue
-            let category = todo.category.rawValue
+            let tags = escapeCSV(todo.tags.map { TodoTagHelper.tagName($0) }.joined(separator: "; "))
             let dueDate = todo.dueDate.map { dateFormatter.string(from: $0) } ?? ""
             let created = dateFormatter.string(from: todo.createdAt)
             let notes = escapeCSV(todo.notes)
@@ -85,7 +85,7 @@ class TodoExportService {
             let subtasksCompleted = todo.subtasks.filter { $0.isCompleted }.count
             let subtasksTotal = todo.subtasks.count
             
-            output += "\(title),\(status),\(priority),\(category),\(dueDate),\(created),\(notes),\(mood),\(subtasksCompleted),\(subtasksTotal)\n"
+            output += "\(title),\(status),\(priority),\(tags),\(dueDate),\(created),\(notes),\(mood),\(subtasksCompleted),\(subtasksTotal)\n"
         }
         
         return output
@@ -106,51 +106,47 @@ class TodoExportService {
         output += "**Total tasks:** \(todos.count)\n\n"
         output += "---\n\n"
         
-        let groupedByCategory = Dictionary(grouping: todos, by: { $0.category })
-        
-        for category in TodoCategory.allCases {
-            guard let categoryTodos = groupedByCategory[category], !categoryTodos.isEmpty else { continue }
+        for todo in todos {
+            output += "### \(todo.isCompleted ? "~~\(todo.title)~~" : todo.title)\n\n"
             
-            output += "## \(category.rawValue)\n\n"
-            
-            for todo in categoryTodos {
-                output += "### \(todo.isCompleted ? "~~\(todo.title)~~" : todo.title)\n\n"
-                
-                var metadata: [String] = []
-                if todo.priority != .none {
-                    metadata.append("**Priority:** \(todo.priority.rawValue)")
-                }
-                if let dueDate = todo.dueDate {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    metadata.append("**Due:** \(formatter.string(from: dueDate))")
-                }
-                if let mood = todo.mood {
-                    metadata.append("**Mood:** \(mood.emoji) \(mood.rawValue)")
-                }
-                
-                if !metadata.isEmpty {
-                    output += metadata.joined(separator: " | ") + "\n\n"
-                }
-                
-                if !todo.notes.isEmpty {
-                    output += "> \(todo.notes)\n\n"
-                }
-                
-                if !todo.subtasks.isEmpty {
-                    output += "**Subtasks:**\n\n"
-                    for subtask in todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
-                        output += "- [\(subtask.isCompleted ? "x" : " ")] \(subtask.title)\n"
-                    }
-                    output += "\n"
-                }
-                
-                if !todo.reflectionNotes.isEmpty {
-                    output += "**Reflection:** \(todo.reflectionNotes)\n\n"
-                }
-                
-                output += "---\n\n"
+            var metadata: [String] = []
+            if todo.priority != .none {
+                metadata.append("**Priority:** \(todo.priority.rawValue)")
             }
+            if let dueDate = todo.dueDate {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                metadata.append("**Due:** \(formatter.string(from: dueDate))")
+            }
+            if let mood = todo.mood {
+                metadata.append("**Mood:** \(mood.emoji) \(mood.rawValue)")
+            }
+            if !todo.tags.isEmpty {
+                let tagNames = todo.tags.map { TodoTagHelper.tagName($0) }.joined(separator: ", ")
+                metadata.append("**Tags:** \(tagNames)")
+            }
+            
+            if !metadata.isEmpty {
+                output += metadata.joined(separator: " | ") + "\n\n"
+            }
+            
+            if !todo.notes.isEmpty {
+                output += "> \(todo.notes)\n\n"
+            }
+            
+            if !todo.subtasks.isEmpty {
+                output += "**Subtasks:**\n\n"
+                for subtask in todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+                    output += "- [\(subtask.isCompleted ? "x" : " ")] \(subtask.title)\n"
+                }
+                output += "\n"
+            }
+            
+            if !todo.reflectionNotes.isEmpty {
+                output += "**Reflection:** \(todo.reflectionNotes)\n\n"
+            }
+            
+            output += "---\n\n"
         }
         
         return output
@@ -170,7 +166,7 @@ class TodoExportService {
                 "isCompleted": todo.isCompleted,
                 "createdAt": ISO8601DateFormatter().string(from: todo.createdAt),
                 "priority": todo.priority.rawValue,
-                "category": todo.category.rawValue
+                "tags": todo.tags.map { TodoTagHelper.tagName($0) }
             ]
             
             if !todo.notes.isEmpty {

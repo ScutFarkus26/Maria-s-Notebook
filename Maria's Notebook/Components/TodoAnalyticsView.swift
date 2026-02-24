@@ -30,9 +30,14 @@ struct TodoAnalyticsView: View {
         }
     }
     
-    private var categoryBreakdown: [(category: TodoCategory, count: Int)] {
-        let grouped = Dictionary(grouping: completedTodos) { $0.category }
-        return grouped.map { (category: $0.key, count: $0.value.count) }
+    private var tagBreakdown: [(tag: String, count: Int)] {
+        var tagCounts: [String: Int] = [:]
+        for todo in completedTodos {
+            for tag in todo.tags {
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+        return tagCounts.map { (tag: $0.key, count: $0.value) }
             .sorted { $0.count > $1.count }
     }
     
@@ -109,23 +114,19 @@ struct TodoAnalyticsView: View {
                     .background(Color.primary.opacity(0.02))
                     .cornerRadius(12)
                     
-                    // Category Breakdown
-                    if !categoryBreakdown.isEmpty {
+                    // Tag Breakdown
+                    if !tagBreakdown.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Completions by Category")
+                            Text("Completions by Tag")
                                 .font(.system(size: 16, weight: .semibold))
                             
-                            ForEach(categoryBreakdown, id: \.category) { item in
+                            ForEach(tagBreakdown, id: \.tag) { item in
                                 HStack {
-                                    Circle()
-                                        .fill(item.category.color)
-                                        .frame(width: 8, height: 8)
-                                    Text(item.category.rawValue)
-                                        .font(.system(size: 14))
+                                    TagBadge(tag: item.tag, compact: true)
                                     Spacer()
                                     Text("\(item.count)")
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(item.category.color)
+                                        .foregroundStyle(TodoTagHelper.tagColor(item.tag).color)
                                 }
                                 .padding(.vertical, 8)
                             }
@@ -162,13 +163,13 @@ struct TodoAnalyticsView: View {
                     }
                     
                     // Insights
-                    if let topCategory = categoryBreakdown.first {
+                    if let topTag = tagBreakdown.first {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Insights", systemImage: "lightbulb.fill")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(.orange)
                             
-                            Text("You complete the most \(topCategory.category.rawValue) tasks (\(topCategory.count) total)")
+                            Text("You complete the most \(TodoTagHelper.tagName(topTag.tag)) tasks (\(topTag.count) total)")
                                 .font(.system(size: 14))
                                 .foregroundStyle(.secondary)
                         }
