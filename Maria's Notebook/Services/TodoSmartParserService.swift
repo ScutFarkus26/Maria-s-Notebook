@@ -1,7 +1,10 @@
 import Foundation
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
 /// Service for parsing natural language todo input using Apple Intelligence
+@available(macOS 26.0, iOS 26.0, *)
 struct TodoSmartParserService {
     @Generable(description: "Parsed todo information from natural language input")
     struct ParsedTodo {
@@ -19,6 +22,10 @@ struct TodoSmartParserService {
     }
     
     static func parseTodo(from text: String) async throws -> ParsedTodo {
+        guard SystemLanguageModel.default.isAvailable else {
+            throw TodoSmartParserError.modelUnavailable
+        }
+        
         let prompt = """
         Parse this todo item and extract structured information:
         
@@ -41,4 +48,16 @@ struct TodoSmartParserService {
         
         return response.content
     }
+    
+    enum TodoSmartParserError: LocalizedError {
+        case modelUnavailable
+        
+        var errorDescription: String? {
+            switch self {
+            case .modelUnavailable:
+                return "Apple Intelligence is not available on this device."
+            }
+        }
+    }
 }
+#endif

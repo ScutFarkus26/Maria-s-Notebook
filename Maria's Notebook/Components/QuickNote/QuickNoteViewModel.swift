@@ -338,7 +338,12 @@ class QuickNoteViewModel {
     
     private func processAIRequest(instruction: String) async {
         #if canImport(FoundationModels)
-        if #available(macOS 26.0, iOS 18.0, *) {
+        if #available(macOS 26.0, iOS 26.0, *) {
+            guard SystemLanguageModel.default.isAvailable else {
+                self.aiError = "Apple Intelligence is not available on this device."
+                self.isProcessingAI = false
+                return
+            }
             do {
                 let session = LanguageModelSession()
                 let prompt = AIPrompts.processQuickNote(instruction: instruction, text: bodyText)
@@ -348,6 +353,9 @@ class QuickNoteViewModel {
                     self.bodyText = response.content
                     self.isProcessingAI = false
                 }
+            } catch let error as LanguageModelSession.GenerationError {
+                self.aiError = Self.userMessage(for: error)
+                self.isProcessingAI = false
             } catch {
                 self.aiError = error.localizedDescription
                 self.isProcessingAI = false
@@ -359,6 +367,28 @@ class QuickNoteViewModel {
         self.isProcessingAI = false
         #endif
     }
+    
+    #if canImport(FoundationModels)
+    @available(macOS 26.0, iOS 26.0, *)
+    static func userMessage(for error: LanguageModelSession.GenerationError) -> String {
+        switch error {
+        case .assetsUnavailable:
+            return "Apple Intelligence model is not available. It may be downloading — please try again later."
+        case .rateLimited:
+            return "Too many requests. Please wait a moment and try again."
+        case .exceededContextWindowSize:
+            return "The text is too long for on-device processing. Try with a shorter note."
+        case .unsupportedLanguageOrLocale:
+            return "This language is not supported by Apple Intelligence."
+        case .refusal:
+            return "The request could not be processed due to content restrictions."
+        case .concurrentRequests:
+            return "Another AI request is already in progress. Please wait."
+        default:
+            return error.localizedDescription
+        }
+    }
+    #endif
     #endif
 }
 

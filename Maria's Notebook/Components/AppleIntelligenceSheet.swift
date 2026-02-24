@@ -208,6 +208,13 @@ struct AppleIntelligenceSheet: View {
         isGenerating = true
         generationError = nil
         
+        guard SystemLanguageModel.default.isAvailable else {
+            generationError = unavailabilityMessage()
+            editorText = context
+            isGenerating = false
+            return
+        }
+        
         // Set up the session with specific persona based on template
         let session = LanguageModelSession(instructions: AIPrompts.advancedAssistant)
         
@@ -226,13 +233,50 @@ struct AppleIntelligenceSheet: View {
             withAnimation {
                 editorText = response.content
             }
+        } catch let error as LanguageModelSession.GenerationError {
+            let message = userMessage(for: error)
+            generationError = message
+            editorText = context + "\n\n[Error: \(message)]"
         } catch {
             generationError = error.localizedDescription
-            // Fallback to raw context + error note
             editorText = context + "\n\n[Error generating draft: \(error.localizedDescription)]"
         }
         
         isGenerating = false
+    }
+    
+    private func unavailabilityMessage() -> String {
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return ""
+        case .unavailable(.appleIntelligenceNotEnabled):
+            return "Please enable Apple Intelligence in Settings to use this feature."
+        case .unavailable(.deviceNotEligible):
+            return "This device does not support Apple Intelligence."
+        case .unavailable(.modelNotReady):
+            return "Apple Intelligence model is downloading. Please try again later."
+        case .unavailable:
+            return "Apple Intelligence is not available."
+        }
+    }
+    
+    private func userMessage(for error: LanguageModelSession.GenerationError) -> String {
+        switch error {
+        case .assetsUnavailable:
+            return "Apple Intelligence model is not available. It may be downloading — please try again later."
+        case .rateLimited:
+            return "Too many requests. Please wait a moment and try again."
+        case .exceededContextWindowSize:
+            return "The data is too large for on-device processing. Try selecting fewer notes."
+        case .unsupportedLanguageOrLocale:
+            return "This language is not supported by Apple Intelligence."
+        case .refusal:
+            return "The request could not be processed due to content restrictions."
+        case .concurrentRequests:
+            return "Another AI request is already in progress. Please wait."
+        default:
+            return error.localizedDescription
+        }
     }
     #endif
     

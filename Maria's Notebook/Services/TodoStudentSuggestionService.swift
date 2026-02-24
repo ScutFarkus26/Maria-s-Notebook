@@ -1,7 +1,10 @@
 import Foundation
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
 /// Service that uses Apple Intelligence to extract student names from todo text
+@available(macOS 26.0, iOS 26.0, *)
 @MainActor
 final class TodoStudentSuggestionService {
     
@@ -18,6 +21,10 @@ final class TodoStudentSuggestionService {
     /// - Returns: Array of extracted student names
     static func extractStudentNames(from text: String, availableStudents: [Student]) async throws -> [String] {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return []
+        }
+        
+        guard SystemLanguageModel.default.isAvailable else {
             return []
         }
         
@@ -44,7 +51,7 @@ final class TodoStudentSuggestionService {
             
             return response.content.studentNames
         } catch {
-            // If Apple Intelligence is not available or fails, return empty array
+            // If Apple Intelligence fails, return empty array
             return []
         }
     }
@@ -95,3 +102,4 @@ final class TodoStudentSuggestionService {
         return matches
     }
 }
+#endif

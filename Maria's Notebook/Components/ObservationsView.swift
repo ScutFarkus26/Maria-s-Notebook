@@ -483,6 +483,7 @@ struct ObservationsView: View {
     @MainActor
     private func startStreamingSummary(bodies overrideBodies: [String]? = nil, mode: SummaryMode = .digest) {
         guard !isSummarizing else { return }
+        guard SystemLanguageModel.default.isAvailable else { return }
         let sourceBodies: [String]
         if let overrideBodies, !overrideBodies.isEmpty {
             sourceBodies = overrideBodies
@@ -522,7 +523,9 @@ struct ObservationsView: View {
                     }
                 }
             } catch {
-                // Ignore errors for now; user can dismiss the sheet
+                #if DEBUG
+                print("Observations summary failed: \(error)")
+                #endif
             }
             isSummarizing = false
             summaryTask = nil

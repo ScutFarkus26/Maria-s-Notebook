@@ -14,6 +14,21 @@ extension UnifiedNoteEditor {
     @MainActor
     func suggestCategoryAndScope() async {
         guard !bodyText.trimmed().isEmpty else { return }
+        
+        guard SystemLanguageModel.default.isAvailable else {
+            switch SystemLanguageModel.default.availability {
+            case .unavailable(.appleIntelligenceNotEnabled):
+                self.suggestionError = "Please enable Apple Intelligence in Settings to use this feature."
+            case .unavailable(.deviceNotEligible):
+                self.suggestionError = "This device does not support Apple Intelligence."
+            case .unavailable(.modelNotReady):
+                self.suggestionError = "Apple Intelligence model is downloading. Please try again later."
+            default:
+                self.suggestionError = "Apple Intelligence is not available."
+            }
+            return
+        }
+        
         isSuggesting = true
         defer { isSuggesting = false }
 
@@ -44,6 +59,21 @@ extension UnifiedNoteEditor {
             self.proposedCategory = proposedCat
             self.proposedStudentIDs = Array(Set(ids))
             self.showingSuggestionSheet = true
+        } catch let error as LanguageModelSession.GenerationError {
+            switch error {
+            case .assetsUnavailable:
+                self.suggestionError = "Apple Intelligence model is not available. It may be downloading — please try again later."
+            case .rateLimited:
+                self.suggestionError = "Too many requests. Please wait a moment and try again."
+            case .exceededContextWindowSize:
+                self.suggestionError = "The note is too long for on-device processing. Try with a shorter note."
+            case .unsupportedLanguageOrLocale:
+                self.suggestionError = "This language is not supported by Apple Intelligence."
+            case .refusal:
+                self.suggestionError = "The request could not be processed due to content restrictions."
+            default:
+                self.suggestionError = error.localizedDescription
+            }
         } catch {
             self.suggestionError = error.localizedDescription
         }

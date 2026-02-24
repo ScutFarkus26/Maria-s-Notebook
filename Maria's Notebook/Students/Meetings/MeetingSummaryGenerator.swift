@@ -52,6 +52,11 @@ enum MeetingSummaryGenerator {
             return
         }
 
+        guard SystemLanguageModel.default.isAvailable else {
+            await MainActor.run { onSummaryGenerated(manualSummary, false) }
+            return
+        }
+
         // Don't burn AI tokens if the content is very short
         let totalLength = meeting.reflection.count + meeting.guideNotes.count + meeting.focus.count + meeting.requests.count
         guard totalLength > 30 else {
@@ -105,7 +110,7 @@ enum MeetingSummaryGenerator {
     static var isAIEnabled: Bool {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         if #available(macOS 26.0, *) {
-            return true
+            return SystemLanguageModel.default.isAvailable
         }
         #endif
         return false

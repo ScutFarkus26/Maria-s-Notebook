@@ -2,9 +2,6 @@ import SwiftUI
 #if canImport(AppIntents)
 import AppIntents
 #endif
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
 
 struct SummarySnippetView: View {
     var title: String?

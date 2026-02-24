@@ -269,65 +269,73 @@ struct TodoListPanel: View {
     }
     
     private func addTodoWithAI() async {
-        let trimmed = newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        
-        isParsingWithAI = true
-        defer { isParsingWithAI = false }
-        
-        do {
-            let parsed = try await TodoSmartParserService.parseTodo(from: trimmed)
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        if #available(macOS 26.0, iOS 26.0, *) {
+            let trimmed = newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
             
-            // Parse priority
-            let priority: TodoPriority = {
-                switch parsed.priority.lowercased() {
-                case "high": return .high
-                case "medium": return .medium
-                case "low": return .low
-                default: return .none
-                }
-            }()
+            isParsingWithAI = true
+            defer { isParsingWithAI = false }
             
-            // Parse due date
-            let dueDate: Date? = {
-                guard !parsed.dueDate.isEmpty else { return nil }
-                let formatter = ISO8601DateFormatter()
-                return formatter.date(from: parsed.dueDate)
-            }()
-            
-            // Parse recurrence
-            let recurrence: RecurrencePattern = {
-                switch parsed.recurrence.lowercased() {
-                case "daily": return .daily
-                case "weekdays": return .weekdays
-                case "weekly": return .weekly
-                case "biweekly": return .biweekly
-                case "monthly": return .monthly
-                case "yearly": return .yearly
-                default: return .none
-                }
-            }()
-            
-            let newTodo = TodoItem(
-                title: parsed.title.isEmpty ? trimmed : parsed.title,
-                orderIndex: todos.count,
-                dueDate: dueDate,
-                priority: priority,
-                recurrence: recurrence
-            )
-
-            modelContext.insert(newTodo)
             do {
-                try modelContext.save()
+                let parsed = try await TodoSmartParserService.parseTodo(from: trimmed)
+                
+                // Parse priority
+                let priority: TodoPriority = {
+                    switch parsed.priority.lowercased() {
+                    case "high": return .high
+                    case "medium": return .medium
+                    case "low": return .low
+                    default: return .none
+                    }
+                }()
+                
+                // Parse due date
+                let dueDate: Date? = {
+                    guard !parsed.dueDate.isEmpty else { return nil }
+                    let formatter = ISO8601DateFormatter()
+                    return formatter.date(from: parsed.dueDate)
+                }()
+                
+                // Parse recurrence
+                let recurrence: RecurrencePattern = {
+                    switch parsed.recurrence.lowercased() {
+                    case "daily": return .daily
+                    case "weekdays": return .weekdays
+                    case "weekly": return .weekly
+                    case "biweekly": return .biweekly
+                    case "monthly": return .monthly
+                    case "yearly": return .yearly
+                    default: return .none
+                    }
+                }()
+                
+                let newTodo = TodoItem(
+                    title: parsed.title.isEmpty ? trimmed : parsed.title,
+                    orderIndex: todos.count,
+                    dueDate: dueDate,
+                    priority: priority,
+                    recurrence: recurrence
+                )
+
+                modelContext.insert(newTodo)
+                do {
+                    try modelContext.save()
+                } catch {
+                    print("⚠️ [\(#function)] Failed to save new todo: \(error)")
+                }
+                newTodoTitle = ""
+                isAddingFocused = true
             } catch {
-                print("⚠️ [\(#function)] Failed to save new todo: \(error)")
+                // Fall back to simple add if AI parsing fails
+                addTodo()
             }
-            newTodoTitle = ""
-            isAddingFocused = true
-        } catch {
-            // Fall back to simple add if AI parsing fails
+        } else {
             addTodo()
         }
+        #else
+        addTodo()
+        #endif
     }
     
     private func toggleTodo(_ todo: TodoItem) {
@@ -2087,31 +2095,35 @@ struct TodoEditSheet: View {
     }
     
     private func suggestStudents() async {
-        isSuggestingStudents = true
-        defer { isSuggestingStudents = false }
-        
-        let combinedText = "\(title) \(notes)"
-        
-        do {
-            let extractedNames = try await TodoStudentSuggestionService.extractStudentNames(
-                from: combinedText,
-                availableStudents: students
-            )
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        if #available(macOS 26.0, iOS 26.0, *) {
+            isSuggestingStudents = true
+            defer { isSuggestingStudents = false }
             
-            let matchedStudents = TodoStudentSuggestionService.matchStudents(
-                extractedNames: extractedNames,
-                from: students
-            )
+            let combinedText = "\(title) \(notes)"
             
-            // Add matched students to selection
-            for student in matchedStudents {
-                _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                    selectedStudentIDs.insert(student.id.uuidString)
+            do {
+                let extractedNames = try await TodoStudentSuggestionService.extractStudentNames(
+                    from: combinedText,
+                    availableStudents: students
+                )
+                
+                let matchedStudents = TodoStudentSuggestionService.matchStudents(
+                    extractedNames: extractedNames,
+                    from: students
+                )
+                
+                // Add matched students to selection
+                for student in matchedStudents {
+                    _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                        selectedStudentIDs.insert(student.id.uuidString)
+                    }
                 }
+            } catch {
+                // Silently fail - Apple Intelligence might not be available
             }
-        } catch {
-            // Silently fail - Apple Intelligence might not be available
         }
+        #endif
     }
     
     private func formatTodoForSharing() -> String {
