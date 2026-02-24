@@ -399,16 +399,24 @@ struct UnifiedPresentationWorkflowPanel: View {
     }
     
     private func applyBulkAssignment() {
-        presentationViewModel.applyBulkAssignment()
-        
-        // Also create/update work drafts for all students
-        let trimmed = presentationViewModel.bulkAssignment.trimmed()
+        // Capture the trimmed text before calling the ViewModel (which clears bulkAssignment)
+        var trimmed = presentationViewModel.bulkAssignment.trimmed()
         guard !trimmed.isEmpty else { return }
+        
+        // Auto-expand "Practice" to include the lesson name and set work kind
+        var workKind: WorkKind = .followUpAssignment
+        if trimmed.caseInsensitiveCompare("Practice") == .orderedSame {
+            trimmed = "Practice: \(lessonName)"
+            presentationViewModel.bulkAssignment = trimmed
+            workKind = .practiceLesson
+        }
+        
+        presentationViewModel.applyBulkAssignment()
         
         for student in students {
             // Check if this student already has work drafts
             if workDrafts[student.id]?.isEmpty ?? true {
-                let draft = createWorkDraft(for: student.id, title: trimmed, applyDefaultDates: true)
+                let draft = createWorkDraft(for: student.id, title: trimmed, kind: workKind, applyDefaultDates: true)
                 workDrafts[student.id, default: []].append(draft)
             } else {
                 // Update existing first draft
@@ -423,6 +431,22 @@ struct UnifiedPresentationWorkflowPanel: View {
                         workDrafts[student.id]?[firstIndex].dueDate = presentationViewModel.defaultDueDate
                     }
                 }
+            }
+        }
+        
+        // Show confirmation toast
+        withAnimation(.easeInOut(duration: 0.3)) {
+            bulkAppliedMessage = "Applied \"\(trimmed)\" to \(students.count) student\(students.count == 1 ? "" : "s")"
+            showBulkAppliedToast = true
+        }
+        Task {
+            do {
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                // Sleep interrupted, dismiss toast anyway
+            }
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showBulkAppliedToast = false
             }
         }
     }
