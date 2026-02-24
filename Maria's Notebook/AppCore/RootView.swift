@@ -335,78 +335,70 @@ struct RootView: View {
     // MARK: - Event Handlers
 
     private func handleMigration() {
-        Task { @MainActor in
-            guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
+        guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
 
-            var targetItem: RootView.NavigationItem? = nil
+        var targetItem: RootView.NavigationItem? = nil
 
-            if legacyRaw == "Lesson Planning" {
-                targetItem = .planningAgenda
-            } else if legacyRaw == "Work Planning" || legacyRaw == "Work" {
-                targetItem = .planningWork
-            } else if let legacyTab = RootView.Tab(rawValue: legacyRaw) {
-                if let navItem = RootView.NavigationItem(fromLegacyTab: legacyTab) {
-                    if legacyTab == .planning {
-                        if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
-                            switch modeRaw {
-                            case "Open Work": targetItem = .planningWork
-                            case "Projects": targetItem = .planningProjects
-                            case "Checklist": targetItem = .planningChecklist
-                            default: targetItem = .planningAgenda
-                            }
-                        } else {
-                            targetItem = .planningAgenda
+        if legacyRaw == "Lesson Planning" {
+            targetItem = .planningAgenda
+        } else if legacyRaw == "Work Planning" || legacyRaw == "Work" {
+            targetItem = .planningWork
+        } else if let legacyTab = RootView.Tab(rawValue: legacyRaw) {
+            if let navItem = RootView.NavigationItem(fromLegacyTab: legacyTab) {
+                if legacyTab == .planning {
+                    if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
+                        switch modeRaw {
+                        case "Open Work": targetItem = .planningWork
+                        case "Projects": targetItem = .planningProjects
+                        case "Checklist": targetItem = .planningChecklist
+                        default: targetItem = .planningAgenda
                         }
                     } else {
-                        targetItem = navItem
+                        targetItem = .planningAgenda
                     }
+                } else {
+                    targetItem = navItem
                 }
             }
+        }
 
-            if let target = targetItem {
-                self.selectedNavItemRaw = target.rawValue
-            }
+        if let target = targetItem {
+            self.selectedNavItemRaw = target.rawValue
         }
     }
 
     private func handleNavigationDestinationChange(_ oldValue: AppRouter.NavigationDestination?, _ destination: AppRouter.NavigationDestination?) {
-        Task { @MainActor in
-            if case .openAttendance = destination {
-                let newValue = RootView.NavigationItem.attendance.rawValue
-                if self.selectedNavItemRaw != newValue {
-                    self.selectedNavItemRaw = newValue
-                }
-                self.appRouter.clearNavigation()
+        if case .openAttendance = destination {
+            let newValue = RootView.NavigationItem.attendance.rawValue
+            if self.selectedNavItemRaw != newValue {
+                self.selectedNavItemRaw = newValue
             }
+            self.appRouter.clearNavigation()
         }
     }
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
-        Task { @MainActor in
-            if let item = item {
-                let newValue = item.rawValue
-                if self.selectedNavItemRaw != newValue {
-                    self.selectedNavItemRaw = newValue
-                }
-                self.appRouter.selectedNavItem = nil
+        if let item = item {
+            let newValue = item.rawValue
+            if self.selectedNavItemRaw != newValue {
+                self.selectedNavItemRaw = newValue
             }
+            self.appRouter.selectedNavItem = nil
         }
     }
 
     private func handleSelectedTabChange(_ oldValue: RootView.Tab?, _ tab: RootView.Tab?) {
-        Task { @MainActor in
-            guard let tab = tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
-            let newValue: String
-            if tab == .planning {
-                newValue = RootView.NavigationItem.planningAgenda.rawValue
-            } else {
-                newValue = navItem.rawValue
-            }
-            if self.selectedNavItemRaw != newValue {
-                self.selectedNavItemRaw = newValue
-            }
-            self.appRouter.selectedTab = nil
+        guard let tab = tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
+        let newValue: String
+        if tab == .planning {
+            newValue = RootView.NavigationItem.planningAgenda.rawValue
+        } else {
+            newValue = navItem.rawValue
         }
+        if self.selectedNavItemRaw != newValue {
+            self.selectedNavItemRaw = newValue
+        }
+        self.appRouter.selectedTab = nil
     }
 }
 

@@ -486,7 +486,6 @@ struct AppDependenciesKey: @preconcurrency EnvironmentKey {
             let container = try ModelContainer(for: schema, configurations: [config])
             return AppDependencies(modelContext: container.mainContext)
         } catch {
-            print("⚠️ [\(#function)] Failed to create preview container: \(error)")
             fatalError("Failed to create preview container: \(error.localizedDescription)")
         }
     }()
