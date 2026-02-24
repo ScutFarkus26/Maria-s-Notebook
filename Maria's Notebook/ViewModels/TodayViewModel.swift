@@ -120,7 +120,7 @@ final class TodayViewModel {
 
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
     // during rapid changes (e.g., date picker scrolling, filter changes)
-    nonisolated(unsafe) private var reloadTask: Task<Void, Never>?
+    private var reloadTask: Task<Void, Never>?
 
     /// Schedules a debounced reload. Use this for data-driven changes that may happen rapidly.
     /// For user-initiated changes, call reload() directly for immediate feedback.
@@ -155,11 +155,6 @@ final class TodayViewModel {
         Task(priority: .background) { @MainActor in
             TodayAgendaBuilder.cleanupOldOrders(context: ctx)
         }
-    }
-
-    deinit {
-        // Cancel any pending reload task to prevent leaks and unnecessary work
-        reloadTask?.cancel()
     }
 
     func setCalendar(_ cal: Calendar) {

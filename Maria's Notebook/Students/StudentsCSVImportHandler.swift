@@ -33,9 +33,9 @@ enum StudentsCSVImportHandler {
     static func handleFileImport(
         _ result: Result<URL, Error>,
         cancellingTask existingTask: Task<Void, Never>?,
-        onHeadersScanned: @Sendable @escaping (_ headers: [String], _ mapping: StudentCSVImporter.Mapping, _ fileURL: URL) -> Void,
-        onError: @Sendable @escaping (ImportAlert) -> Void,
-        onFinally: @Sendable @escaping () -> Void
+        onHeadersScanned: @MainActor @Sendable @escaping (_ headers: [String], _ mapping: StudentCSVImporter.Mapping, _ fileURL: URL) -> Void,
+        onError: @MainActor @Sendable @escaping (ImportAlert) -> Void,
+        onFinally: @MainActor @Sendable @escaping () -> Void
     ) -> FileImportResult {
         existingTask?.cancel()
 
@@ -77,9 +77,9 @@ enum StudentsCSVImportHandler {
         fileURL: URL?,
         students: [Student],
         cancellingTask existingTask: Task<Void, Never>?,
-        onParsed: @Sendable @escaping (StudentCSVImporter.Parsed) -> Void,
-        onError: @Sendable @escaping (ImportAlert) -> Void,
-        onFinally: @Sendable @escaping () -> Void
+        onParsed: @MainActor @Sendable @escaping (StudentCSVImporter.Parsed) -> Void,
+        onError: @MainActor @Sendable @escaping (ImportAlert) -> Void,
+        onFinally: @MainActor @Sendable @escaping () -> Void
     ) -> Task<Void, Never>? {
         guard let fileURL = fileURL else { return nil }
 

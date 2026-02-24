@@ -222,8 +222,6 @@ struct ReportGeneratorService {
 
         // Create PDF using CGContext
         let pdfDocument = PDFDocument()
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: pageHeight * 10))
-        textView.textStorage?.setAttributedString(reportText)
 
         // Use a simpler approach - create PDF data directly
         if let pdfPage = createPDFPage(from: reportText, pageSize: NSSize(width: pageWidth, height: pageHeight), margin: margin) {
