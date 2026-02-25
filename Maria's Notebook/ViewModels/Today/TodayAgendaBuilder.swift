@@ -2,9 +2,12 @@
 // Builds the unified agenda by merging lessons and work items with persisted ordering.
 
 import Foundation
+import OSLog
 import SwiftData
 
 enum TodayAgendaBuilder {
+
+    private static let logger = Logger.app_
 
     /// Builds the unified agenda by merging items with persisted order.
     /// Items with a saved position appear first (in position order).
@@ -23,9 +26,9 @@ enum TodayAgendaBuilder {
         let groupedScheduledItems = groupScheduledWork(allScheduled)
         let groupedFollowUpItems = groupFollowUpWork(staleFollowUps)
 
-        // 2. Build the complete set in default order
+        // 2. Build the complete set in default order (exclude presented lessons — they appear in the left column)
         var allItems: [AgendaItem] = []
-        allItems += lessons.map { .lesson($0) }
+        allItems += lessons.filter { !$0.isPresented }.map { .lesson($0) }
         allItems += groupedScheduledItems
         allItems += groupedFollowUpItems
 
@@ -157,9 +160,7 @@ enum TodayAgendaBuilder {
         do {
             try context.save()
         } catch {
-            #if DEBUG
-            print("⚠️ [TodayAgendaBuilder.saveOrder] Failed to save: \(error)")
-            #endif
+            logger.warning("Failed to save agenda order: \(error)")
         }
     }
 
@@ -180,9 +181,7 @@ enum TodayAgendaBuilder {
             }
             try context.save()
         } catch {
-            #if DEBUG
-            print("⚠️ [TodayAgendaBuilder.cleanupOldOrders] Failed: \(error)")
-            #endif
+            logger.warning("Failed to cleanup old agenda orders: \(error)")
         }
     }
 
