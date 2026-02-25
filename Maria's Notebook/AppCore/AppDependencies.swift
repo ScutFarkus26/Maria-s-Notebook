@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import OSLog
 
 /// Central dependency injection container for the application.
 ///
@@ -44,6 +45,7 @@ import SwiftUI
 @Observable
 @MainActor
 final class AppDependencies {
+    private static let logger = Logger.app_
     let modelContext: ModelContext
     
     // MARK: - Initialization
@@ -423,7 +425,7 @@ final class AppDependencies {
             do {
                 try await Task.sleep(for: .seconds(1))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for presentation preload: \(error)")
+                Self.logger.warning("Failed to sleep for presentation preload: \(error)")
                 return
             }
 

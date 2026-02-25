@@ -1,10 +1,12 @@
 import Foundation
+import OSLog
 
 /// Manages smart backup retention with tiered strategy
 /// Balances storage usage with historical data preservation
 @MainActor
 public final class SmartRetentionManager {
-    
+    private static let logger = Logger.backup
+
     // MARK: - Types
     
     public struct RetentionPolicy: Codable, Sendable {
@@ -104,7 +106,7 @@ public final class SmartRetentionManager {
                 options: [.skipsHiddenFiles]
             )
         } catch {
-            print("⚠️ [Backup:analyzeRetention] Failed to list directory contents: \(error)")
+            Self.logger.warning("Failed to list directory contents: \(error)")
             return RetentionReport(
                 totalBackups: 0,
                 backupsToKeep: 0,
@@ -126,7 +128,7 @@ public final class SmartRetentionManager {
                 date = values.creationDate ?? Date.distantPast
                 size = Int64(values.fileSize ?? 0)
             } catch {
-                print("⚠️ [Backup:analyzeRetention] Failed to get resource values for \(file.lastPathComponent): \(error)")
+                Self.logger.warning("Failed to get resource values for \(file.lastPathComponent): \(error)")
                 date = Date.distantPast
                 size = 0
             }

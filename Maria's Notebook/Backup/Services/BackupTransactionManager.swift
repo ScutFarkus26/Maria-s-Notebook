@@ -10,6 +10,7 @@ import OSLog
 /// automatic recovery on failure.
 @MainActor
 public final class BackupTransactionManager {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -272,7 +273,7 @@ public final class BackupTransactionManager {
                 options: [.skipsHiddenFiles]
             )
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to list checkpoint directory: \(error)")
+            Self.logger.warning("Failed to list checkpoint directory: \(error)")
             return []
         }
 
@@ -284,13 +285,13 @@ public final class BackupTransactionManager {
                 do {
                     date1 = try url1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to get creation date for \(url1.lastPathComponent): \(error)")
+                    Self.logger.warning("Failed to get creation date for \(url1.lastPathComponent): \(error)")
                     date1 = Date.distantPast
                 }
                 do {
                     date2 = try url2.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to get creation date for \(url2.lastPathComponent): \(error)")
+                    Self.logger.warning("Failed to get creation date for \(url2.lastPathComponent): \(error)")
                     date2 = Date.distantPast
                 }
                 return date1 > date2
@@ -309,7 +310,7 @@ public final class BackupTransactionManager {
                 do {
                     try FileManager.default.removeItem(at: url)
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to delete old checkpoint \(url.lastPathComponent): \(error)")
+                    Self.logger.warning("Failed to delete old checkpoint \(url.lastPathComponent): \(error)")
                 }
             }
         }
@@ -321,7 +322,7 @@ public final class BackupTransactionManager {
         do {
             try FileManager.default.removeItem(at: url)
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to cleanup checkpoint \(url.lastPathComponent): \(error)")
+            Self.logger.warning("Failed to cleanup checkpoint \(url.lastPathComponent): \(error)")
         }
     }
 }

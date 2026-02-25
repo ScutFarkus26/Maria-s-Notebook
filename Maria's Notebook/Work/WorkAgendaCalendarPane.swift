@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -327,6 +328,8 @@ struct GroupedCheckInDetailSheet: View {
 /// A single student row inside GroupedCheckInDetailSheet.
 /// Owns its own note state so the text field is editable and saves back to the check-in.
 private struct CheckInStudentRow: View {
+    private static let logger = Logger.work
+
     @Environment(\.modelContext) private var modelContext
 
     let checkIn: WorkCheckIn
@@ -379,7 +382,7 @@ private struct CheckInStudentRow: View {
                         do {
                             try modelContext.save()
                         } catch {
-                            print("⚠️ [CheckInStudentRow] Failed to save note: \(error)")
+                            Self.logger.warning("Failed to save note: \(error)")
                         }
                     }
                 }

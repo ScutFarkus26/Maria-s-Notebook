@@ -14,7 +14,8 @@ import AppKit
 
 @main
 struct MariasNotebookApp: App {
-    
+    private static let logger = Logger.app_
+
     // MARK: - State Objects
     
     @State private var bootstrapper = AppBootstrapper.shared
@@ -266,7 +267,7 @@ struct MariasNotebookApp: App {
                         do {
                             try AppBootstrapping.resetLocalDatabaseInDebug()
                         } catch {
-                            print("⚠️ [Menu] Failed to reset local database: \(error)")
+                            Self.logger.warning("Failed to reset local database: \(error)")
                         }
                         #endif
                     }

@@ -1,10 +1,13 @@
 import Foundation
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 @Observable
 @MainActor
 final class StudentLessonDetailActions {
+    private static let logger = Logger.students
+
     func applyEditsToModel(
         studentLesson: StudentLesson,
         editingLessonID: UUID,
@@ -44,24 +47,24 @@ final class StudentLessonDetailActions {
         context: ModelContext
     ) {
         #if DEBUG
-        print("🎯 autoCreateNextIfNeeded: wasGiven=\(wasGiven), nowGiven=\(nowGiven), hasNextLesson=\(nextLesson != nil)")
+        Self.logger.debug("autoCreateNextIfNeeded: wasGiven=\(wasGiven, privacy: .public), nowGiven=\(nowGiven, privacy: .public), hasNextLesson=\(nextLesson != nil, privacy: .public)")
         #endif
         
         guard !wasGiven, nowGiven, let next = nextLesson else {
             #if DEBUG
             if wasGiven {
-                print("   ↳ Skipping: lesson was already given")
+                Self.logger.debug("Skipping: lesson was already given")
             } else if !nowGiven {
-                print("   ↳ Skipping: lesson not marked as given yet")
+                Self.logger.debug("Skipping: lesson not marked as given yet")
             } else if nextLesson == nil {
-                print("   ↳ Skipping: no next lesson in sequence")
+                Self.logger.debug("Skipping: no next lesson in sequence")
             }
             #endif
             return
         }
 
         #if DEBUG
-        print("   ↳ Creating next lesson: \(next.name) for \(selectedStudentIDs.count) students")
+        Self.logger.debug("Creating next lesson: \(next.name) for \(selectedStudentIDs.count, privacy: .public) students")
         #endif
 
         // Fetch LessonAssignments for duplicate checking (service now expects LessonAssignment)
@@ -69,7 +72,7 @@ final class StudentLessonDetailActions {
         do {
             lessonAssignments = try context.fetch(FetchDescriptor<LessonAssignment>())
         } catch {
-            print("⚠️ [planNextLessonInGroup] Failed to fetch LessonAssignments: \(error)")
+            Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
             lessonAssignments = []
         }
         
@@ -85,17 +88,17 @@ final class StudentLessonDetailActions {
         #if DEBUG
         switch result {
         case .success(let studentLesson):
-            print("   ✅ Successfully created next lesson (ID: \(studentLesson.id))")
+            Self.logger.info("Successfully created next lesson (ID: \(studentLesson.id, privacy: .public))")
         case .alreadyExists:
-            print("   ⚠️ Next lesson already exists in inbox")
+            Self.logger.warning("Next lesson already exists in inbox")
         case .noNextLesson:
-            print("   ⚠️ No next lesson found")
+            Self.logger.warning("No next lesson found")
         case .noCurrentLesson:
-            print("   ⚠️ Current lesson not found")
+            Self.logger.warning("Current lesson not found")
         case .emptySubjectOrGroup:
-            print("   ⚠️ Empty subject or group")
+            Self.logger.warning("Empty subject or group")
         case .noStudents:
-            print("   ⚠️ No students selected")
+            Self.logger.warning("No students selected")
         }
         #endif
 
@@ -117,7 +120,7 @@ final class StudentLessonDetailActions {
         do {
             lessonAssignments = try context.fetch(FetchDescriptor<LessonAssignment>())
         } catch {
-            print("⚠️ [planNextLessonInGroup] Failed to fetch LessonAssignments: \(error)")
+            Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
             lessonAssignments = []
         }
         
@@ -192,7 +195,7 @@ final class StudentLessonDetailActions {
                     participant.completedAt = Date()
                 }
             } catch {
-                print("Error marking work complete: \(error)")
+                Self.logger.warning("Error marking work complete: \(error)")
             }
         }
         context.safeSave()

@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import PhotosUI
@@ -16,6 +17,8 @@ import UIKit
 @Observable
 @MainActor
 class QuickNoteViewModel {
+    private static let logger = Logger.notes
+
     // MARK: - Properties
 
     // Content
@@ -169,7 +172,7 @@ class QuickNoteViewModel {
                             }
                         }
                     } catch {
-                        print("⚠️ [analyzeText] Invalid regex pattern '\(pattern)': \(error)")
+                        Self.logger.warning("Invalid regex pattern '\(pattern)': \(error)")
                         // Continue to next replacement
                         continue
                     }
@@ -264,7 +267,7 @@ class QuickNoteViewModel {
                     await MainActor.run { processImage(uiImage) }
                 }
             } catch {
-                print("⚠️ [loadPhoto] Failed to load photo: \(error)")
+                Self.logger.warning("Failed to load photo: \(error)")
             }
         }
     }
@@ -274,9 +277,7 @@ class QuickNoteViewModel {
         do {
             self.attachedImagePath = try PhotoStorageService.saveImage(image)
         } catch {
-            #if DEBUG
-            print("Failed to save image: \(error)")
-            #endif
+            Self.logger.error("Failed to save image: \(error)")
         }
     }
     

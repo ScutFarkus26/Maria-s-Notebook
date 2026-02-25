@@ -2,10 +2,12 @@ import Foundation
 import CoreLocation
 import UserNotifications
 import SwiftData
+import OSLog
 
 /// Service for managing location-based todo reminders
 @MainActor
 class TodoLocationService: NSObject, CLLocationManagerDelegate {
+    nonisolated private static let logger = Logger.todos
     static let shared = TodoLocationService()
     
     private let locationManager = CLLocationManager()
@@ -120,13 +122,13 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("Error sending location notification: \(error)")
+                Self.logger.error("Failed to send location notification: \(error, privacy: .public)")
             }
         }
     }
     
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location manager failed: \(error)")
+        Self.logger.error("Location manager failed: \(error, privacy: .public)")
     }
 }
 

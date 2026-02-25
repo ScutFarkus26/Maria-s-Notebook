@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 #if os(macOS)
 import AppKit
@@ -10,6 +11,8 @@ import AppKit
 @Observable
 @MainActor
 final class SettingsViewModel {
+    private static let logger = Logger.settings
+
     // MARK: - UI State
     var restoreMode: BackupService.RestoreMode = .merge
     var backupProgress: Double = 0
@@ -224,7 +227,7 @@ final class SettingsViewModel {
         do {
             try FileManager.default.removeItem(at: url)
         } catch {
-            print("⚠️ [\(context)] Failed to remove item at \(url.lastPathComponent): \(error)")
+            Self.logger.warning("Failed to remove item at \(url.lastPathComponent, privacy: .public): \(error, privacy: .public)")
         }
     }
 }

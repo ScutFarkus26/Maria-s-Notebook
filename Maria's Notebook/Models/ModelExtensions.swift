@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let logger = Logger.database
 
 // MARK: - ModelContext Extensions
 
@@ -37,7 +40,7 @@ extension WorkModel {
         do {
             return try context.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch presentation: \(error)")
+            logger.warning("Failed to fetch presentation: \(error.localizedDescription)")
             return nil
         }
     }
@@ -54,7 +57,7 @@ extension WorkModel {
         do {
             return try context.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch lesson: \(error)")
+            logger.warning("Failed to fetch lesson: \(error.localizedDescription)")
             return nil
         }
     }
@@ -71,7 +74,7 @@ extension WorkModel {
         do {
             return try context.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch student: \(error)")
+            logger.warning("Failed to fetch student: \(error.localizedDescription)")
             return nil
         }
     }
@@ -90,7 +93,7 @@ extension WorkModel {
         do {
             allSessions = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch practice sessions: \(error)")
+            logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
             return []
         }
         return allSessions.filter { session in
@@ -113,7 +116,7 @@ extension LessonAssignment {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch related work: \(error)")
+            logger.warning("Failed to fetch related work: \(error.localizedDescription)")
             return []
         }
     }
@@ -137,7 +140,7 @@ extension LessonAssignment {
         do {
             allStudents = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch students: \(error)")
+            logger.warning("Failed to fetch students: \(error.localizedDescription)")
             return []
         }
         return allStudents.filter { student in
@@ -161,14 +164,14 @@ extension LessonAssignment {
         do {
             allSessions = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch practice sessions: \(error)")
+            logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
             return []
         }
         return allSessions.filter { session in
             session.workItemIDs.contains(where: { workIDs.contains($0) })
         }
     }
-    
+
     /// Returns work completion statistics for this presentation
     func workCompletionStats(from context: ModelContext) -> (completed: Int, total: Int) {
         let work = fetchRelatedWork(from: context)
@@ -191,7 +194,7 @@ extension Lesson {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch presentations: \(error)")
+            logger.warning("Failed to fetch presentations: \(error.localizedDescription)")
             return []
         }
     }
@@ -207,11 +210,11 @@ extension Lesson {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch work items: \(error)")
+            logger.warning("Failed to fetch work items: \(error.localizedDescription)")
             return []
         }
     }
-    
+
     /// Fetches all practice sessions involving this lesson's work
     func fetchAllPracticeSessions(from context: ModelContext) -> [PracticeSession] {
         let workItems = fetchAllWork(from: context)
@@ -228,14 +231,14 @@ extension Lesson {
         do {
             allSessions = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch practice sessions: \(error)")
+            logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
             return []
         }
         return allSessions.filter { session in
             session.workItemIDs.contains(where: { workIDs.contains($0) })
         }
     }
-    
+
     /// Returns statistics about this lesson's usage
     func getLessonStats(from context: ModelContext) -> LessonStats {
         let presentations = fetchAllPresentations(from: context)
@@ -278,7 +281,7 @@ extension PracticeSession {
         do {
             allStudents = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch students: \(error)")
+            logger.warning("Failed to fetch students: \(error.localizedDescription)")
             return []
         }
         return allStudents.filter { student in
@@ -301,7 +304,7 @@ extension PracticeSession {
         do {
             allWork = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch work items: \(error)")
+            logger.warning("Failed to fetch work items: \(error.localizedDescription)")
             return []
         }
 
@@ -327,7 +330,7 @@ extension PracticeSession {
         do {
             return try context.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch common lesson: \(error)")
+            logger.warning("Failed to fetch common lesson: \(error.localizedDescription)")
             return nil
         }
     }

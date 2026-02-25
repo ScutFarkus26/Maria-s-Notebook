@@ -3,10 +3,12 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for resolving conflicts when merging backup data with existing data
 @MainActor
 public final class ConflictResolutionService {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -221,7 +223,7 @@ public final class ConflictResolutionService {
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to fetch student: \(error)")
+                Self.logger.warning("Failed to fetch student: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -255,7 +257,7 @@ public final class ConflictResolutionService {
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to fetch lesson: \(error)")
+                Self.logger.warning("Failed to fetch lesson: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -289,7 +291,7 @@ public final class ConflictResolutionService {
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to fetch student lesson: \(error)")
+                Self.logger.warning("Failed to fetch student lesson: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -326,7 +328,7 @@ public final class ConflictResolutionService {
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to fetch note: \(error)")
+                Self.logger.warning("Failed to fetch note: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -363,7 +365,7 @@ public final class ConflictResolutionService {
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to fetch project: \(error)")
+                Self.logger.warning("Failed to fetch project: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -473,7 +475,7 @@ public final class ConflictResolutionService {
                 let scope = try JSONDecoder().decode(NoteScope.self, from: data)
                 note.scope = scope
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to decode note scope: \(error)")
+                Self.logger.warning("Failed to decode note scope: \(error)")
             }
         }
     }

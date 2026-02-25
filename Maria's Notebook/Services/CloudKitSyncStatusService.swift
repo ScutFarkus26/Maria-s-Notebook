@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import CoreData
+import OSLog
 
 /// Service that monitors CloudKit sync activity and provides status information.
 /// Since SwiftData doesn't expose per-record sync status, this service tracks
@@ -9,6 +10,7 @@ import CoreData
 @Observable
 @MainActor
 final class CloudKitSyncStatusService {
+    private static let logger = Logger.sync
     static let shared = CloudKitSyncStatusService()
 
     // MARK: - Observable State
@@ -115,7 +117,7 @@ final class CloudKitSyncStatusService {
                 try await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { return }
             } catch {
-                print("⚠️ [configure] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted during configure: \(error.localizedDescription)")
                 return
             }
             await MainActor.run { [weak self] in
@@ -269,7 +271,7 @@ final class CloudKitSyncStatusService {
                 try await Task.sleep(for: .seconds(3)) // 3 seconds
                 guard !Task.isCancelled else { return }
             } catch {
-                print("⚠️ [handleStoreCoordinatorChange] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted during handleStoreCoordinatorChange: \(error.localizedDescription)")
                 return
             }
             await MainActor.run { [weak self] in
@@ -331,7 +333,7 @@ final class CloudKitSyncStatusService {
                 try await Task.sleep(for: self?.syncTimeout ?? TimeoutConstants.defaultSyncTimeout)
                 guard !Task.isCancelled else { return }
             } catch {
-                print("⚠️ [handleLocalSave] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted during handleLocalSave: \(error.localizedDescription)")
                 return
             }
             await MainActor.run { [weak self] in
@@ -392,7 +394,7 @@ final class CloudKitSyncStatusService {
             do {
                 try await Task.sleep(for: .milliseconds(500))
             } catch {
-                print("⚠️ [syncNow] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted during syncNow: \(error.localizedDescription)")
             }
             isSyncing = false
             updateSyncHealth()

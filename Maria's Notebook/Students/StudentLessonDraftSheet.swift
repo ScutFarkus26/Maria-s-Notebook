@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct StudentLessonDraftSheet: View {
+    private static let logger = Logger.students
     @Environment(\.modelContext) private var modelContext
 
     // Filtered query to observe the draft by its ID
@@ -28,7 +30,7 @@ struct StudentLessonDraftSheet: View {
                                 do {
                                     try modelContext.save()
                                 } catch {
-                                    print("⚠️ [StudentLessonDraftSheet] Failed to save: \(error)")
+                                    Self.logger.warning("Failed to save: \(error)")
                                 }
                             }
                         }

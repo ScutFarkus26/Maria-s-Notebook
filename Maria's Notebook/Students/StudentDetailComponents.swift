@@ -1,8 +1,9 @@
 // StudentDetailComponents.swift
 // Reusable components extracted from StudentDetailView
 
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 // MARK: - StudentEditForm
 
@@ -80,6 +81,8 @@ struct StudentInfoRows: View {
 // MARK: - AttendanceInfoRow
 
 struct AttendanceInfoRow: View {
+    private static let logger = Logger.students
+
     let student: Student
     @Environment(\.modelContext) private var modelContext
     
@@ -99,7 +102,7 @@ struct AttendanceInfoRow: View {
         do {
             records = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [daysTardyThisSchoolYear] Failed to fetch: \(error)")
+            Self.logger.warning("Failed to fetch tardy records: \(error)")
             records = []
         }
         return records.filter { $0.status == .tardy }.count
@@ -121,7 +124,7 @@ struct AttendanceInfoRow: View {
         do {
             records = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [daysAbsentThisSchoolYear] Failed to fetch: \(error)")
+            Self.logger.warning("Failed to fetch absent records: \(error)")
             records = []
         }
         return records.filter { $0.status == .absent }.count

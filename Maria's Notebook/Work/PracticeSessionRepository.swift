@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// Repository for managing PracticeSession CRUD operations
 struct PracticeSessionRepository {
+    private static let logger = Logger.work
+
     let modelContext: ModelContext
 
     // MARK: - Helper Methods
@@ -11,7 +14,7 @@ struct PracticeSessionRepository {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
             return []
         }
     }
@@ -20,7 +23,7 @@ struct PracticeSessionRepository {
         do {
             return try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
             return nil
         }
     }
@@ -29,7 +32,7 @@ struct PracticeSessionRepository {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(context)] Failed to save: \(error)")
+            Self.logger.warning("\(context): Failed to save: \(error)")
         }
     }
 

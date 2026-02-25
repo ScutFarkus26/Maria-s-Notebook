@@ -1,10 +1,12 @@
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - Meeting Persistence Service
 
 /// Service for managing meeting persistence via UserDefaults and SwiftData.
 enum MeetingPersistenceService {
+    private static let logger = Logger.students
 
     // MARK: - Current Meeting Data
 
@@ -92,7 +94,7 @@ enum MeetingPersistenceService {
         do {
             try context.save()
         } catch {
-            print("⚠️ [saveToHistory] Failed to save: \(error)")
+            logger.warning("Failed to save meeting to history: \(error)")
         }
         return true
     }
@@ -133,7 +135,7 @@ enum MeetingPersistenceService {
                 do {
                     try context.save()
                 } catch {
-                    print("⚠️ [migrateHistoryIfNeeded] Failed to save: \(error)")
+                    logger.warning("Failed to save migrated meeting history: \(error)")
                 }
             }
             d.removeObject(forKey: historyKey)

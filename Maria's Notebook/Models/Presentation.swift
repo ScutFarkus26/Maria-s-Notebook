@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 /// Unified model for lesson planning and presentation history.
@@ -22,6 +23,8 @@ import SwiftData
 /// compatibility with existing data. Use the `Presentation` typealias in code.
 @Model
 final class LessonAssignment: Identifiable {
+    private static let logger = Logger.database
+
     #Index<LessonAssignment>([\.stateRaw], [\.scheduledForDay], [\.presentedAt], [\.lessonID])
     
     // MARK: - Identity & Timestamps
@@ -101,7 +104,7 @@ final class LessonAssignment: Identifiable {
             do {
                 return try JSONDecoder().decode([String].self, from: data)
             } catch {
-                print("⚠️ [\(#function)] Failed to decode studentIDs: \(error)")
+                Self.logger.warning("Failed to decode studentIDs: \(error.localizedDescription)")
                 return []
             }
         }
@@ -109,7 +112,7 @@ final class LessonAssignment: Identifiable {
             do {
                 _studentIDsData = try JSONEncoder().encode(newValue)
             } catch {
-                print("⚠️ [\(#function)] Failed to encode studentIDs: \(error)")
+                Self.logger.warning("Failed to encode studentIDs: \(error.localizedDescription)")
             }
         }
     }
@@ -201,7 +204,7 @@ final class LessonAssignment: Identifiable {
         do {
             self._studentIDsData = try JSONEncoder().encode(studentIDs.uuidStrings)
         } catch {
-            print("⚠️ [\(#function)] Failed to encode studentIDs: \(error)")
+            Self.logger.warning("Failed to encode studentIDs: \(error.localizedDescription)")
         }
         self.lesson = lesson
         self.needsPractice = needsPractice
@@ -236,7 +239,7 @@ final class LessonAssignment: Identifiable {
         do {
             self._studentIDsData = try JSONEncoder().encode(students.uuidStrings)
         } catch {
-            print("⚠️ [\(#function)] Failed to encode studentIDs: \(error)")
+            Self.logger.warning("Failed to encode studentIDs: \(error.localizedDescription)")
         }
         self.unifiedNotes = []
 

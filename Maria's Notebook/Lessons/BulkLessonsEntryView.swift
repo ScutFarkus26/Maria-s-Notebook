@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 private struct EntryRow: Identifiable, Hashable {
     let id = UUID()
@@ -11,6 +12,8 @@ private struct EntryRow: Identifiable, Hashable {
 }
 
 public struct BulkLessonsEntryView: View {
+    private static let logger = Logger.lessons
+
     let defaultSubject: String?
     let defaultGroup: String?
     var onDone: (() -> Void)? = nil
@@ -346,9 +349,7 @@ public struct BulkLessonsEntryView: View {
                             modelContext: modelContext
                         )
                     } catch {
-                        #if DEBUG
-                        print("⚠️ Failed to create/update Track for \(subject)/\(group): \(error)")
-                        #endif
+                        Self.logger.warning("Failed to create/update Track for \(subject)/\(group): \(error)")
                     }
                 }
             }

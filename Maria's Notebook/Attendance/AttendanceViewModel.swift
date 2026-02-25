@@ -1,10 +1,12 @@
 import Foundation
 import SwiftUI
 import SwiftData
+import OSLog
 
 @Observable
 @MainActor
 final class AttendanceViewModel {
+    private static let logger = Logger.attendance
     var selectedDate: Date
     // CloudKit compatibility: Use String keys since studentID is now String
     var recordsByStudentID: [String: AttendanceRecord] = [:]
@@ -49,7 +51,7 @@ final class AttendanceViewModel {
             }
             self.recordsByStudentID = recordsByStudentID
         } catch {
-            print("⚠️ [AttendanceViewModel.load] Failed to load records: \(error)")
+            Self.logger.warning("Failed to load records: \(error)")
         }
     }
 
@@ -97,7 +99,7 @@ final class AttendanceViewModel {
                 recordsByStudentID[rec.studentID] = rec
             }
         } catch {
-            print("⚠️ [AttendanceViewModel.markAllPresent] Failed: \(error)")
+            Self.logger.warning("Failed to mark all present: \(error)")
         }
     }
 
@@ -111,7 +113,7 @@ final class AttendanceViewModel {
                 recordsByStudentID[rec.studentID] = rec
             }
         } catch {
-            print("⚠️ [AttendanceViewModel.resetDay] Failed: \(error)")
+            Self.logger.warning("Failed to reset day: \(error)")
         }
     }
 

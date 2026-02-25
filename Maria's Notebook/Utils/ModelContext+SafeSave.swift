@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let logger = Logger.database
 
 /// Extensions for safe ModelContext save operations
 /// Improves error visibility and debugging capabilities
@@ -10,9 +13,7 @@ extension ModelContext {
         do {
             try save()
         } catch {
-            #if DEBUG
-            print("⚠️ ModelContext save failed: \(error.localizedDescription)")
-            #endif
+            logger.warning("ModelContext save failed: \(error.localizedDescription, privacy: .public)")
             // Optionally: send to crash reporting service
         }
     }

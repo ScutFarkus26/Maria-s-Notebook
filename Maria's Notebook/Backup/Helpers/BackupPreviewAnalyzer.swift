@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Analyzes backup payloads to generate preview statistics for restore operations.
 ///
 /// This extracts the analysis logic from BackupService.previewImport() for better
 /// testability and separation of concerns.
 enum BackupPreviewAnalyzer {
+    private static let logger = Logger.backup
 
     /// Result of analyzing a backup payload against the current database state.
     struct AnalysisResult {
@@ -75,7 +77,7 @@ enum BackupPreviewAnalyzer {
             do {
                 return try modelContext.fetch(FetchDescriptor<T>()).count
             } catch {
-                print("⚠️ [Backup:analyzeReplaceAllConflicts] Failed to count \(T.self): \(error)")
+                logger.warning("Failed to count \(T.self): \(error)")
                 return 0
             }
         }
@@ -134,7 +136,7 @@ enum BackupPreviewAnalyzer {
         do {
             lessonsInStore = Set(try modelContext.fetch(FetchDescriptor<Lesson>()).map { $0.id })
         } catch {
-            print("⚠️ [Backup:analyzeKeepExistingConflicts] Failed to fetch lessons: \(error)")
+            logger.warning("Failed to fetch lessons: \(error)")
             lessonsInStore = Set()
         }
         let lessonsInPayload = Set(payload.lessons.map { $0.id })

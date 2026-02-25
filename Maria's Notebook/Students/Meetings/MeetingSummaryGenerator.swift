@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -8,6 +9,7 @@ import FoundationModels
 
 /// Generates summaries for student meetings using AI or fallback logic.
 enum MeetingSummaryGenerator {
+    private static let logger = Logger.students
 
     // MARK: - Fallback Summary
 
@@ -92,9 +94,7 @@ enum MeetingSummaryGenerator {
                 await MainActor.run { onSummaryGenerated(manualSummary, false) }
             }
         } catch {
-            #if DEBUG
-            print("AI Summary failed: \(error)")
-            #endif
+            logger.warning("AI summary generation failed: \(error)")
             await MainActor.run { onSummaryGenerated(manualSummary, false) }
         }
 

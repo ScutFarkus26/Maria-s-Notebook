@@ -1,9 +1,12 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for automatically generating follow-up work from presentations
 /// Based on presentation flags like needsPractice, needsAnotherPresentation, and followUpWork notes
 struct FollowUpWorkService {
+    private static let logger = Logger.inbox
+
     
     // MARK: - Work Generation
     
@@ -149,7 +152,7 @@ struct FollowUpWorkService {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [findPresentationsNeedingFollowUp] Failed to fetch: \(error)")
+            Self.logger.warning("Failed to fetch presentations needing follow-up: \(error.localizedDescription)")
             return []
         }
     }

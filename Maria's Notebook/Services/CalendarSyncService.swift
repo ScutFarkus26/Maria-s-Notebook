@@ -1,12 +1,15 @@
 import Foundation
 import EventKit
 import SwiftData
+import OSLog
 
 /// Service that syncs calendar events with Apple's Calendar app via EventKit.
 /// Only syncs events from a specific calendar configured by the user.
 @Observable
 @MainActor
 final class CalendarSyncService {
+    private static let logger = Logger.calendar_
+
     static let shared = CalendarSyncService()
 
     private let eventStore = EKEventStore()
@@ -370,9 +373,7 @@ final class CalendarSyncService {
             try await syncEvents()
             lastSyncTime = Date()
         } catch {
-            #if DEBUG
-            print("CalendarSyncService: Automatic sync failed: \(error.localizedDescription)")
-            #endif
+            Self.logger.warning("Automatic sync failed: \(error.localizedDescription)")
         }
     }
 

@@ -2,12 +2,14 @@
 // UI section for managing presentation state and quick actions within StudentLesson detail.
 // Behavior-preserving cleanup: comments, MARKs, and small helpers docs.
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 /// Presents lesson progress controls (presented state, needs another presentation, quick actions).
 /// Safe refactor adds structure and docs only.
 struct LessonProgressSection: View {
+    private static let logger = Logger.lessons
     // MARK: - Environment
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
@@ -90,7 +92,7 @@ struct LessonProgressSection: View {
                                 try await Task.sleep(for: .milliseconds(800))
                                 showJustPresentedFlash = false
                             } catch {
-                                print("⚠️ [Just Presented] Task sleep failed: \(error)")
+                                Self.logger.warning("Task sleep failed: \(error)")
                             }
                         }
                     } label: {
@@ -292,7 +294,7 @@ struct LessonProgressSection: View {
             do {
                 works = try modelContext.fetch(descriptor)
             } catch {
-                print("⚠️ [addPracticeIfNeeded] Failed to fetch work: \(error)")
+                Self.logger.warning("Failed to fetch work: \(error)")
                 works = []
             }
             return works.contains { work in
@@ -322,7 +324,7 @@ struct LessonProgressSection: View {
                         practiceWork.lessonID = studentLesson.lessonID
                     }
                 } catch {
-                    print("⚠️ [addPracticeIfNeeded] Failed to fetch student lesson for lessonID: \(error)")
+                    Self.logger.warning("Failed to fetch student lesson for lessonID: \(error)")
                 }
             }
             if let firstStudentID = selectedStudentIDs.first {
@@ -337,7 +339,7 @@ struct LessonProgressSection: View {
                         practiceWork.studentID = firstStudentID.uuidString
                     }
                 } catch {
-                    print("⚠️ [addPracticeIfNeeded] Failed to fetch student lesson for studentID: \(error)")
+                    Self.logger.warning("Failed to fetch student lesson for studentID: \(error)")
                 }
             }
             practiceWork.legacyStudentLessonID = studentLessonID.uuidString
@@ -346,7 +348,7 @@ struct LessonProgressSection: View {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [addPracticeIfNeeded] Failed to save context: \(error)")
+                Self.logger.warning("Failed to save context: \(error)")
             }
         }
         showBanner(text: "Practice added", color: .purple)
@@ -373,7 +375,7 @@ struct LessonProgressSection: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [scheduleRePresent] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context after scheduling re-presentation: \(error)")
         }
 
         // Auto-enroll students in track if lesson belongs to a track
@@ -413,7 +415,7 @@ struct LessonProgressSection: View {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [planNextLessonInGroup] Failed to save context: \(error)")
+                Self.logger.warning("Failed to save context after planning next lesson: \(error)")
             }
         }
         didPlanNext = true
@@ -423,7 +425,7 @@ struct LessonProgressSection: View {
                 try await Task.sleep(for: .seconds(2))
                 showPlannedBanner = false
             } catch {
-                print("⚠️ [planNextLessonInGroup] Task sleep failed: \(error)")
+                Self.logger.warning("Task sleep failed: \(error)")
             }
         }
     }
@@ -439,7 +441,7 @@ struct LessonProgressSection: View {
                 try await Task.sleep(for: .seconds(seconds))
                 withAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
             } catch {
-                print("⚠️ [showBanner] Task sleep failed: \(error)")
+                Self.logger.warning("Task sleep failed: \(error)")
             }
         }
     }

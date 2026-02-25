@@ -7,11 +7,14 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 struct DocumentRepository: SavingRepository {
     typealias Model = Document
+
+    private static let logger = Logger.database
 
     let context: ModelContext
     let saveCoordinator: SaveCoordinator?
@@ -121,7 +124,7 @@ struct DocumentRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteDocument] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }

@@ -1,7 +1,10 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct StudentTrackDetailView: View {
+    private static let logger = Logger.students
+
     let enrollment: StudentTrackEnrollment
     let track: Track
 
@@ -80,7 +83,7 @@ struct StudentTrackDetailView: View {
         do {
             allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
         } catch {
-            print("⚠️ [loadData] Failed to fetch Lessons: \(error)")
+            Self.logger.warning("Failed to fetch Lessons: \(error)")
             allLessons = []
         }
         trackLessons = allLessons
@@ -96,7 +99,7 @@ struct StudentTrackDetailView: View {
         do {
             allPresentations = try modelContext.fetch(FetchDescriptor<LessonPresentation>())
         } catch {
-            print("⚠️ [loadData] Failed to fetch LessonPresentations: \(error)")
+            Self.logger.warning("Failed to fetch LessonPresentations: \(error)")
             allPresentations = []
         }
         let studentPresentations = allPresentations.filter { lp in

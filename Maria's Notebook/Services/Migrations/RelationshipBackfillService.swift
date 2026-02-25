@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Relationship Backfill Service
 
 /// Service responsible for backfilling relationships between entities.
 /// Handles linking StudentLessons to Lessons, Students, and other related entities.
 enum RelationshipBackfillService {
+    private static let logger = Logger.migration
 
     // MARK: - StudentLesson Relationships
 
@@ -172,11 +174,11 @@ enum RelationshipBackfillService {
                         totalSkipped += participants.count
                     }
                 } catch {
-                    print("[WorkCompletionBackfill] Error backfilling work \(work.id): \(error)")
+                    logger.error("Error backfilling work \(work.id, privacy: .public): \(error.localizedDescription)")
                 }
             }
             
-            print("[WorkCompletionBackfill] Backfill complete: \(totalBackfilled) records created, \(totalSkipped) already existed")
+            logger.info("WorkCompletionBackfill complete: \(totalBackfilled, privacy: .public) records created, \(totalSkipped, privacy: .public) already existed")
         }
     }
 
@@ -213,7 +215,7 @@ enum RelationshipBackfillService {
                 context.safeSave()
             }
             
-            print("[WorkType Migration] Migrated \(migrated) work items from WorkType to WorkKind")
+            logger.info("Migrated \(migrated, privacy: .public) work items from WorkType to WorkKind")
         }
     }
 

@@ -1,9 +1,12 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// A topic for Community Meetings that tracks an issue, proposed solutions, resolution, and notes.
 @Model
 final class CommunityTopic: Identifiable {
+    private static let logger = Logger.database
+
     // Identity
     var id: UUID = UUID()
 
@@ -61,7 +64,7 @@ final class CommunityTopic: Identifiable {
             } catch {
                 // If decoding fails (e.g., old corrupted data), return empty array
                 // This prevents crashes and allows the record to be accessed safely
-                print("⚠️ [\(#function)] Failed to decode tags: \(error)")
+                Self.logger.warning("Failed to decode tags: \(error.localizedDescription)")
                 return []
             }
         }
@@ -73,7 +76,7 @@ final class CommunityTopic: Identifiable {
                 _tagsData = data
             } catch {
                 // If encoding fails, store nil (will be treated as empty array on read)
-                print("⚠️ [\(#function)] Failed to encode tags: \(error)")
+                Self.logger.warning("Failed to encode tags: \(error.localizedDescription)")
                 _tagsData = nil
             }
         }
@@ -104,7 +107,7 @@ final class CommunityTopic: Identifiable {
         do {
             self._tagsData = try JSONEncoder().encode([String]())
         } catch {
-            print("⚠️ [\(#function)] Failed to encode empty tags array: \(error)")
+            Self.logger.warning("Failed to encode empty tags array: \(error.localizedDescription)")
             self._tagsData = nil
         }
     }

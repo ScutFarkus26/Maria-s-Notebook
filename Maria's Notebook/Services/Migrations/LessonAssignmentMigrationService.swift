@@ -185,7 +185,7 @@ nonisolated final class LessonAssignmentMigrationService {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch StudentLessons: \(error)")
+            logger.warning("Failed to fetch StudentLessons: \(error.localizedDescription)")
             return []
         }
     }
@@ -196,7 +196,7 @@ nonisolated final class LessonAssignmentMigrationService {
         do {
             existing = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch existing LessonAssignments: \(error)")
+            logger.warning("Failed to fetch existing LessonAssignments: \(error.localizedDescription)")
             existing = []
         }
 

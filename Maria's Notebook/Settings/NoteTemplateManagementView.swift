@@ -3,8 +3,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct NoteTemplateManagementView: View {
+    private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \NoteTemplate.sortOrder)
     private var templates: [NoteTemplate]
@@ -121,7 +123,7 @@ struct NoteTemplateManagementView: View {
             do {
                 try repository.deleteTemplate(id: template.id)
             } catch {
-                print("⚠️ [\(#function)] Failed to delete note template: \(error)")
+                Self.logger.warning("Failed to delete note template: \(error, privacy: .public)")
             }
         }
     }

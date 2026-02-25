@@ -49,7 +49,7 @@ import OSLog
                 let data = try JSONEncoder().encode(newValue)
                 _studentIDsData = data
             } catch {
-                print("⚠️ [studentIDsJSON setter] Failed to encode: \(error)")
+                Self.logger.warning("studentIDs setter failed to encode: \(error)")
                 _studentIDsData = nil
             }
         }
@@ -113,7 +113,7 @@ import OSLog
         do {
             self._studentIDsData = try JSONEncoder().encode(stringIDs)
         } catch {
-            print("⚠️ [StudentLesson init] Failed to encode studentIDs: \(error)")
+            Self.logger.warning("init failed to encode studentIDs: \(error)")
             self._studentIDsData = nil
         }
         self.createdAt = createdAt
@@ -154,7 +154,7 @@ import OSLog
         do {
             self._studentIDsData = try JSONEncoder().encode(stringIDs)
         } catch {
-            print("⚠️ [StudentLesson init with students] Failed to encode studentIDs: \(error)")
+            Self.logger.warning("init (with students) failed to encode studentIDs: \(error)")
             self._studentIDsData = nil
         }
         self.createdAt = createdAt

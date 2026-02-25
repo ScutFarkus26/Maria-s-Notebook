@@ -1,8 +1,10 @@
 import Foundation
 import SwiftData
+import OSLog
 
 @MainActor
 enum PlanningActions {
+    private static let logger = Logger.planning
     static func moveToInbox(_ sl: StudentLesson, context: ModelContext) {
         sl.setScheduledFor(nil, using: AppCalendar.shared)
         Task { @MainActor in context.safeSave() }
@@ -24,7 +26,7 @@ enum PlanningActions {
             }
             la = fetchedLA
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch lesson assignment: \(error)")
+            logger.warning("Failed to fetch lesson assignment: \(error)")
             return
         }
 
@@ -33,7 +35,7 @@ enum PlanningActions {
         do {
             allLAs = try context.fetch(FetchDescriptor<LessonAssignment>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch lesson assignments: \(error)")
+            logger.warning("Failed to fetch lesson assignments: \(error)")
             allLAs = []
         }
         

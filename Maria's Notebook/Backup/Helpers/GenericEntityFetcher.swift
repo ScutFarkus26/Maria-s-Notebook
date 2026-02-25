@@ -18,6 +18,7 @@ protocol IdentifiableEntity: PersistentModel {
 /// This eliminates the need for the 20+ type-specific branches in fetchOne
 @MainActor
 struct EntityFetcherRegistry {
+    private static let logger = Logger.backup
 
     // MARK: - Singleton
 
@@ -94,7 +95,7 @@ struct EntityFetcherRegistry {
         do {
             return try context.fetch(descriptor).first
         } catch {
-            print("⚠️ [Backup:fetchOne] Failed to fetch \(entityName) by ID: \(error)")
+            Self.logger.warning("Failed to fetch \(entityName) by ID: \(error)")
             return nil
         }
     }
@@ -245,7 +246,7 @@ struct BatchEntityFetcher {
                 do {
                     return try context.fetch(descriptor)
                 } catch {
-                    print("⚠️ [Backup:fetchInBatches] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
+                    Logger.backup.warning("Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
                     return nil
                 }
             }
@@ -309,7 +310,7 @@ struct BatchEntityFetcher {
                 offset += batchSize
 
             case .failure(let error):
-                Logger.backup.error("Error fetching \(String(describing: type)) at offset \(offset): \(error)")
+                Logger.backup.error("Error fetching \(type) at offset \(offset): \(error)")
                 consecutiveErrors += 1
                 offset += batchSize // Skip this batch and try next
             }

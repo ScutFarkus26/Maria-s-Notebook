@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct AttendanceLogView: View {
+    private static let logger = Logger.attendance
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -471,7 +473,7 @@ struct AttendanceLogView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save after updating record status: \(error)")
+            Self.logger.warning("Failed to save after updating record status: \(error, privacy: .public)")
         }
     }
 
@@ -480,7 +482,7 @@ struct AttendanceLogView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save after deleting record: \(error)")
+            Self.logger.warning("Failed to save after deleting record: \(error, privacy: .public)")
         }
     }
 }

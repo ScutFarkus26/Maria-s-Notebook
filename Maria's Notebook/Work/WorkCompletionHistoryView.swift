@@ -1,9 +1,12 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 /// A reusable list view that displays completion history for a given work.
 /// Optionally filter by a specific student.
 struct WorkCompletionHistoryView: View {
+    private static let logger = Logger.work
+
     let workID: UUID
     var studentID: UUID? = nil
 
@@ -87,7 +90,7 @@ struct WorkCompletionHistoryView: View {
                 self.records = try WorkCompletionService.records(for: workID, studentID: studentID, in: modelContext)
                 return
             } catch {
-                print("⚠️ [reload] Service fetch failed, falling back to direct fetch: \(error)")
+                Self.logger.warning("Service fetch failed, falling back to direct fetch: \(error)")
             }
             // Fallback direct fetch.
             // CloudKit compatibility: Convert UUIDs to strings for comparison
@@ -106,7 +109,7 @@ struct WorkCompletionHistoryView: View {
             do {
                 self.records = try modelContext.fetch(descriptor)
             } catch {
-                print("⚠️ [reload] Failed to fetch WorkCompletionRecord: \(error)")
+                Self.logger.warning("Failed to fetch WorkCompletionRecord: \(error)")
                 self.records = []
             }
         }

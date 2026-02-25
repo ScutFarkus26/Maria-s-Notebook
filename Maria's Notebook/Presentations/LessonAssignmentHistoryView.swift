@@ -8,8 +8,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct LessonAssignmentHistoryView: View {
+    private static let logger = Logger.presentations
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -620,7 +622,7 @@ struct LessonAssignmentHistoryView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save assignment deletion: \(error)")
+            Self.logger.warning("Failed to save assignment deletion: \(error)")
         }
         // Reload to reflect deletion
         loadAssignments(limit: loadedAssignments.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)

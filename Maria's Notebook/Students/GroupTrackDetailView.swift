@@ -1,10 +1,13 @@
 // GroupTrackDetailView.swift
 // Detail view for a group-based track showing lessons in order with optional student progress
 
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 struct GroupTrackDetailView: View {
+    private static let logger = Logger.students
+
     @Environment(\.modelContext) private var modelContext
 
     let subject: String
@@ -21,7 +24,7 @@ struct GroupTrackDetailView: View {
         do {
             return try GroupTrackService.getGroupTrack(subject: subject, group: group, modelContext: modelContext)
         } catch {
-            print("⚠️ [GroupTrackDetailView] Failed to fetch group track: \(error)")
+            Self.logger.warning("Failed to fetch group track: \(error)")
             return nil
         }
     }
@@ -30,7 +33,7 @@ struct GroupTrackDetailView: View {
         do {
             return try GroupTrackService.getEffectiveTrackSettings(subject: subject, group: group, modelContext: modelContext)
         } catch {
-            print("⚠️ [GroupTrackDetailView] Failed to fetch effective track settings: \(error)")
+            Self.logger.warning("Failed to fetch effective track settings: \(error)")
             return (isSequential: true, isExplicitlyDisabled: false)
         }
     }

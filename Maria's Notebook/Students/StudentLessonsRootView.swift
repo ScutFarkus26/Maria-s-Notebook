@@ -1,8 +1,11 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 #if DEBUG
 import Foundation
 #endif
+
+private let logger = Logger.students
 
 private enum StudentLessonsSort: String {
     case presentThenGiven = "Default"
@@ -256,7 +259,7 @@ struct StudentLessonsRootView: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         } catch {
-                            print("⚠️ [selectedLessonID sheet task] Sleep interrupted: \(error)")
+                            logger.warning("selectedLessonID sheet task sleep interrupted: \(error)")
                         }
                         if selectedLessonID != nil {
                             selectedLessonID = nil
@@ -278,7 +281,7 @@ struct StudentLessonsRootView: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         } catch {
-                            print("⚠️ [quickActionsLessonID sheet task] Sleep interrupted: \(error)")
+                            logger.warning("quickActionsLessonID sheet task sleep interrupted: \(error)")
                         }
                         if quickActionsLessonID != nil {
                             quickActionsLessonID = nil

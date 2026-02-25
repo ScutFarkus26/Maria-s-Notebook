@@ -1,6 +1,7 @@
 import Foundation
 import EventKit
 import SwiftData
+import OSLog
 
 /// Sendable DTO used to move reminder data from EventKit callbacks.
 private struct ReminderSyncData: Sendable {
@@ -19,6 +20,7 @@ private struct ReminderSyncData: Sendable {
 @Observable
 @MainActor
 final class ReminderSyncService {
+    private static let logger = Logger.reminders
     static let shared = ReminderSyncService()
     
     private let eventStore = EKEventStore()
@@ -441,9 +443,7 @@ final class ReminderSyncService {
             lastSyncTime = Date()
         } catch {
             // Silently log errors for automatic sync (user can manually sync if needed)
-            #if DEBUG
-            print("ReminderSyncService: Automatic sync failed: \(error.localizedDescription)")
-            #endif
+            Self.logger.warning("Automatic sync failed: \(error.localizedDescription)")
         }
     }
     

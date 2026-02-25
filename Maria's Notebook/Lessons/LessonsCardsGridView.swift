@@ -4,10 +4,12 @@
 // measurements during normal browsing. Grid mode is browse-only (no reordering).
 // In browse mode (isManualMode=false), no GeometryReader, PreferenceKeys, or matchedGeometryEffect are used.
 
+import OSLog
 import SwiftUI
 import Foundation
 
 struct LessonsCardsGridView: View {
+    private static let logger = Logger.lessons
     let lessons: [Lesson]
     let isManualMode: Bool
     let onTapLesson: (Lesson) -> Void
@@ -194,7 +196,7 @@ struct LessonsCardsGridView: View {
                                 scrollProxy.scrollTo(lessonID, anchor: .center)
                             }
                         } catch {
-                            print("⚠️ [onChange selectedLessonID] Task sleep failed: \(error)")
+                            Self.logger.warning("Task sleep failed: \(error)")
                         }
                     }
                 }

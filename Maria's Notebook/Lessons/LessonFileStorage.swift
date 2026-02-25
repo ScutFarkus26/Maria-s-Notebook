@@ -1,6 +1,8 @@
 import Foundation
+import OSLog
 
 public enum LessonFileStorage {
+    private static let logger = Logger.lessons
     /// Returns the root directory URL where lesson files are stored.
     /// Uses the app's iCloud container Documents folder (visible in Finder as "Maria's Notebook") if available,
     /// otherwise falls back to the app's local Documents directory.
@@ -15,14 +17,14 @@ public enum LessonFileStorage {
                 .appendingPathComponent("Documents", isDirectory: true)
                 .appendingPathComponent("Lesson Files", isDirectory: true)
             
-            print("📱 Using iCloud container path: \(lessonFilesURL.path)")
-            print("👁️ This should appear in Finder as: iCloud Drive/Maria's Notebook/Lesson Files")
+            logger.debug("Using iCloud container path: \(lessonFilesURL.path)")
+            logger.debug("Visible in Finder as: iCloud Drive/Maria's Notebook/Lesson Files")
             try createDirectoryIfNeeded(at: lessonFilesURL)
             return lessonFilesURL
         }
 
         // Fallback to local Documents directory
-        print("⚠️ iCloud not available, using local Documents")
+        logger.warning("iCloud not available, using local Documents")
         let documentsURL = try fm.url(
             for: .documentDirectory,
             in: .userDomainMask,
@@ -130,23 +132,23 @@ public enum LessonFileStorage {
     /// Returns the organizational path for a lesson: Subject/Group
     /// Creates the directory structure if it doesn't exist.
     static func organizationalDirectory(forLesson lesson: Lesson) throws -> URL {
-        print("🗂️ Getting lesson files directory...")
+        logger.debug("Getting lesson files directory...")
         let baseDir = try lessonFilesDirectory()
-        print("✅ Base directory: \(baseDir.path)")
+        logger.debug("Base directory: \(baseDir.path)")
         
         // Sanitize subject and group names for filesystem
         let sanitizedSubject = sanitizeFilenameComponent(lesson.subject, fallback: "General")
         let sanitizedGroup = sanitizeFilenameComponent(lesson.group, fallback: "Ungrouped")
-        print("📁 Sanitized subject: '\(sanitizedSubject)', group: '\(sanitizedGroup)'")
+        logger.debug("Sanitized subject: '\(sanitizedSubject)', group: '\(sanitizedGroup)'")
         
         // Create Subject/Group structure
         let orgDir = baseDir
             .appendingPathComponent(sanitizedSubject, isDirectory: true)
             .appendingPathComponent(sanitizedGroup, isDirectory: true)
         
-        print("📂 Creating directory at: \(orgDir.path)")
+        logger.debug("Creating directory at: \(orgDir.path)")
         try createDirectoryIfNeeded(at: orgDir)
-        print("✅ Directory created/exists")
+        logger.debug("Directory created/exists")
         return orgDir
     }
     
@@ -188,14 +190,14 @@ public enum LessonFileStorage {
         scope: AttachmentScope = .lesson,
         customName: String? = nil
     ) throws -> (url: URL, relativePath: String) {
-        print("📥 Starting importAttachment for: \(sourceURL.lastPathComponent)")
-        print("📌 Lesson: \(lesson.name), Scope: \(scope.rawValue)")
+        logger.debug("Starting importAttachment for: \(sourceURL.lastPathComponent)")
+        logger.debug("Lesson: \(lesson.name), Scope: \(scope.rawValue)")
         
         let fm = FileManager.default
         
         // Get the organizational directory for this lesson
         let destDir = try organizationalDirectory(forLesson: lesson)
-        print("📂 Destination directory: \(destDir.path)")
+        logger.debug("Destination directory: \(destDir.path)")
         
         // Extract file extension
         let sourceExt = sourceURL.pathExtension
@@ -332,7 +334,7 @@ public enum LessonFileStorage {
         
         // Get the old location (private container - iCloud~AppID~/Documents/Lesson Files/)
         guard let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) else {
-            print("⚠️ No iCloud container available for migration")
+            logger.warning("No iCloud container available for migration")
             return nil
         }
         
@@ -342,7 +344,7 @@ public enum LessonFileStorage {
         
         // Check if old location exists and has files
         guard fm.fileExists(atPath: oldLocation.path) else {
-            print("ℹ️ No old files to migrate")
+            logger.info("No old files to migrate")
             return nil
         }
         
@@ -352,13 +354,11 @@ public enum LessonFileStorage {
             
             // Check if they're the same (migration already done or not needed)
             if oldLocation.standardizedFileURL == newLocation.standardizedFileURL {
-                print("ℹ️ Already using new location, no migration needed")
+                logger.info("Already using new location, no migration needed")
                 return nil
             }
             
-            print("🔄 Starting migration from:")
-            print("   Old: \(oldLocation.path)")
-            print("   New: \(newLocation.path)")
+            logger.info("Starting migration from old: \(oldLocation.path) to new: \(newLocation.path)")
             
             // Get all items in old location (recursively to handle Subject/Group folders)
             let contents = try fm.contentsOfDirectory(at: oldLocation, includingPropertiesForKeys: [.isDirectoryKey], options: [])
@@ -391,7 +391,7 @@ public enum LessonFileStorage {
                         let newSubItemURL = newItemURL.appendingPathComponent(subItemName)
                         if !fm.fileExists(atPath: newSubItemURL.path) {
                             try fm.moveItem(at: subItemURL, to: newSubItemURL)
-                            print("✅ Migrated: \(itemName)/\(subItemName)")
+                            logger.info("Migrated: \(itemName)/\(subItemName)")
                             migratedCount += 1
                         }
                     }
@@ -399,10 +399,10 @@ public enum LessonFileStorage {
                     // Move file
                     if !fm.fileExists(atPath: newItemURL.path) {
                         try fm.moveItem(at: oldItemURL, to: newItemURL)
-                        print("✅ Migrated: \(itemName)")
+                        logger.info("Migrated: \(itemName)")
                         migratedCount += 1
                     } else {
-                        print("⏭️ Skipping \(itemName) - already exists at destination")
+                        logger.info("Skipping \(itemName) - already exists at destination")
                     }
                 }
             }
@@ -413,17 +413,17 @@ public enum LessonFileStorage {
             if nonDSStoreContents.isEmpty {
                 do {
                     try fm.removeItem(at: oldLocation)
-                    print("🗑️ Removed empty old location")
+                    logger.info("Removed empty old location")
                 } catch {
-                    print("⚠️ [migrateToICloudDrive] Failed to remove old location: \(error)")
+                    logger.warning("Failed to remove old location: \(error)")
                 }
             }
             
-            print("✅ Migration complete: \(migratedCount) files migrated")
+            logger.info("Migration complete: \(migratedCount, privacy: .public) files migrated")
             return migratedCount
             
         } catch {
-            print("❌ Migration failed: \(error)")
+            logger.error("Migration failed: \(error)")
             return nil
         }
     }

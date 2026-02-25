@@ -3,8 +3,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct NoteTemplateEditorSheet: View {
+    private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -126,7 +128,7 @@ struct NoteTemplateEditorSheet: View {
                     )
                 )
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch custom template count: \(error)")
+                Self.logger.warning("Failed to fetch custom template count: \(error, privacy: .public)")
                 customCount = 0
             }
 
@@ -143,7 +145,7 @@ struct NoteTemplateEditorSheet: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save note template: \(error)")
+            Self.logger.warning("Failed to save note template: \(error, privacy: .public)")
         }
         onSaved()
         dismiss()

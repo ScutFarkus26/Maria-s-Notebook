@@ -7,12 +7,14 @@
 //
 
 import SwiftUI
+import OSLog
 
 /// Central navigation coordinator for the app
 /// Provides type-safe navigation actions and state management
 @Observable
 @MainActor
 final class AppRouter {
+    private static let logger = Logger.app_
     static let shared = AppRouter()
     
     // MARK: - Navigation Actions
@@ -186,7 +188,7 @@ final class AppRouter {
             do {
                 try await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for navigation reset: \(error)")
+                Self.logger.warning("Failed to sleep for navigation reset: \(error)")
             }
             self.appDataWillBeReplaced = false
         }
@@ -200,7 +202,7 @@ final class AppRouter {
             do {
                 try await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for navigation reset: \(error)")
+                Self.logger.warning("Failed to sleep for navigation reset: \(error)")
             }
             self.appDataDidRestore = false
         }

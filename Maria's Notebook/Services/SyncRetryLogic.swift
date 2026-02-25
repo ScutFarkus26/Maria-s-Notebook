@@ -1,9 +1,12 @@
 import Foundation
+import OSLog
 
 /// Service responsible for managing retry logic with exponential backoff
 @Observable
 @MainActor
 final class SyncRetryLogic {
+    private static let logger = Logger.sync
+
     // MARK: - State
     
     /// Current retry attempt count for failed syncs
@@ -62,7 +65,7 @@ final class SyncRetryLogic {
                 try await Task.sleep(for: .seconds(delay))
                 guard !Task.isCancelled else { return }
             } catch {
-                print("⚠️ [scheduleRetry] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted during retry: \(error.localizedDescription)")
                 return
             }
             

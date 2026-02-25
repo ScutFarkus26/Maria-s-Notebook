@@ -7,11 +7,14 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 struct ProjectRepository: SavingRepository {
     typealias Model = Project
+
+    private static let logger = Logger.database
 
     let context: ModelContext
     let saveCoordinator: SaveCoordinator?
@@ -107,7 +110,7 @@ struct ProjectRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteProject] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }
@@ -194,7 +197,7 @@ struct ProjectRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteSession] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }
@@ -249,7 +252,7 @@ struct ProjectRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteTemplate] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }

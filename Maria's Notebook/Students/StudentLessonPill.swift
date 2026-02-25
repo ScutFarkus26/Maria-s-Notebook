@@ -1,6 +1,9 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+
+private let logger = Logger.students
 
 @MainActor
 private enum RecentPresentationCache {
@@ -154,7 +157,7 @@ struct StudentLessonPill: View {
         do {
             return try modelContext.fetch(descriptor).isEmpty == false
         } catch {
-            print("⚠️ [hasNonSchoolDay] Failed to fetch: \(error)")
+            logger.warning("Failed to fetch non-school day: \(error)")
             return false
         }
     }
@@ -166,7 +169,7 @@ struct StudentLessonPill: View {
         do {
             return try modelContext.fetch(descriptor).isEmpty == false
         } catch {
-            print("⚠️ [hasSchoolDayOverride] Failed to fetch: \(error)")
+            logger.warning("Failed to fetch school day override: \(error)")
             return false
         }
     }
@@ -224,7 +227,7 @@ struct StudentLessonPill: View {
         do {
             return try modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))
         } catch {
-            print("⚠️ [fetchPresentedStudentLessons] Failed to fetch: \(error)")
+            logger.warning("Failed to fetch presented student lessons: \(error)")
             return []
         }
     }
@@ -538,7 +541,7 @@ struct StudentLessonPill: View {
         do {
             return try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [fetchStudentLesson] Failed to fetch: \(error)")
+            logger.warning("Failed to fetch student lesson: \(error)")
             return nil
         }
     }
@@ -606,7 +609,7 @@ struct StudentLessonPill: View {
                             src = try modelContext.fetch(srcDesc).first
                             tgt = try modelContext.fetch(tgtDesc).first
                         } catch {
-                            print("⚠️ [onDrop] Failed to fetch StudentLessons: \(error)")
+                            logger.warning("Failed to fetch StudentLessons on drop: \(error)")
                             return
                         }
                         guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
@@ -623,7 +626,7 @@ struct StudentLessonPill: View {
                                         target.students.append(s2)
                                     }
                                 } catch {
-                                    print("⚠️ [onDrop] Failed to fetch Student: \(error)")
+                                    logger.warning("Failed to fetch Student on drop: \(error)")
                                     if let s2 = source.students.first(where: { $0.id == studentID }) {
                                         target.students.append(s2)
                                     }
@@ -643,7 +646,7 @@ struct StudentLessonPill: View {
                             do {
                                 allStudents = try modelContext.fetch(FetchDescriptor<Student>())
                             } catch {
-                                print("⚠️ [onDrop] Failed to fetch all Students: \(error)")
+                                logger.warning("Failed to fetch all Students on drop: \(error)")
                                 allStudents = []
                             }
                             let fetched = allStudents.filter { remainingSet.contains($0.id) }
@@ -701,7 +704,7 @@ struct StudentLessonPill: View {
                         do {
                             source = try modelContext.fetch(srcDesc).first
                         } catch {
-                            print("⚠️ [onDrop merge] Failed to fetch source: \(error)")
+                            logger.warning("Failed to fetch source for merge drop: \(error)")
                             source = nil
                         }
                         if let source, source.resolvedLessonID == targetLessonID, !source.isGiven {

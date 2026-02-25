@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 // MARK: - ViewModel
 // Manages data loading, subject selection, and matrix state.
@@ -17,6 +18,8 @@ import SwiftData
 @Observable
 @MainActor
 class ClassSubjectChecklistViewModel {
+    private static let logger = Logger.lessons
+
     var students: [Student] = []
     private var allStudents: [Student] = []
     var lessons: [Lesson] = []
@@ -386,7 +389,7 @@ class ClassSubjectChecklistViewModel {
                 scheduledDate: nil
             )
         } catch {
-            print("⚠️ [findOrCreateWork] Failed to create work for student \(sid): \(error)")
+            Self.logger.warning("Failed to create work for student \(sid): \(error)")
             return nil
         }
     }

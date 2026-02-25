@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct CalendarMonthGridView: View {
+    private static let logger = Logger.planning
     @Environment(\.modelContext) private var modelContext
     var month: Date
     var calendar: Calendar = .current
@@ -88,14 +90,14 @@ struct CalendarMonthGridView: View {
                                     do {
                                         toggleResult = try await SchoolCalendar.toggleNonSchoolDay(d, using: modelContext)
                                     } catch {
-                                        print("⚠️ [\(#function)] Failed to toggle non-school day: \(error)")
+                                        Self.logger.warning("Failed to toggle non-school day: \(error)")
                                         toggleResult = nil
                                     }
                                     // Save changes after toggle
                                     do {
                                         try modelContext.save()
                                     } catch {
-                                        print("⚠️ [\(#function)] Failed to save after toggle: \(error)")
+                                        Self.logger.warning("Failed to save after toggle: \(error)")
                                     }
                                     let newState: Bool
                                     if let result = toggleResult {

@@ -2,6 +2,7 @@
 // Centralized toast/notification management for the app
 
 import SwiftUI
+import OSLog
 
 /// Toast message types for different visual styles
 enum ToastType {
@@ -51,6 +52,8 @@ struct ToastMessage: Identifiable, Equatable {
 @Observable
 @MainActor
 final class ToastService {
+    private static let logger = Logger.ui
+
     /// Shared instance for app-wide toast display
     static let shared = ToastService()
 
@@ -136,7 +139,7 @@ final class ToastService {
                 guard !Task.isCancelled else { return }
                 self?.dismiss()
             } catch {
-                print("⚠️ [showToast] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted: \(error, privacy: .public)")
             }
         }
     }
@@ -155,7 +158,7 @@ final class ToastService {
                     self?.showToast(nextToast)
                 }
             } catch {
-                print("⚠️ [showNextToast] Task sleep interrupted: \(error)")
+                Self.logger.warning("Task sleep interrupted: \(error, privacy: .public)")
             }
         }
     }

@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let logger = Logger.backup
 
 /// Helper functions for counting and filtering entities during backup operations.
 /// Reduces duplication in BackupService restore operations.
@@ -38,7 +41,7 @@ enum BackupCountHelpers {
                 let result = try fetchOne(type, id, modelContext)
                 return result != nil
             } catch {
-                print("⚠️ [\(#function)] Failed to check existence for \(type): \(error)")
+                logger.warning("Failed to check existence for \(type, privacy: .public): \(error, privacy: .public)")
                 return false
             }
         }

@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Student Lesson Assignment Service
 
 /// Service for creating follow-up assignments after lesson presentations.
 @MainActor
 enum StudentLessonAssignmentService {
+    private static let logger = Logger.students
 
     // MARK: - Create Follow-Up Assignments
 
@@ -34,7 +36,7 @@ enum StudentLessonAssignmentService {
             do {
                 allWorkModels = try modelContext.fetch(FetchDescriptor<WorkModel>())
             } catch {
-                print("⚠️ [createFollowUpAssignments] Failed to fetch WorkModels: \(error)")
+                logger.warning("Failed to fetch WorkModels: \(error)")
                 allWorkModels = []
             }
 
@@ -75,7 +77,7 @@ enum StudentLessonAssignmentService {
                         scheduledDate: nil
                     )
                 } catch {
-                    print("⚠️ [createFollowUpAssignments] Failed to create work: \(error)")
+                    logger.warning("Failed to create work: \(error)")
                     continue
                 }
             }

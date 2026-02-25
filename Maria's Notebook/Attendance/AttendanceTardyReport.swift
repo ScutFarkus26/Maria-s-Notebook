@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 /// Sheet showing tardy counts per student over a selected date range.
 struct AttendanceTardyReport: View {
+    private static let logger = Logger.attendance
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -210,7 +212,7 @@ struct AttendanceTardyReport: View {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
             return []
         }
     }

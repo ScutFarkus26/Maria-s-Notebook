@@ -1,11 +1,14 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 /// Global handler for importing attachments from anywhere in the app
 @MainActor
 @Observable
 class GlobalAttachmentImportHandler {
+    private static let logger = Logger.lessons
+
     var isShowingImportSheet = false
     var pendingFileURL: URL?
     var preselectedLesson: Lesson?
@@ -41,7 +44,7 @@ class GlobalAttachmentImportHandler {
     func performImport(fileURL: URL, lesson: Lesson, scope: AttachmentScope) async {
         // Start accessing security-scoped resource
         guard fileURL.startAccessingSecurityScopedResource() else {
-            print("Failed to access file")
+            Self.logger.error("Failed to access file")
             return
         }
         defer { fileURL.stopAccessingSecurityScopedResource() }
@@ -74,10 +77,10 @@ class GlobalAttachmentImportHandler {
             modelContext.insert(attachment)
             try modelContext.save()
             
-            print("✅ Successfully imported attachment: \(fileURL.lastPathComponent)")
-            
+            Self.logger.info("Successfully imported attachment: \(fileURL.lastPathComponent)")
+
         } catch {
-            print("❌ Failed to import attachment: \(error)")
+            Self.logger.error("Failed to import attachment: \(error)")
         }
     }
 }
@@ -126,6 +129,8 @@ extension View {
 
 /// Quick action button for importing attachments
 struct QuickAttachmentImportButton: View {
+    private static let logger = Logger.lessons
+
     let lesson: Lesson
     @Environment(GlobalAttachmentImportHandler.self) private var importHandler
     @State private var showingFilePicker = false
@@ -145,7 +150,7 @@ struct QuickAttachmentImportButton: View {
                     importHandler.importFileWithSuggestion(url, suggestedLesson: lesson)
                 }
             case .failure(let error):
-                print("File picker error: \(error)")
+                Self.logger.error("File picker error: \(error)")
             }
         }
     }

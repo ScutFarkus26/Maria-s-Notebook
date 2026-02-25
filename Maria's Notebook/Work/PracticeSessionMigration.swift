@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// Service for migrating existing WorkCheckIn entries to PracticeSession records
 struct PracticeSessionMigration {
+    private static let logger = Logger.work
+
     let modelContext: ModelContext
     
     // MARK: - Migration Status
@@ -44,7 +47,7 @@ struct PracticeSessionMigration {
         do {
             allCheckIns = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [performMigration] Failed to fetch WorkCheckIn records: \(error)")
+            Self.logger.warning("Failed to fetch WorkCheckIn records: \(error)")
             throw PracticeSessionMigrationError.fetchFailed
         }
         

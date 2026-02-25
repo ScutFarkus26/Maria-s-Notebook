@@ -1,8 +1,10 @@
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - JSON Helpers
 struct JSONStringList {
+    private static let logger = Logger.projects
     nonisolated static func encode(_ arr: [String]) -> String {
         guard !arr.isEmpty else { return "" }
         do {
@@ -11,7 +13,7 @@ struct JSONStringList {
                 return s
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to encode string array: \(error)")
+            Self.logger.warning("Failed to encode string array: \(error)")
         }
         return ""
     }
@@ -22,7 +24,7 @@ struct JSONStringList {
             let arr = try JSONDecoder().decode([String].self, from: data)
             return arr
         } catch {
-            print("⚠️ [\(#function)] Failed to decode string array: \(error)")
+            Self.logger.warning("Failed to decode string array: \(error)")
             return []
         }
     }
@@ -45,6 +47,7 @@ struct TemplateOfferedWork: Codable, Identifiable, Equatable {
 
 // MARK: - Template Offered Works JSON Helper
 struct TemplateOfferedWorksJSON {
+    private static let logger = Logger.projects
     nonisolated static func encode(_ works: [TemplateOfferedWork]) -> String {
         guard !works.isEmpty else { return "" }
         do {
@@ -53,7 +56,7 @@ struct TemplateOfferedWorksJSON {
                 return s
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to encode template offered works: \(error)")
+            Self.logger.warning("Failed to encode template offered works: \(error)")
         }
         return ""
     }
@@ -64,7 +67,7 @@ struct TemplateOfferedWorksJSON {
             let arr = try JSONDecoder().decode([TemplateOfferedWork].self, from: data)
             return arr
         } catch {
-            print("⚠️ [\(#function)] Failed to decode template offered works: \(error)")
+            Self.logger.warning("Failed to decode template offered works: \(error)")
             return []
         }
     }

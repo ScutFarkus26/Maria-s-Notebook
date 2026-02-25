@@ -3,6 +3,9 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
+
+private let logger = Logger.lessons
 
 // MARK: - LessonsRootView Reordering Extension
 
@@ -63,9 +66,7 @@ extension LessonsRootView {
         do {
             try modelContext.save()
         } catch {
-            #if DEBUG
-            print("Failed to save lesson reorder: \(error)")
-            #endif
+            logger.error("Failed to save lesson reorder: \(error)")
         }
     }
 
@@ -114,9 +115,7 @@ extension LessonsRootView {
         do {
             try modelContext.save()
         } catch {
-            #if DEBUG
-            print("Failed to save lesson reorder: \(error)")
-            #endif
+            logger.error("Failed to save lesson reorder: \(error)")
         }
     }
 
@@ -131,7 +130,7 @@ extension LessonsRootView {
         do {
             allStudents = try modelContext.fetch(FetchDescriptor<Student>())
         } catch {
-            print("⚠️ [planPresentation] Failed to fetch students: \(error)")
+            logger.warning("Failed to fetch students: \(error)")
             allStudents = []
         }
         let students = allStudents.filter { studentIDs.contains($0.id) }
@@ -147,7 +146,7 @@ extension LessonsRootView {
         do {
             existingLessons = try modelContext.fetch(existingDescriptor)
         } catch {
-            print("⚠️ [planPresentation] Failed to fetch existing student lessons: \(error)")
+            logger.warning("Failed to fetch existing student lessons: \(error)")
             existingLessons = []
         }
 

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import OSLog
 
 #if os(macOS)
 import AppKit
@@ -280,6 +281,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
 #if os(macOS)
 @MainActor
 public enum MacOSMailSender {
+    private static let logger = Logger.attendance
     public static func send(to recipient: String?, subject: String, body: String, completion: @escaping (Bool) -> Void) {
         guard let service = NSSharingService(named: .composeEmail) else {
             Task { @MainActor in
@@ -301,7 +303,7 @@ public enum MacOSMailSender {
             do {
                 try await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
             } catch {
-                print("⚠️ [\(#function)] Task sleep interrupted: \(error)")
+                logger.warning("Task sleep interrupted: \(error)")
             }
             if !hasCompleted {
                 hasCompleted = true

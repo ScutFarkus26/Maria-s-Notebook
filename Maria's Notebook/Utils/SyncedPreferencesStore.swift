@@ -350,7 +350,7 @@ public final class SyncedPreferencesStore {
                 let data = try NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: false)
                 return data.count
             } catch {
-                print("⚠️ [\(#function)] Failed to archive value for size estimation: \(error)")
+                logger.warning("Failed to archive value for size estimation: \(error, privacy: .public)")
                 return 64 // Conservative estimate for unknown types
             }
         }

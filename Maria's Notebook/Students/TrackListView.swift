@@ -1,6 +1,7 @@
 // TrackListView.swift
 // List view for managing tracks (now group-based)
 
+import OSLog
 import SwiftUI
 import SwiftData
 
@@ -10,6 +11,8 @@ private struct GroupTrackRoute: Hashable {
 }
 
 struct TrackListView: View {
+    private static let logger = Logger.students
+
     @Environment(\.modelContext) private var modelContext
     @State private var navigationPath = NavigationPath()
     
@@ -22,7 +25,7 @@ struct TrackListView: View {
         do {
             return try GroupTrackService.getAllGroupTracks(modelContext: modelContext)
         } catch {
-            print("⚠️ [groupTracks] Failed to fetch: \(error)")
+            Self.logger.warning("Failed to fetch group tracks: \(error)")
             return []
         }
     }
@@ -76,7 +79,7 @@ struct TrackListView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [toggleSequential] Failed to save: \(error)")
+            Self.logger.warning("Failed to save sequential toggle: \(error)")
         }
     }
 
@@ -85,7 +88,7 @@ struct TrackListView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [removeTrack] Failed to save: \(error)")
+            Self.logger.warning("Failed to save track removal: \(error)")
         }
     }
 }

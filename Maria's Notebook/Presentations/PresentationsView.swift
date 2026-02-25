@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 enum PresentationsMissWindow: String, CaseIterable, Sendable {
     case all, d1, d2, d3
@@ -23,6 +24,7 @@ enum PresentationsMissWindow: String, CaseIterable, Sendable {
 }
 
 struct PresentationsView: View {
+    private static let logger = Logger.presentations
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -259,7 +261,7 @@ struct PresentationsView: View {
                                 do {
                                     try modelContext.save()
                                 } catch {
-                                    print("⚠️ [\(#function)] Failed to save schedule clear: \(error)")
+                                    Self.logger.warning("Failed to save schedule clear: \(error)")
                                 }
                             },
                             onSelect: { sl in
@@ -305,7 +307,7 @@ struct PresentationsView: View {
                                         do {
                                             try modelContext.save()
                                         } catch {
-                                            print("⚠️ [\(#function)] Failed to save schedule clear: \(error)")
+                                            Self.logger.warning("Failed to save schedule clear: \(error)")
                                         }
                                     },
                                     onSelect: { sl in
@@ -432,7 +434,7 @@ struct PresentationsView: View {
         do {
             base = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch unscheduled lessons: \(error)")
+            Self.logger.warning("Failed to fetch unscheduled lessons: \(error)")
             base = []
         }
         let baseIDs = base.map { $0.id }

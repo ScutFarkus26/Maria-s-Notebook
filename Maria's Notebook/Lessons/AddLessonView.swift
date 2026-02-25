@@ -1,7 +1,10 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct AddLessonView: View {
+    private static let logger = Logger.lessons
+
     // Optional defaults to prefill when adding from a filtered Albums view
     let defaultSubject: String?
     let defaultGroup: String?
@@ -101,9 +104,7 @@ struct AddLessonView: View {
                                     modelContext: modelContext
                                 )
                             } catch {
-                                #if DEBUG
-                                print("⚠️ Failed to create/update Track for \(subjectTrimmed)/\(groupTrimmed): \(error)")
-                                #endif
+                                Self.logger.warning("Failed to create/update Track for \(subjectTrimmed)/\(groupTrimmed): \(error)")
                             }
                         }
                     }

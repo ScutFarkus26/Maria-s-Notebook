@@ -1,12 +1,14 @@
 // NoteEditorSaveLogic.swift
 // Save logic for UnifiedNoteEditor - extracted for maintainability
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 // MARK: - UnifiedNoteEditor Save Logic Extension
 
 extension UnifiedNoteEditor {
+    private static var logger: Logger { Logger.notes }
 
     /// Saves the note with proper context-specific relationships
     func saveNote() {

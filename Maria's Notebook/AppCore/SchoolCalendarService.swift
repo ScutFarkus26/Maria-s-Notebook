@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// An actor-backed calendar service that computes and caches non-school days,
 /// ensuring thread safety and correct isolation for SwiftData operations.
 /// Converted to @MainActor to align with ModelContext thread requirements in Swift 6.
 @MainActor
 public final class SchoolCalendarService {
+    private static let logger = Logger.calendar_
     public static let shared = SchoolCalendarService()
 
     // MARK: - State
@@ -69,13 +71,13 @@ public final class SchoolCalendarService {
         do {
             ns = try context.fetch(nsFetch)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch non-school days: \(error)")
+            Self.logger.warning("Failed to fetch non-school days: \(error)")
             ns = []
         }
         do {
             ovs = try context.fetch(ovFetch)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch school day overrides: \(error)")
+            Self.logger.warning("Failed to fetch school day overrides: \(error)")
             ovs = []
         }
         

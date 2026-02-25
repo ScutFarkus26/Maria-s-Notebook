@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - Assignment Mode
@@ -27,6 +28,7 @@ public enum SessionAssignmentMode: String, Codable, CaseIterable, Hashable, Iden
 
 // Local JSON helper to avoid cross-file dependency
 struct LocalJSONStringList {
+    private static let logger = Logger.projects
     nonisolated static func encode(_ arr: [String]) -> String {
         guard !arr.isEmpty else { return "" }
         do {
@@ -35,7 +37,7 @@ struct LocalJSONStringList {
                 return s
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to encode string array: \(error)")
+            Self.logger.warning("Failed to encode string array: \(error)")
         }
         return ""
     }
@@ -46,7 +48,7 @@ struct LocalJSONStringList {
             let arr = try JSONDecoder().decode([String].self, from: data)
             return arr
         } catch {
-            print("⚠️ [\(#function)] Failed to decode string array: \(error)")
+            Self.logger.warning("Failed to decode string array: \(error)")
             return []
         }
     }

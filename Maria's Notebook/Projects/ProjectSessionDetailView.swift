@@ -1,7 +1,9 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct ProjectSessionDetailView: View {
+    private static let logger = Logger.projects
     let session: ProjectSession
 
     @Environment(\.modelContext) private var modelContext
@@ -128,7 +130,7 @@ struct ProjectSessionDetailView: View {
                                         do {
                                             try modelContext.save()
                                         } catch {
-                                            print("⚠️ [\(#function)] Failed to save after removing agenda item: \(error)")
+                                            Self.logger.warning("Failed to save after removing agenda item: \(error)")
                                         }
                                     }
                                 } label: {
@@ -143,7 +145,7 @@ struct ProjectSessionDetailView: View {
                             do {
                                 try modelContext.save()
                             } catch {
-                                print("⚠️ [\(#function)] Failed to save after adding agenda item: \(error)")
+                                ProjectSessionDetailView.logger.warning("Failed to save after adding agenda item: \(error)")
                             }
                         } label: {
                             Label("Add Item", systemImage: "plus.circle.fill")
@@ -158,7 +160,7 @@ struct ProjectSessionDetailView: View {
                 do {
                     try modelContext.save()
                 } catch {
-                    print("⚠️ [\(#function)] Failed to save session on disappear: \(error)")
+                    ProjectSessionDetailView.logger.warning("Failed to save session on disappear: \(error)")
                 }
             }
 
@@ -477,6 +479,7 @@ private struct ProjectLessonPickerSheet: View {
 // MARK: - Add Work Offer Sheet
 
 private struct AddWorkOfferSheet: View {
+    private static let logger = Logger.projects
     let session: ProjectSession
 
     @Environment(\.dismiss) private var dismiss
@@ -540,7 +543,7 @@ private struct AddWorkOfferSheet: View {
             )
             _ = saveCoordinator.save(modelContext, reason: "Add work offer to session")
         } catch {
-            print("⚠️ [\(#function)] Failed to add work offer: \(error)")
+            Self.logger.warning("Failed to add work offer: \(error)")
         }
         dismiss()
     }

@@ -1,9 +1,12 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 /// Quick entry form for recording a practice observation
 /// Optimized workflow: observe → add partner → note → schedule check-in
 struct QuickPracticeSessionSheet: View {
+    private static let logger = Logger.work
+
     let workItem: WorkModel
     var onSave: ((PracticeSession) -> Void)? = nil
 
@@ -551,7 +554,7 @@ struct QuickPracticeSessionSheet: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [saveSession] Failed to save quick practice session: \(error)")
+            Self.logger.warning("Failed to save quick practice session: \(error)")
         }
 
         onSave?(session)

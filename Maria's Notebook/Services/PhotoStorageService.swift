@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import ImageIO
 import CoreGraphics
+import OSLog
 
 #if os(macOS)
 import AppKit
@@ -11,6 +12,8 @@ import UIKit
 
 /// Service for managing photo storage in the app's documents directory
 public enum PhotoStorageService {
+    private static let logger = Logger.photos
+
     /// Returns the directory URL where note photos are stored.
     /// Uses the app's Documents directory.
     /// Ensures the directory exists before returning.
@@ -59,7 +62,7 @@ public enum PhotoStorageService {
         do {
             photosDir = try photosDirectory()
         } catch {
-            print("⚠️ [loadImage] Failed to get photos directory: \(error)")
+            logger.warning("Failed to get photos directory: \(error.localizedDescription)")
             return nil
         }
 
@@ -68,7 +71,7 @@ public enum PhotoStorageService {
         do {
             imageData = try Data(contentsOf: fileURL)
         } catch {
-            print("⚠️ [loadImage] Failed to load image data for \(filename): \(error)")
+            logger.warning("Failed to load image data for \(filename, privacy: .public): \(error.localizedDescription)")
             return nil
         }
 
@@ -98,7 +101,7 @@ public enum PhotoStorageService {
         do {
             photosDir = try photosDirectory()
         } catch {
-            print("⚠️ [loadImage] Failed to get photos directory: \(error)")
+            logger.warning("Failed to get photos directory: \(error.localizedDescription)")
             return nil
         }
 
@@ -107,7 +110,7 @@ public enum PhotoStorageService {
         do {
             imageData = try Data(contentsOf: fileURL)
         } catch {
-            print("⚠️ [loadImage] Failed to load image data for \(filename): \(error)")
+            logger.warning("Failed to load image data for \(filename, privacy: .public): \(error.localizedDescription)")
             return nil
         }
 
@@ -128,7 +131,7 @@ public enum PhotoStorageService {
         do {
             photosDir = try photosDirectory()
         } catch {
-            print("⚠️ [loadDownsampledImage] Failed to get photos directory: \(error)")
+            logger.warning("Failed to get photos directory for downsampled image: \(error.localizedDescription)")
             return nil
         }
 
@@ -164,7 +167,7 @@ public enum PhotoStorageService {
         do {
             photosDir = try photosDirectory()
         } catch {
-            print("⚠️ [loadDownsampledImage] Failed to get photos directory: \(error)")
+            logger.warning("Failed to get photos directory for downsampled image: \(error.localizedDescription)")
             return nil
         }
 

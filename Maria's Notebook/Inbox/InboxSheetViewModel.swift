@@ -3,10 +3,12 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 @Observable
 @MainActor
 final class InboxSheetViewModel {
+    private static let logger = Logger.inbox
     // MARK: - State
     var selected: Set<UUID> = []
     var toastMessage: String? = nil
@@ -162,9 +164,7 @@ final class InboxSheetViewModel {
                         )
                     }
                 } catch {
-                    #if DEBUG
-                    print("InboxSheetViewModel: Failed to load drop payload: \(error.localizedDescription)")
-                    #endif
+                    Self.logger.debug("Failed to load drop payload: \(error.localizedDescription)")
                 }
             }
             return true
@@ -308,7 +308,7 @@ final class InboxSheetViewModel {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
             return []
         }
     }
@@ -317,7 +317,7 @@ final class InboxSheetViewModel {
         do {
             return try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
             return nil
         }
     }

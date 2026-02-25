@@ -1,5 +1,8 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
+
+private let logger = Logger.students
 
 struct StudentLessonDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -651,7 +654,7 @@ struct StudentLessonDetailContentView: View {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [handleCancelWithCleanup] Failed to save: \(error)")
+                logger.warning("Failed to save after cancel cleanup: \(error)")
             }
         }
         handleDone()
@@ -677,7 +680,7 @@ struct StudentLessonDetailContentView: View {
                 let url = try LessonFileStorage.resolve(relativePath: relativePath)
                 return url
             } catch {
-                print("⚠️ [resolveLessonPagesURL] Failed to resolve relative path: \(error)")
+                logger.warning("Failed to resolve relative path: \(error)")
             }
         }
 

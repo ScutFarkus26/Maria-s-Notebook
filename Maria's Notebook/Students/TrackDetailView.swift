@@ -1,10 +1,13 @@
 // TrackDetailView.swift
 // Detail view for editing a track and managing its steps
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct TrackDetailView: View {
+    private static let logger = Logger.students
+
     @Environment(\.modelContext) private var modelContext
     @Bindable var track: Track
     @State private var showingLessonPicker = false
@@ -94,7 +97,7 @@ struct TrackDetailView: View {
         do {
             try modelContext.save()
         } catch {
-            print("Failed to save track: \(error)")
+            Self.logger.warning("Failed to save track: \(error)")
         }
     }
 }

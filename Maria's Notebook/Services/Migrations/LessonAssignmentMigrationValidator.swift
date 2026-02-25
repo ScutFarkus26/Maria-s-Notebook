@@ -143,7 +143,7 @@ final class LessonAssignmentMigrationValidator {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch StudentLessons: \(error)")
+            logger.warning("Failed to fetch StudentLessons: \(error.localizedDescription)")
             return []
         }
     }
@@ -155,7 +155,7 @@ final class LessonAssignmentMigrationValidator {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch LessonAssignments: \(error)")
+            logger.warning("Failed to fetch LessonAssignments: \(error.localizedDescription)")
             return []
         }
     }

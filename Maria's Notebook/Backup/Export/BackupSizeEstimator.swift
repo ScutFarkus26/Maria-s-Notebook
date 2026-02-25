@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Estimates backup file sizes based on entity counts.
 ///
 /// This provides size estimation functionality extracted from BackupService
 /// for better testability and reuse.
 enum BackupSizeEstimator {
+    private static let logger = Logger.backup
     /// Average bytes per entity type (empirically determined)
     static let averageBytesPerEntity: [String: Int] = [
         "Student": 600,
@@ -130,7 +132,7 @@ enum BackupSizeEstimator {
             do {
                 try FileManager.default.removeItem(at: tempURL)
             } catch {
-                print("⚠️ [Backup:measureActualSize] Failed to remove temp file: \(error)")
+                logger.warning("Failed to remove temp file: \(error)")
             }
         }
 
@@ -193,7 +195,7 @@ enum BackupSizeEstimator {
         do {
             return try context.fetchCount(descriptor)
         } catch {
-            print("⚠️ [Backup:safeFetchCount] Failed to fetch count for \(T.self): \(error)")
+            logger.warning("Failed to fetch count for \(T.self): \(error)")
             return 0
         }
     }

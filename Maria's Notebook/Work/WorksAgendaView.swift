@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 #if os(macOS)
@@ -7,6 +8,8 @@ import PDFKit
 #endif
 
 struct WorksAgendaView: View {
+    private static let logger = Logger.work
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -93,7 +96,7 @@ struct WorksAgendaView: View {
             do {
                 all = try modelContext.fetch(FetchDescriptor<Lesson>())
             } catch {
-                print("⚠️ [loadLessonsAndStudentsIfNeeded] Failed to fetch lessons: \(error)")
+                Self.logger.warning("Failed to fetch lessons: \(error)")
                 all = []
             }
             let filtered = all.filter { neededLessonIDs.contains($0.id) }
@@ -111,7 +114,7 @@ struct WorksAgendaView: View {
             do {
                 all = try modelContext.fetch(FetchDescriptor<Student>())
             } catch {
-                print("⚠️ [loadLessonsAndStudentsIfNeeded] Failed to fetch students: \(error)")
+                Self.logger.warning("Failed to fetch students: \(error)")
                 all = []
             }
             let filtered = all.filter { neededStudentIDs.contains($0.id) }
@@ -356,7 +359,7 @@ struct WorksAgendaView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [openDetail] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error)")
         }
 
         selected = nil
@@ -389,7 +392,7 @@ struct WorksAgendaView: View {
                 modelContext.insert(item)
             }
         } catch {
-            print("⚠️ [scheduleToday] Failed to fetch WorkCheckIn: \(error)")
+            Self.logger.warning("Failed to fetch WorkCheckIn: \(error)")
             // Create new check-in as fallback
             let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck", note: "")
             modelContext.insert(item)

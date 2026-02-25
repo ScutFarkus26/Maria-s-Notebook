@@ -1,8 +1,11 @@
 // StudentOverviewTab.swift
 // Overview tab content extracted from StudentDetailView
 
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
+
+private let logger = Logger.students
 
 struct StudentOverviewTab: View {
     let student: Student
@@ -132,7 +135,7 @@ struct StudentOverviewTab: View {
                                     do {
                                         try modelContext.save()
                                     } catch {
-                                        print("⚠️ [onMarkCompleted] Failed to save: \(error)")
+                                        logger.warning("Failed to save after marking work completed: \(error)")
                                     }
                                 },
                                 onScheduleToday: { w in
@@ -142,7 +145,7 @@ struct StudentOverviewTab: View {
                                     do {
                                         try modelContext.save()
                                     } catch {
-                                        print("⚠️ [onScheduleToday] Failed to save: \(error)")
+                                        logger.warning("Failed to save after scheduling for today: \(error)")
                                     }
                                 }
                             )

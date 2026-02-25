@@ -1,7 +1,10 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct WorkStepEditorSheet: View {
+    private static let logger = Logger.work
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
@@ -70,7 +73,7 @@ struct WorkStepEditorSheet: View {
                 _ = try service.createStep(for: work, title: title, instructions: instructions, notes: notes)
             }
         } catch {
-            print("⚠️ [save] Failed to save work step: \(error)")
+            Self.logger.warning("Failed to save work step: \(error)")
         }
 
         onSave()
@@ -83,7 +86,7 @@ struct WorkStepEditorSheet: View {
         do {
             try service.delete(step, from: work)
         } catch {
-            print("⚠️ [deleteStep] Failed to delete work step: \(error)")
+            Self.logger.warning("Failed to delete work step: \(error)")
         }
         onSave()
         dismiss()

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import OSLog
 #if os(macOS)
 import AppKit
 #endif
@@ -12,6 +13,8 @@ import AppKit
 @Observable
 @MainActor
 final class AutoBackupManager {
+    private static let logger = Logger.backup
+
     // MARK: - Settings
 
     @ObservationIgnored
@@ -120,7 +123,7 @@ final class AutoBackupManager {
                     do {
                         try await Task.sleep(for: .seconds(waitTime))
                     } catch {
-                        print("⚠️ [Backup:startScheduledBackups] Task sleep interrupted: \(error)")
+                        Self.logger.warning("Task sleep interrupted: \(error)")
                         break
                     }
                 }
@@ -208,7 +211,7 @@ final class AutoBackupManager {
         do {
             try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
         } catch {
-            print("⚠️ [Backup:performBackup] Failed to create backup directory: \(error)")
+            Self.logger.warning("Failed to create backup directory: \(error)")
         }
 
         // Create timestamped filename
@@ -245,9 +248,7 @@ final class AutoBackupManager {
 
             return result
         } catch {
-            #if DEBUG
-            print("AutoBackupManager: Backup failed (\(trigger.rawValue)): \(error.localizedDescription)")
-            #endif
+            Self.logger.debug("Backup failed (\(trigger.rawValue)): \(error.localizedDescription)")
 
             let result = BackupResult.failure(Date(), error)
             lastBackupResult = result
@@ -272,7 +273,7 @@ final class AutoBackupManager {
                 options: [.skipsHiddenFiles]
             )
         } catch {
-            print("⚠️ [Backup:cleanupOldBackups] Failed to list directory contents: \(error)")
+            Self.logger.warning("Failed to list directory contents: \(error)")
             return
         }
 
@@ -290,7 +291,7 @@ final class AutoBackupManager {
             do {
                 date1 = try url1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
             } catch {
-                print("⚠️ [Backup:cleanupOldBackups] Failed to get creation date for \(url1.lastPathComponent): \(error)")
+                Self.logger.warning("Failed to get creation date for \(url1.lastPathComponent): \(error)")
                 date1 = Date.distantPast
             }
             
@@ -298,7 +299,7 @@ final class AutoBackupManager {
             do {
                 date2 = try url2.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
             } catch {
-                print("⚠️ [Backup:cleanupOldBackups] Failed to get creation date for \(url2.lastPathComponent): \(error)")
+                Self.logger.warning("Failed to get creation date for \(url2.lastPathComponent): \(error)")
                 date2 = Date.distantPast
             }
             
@@ -312,7 +313,7 @@ final class AutoBackupManager {
                 do {
                     try FileManager.default.removeItem(at: url)
                 } catch {
-                    print("⚠️ [Backup:cleanupOldBackups] Failed to delete old backup \(url.lastPathComponent): \(error)")
+                    Self.logger.warning("Failed to delete old backup \(url.lastPathComponent): \(error)")
                 }
             }
         }

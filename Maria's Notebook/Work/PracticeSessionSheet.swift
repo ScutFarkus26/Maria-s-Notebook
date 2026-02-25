@@ -1,8 +1,11 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 /// Sheet for recording a practice session (solo or group) with students
 struct PracticeSessionSheet: View {
+    private static let logger = Logger.work
+
     let initialWorkItem: WorkModel
     var onSave: ((PracticeSession) -> Void)? = nil
     
@@ -487,7 +490,7 @@ struct PracticeSessionSheet: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [saveSession] Failed to save practice session: \(error)")
+            Self.logger.warning("Failed to save practice session: \(error)")
         }
 
         onSave?(session)

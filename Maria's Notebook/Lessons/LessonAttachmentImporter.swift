@@ -1,9 +1,12 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 /// Service for importing attachments with smart lesson detection
 struct LessonAttachmentImporter {
+    private static let logger = Logger.lessons
+
     let modelContext: ModelContext
     
     /// Suggests lessons that might be related to the given file based on filename analysis
@@ -21,7 +24,7 @@ struct LessonAttachmentImporter {
         do {
             allLessons = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [suggestLessons] Failed to fetch lessons: \(error)")
+            Self.logger.warning("Failed to fetch lessons: \(error)")
             return []
         }
         
@@ -104,7 +107,7 @@ struct LessonAttachmentImporter {
         do {
             lessons = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [getRecentLessons] Failed to fetch lessons: \(error)")
+            Self.logger.warning("Failed to fetch lessons: \(error)")
             return []
         }
         
@@ -114,6 +117,8 @@ struct LessonAttachmentImporter {
 
 /// Sheet view for selecting a lesson when importing an attachment
 struct LessonAttachmentImportSheet: View {
+    private static let logger = Logger.lessons
+
     let fileURL: URL
     let onImport: (Lesson, AttachmentScope) -> Void
     let onCancel: () -> Void
@@ -277,7 +282,7 @@ struct LessonAttachmentImportSheet: View {
         do {
             allLessons = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [loadLessons] Failed to fetch lessons: \(error)")
+            Self.logger.warning("Failed to fetch lessons: \(error)")
         }
     }
 }

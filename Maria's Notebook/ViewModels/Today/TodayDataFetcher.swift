@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - Today Data Fetcher
@@ -6,6 +7,8 @@ import SwiftData
 /// Service for fetching data needed by TodayViewModel.
 /// Encapsulates all database fetch operations.
 enum TodayDataFetcher {
+
+    private static let logger = Logger.app_
 
     // MARK: - Lesson Fetching
 
@@ -181,9 +184,7 @@ enum TodayDataFetcher {
                 neededLessonIDs: workLessonIDs
             )
         } catch {
-            #if DEBUG
-            print("Error fetching work/plans: \(error)")
-            #endif
+            logger.error("Error fetching work/plans: \(error)")
             return nil
         }
     }
@@ -270,9 +271,7 @@ enum TodayDataFetcher {
 
             return ReminderFetchResult(overdue: overdue, today: today, anytime: anytime)
         } catch {
-            #if DEBUG
-            print("Error loading reminders: \(error)")
-            #endif
+            logger.error("Error loading reminders: \(error)")
             return ReminderFetchResult(overdue: [], today: [], anytime: [])
         }
     }
@@ -294,9 +293,7 @@ enum TodayDataFetcher {
             )
             return try context.fetch(descriptor)
         } catch {
-            #if DEBUG
-            print("Error loading calendar events: \(error)")
-            #endif
+            logger.error("Error loading calendar events: \(error)")
             return []
         }
     }

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Errors that can occur during lifecycle operations
 enum LifecycleError: Error {
@@ -9,13 +10,15 @@ enum LifecycleError: Error {
 
 @MainActor
 struct LifecycleService {
+    private static let logger = Logger.lifecycle
+
     // MARK: - Helper Methods
 
     private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> [T] {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
             return []
         }
     }
@@ -97,7 +100,7 @@ struct LifecycleService {
                             }
                         }
                     } catch {
-                        print("⚠️ [recordPresentationAndExplodeWork] Failed to get or create track: \(error)")
+                        logger.warning("Failed to get or create track: \(error.localizedDescription)")
                     }
                 }
             }
@@ -131,7 +134,7 @@ struct LifecycleService {
                             }
                         }
                     } catch {
-                        print("⚠️ [recordPresentationAndExplodeWork] Failed to get or create track: \(error)")
+                        logger.warning("Failed to get or create track: \(error.localizedDescription)")
                     }
                 }
             }
@@ -161,9 +164,7 @@ struct LifecycleService {
             lessonAssignment.migratedFromStudentLessonID = legacyID
 
             modelContext.insert(lessonAssignment)
-            #if DEBUG
-            print("LessonAssignment created: migratedFromStudentLessonID=\(lessonAssignment.migratedFromStudentLessonID ?? "nil")")
-            #endif
+            logger.debug("LessonAssignment created: migratedFromStudentLessonID=\(lessonAssignment.migratedFromStudentLessonID ?? "nil", privacy: .public)")
         }
 
         // 2) Ensure WorkModels exist per student
@@ -206,7 +207,7 @@ struct LifecycleService {
                                     modelContext: modelContext
                                 )
                             } catch {
-                                print("⚠️ [recordPresentationAndExplodeWork] Failed to link work to track: \(error)")
+                                logger.warning("Failed to link work to track: \(error.localizedDescription)")
                             }
                         }
                     }
@@ -214,9 +215,7 @@ struct LifecycleService {
                     workForPresentation.append(workModel)
                     createdCount += 1
                 } catch {
-                    #if DEBUG
-                    print("⚠️ Failed to create WorkModel for LessonAssignment \(lessonAssignment.id.uuidString), student \(sid): \(error)")
-                    #endif
+                    logger.warning("Failed to create WorkModel for LessonAssignment \(lessonAssignment.id.uuidString, privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)")
                 }
             }
         }
@@ -394,9 +393,7 @@ struct LifecycleService {
                         modelContext: context
                     )
                 } catch {
-                    #if DEBUG
-                    print("⚠️ Failed to create/get GroupTrack for \(subject)/\(group): \(error)")
-                    #endif
+                    logger.warning("Failed to create/get GroupTrack for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
                 }
             }
         }
@@ -426,9 +423,7 @@ struct LifecycleService {
             
             // Validate lesson exists before attempting to sync
             guard lesson != nil else {
-                #if DEBUG
-                print("⚠️ Skipping StudentLesson \(studentLesson.id): lesson not found for lessonID \(studentLesson.lessonID)")
-                #endif
+                logger.warning("Skipping StudentLesson \(studentLesson.id, privacy: .public): lesson not found for lessonID \(studentLesson.lessonID, privacy: .public)")
                 continue
             }
 
@@ -462,9 +457,7 @@ struct LifecycleService {
             } catch {
                 // If recordPresentationAndExplodeWork fails (e.g., lesson not found),
                 // still try to create LessonPresentation record directly
-                #if DEBUG
-                print("⚠️ Failed to create LessonAssignment for StudentLesson \(studentLesson.id): \(error)")
-                #endif
+                logger.warning("Failed to create LessonAssignment for StudentLesson \(studentLesson.id, privacy: .public): \(error.localizedDescription)")
 
                 // Fallback: create LessonPresentation directly
                 for studentIDStr in studentLesson.studentIDs {
@@ -501,7 +494,7 @@ struct LifecycleService {
                             modelContext: context
                         )
                     } catch {
-                        print("⚠️ [syncAllStudentProgress] Failed to create/get GroupTrack for \(lesson.subject)/\(lesson.group): \(error)")
+                        logger.warning("Failed to create/get GroupTrack for \(lesson.subject, privacy: .public)/\(lesson.group, privacy: .public): \(error.localizedDescription)")
                     }
 
                     // Enroll students in the track

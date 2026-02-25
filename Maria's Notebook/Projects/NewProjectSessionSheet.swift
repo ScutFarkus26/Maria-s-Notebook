@@ -1,7 +1,9 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct NewProjectSessionSheet: View {
+    private static let logger = Logger.projects
     let club: Project
 
     @Environment(\.dismiss) private var dismiss
@@ -284,9 +286,7 @@ struct NewProjectSessionSheet: View {
                         dueDate: scheduledDay
                     )
                 } catch {
-                    #if DEBUG
-                    print("⚠️ Failed to create offered work: \(error)")
-                    #endif
+                    Self.logger.warning("Failed to create offered work: \(error)")
                 }
             }
 
@@ -387,7 +387,7 @@ struct NewProjectSessionSheet: View {
             if workModel.checkIns == nil { workModel.checkIns = [] }
             workModel.checkIns = (workModel.checkIns ?? []) + [checkIn]
         } catch {
-            print("⚠️ [\(#function)] Failed to create WorkModel for project session: \(error)")
+            Self.logger.warning("Failed to create WorkModel for project session: \(error)")
         }
     }
 
@@ -401,7 +401,7 @@ struct NewProjectSessionSheet: View {
                 return first.id
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch existing project lesson: \(error)")
+            Self.logger.warning("Failed to fetch existing project lesson: \(error)")
         }
         let l = Lesson(name: name, subject: "Projects", group: "Project")
         context.insert(l)

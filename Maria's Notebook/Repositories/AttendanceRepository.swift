@@ -7,11 +7,14 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 struct AttendanceRepository: SavingRepository {
     typealias Model = AttendanceRecord
+
+    private static let logger = Logger.database
 
     let context: ModelContext
     let saveCoordinator: SaveCoordinator?
@@ -149,7 +152,7 @@ struct AttendanceRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteRecord] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }

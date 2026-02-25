@@ -4,8 +4,10 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 struct PresentationsInboxView: View {
+    private static let logger = Logger.presentations
     let readyLessons: [StudentLesson]
     let blockedLessons: [StudentLesson]
     let getBlockingWork: (StudentLesson) -> [UUID: WorkModel]
@@ -118,7 +120,7 @@ struct PresentationsInboxView: View {
                             do {
                                 try await Task.sleep(for: .milliseconds(250)) // 250ms debounce
                             } catch {
-                                print("⚠️ [\(#function)] Search debounce interrupted: \(error)")
+                                Self.logger.debug("Search debounce interrupted: \(error)")
                             }
                             guard !Task.isCancelled else { return }
                             debouncedSearchText = newValue
@@ -510,6 +512,7 @@ struct PresentationsInboxView: View {
 
 // MARK: - Drop Delegate for Inbox
 private struct InboxDropDelegate: DropDelegate {
+    private static let logger = Logger.presentations
     let modelContext: ModelContext
     let studentLessons: [StudentLesson]
     let coordinator: PresentationsCoordinator
@@ -547,9 +550,7 @@ private struct InboxDropDelegate: DropDelegate {
                         do {
                             try modelContext.save()
                         } catch {
-                            #if DEBUG
-                            print("Presentations inbox unschedule save failed: \(error)")
-                            #endif
+                            Self.logger.warning("Presentations inbox unschedule save failed: \(error)")
                         }
                     }
                 }

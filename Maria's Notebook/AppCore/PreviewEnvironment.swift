@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+import OSLog
+
+private let logger = Logger.app_
 
 // Shared in-memory container for previews across the project.
 extension ModelContainer {
@@ -11,7 +14,7 @@ extension ModelContainer {
             let container = try ModelContainer(for: schema, configurations: configuration)
             return container
         } catch {
-            print("⚠️ [\(#function)] Failed to create preview ModelContainer: \(error)")
+            logger.warning("Failed to create preview ModelContainer: \(error)")
             fatalError("Failed to create preview ModelContainer - this should never happen for in-memory containers")
         }
     }()
@@ -24,7 +27,7 @@ extension ModelContainer {
             let container = try ModelContainer(for: schema, configurations: configuration)
             return container
         } catch {
-            print("⚠️ [\(#function)] Failed to create preview ModelContainer for schema: \(error)")
+            logger.warning("Failed to create preview ModelContainer for schema: \(error)")
             fatalError("Failed to create preview ModelContainer for schema - this should never happen for in-memory containers")
         }
     }

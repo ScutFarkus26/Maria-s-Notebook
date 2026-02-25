@@ -2,6 +2,7 @@
 // Handles secure backup sharing functionality
 
 import Foundation
+import OSLog
 #if os(macOS)
 import AppKit
 #endif
@@ -10,6 +11,7 @@ import AppKit
 /// Provides functionality to prepare backups for sharing via AirDrop, email, or other methods.
 @MainActor
 public final class BackupSharingService {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -156,7 +158,7 @@ public final class BackupSharingService {
                 let attributes = try FileManager.default.attributesOfItem(atPath: shareURL.path)
                 fileSize = attributes[FileAttributeKey.size] as? Int64 ?? 0
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to get file size: \(error)")
+                Self.logger.warning("Failed to get file size: \(error)")
                 fileSize = 0
             }
 
@@ -175,7 +177,7 @@ public final class BackupSharingService {
                 let attributes = try FileManager.default.attributesOfItem(atPath: backupURL.path)
                 fileSize = attributes[FileAttributeKey.size] as? Int64 ?? 0
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to get file size: \(error)")
+                Self.logger.warning("Failed to get file size: \(error)")
                 fileSize = 0
             }
 
@@ -239,7 +241,7 @@ public final class BackupSharingService {
                 includingPropertiesForKeys: [.creationDateKey]
             )
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to list share directory contents: \(error)")
+            Self.logger.warning("Failed to list share directory contents: \(error)")
             return
         }
 
@@ -250,14 +252,14 @@ public final class BackupSharingService {
             do {
                 creationDate = try file.resourceValues(forKeys: [.creationDateKey]).creationDate
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to get creation date for \(file.lastPathComponent): \(error)")
+                Self.logger.warning("Failed to get creation date for \(file.lastPathComponent): \(error)")
                 continue
             }
             if let creationDate = creationDate, creationDate < cutoffDate {
                 do {
                     try FileManager.default.removeItem(at: file)
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to delete temporary file \(file.lastPathComponent): \(error)")
+                    Self.logger.warning("Failed to delete temporary file \(file.lastPathComponent): \(error)")
                 }
             }
         }
@@ -343,7 +345,7 @@ public final class BackupSharingService {
                 ofItemAtPath: destinationURL.path
             )
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to set file permissions: \(error)")
+            Self.logger.warning("Failed to set file permissions: \(error)")
         }
     }
 }

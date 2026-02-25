@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 /// Shared visual component for PlanningWeekView that works with both Mac and iOS data sources.
 /// This contains all the UI logic and presentation, but is data-agnostic.
 @MainActor
 struct PlanningWeekViewContent: View {
+    private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
@@ -73,7 +75,7 @@ struct PlanningWeekViewContent: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         } catch {
-                            print("⚠️ [\(#function)] Failed to sleep before dismissing sheet: \(error)")
+                            Self.logger.warning("Failed to sleep before dismissing sheet: \(error)")
                         }
                         if case .studentLessonDetail(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
@@ -93,7 +95,7 @@ struct PlanningWeekViewContent: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         } catch {
-                            print("⚠️ [\(#function)] Failed to sleep before dismissing sheet: \(error)")
+                            Self.logger.warning("Failed to sleep before dismissing sheet: \(error)")
                         }
                         if case .quickActions(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
@@ -111,7 +113,7 @@ struct PlanningWeekViewContent: View {
                                 do {
                                     try studentLessonRepository.deleteStudentLesson(id: current.id)
                                 } catch {
-                                    print("⚠️ [\(#function)] Failed to delete empty student lesson draft: \(error)")
+                                    Self.logger.warning("Failed to delete empty student lesson draft: \(error)")
                                 }
                                 onRefreshNeeded?()
                             }
@@ -126,7 +128,7 @@ struct PlanningWeekViewContent: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         } catch {
-                            print("⚠️ [\(#function)] Failed to sleep before dismissing sheet: \(error)")
+                            Self.logger.warning("Failed to sleep before dismissing sheet: \(error)")
                         }
                         if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
@@ -208,7 +210,7 @@ struct PlanningWeekViewContent: View {
         do {
             weekStudentLessons = try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch week student lessons: \(error)")
+            Self.logger.warning("Failed to fetch week student lessons: \(error, privacy: .public)")
             weekStudentLessons = []
         }
     }
@@ -294,7 +296,7 @@ struct PlanningWeekViewContent: View {
                                         planNextLesson(for: la)
                                     }
                                 } catch {
-                                    print("⚠️ [\(#function)] Failed to fetch lesson assignment for planning: \(error)")
+                                    Self.logger.warning("Failed to fetch lesson assignment for planning: \(error, privacy: .public)")
                                 }
                             }
                         )
@@ -474,7 +476,7 @@ struct PlanningWeekViewContent: View {
             activeSheet = .giveLessonDraft(newSL.id)
             onRefreshNeeded?()
         } catch {
-            print("Failed to create draft: \(error)")
+            Self.logger.error("Failed to create draft: \(error, privacy: .public)")
         }
     }
 }

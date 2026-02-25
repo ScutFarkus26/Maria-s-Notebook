@@ -5,6 +5,7 @@ import OSLog
 /// Reusable panel component for presentation workflow (can be used in sheets or embedded)
 /// Contains the split-panel UI for presentation notes and work item creation
 struct UnifiedPresentationWorkflowPanel: View {
+    private static let logger = Logger.presentations
     // MARK: - Types
     
     struct WorkItemDraft: Identifiable {
@@ -934,7 +935,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                         work.completionOutcome = outcome
                     }
                 } catch {
-                    print("⚠️ [\(#function)] Failed to create work item: \(error)")
+                    Self.logger.warning("Failed to create work item: \(error)")
                 }
             }
         }
@@ -967,7 +968,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             do {
                 try await Task.sleep(for: .seconds(2))
             } catch {
-                print("⚠️ [\(#function)] Toast auto-hide interrupted: \(error)")
+                Self.logger.debug("Toast auto-hide interrupted: \(error)")
             }
             withAnimation(.easeInOut(duration: 0.3)) {
                 showBulkAppliedToast = false

@@ -1,9 +1,12 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for managing work assignments in project sessions
 @MainActor
 struct SessionWorkAssignmentService {
+    private static let logger = Logger.work
+
     let context: ModelContext
 
     // MARK: - Uniform Mode
@@ -175,7 +178,7 @@ struct SessionWorkAssignmentService {
         do {
             return try self.context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
             return []
         }
     }

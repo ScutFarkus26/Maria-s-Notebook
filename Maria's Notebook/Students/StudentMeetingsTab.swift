@@ -1,5 +1,6 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -11,6 +12,8 @@ import FoundationModels
 // - MeetingWorkSnapshotHelper: Work statistics computation
 
 struct StudentMeetingsTab: View {
+    private static let logger = Logger.students
+
     let student: Student
 
     // MARK: - Environment & Data
@@ -178,7 +181,7 @@ struct StudentMeetingsTab: View {
                         do {
                             try modelContext.save()
                         } catch {
-                            print("⚠️ [Edit meeting Save] Failed to save: \(error)")
+                            Self.logger.warning("Failed to save meeting edit: \(error)")
                         }
                         editingMeeting = nil
                     }
@@ -557,7 +560,7 @@ struct StudentMeetingsTab: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [delete meeting] Failed to save: \(error)")
+            Self.logger.warning("Failed to save after deleting meeting: \(error)")
         }
     }
 

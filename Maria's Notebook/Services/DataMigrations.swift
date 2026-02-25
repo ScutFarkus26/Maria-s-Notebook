@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import CoreData
+import OSLog
 
 // MARK: - Data Migrations Facade
 
@@ -13,6 +14,8 @@ import CoreData
 /// - `LegacyNotesMigrationService`: Legacy string notes to Note objects
 /// - `DataCleanupService`: Orphaned data cleanup and deduplication
 enum DataMigrations {
+    private static let logger = Logger.migration
+
 
     // MARK: - Schema Migrations (delegated to SchemaMigrationService)
 
@@ -194,7 +197,7 @@ enum DataMigrations {
         do {
             _ = try await service.migrateIfNeeded()
         } catch {
-            print("⚠️ [\(#function)] Failed to migrate lesson assignments: \(error)")
+            logger.warning("Failed to migrate lesson assignments: \(error.localizedDescription)")
         }
     }
 
@@ -205,7 +208,7 @@ enum DataMigrations {
         do {
             return try await validator.validate()
         } catch {
-            print("⚠️ [\(#function)] Failed to validate lesson assignment migration: \(error)")
+            logger.warning("Failed to validate lesson assignment migration: \(error.localizedDescription)")
             return nil
         }
     }

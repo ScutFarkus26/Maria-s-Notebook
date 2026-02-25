@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 /// Main view for managing classroom procedures
 struct ProceduresListView: View {
+    private static let logger = Logger.app_
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Procedure.title) private var procedures: [Procedure]
 
@@ -100,7 +102,7 @@ struct ProceduresListView: View {
                     do {
                         try await Task.sleep(for: .milliseconds(300))
                     } catch {
-                        print("⚠️ [\(#function)] Failed to sleep before showing editor: \(error)")
+                        Self.logger.warning("Failed to sleep before showing editor: \(error, privacy: .public)")
                     }
                     procedureToEdit = editProcedure
                 }

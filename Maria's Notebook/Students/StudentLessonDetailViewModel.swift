@@ -1,10 +1,12 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import OSLog
 
 @Observable
 @MainActor
 final class StudentLessonDetailViewModel {
+    private static let logger = Logger.students
     // MARK: - Dependencies
     var studentLesson: StudentLesson
     var modelContext: ModelContext
@@ -86,7 +88,7 @@ final class StudentLessonDetailViewModel {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(functionName)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("[\(functionName)] Failed to fetch \(String(describing: T.self)): \(error)")
             return []
         }
     }
@@ -104,7 +106,7 @@ final class StudentLessonDetailViewModel {
         do {
             allLessonPresentations = try modelContext.fetch(FetchDescriptor<LessonPresentation>())
         } catch {
-            print("⚠️ [loadMasteryState] Failed to fetch LessonPresentation: \(error)")
+            Self.logger.warning("Failed to fetch LessonPresentation: \(error)")
             return .presented
         }
         let matching = allLessonPresentations.filter { lp in
@@ -180,9 +182,7 @@ final class StudentLessonDetailViewModel {
                     modelContext: modelContext
                 )
             } catch {
-                #if DEBUG
-                print("LifecycleService error: \(error)")
-                #endif
+                Self.logger.debug("LifecycleService error: \(error)")
             }
 
             // Update mastery state on LessonPresentation records
@@ -271,7 +271,7 @@ final class StudentLessonDetailViewModel {
                     coordinator.save(ctx, reason: "Deleting student lesson")
                 }
             } catch {
-                print("⚠️ [delete] Failed to fetch StudentLesson for deletion: \(error)")
+                Self.logger.warning("Failed to fetch StudentLesson for deletion: \(error)")
             }
             StudentLessonDetailUtilities.notifyInboxRefresh()
         }

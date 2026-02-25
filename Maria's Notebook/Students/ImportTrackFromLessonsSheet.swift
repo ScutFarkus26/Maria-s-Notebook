@@ -1,10 +1,13 @@
 // ImportTrackFromLessonsSheet.swift
 // Sheet for importing a track from lessons organized by subject and group
 
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 struct ImportTrackFromLessonsSheet: View {
+    private static let logger = Logger.students
+
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -149,9 +152,7 @@ struct ImportTrackFromLessonsSheet: View {
             let descriptor = FetchDescriptor<Lesson>()
             allLessonsFetched = try modelContext.fetch(descriptor)
         } catch {
-            #if DEBUG
-            print("Failed to fetch lessons: \(error)")
-            #endif
+            Self.logger.warning("Failed to fetch lessons: \(error)")
             return
         }
         
@@ -200,9 +201,7 @@ struct ImportTrackFromLessonsSheet: View {
             onImport?(newTrack.id)
             dismiss()
         } catch {
-            #if DEBUG
-            print("Failed to import track: \(error)")
-            #endif
+            Self.logger.warning("Failed to import track: \(error)")
         }
     }
 }

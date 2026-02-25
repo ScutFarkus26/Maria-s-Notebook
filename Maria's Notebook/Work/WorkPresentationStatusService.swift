@@ -1,10 +1,12 @@
 import Foundation
+import OSLog
 import SwiftData
 import SwiftUI
 
 /// Service to determine the presentation status of the next presentation for a work item
 struct WorkPresentationStatusService {
-    
+    private static let logger = Logger.work
+
     /// Status of the next presentation for a work item
     enum PresentationStatus {
         case scheduled(date: Date)
@@ -97,7 +99,7 @@ struct WorkPresentationStatusService {
                 return .scheduled(date: scheduledDate)
             }
         } catch {
-            print("⚠️ [findNextPresentationStatus] Failed to fetch scheduled LessonAssignment: \(error)")
+            logger.warning("Failed to fetch scheduled LessonAssignment: \(error)")
         }
 
         // Next, check for draft presentations (LessonAssignment with state = draft, not scheduled)
@@ -127,7 +129,7 @@ struct WorkPresentationStatusService {
                 }
             }
         } catch {
-            print("⚠️ [findNextPresentationStatus] Failed to fetch draft LessonAssignment: \(error)")
+            logger.warning("Failed to fetch draft LessonAssignment: \(error)")
         }
 
         // Check for StudentLesson records (legacy system or inbox waiting area)
@@ -167,7 +169,7 @@ struct WorkPresentationStatusService {
                 }
             }
         } catch {
-            print("⚠️ [findNextPresentationStatus] Failed to fetch StudentLesson: \(error)")
+            logger.warning("Failed to fetch StudentLesson: \(error)")
         }
 
         return .notFound

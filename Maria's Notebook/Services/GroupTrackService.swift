@@ -1,16 +1,19 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for managing group-based tracks
 @MainActor
 struct GroupTrackService {
+    private static let logger = Logger.lessons
+
     // MARK: - Helper Methods
 
     private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, modelContext: ModelContext, context: String = #function) -> [T] {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
             return []
         }
     }
@@ -19,7 +22,7 @@ struct GroupTrackService {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(context)] Failed to save: \(error)")
+            logger.warning("Failed to save: \(error.localizedDescription)")
         }
     }
     /// Get or create a GroupTrack for the given subject and group
@@ -382,7 +385,7 @@ struct GroupTrackService {
                 modelContext: modelContext
             )
         } catch {
-            print("⚠️ [autoEnrollInTrackIfNeeded] Failed to get or create track: \(error)")
+            logger.warning("Failed to get or create track during auto-enroll: \(error.localizedDescription)")
             return
         }
         
@@ -454,7 +457,7 @@ struct GroupTrackService {
             }
             track = fetchedTrack
         } catch {
-            print("⚠️ [checkAndCompleteTrackIfNeeded] Failed to get track: \(error)")
+            logger.warning("Failed to get track for completion check: \(error.localizedDescription)")
             return
         }
 

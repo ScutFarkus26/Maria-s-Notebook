@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 #if DEBUG
 import Foundation
 #endif
@@ -9,6 +10,7 @@ import Foundation
 /// constant @Query monitoring.
 @MainActor
 struct PlanningWeekViewiOS: View {
+    private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
@@ -67,7 +69,7 @@ struct PlanningWeekViewiOS: View {
         do {
             inboxLessons = try modelContext.fetch(inboxDescriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch inbox lessons: \(error)")
+            Self.logger.warning("Failed to fetch inbox lessons: \(error, privacy: .public)")
             inboxLessons = []
         }
 
@@ -78,7 +80,7 @@ struct PlanningWeekViewiOS: View {
         do {
             lessons = try modelContext.fetch(lessonsDescriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch lessons: \(error)")
+            Self.logger.warning("Failed to fetch lessons: \(error, privacy: .public)")
             lessons = []
         }
 
@@ -92,13 +94,13 @@ struct PlanningWeekViewiOS: View {
         do {
             students = try modelContext.fetch(studentsDescriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch students: \(error)")
+            Self.logger.warning("Failed to fetch students: \(error, privacy: .public)")
             students = []
         }
 
         #if DEBUG
         let loadTime = Date().timeIntervalSince(startTime)
-        print("📱 PlanningWeekViewiOS loaded \(inboxLessons.count) inbox items, \(lessons.count) lessons, \(students.count) students in \(String(format: "%.3f", loadTime))s (Manual fetch)")
+        Self.logger.debug("PlanningWeekViewiOS loaded \(self.inboxLessons.count, privacy: .public) inbox items, \(self.lessons.count, privacy: .public) lessons, \(self.students.count, privacy: .public) students in \(String(format: "%.3f", loadTime))s (Manual fetch)")
         PerformanceLogger.logScreenLoad(
             screenName: "PlanningWeekViewiOS",
             itemCounts: [

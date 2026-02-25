@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 struct WorkRepository {
+    private static let logger = Logger.work
+
     let context: ModelContext
 
     // MARK: - Helper Methods
@@ -11,7 +14,7 @@ struct WorkRepository {
         do {
             return try self.context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
             return []
         }
     }
@@ -20,7 +23,7 @@ struct WorkRepository {
         do {
             return try self.context.fetch(descriptor).first
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
             return nil
         }
     }
@@ -49,7 +52,7 @@ struct WorkRepository {
                 modelContext: context
             )
         } catch {
-            print("⚠️ [\(#function)] Failed to get or create track: \(error)")
+            Self.logger.warning("Failed to get or create track: \(error)")
             return
         }
 

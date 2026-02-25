@@ -6,9 +6,12 @@
 //
 
 import Foundation
+import OSLog
 
 /// Direct implementation that connects to Anthropic's Claude API
 final class AnthropicAPIClient: MCPClientProtocol {
+    private static let logger = Logger.ai
+
     
     private let apiKey: String
     private let session: URLSession
@@ -134,8 +137,8 @@ final class AnthropicAPIClient: MCPClientProtocol {
             throw AnthropicAPIError.noAPIKey
         }
         
-        print("🔧 AnthropicAPIClient: Making request to \(baseURL)")
-        print("🔧 API Key length: \(apiKey.count), starts with: \(apiKey.prefix(7))")
+        Self.logger.debug("Making request to \(self.baseURL, privacy: .public)")
+        Self.logger.debug("API Key length: \(self.apiKey.count, privacy: .public), starts with: \(self.apiKey.prefix(7), privacy: .private)")
         
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
@@ -159,9 +162,9 @@ final class AnthropicAPIClient: MCPClientProtocol {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
         do {
-            print("🔧 Sending request...")
+            Self.logger.debug("Sending request...")
             let (data, response) = try await session.data(for: request)
-            print("🔧 Received response")
+            Self.logger.debug("Received response")
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AnthropicAPIError.invalidResponse
@@ -170,22 +173,22 @@ final class AnthropicAPIClient: MCPClientProtocol {
             guard httpResponse.statusCode == 200 else {
                 // Try to parse error message
                 let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                print("🔧 HTTP Status Code: \(httpResponse.statusCode)")
-                print("🔧 Error response body: \(responseString)")
+                Self.logger.debug("HTTP Status Code: \(httpResponse.statusCode, privacy: .public)")
+                Self.logger.debug("Error response body: \(responseString, privacy: .public)")
                 
                 let errorBody: [String: Any]?
                 do {
                     errorBody = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                 } catch {
-                    print("⚠️ [\(#function)] Failed to decode error response: \(error)")
+                    Self.logger.warning("Failed to decode error response: \(error.localizedDescription)")
                     errorBody = nil
                 }
                 if let errorBody = errorBody,
                    let error = errorBody["error"] as? [String: Any],
                    let message = error["message"] as? String,
                    let errorType = error["type"] as? String {
-                    print("🔧 Error type: \(errorType)")
-                    print("🔧 Parsed error message: \(message)")
+                    Self.logger.debug("Error type: \(errorType, privacy: .public)")
+                    Self.logger.debug("Parsed error message: \(message, privacy: .public)")
                     
                     // Provide more helpful error messages based on status code
                     let helpfulMessage: String
@@ -209,7 +212,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
             do {
                 responseBody = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             } catch {
-                print("⚠️ [\(#function)] Failed to decode API response: \(error)")
+                Self.logger.warning("Failed to decode API response: \(error.localizedDescription)")
                 throw AnthropicAPIError.invalidResponse
             }
             guard let responseBody = responseBody,
@@ -228,19 +231,19 @@ final class AnthropicAPIClient: MCPClientProtocol {
             case .notConnectedToInternet:
                 throw AnthropicAPIError.apiError(statusCode: 0, message: "No internet connection. Please check your network settings.")
             case .cannotFindHost, .cannotConnectToHost:
-                print("🔧 URLError: \(urlError.code.rawValue) - \(urlError.localizedDescription)")
+                Self.logger.debug("URLError: \(urlError.code.rawValue, privacy: .public) - \(urlError.localizedDescription, privacy: .public)")
                 throw AnthropicAPIError.apiError(statusCode: 0, message: "Cannot reach api.anthropic.com. Check your internet connection or firewall settings.")
             case .timedOut:
                 throw AnthropicAPIError.apiError(statusCode: 0, message: "Request timed out. Please try again.")
             case .secureConnectionFailed:
                 throw AnthropicAPIError.apiError(statusCode: 0, message: "Secure connection failed. Check your system date/time settings.")
             default:
-                print("🔧 URLError code: \(urlError.code.rawValue)")
-                print("🔧 URLError: \(urlError)")
+                Self.logger.debug("URLError code: \(urlError.code.rawValue, privacy: .public)")
+                Self.logger.debug("URLError: \(urlError.localizedDescription, privacy: .public)")
                 throw AnthropicAPIError.apiError(statusCode: 0, message: "Network error: \(urlError.localizedDescription)")
             }
         } catch {
-            print("🔧 Unknown error: \(error)")
+            Self.logger.debug("Unknown error: \(error.localizedDescription)")
             throw AnthropicAPIError.apiError(statusCode: 0, message: "Network error: \(error.localizedDescription)")
         }
     }

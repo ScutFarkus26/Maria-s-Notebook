@@ -1,6 +1,7 @@
 // StudentProgressTabViewModel.swift
 // ViewModel for StudentProgressTab - handles data loading and business logic
 
+import OSLog
 import SwiftUI
 import SwiftData
 #if os(macOS)
@@ -12,6 +13,8 @@ import UIKit
 @Observable
 @MainActor
 final class StudentProgressTabViewModel {
+    private static let logger = Logger.students
+
     // MARK: - Public State
     private(set) var activeEnrollments: [StudentTrackEnrollment] = []
     private(set) var activeProjects: [Project] = []
@@ -277,7 +280,7 @@ final class StudentProgressTabViewModel {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [autoCompleteTrackIfNeeded] Failed to save track completion: \(error)")
+                Self.logger.warning("Failed to save track completion: \(error)")
             }
         }
     }

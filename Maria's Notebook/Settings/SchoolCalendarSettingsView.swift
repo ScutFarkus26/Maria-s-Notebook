@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 #if os(macOS)
 import AppKit
@@ -8,6 +9,7 @@ import UIKit
 #endif
 
 struct SchoolCalendarSettingsView: View {
+    private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
     @State private var currentMonth: Date = Date()
@@ -169,14 +171,14 @@ struct SchoolCalendarSettingsView: View {
                     modelContext.delete(existing)
                 }
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch non-school day: \(error)")
+                Self.logger.warning("Failed to fetch non-school day: \(error, privacy: .public)")
             }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save after clearing month: \(error)")
+            Self.logger.warning("Failed to save after clearing month: \(error, privacy: .public)")
         }
         Task {
             await reload()
@@ -197,7 +199,7 @@ struct SchoolCalendarSettingsView: View {
                 do {
                     items = try modelContext.fetch(descriptor)
                 } catch {
-                    print("⚠️ [\(#function)] Failed to fetch non-school days: \(error)")
+                    Self.logger.warning("Failed to fetch non-school days: \(error, privacy: .public)")
                     items = []
                 }
                 if let existing = items.first {
@@ -209,7 +211,7 @@ struct SchoolCalendarSettingsView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save after marking weekdays: \(error)")
+            Self.logger.warning("Failed to save after marking weekdays: \(error, privacy: .public)")
         }
         Task {
             await reload()

@@ -7,11 +7,14 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 struct MeetingTemplateRepository: SavingRepository {
     typealias Model = MeetingTemplate
+
+    private static let logger = Logger.database
 
     let context: ModelContext
     let saveCoordinator: SaveCoordinator?
@@ -184,7 +187,7 @@ struct MeetingTemplateRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteTemplate] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }

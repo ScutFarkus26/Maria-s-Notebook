@@ -3,6 +3,9 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
+
+private let logger = Logger.app_
 
 // MARK: - TodayView Helpers Extension
 
@@ -200,7 +203,7 @@ extension TodayView {
                 do {
                     try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
                 } catch {
-                    print("⚠️ [\(#function)] Failed to update reminder in EventKit: \(error)")
+                    logger.warning("Failed to update reminder in EventKit: \(error)")
                 }
             }
         } catch {
@@ -219,7 +222,7 @@ extension TodayView {
             do {
                 try await Task.sleep(for: .seconds(2.0))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for toast: \(error)")
+                logger.warning("Failed to sleep for toast: \(error)")
             }
             withAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil
@@ -278,7 +281,7 @@ extension TodayView {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to save todo: \(error)")
+                logger.warning("Failed to save todo: \(error)")
             }
         }
     }

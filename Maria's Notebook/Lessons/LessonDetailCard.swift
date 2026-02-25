@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 #if os(macOS)
 import AppKit
 #endif
@@ -11,6 +12,8 @@ public enum LessonDetailInitialMode {
 }
 
 struct LessonDetailCard: View {
+    private static let logger = Logger.lessons
+
     var lesson: Lesson
     var onSave: (Lesson) -> Void
     var onClose: () -> Void
@@ -232,7 +235,7 @@ struct LessonDetailCard: View {
                             do {
                                 try LessonFileStorage.deleteIfManaged(oldURL)
                             } catch {
-                                print("⚠️ [fileImporter] Failed to delete old managed file: \(error)")
+                                Self.logger.warning("Failed to delete old managed file: \(error)")
                             }
                         }
                         await MainActor.run {
@@ -335,7 +338,7 @@ struct LessonDetailCard: View {
                                     do {
                                         try LessonFileStorage.deleteIfManaged(url)
                                     } catch {
-                                        print("⚠️ [Remove button] Failed to delete managed file: \(error)")
+                                        Self.logger.warning("Failed to delete managed file: \(error)")
                                     }
                                 }
                                 lesson.pagesFileBookmark = nil
@@ -414,7 +417,7 @@ struct LessonDetailCard: View {
             do {
                 return try LessonFileStorage.resolve(relativePath: rel)
             } catch {
-                print("⚠️ [resolveLessonFileURL] Failed to resolve relative path: \(error)")
+                Self.logger.warning("Failed to resolve relative path: \(error)")
             }
         }
         // Fallback to legacy bookmark
@@ -470,7 +473,7 @@ struct LessonDetailCard: View {
                             do {
                                 try LessonFileStorage.deleteIfManaged(oldURL)
                             } catch {
-                                print("⚠️ [presentMacOpenPanel] Failed to delete old managed file: \(error)")
+                                Self.logger.warning("Failed to delete old managed file: \(error)")
                             }
                         }
                         await MainActor.run {

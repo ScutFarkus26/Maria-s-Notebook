@@ -10,6 +10,8 @@ enum DatabaseInitializationService {
 
     // MARK: - Logger
 
+    private static let logger = Logger.database
+
     private static let resetLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook",
         category: "Reset"
@@ -29,7 +31,7 @@ enum DatabaseInitializationService {
                 create: true
             )
         } catch {
-            print("⚠️ [\(#function)] Failed to get application support directory: \(error)")
+            logger.warning("Failed to get application support directory: \(error)")
             return fm.temporaryDirectory.appendingPathComponent("SwiftData.store", isDirectory: false)
         }
         let bundleID = Bundle.main.bundleIdentifier ?? "MariasNotebook"
@@ -37,7 +39,7 @@ enum DatabaseInitializationService {
         do {
             try fm.createDirectory(at: containerDir, withIntermediateDirectories: true)
         } catch {
-            print("⚠️ [\(#function)] Failed to create container directory: \(error)")
+            logger.warning("Failed to create container directory: \(error)")
         }
         return containerDir.appendingPathComponent("SwiftData.store", isDirectory: false)
     }

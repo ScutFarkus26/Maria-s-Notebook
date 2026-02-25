@@ -4,10 +4,12 @@
 // Lightweight service to fetch presentation history for lessons.
 
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 enum LessonsPresentationHistoryProvider {
+    private static let logger = Logger.lessons
 
     /// Fetches the most recent presentedAt date for each lesson ID.
     /// Returns a dictionary mapping lesson UUIDs to their most recent presentation date.
@@ -33,7 +35,7 @@ enum LessonsPresentationHistoryProvider {
         do {
             assignments = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [fetchLastPresentedDates] Failed to fetch lesson assignments: \(error)")
+            logger.warning("Failed to fetch lesson assignments: \(error)")
             return [:]
         }
 
@@ -75,7 +77,7 @@ enum LessonsPresentationHistoryProvider {
         do {
             assignments = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [fetchPresentationCounts] Failed to fetch lesson assignments: \(error)")
+            logger.warning("Failed to fetch lesson assignments: \(error)")
             return [:]
         }
 
@@ -115,7 +117,7 @@ enum LessonsPresentationHistoryProvider {
         do {
             assignments = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [fetchPresentationHistory] Failed to fetch lesson assignments: \(error)")
+            logger.warning("Failed to fetch lesson assignments: \(error)")
             return ([:], [:])
         }
 

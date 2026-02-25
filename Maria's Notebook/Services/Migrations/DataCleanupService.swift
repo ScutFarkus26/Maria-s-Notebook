@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Data Cleanup Service
 
 /// Service responsible for cleaning up orphaned data and maintaining referential integrity.
 /// Handles cleanup of orphaned student IDs, duplicate records, and other data integrity issues.
 enum DataCleanupService {
+    private static let logger = Logger.migration
 
     // MARK: - Orphaned Student ID Cleanup
 
@@ -20,9 +22,7 @@ enum DataCleanupService {
         
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
         guard !allStudents.isEmpty else {
-            #if DEBUG
-            print("⚠️ cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
-            #endif
+            logger.warning("cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
             return
         }
         
@@ -65,9 +65,7 @@ enum DataCleanupService {
         
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
         guard !allStudents.isEmpty else {
-            #if DEBUG
-            print("⚠️ cleanOrphanedWorkStudentIDs: No students found - skipping cleanup to prevent data loss")
-            #endif
+            logger.warning("cleanOrphanedWorkStudentIDs: No students found - skipping cleanup to prevent data loss")
             return
         }
         
@@ -260,11 +258,11 @@ enum DataCleanupService {
                 do {
                     try PhotoStorageService.deleteImage(filename: filename)
                 } catch {
-                    print("⚠️ [\(#function)] Failed to delete orphaned image \(filename): \(error)")
+                    logger.warning("Failed to delete orphaned image \(filename, privacy: .public): \(error.localizedDescription)")
                 }
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to cleanup orphaned images: \(error)")
+            logger.warning("Failed to cleanup orphaned images: \(error.localizedDescription)")
         }
     }
 
@@ -340,7 +338,7 @@ enum DataCleanupService {
         do {
             all = try context.fetch(fetch)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch \(String(describing: type)): \(error)")
+            logger.warning("Failed to fetch \(type, privacy: .public): \(error.localizedDescription)")
             return 0
         }
 

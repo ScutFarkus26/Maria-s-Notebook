@@ -1,5 +1,8 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
+
+private let logger = Logger.students
 
 struct StudentLessonQuickActionsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -136,7 +139,7 @@ struct StudentLessonQuickActionsView: View {
                             do {
                                 try await Task.sleep(for: .seconds(2))
                             } catch {
-                                print("⚠️ [showPlannedBanner task] Sleep interrupted: \(error)")
+                                logger.warning("showPlannedBanner task sleep interrupted: \(error)")
                             }
                             showPlannedBanner = false
                         }
@@ -210,7 +213,7 @@ struct StudentLessonQuickActionsView: View {
                                         )
                                         workModel.notes = trimmed
                                     } catch {
-                                        print("⚠️ [Add Follow-Up] Failed to create work: \(error)")
+                                        logger.warning("Failed to create follow-up work: \(error)")
                                     }
                                 }
                             }
@@ -364,7 +367,7 @@ struct StudentLessonQuickActionsView: View {
                     )
                     createdAny = true
                 } catch {
-                    print("⚠️ [addPracticeIfNeeded] Failed to create work: \(error)")
+                    logger.warning("Failed to create practice work: \(error)")
                 }
             }
         }

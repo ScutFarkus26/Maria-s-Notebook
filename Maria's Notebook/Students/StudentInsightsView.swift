@@ -7,9 +7,11 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 /// View displaying AI-generated student development insights
 struct StudentInsightsView: View {
+    private static let logger = Logger.students
     @Environment(\.dependencies) private var dependencies
     @Environment(\.modelContext) private var modelContext
     
@@ -436,7 +438,7 @@ struct StudentInsightsView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [markAsReviewed] Failed to save: \(error)")
+            Self.logger.warning("Failed to save: \(error)")
         }
     }
     

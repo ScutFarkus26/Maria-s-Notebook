@@ -1,9 +1,12 @@
 // StudentDetailView.swift
 
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 struct StudentDetailView: View {
+    private static let logger = Logger.students
+
     // MARK: - Inputs
     let student: Student
     var onDone: (() -> Void)? = nil
@@ -176,7 +179,7 @@ struct StudentDetailView: View {
                 do {
                     try repository.deleteStudent(id: student.id)
                 } catch {
-                    print("⚠️ [handleDelete] Failed to delete student: \(error)")
+                    Self.logger.warning("Failed to delete student: \(error)")
                 }
                 if let onDone { onDone() } else { dismiss() }
             }

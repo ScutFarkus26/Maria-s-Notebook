@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -14,6 +15,8 @@ enum StudentMode: String, CaseIterable, Identifiable {
 }
 
 struct StudentsRootView: View {
+    private static let logger = Logger.students
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     
@@ -81,7 +84,7 @@ struct StudentsRootView: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
                         } catch {
-                            print("⚠️ [selectedWork sheet task] Sleep interrupted: \(error)")
+                            Self.logger.warning("Sleep interrupted in selectedWork sheet task: \(error)")
                         }
                         if selectedWork != nil {
                             selectedWork = nil

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 struct AgendaSlot: View {
     @Environment(\.modelContext) private var modelContext
@@ -213,6 +214,7 @@ struct AgendaSlot: View {
 }
 
 struct AgendaSlotDropDelegate: DropDelegate {
+    private static let logger = Logger.planning
     let calendar: Calendar
     let modelContext: ModelContext
     let allStudentLessons: [StudentLesson]
@@ -381,14 +383,14 @@ struct AgendaSlotDropDelegate: DropDelegate {
                             do {
                                 new.lesson = try modelContext.fetch(lessonFetch).first
                             } catch {
-                                print("⚠️ [\(#function)] Failed to fetch lesson: \(error)")
+                                Self.logger.warning("Failed to fetch lesson: \(error)")
                             }
                             do {
                                 if let s = try modelContext.fetch(studentFetch).first {
                                     new.students = [s]
                                 }
                             } catch {
-                                print("⚠️ [\(#function)] Failed to fetch student: \(error)")
+                                Self.logger.warning("Failed to fetch student: \(error)")
                             }
                             modelContext.insert(new)
                             targetSL = new
@@ -413,7 +415,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         do {
                             try modelContext.save()
                         } catch {
-                            print("⚠️ [\(#function)] Failed to save context after student move: \(error)")
+                            Self.logger.warning("Failed to save context after student move: \(error)")
                         }
                         
                         // Auto-enroll students in track if lesson belongs to a track
@@ -454,7 +456,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     do {
                         try modelContext.save()
                     } catch {
-                        print("⚠️ [\(#function)] Failed to save context after reordering: \(error)")
+                        Self.logger.warning("Failed to save context after reordering: \(error)")
                     }
                 }
             }

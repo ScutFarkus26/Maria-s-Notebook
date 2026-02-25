@@ -1,10 +1,13 @@
 import Foundation
+import OSLog
 import SwiftData
 import Observation
 
 @Observable
 @MainActor
 final class WorksPlanningViewModel {
+    private static let logger = Logger.work
+
     // UI state
     var activeSheet: ActiveSheet?
     var startDate: Date
@@ -76,11 +79,11 @@ final class WorksPlanningViewModel {
                     _ = try service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
                     _ = saveCoordinator.save(context, reason: "Schedule check-in")
                 } catch {
-                    print("⚠️ [scheduleCheckIn] Failed to create check-in: \(error)")
+                    Self.logger.warning("Failed to create check-in: \(error)")
                 }
             }
         } catch {
-            print("⚠️ [scheduleCheckIn] Failed to fetch WorkModel: \(error)")
+            Self.logger.warning("Failed to fetch WorkModel: \(error)")
         }
     }
 

@@ -1,6 +1,9 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+
+private let logger = Logger.students
 
 /// Top-level view for managing and browsing students with a unified sidebar.
 struct StudentsView<WorkloadContent: View>: View {
@@ -171,7 +174,7 @@ struct StudentsView<WorkloadContent: View>: View {
     private func checkForDuplicateIDs(in students: [Student]) {
         let uniqueIDs = Set(students.map { $0.id })
         if uniqueIDs.count != students.count {
-            print("Warning: Found \(students.count - uniqueIDs.count) duplicate student ID(s)")
+            logger.warning("Found \(students.count - uniqueIDs.count, privacy: .public) duplicate student ID(s)")
         }
     }
     #endif
@@ -399,7 +402,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     do {
                         try modelContext.save()
                     } catch {
-                        print("⚠️ [uniqueStudentIDs onChange] Failed to save: \(error)")
+                        logger.warning("Failed to save after repairing manual order uniqueness: \(error)")
                     }
                 }
             }
@@ -661,7 +664,7 @@ struct StudentsView<WorkloadContent: View>: View {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [ensureInitialManualOrderIfNeeded] Failed to save: \(error)")
+                logger.warning("Failed to save initial manual order: \(error)")
             }
         }
     }
@@ -688,7 +691,7 @@ struct StudentsView<WorkloadContent: View>: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [handleManualReorder] Failed to save: \(error)")
+            logger.warning("Failed to save manual reorder: \(error)")
         }
     }
     

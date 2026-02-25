@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 /// Main view for managing recurring schedules
 struct SchedulesView: View {
+    private static let logger = Logger.schedules
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Schedule.name) private var schedules: [Schedule]
     @Query(sort: \Student.firstName) private var students: [Student]
@@ -43,7 +45,7 @@ struct SchedulesView: View {
                     do {
                         try await Task.sleep(for: .milliseconds(300))
                     } catch {
-                        print("⚠️ [\(#function)] Failed to sleep before showing editor: \(error)")
+                        Self.logger.warning("Failed to sleep before showing editor: \(error, privacy: .public)")
                     }
                     scheduleToEdit = editSchedule
                 }

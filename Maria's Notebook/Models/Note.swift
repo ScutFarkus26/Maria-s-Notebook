@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 public enum NoteCategory: String, Codable, CaseIterable {
@@ -82,6 +83,8 @@ enum NoteScope: Codable, Equatable {
 
 @Model
 final class Note: Identifiable {
+    private static let logger = Logger.database
+
     #Index<Note>([\.createdAt], [\.searchIndexStudentID], [\.scopeIsAll])
     
     // Identity & timestamps
@@ -152,7 +155,7 @@ final class Note: Identifiable {
             do {
                 scopeBlob = try JSONEncoder().encode(newValue)
             } catch {
-                print("⚠️ [\(#function)] Failed to encode scope: \(error)")
+                Self.logger.warning("Failed to encode scope: \(error.localizedDescription)")
                 scopeBlob = nil
             }
             // Update search index attributes for database-level filtering
@@ -271,7 +274,7 @@ final class Note: Identifiable {
         do {
             self.scopeBlob = try JSONEncoder().encode(scope)
         } catch {
-            print("⚠️ [\(#function)] Failed to encode initial scope: \(error)")
+            Self.logger.warning("Failed to encode initial scope: \(error.localizedDescription)")
             self.scopeBlob = nil
         }
         // Initialize search index attributes based on scope
@@ -296,7 +299,7 @@ final class Note: Identifiable {
         do {
             return try JSONDecoder().decode(NoteScope.self, from: data)
         } catch {
-            print("⚠️ [\(#function)] Failed to decode scope: \(error)")
+            Self.logger.warning("Failed to decode scope: \(error.localizedDescription)")
             return nil
         }
     }
@@ -310,7 +313,7 @@ final class Note: Identifiable {
         do {
             try PhotoStorageService.deleteImage(filename: imagePath)
         } catch {
-            print("⚠️ [\(#function)] Failed to delete associated image: \(error)")
+            Self.logger.warning("Failed to delete associated image: \(error.localizedDescription)")
         }
     }
 

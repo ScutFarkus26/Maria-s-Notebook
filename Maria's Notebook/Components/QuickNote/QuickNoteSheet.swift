@@ -1,9 +1,12 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import PhotosUI
 
 // MARK: - QuickNoteSheet
 struct QuickNoteSheet: View {
+    private static let logger = Logger.notes
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
@@ -43,7 +46,7 @@ struct QuickNoteSheet: View {
                 do {
                     try await Task.sleep(for: .milliseconds(500))
                 } catch {
-                    print("⚠️ [\(#function)] Failed to delay focus: \(error)")
+                    Self.logger.warning("Failed to delay focus: \(error)")
                 }
                 isFocused = true
             }

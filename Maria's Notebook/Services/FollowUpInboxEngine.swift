@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 // MARK: - Follow-Up Inbox Item
 struct FollowUpInboxItem: Identifiable, Equatable {
@@ -75,13 +76,15 @@ struct FollowUpInboxItem: Identifiable, Equatable {
 
 // MARK: - Engine
 struct FollowUpInboxEngine {
+    private static let logger = Logger.inbox
+
     // MARK: - Helper Methods
 
     private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, modelContext: ModelContext, context: String = #function) -> [T] {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(context)] Failed to fetch \(T.self): \(error)")
+            logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
             return []
         }
     }

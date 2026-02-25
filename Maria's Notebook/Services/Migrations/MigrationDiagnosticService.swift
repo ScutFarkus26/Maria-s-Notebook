@@ -180,7 +180,7 @@ final class MigrationDiagnosticService {
         do {
             return try context.fetch(FetchDescriptor<T>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch \(String(describing: type)): \(error)")
+            logger.warning("Failed to fetch \(type, privacy: .public): \(error.localizedDescription)")
             return []
         }
     }

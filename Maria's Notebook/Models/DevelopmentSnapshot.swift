@@ -6,12 +6,15 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 /// Stores a point-in-time analysis of a student's development and progress
 @Model
 final class DevelopmentSnapshot: Identifiable {
-    
+
+    private static let logger = Logger.database
+
     // MARK: - Identity & Metadata
     
     var id: UUID = UUID()
@@ -236,7 +239,7 @@ final class DevelopmentSnapshot: Identifiable {
         do {
             return try JSONDecoder().decode([String].self, from: data)
         } catch {
-            print("⚠️ [\(#function)] Failed to decode string array: \(error)")
+            Self.logger.warning("Failed to decode string array: \(error.localizedDescription)")
             return []
         }
     }
@@ -249,7 +252,7 @@ final class DevelopmentSnapshot: Identifiable {
         do {
             return try JSONEncoder().encode(array)
         } catch {
-            print("⚠️ [\(#function)] Failed to encode string array: \(error)")
+            Self.logger.warning("Failed to encode string array: \(error.localizedDescription)")
             return nil
         }
     }

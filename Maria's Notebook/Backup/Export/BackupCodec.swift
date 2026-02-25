@@ -4,11 +4,13 @@
 import Foundation
 import CryptoKit
 import Compression
+import OSLog
 
 /// Handles compression, encryption, and cryptographic signing for backup operations
 /// Supports key rotation and backup authentication
 struct BackupCodec {
-    
+    private static let logger = Logger.backup
+
     // MARK: - Types
     
     struct EncryptionMetadata: Codable {
@@ -119,7 +121,7 @@ struct BackupCodec {
         do {
             sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
         } catch {
-            print("⚠️ [Backup:decrypt] Failed to create sealed box: \(error)")
+            Self.logger.warning("Failed to create sealed box: \(error)")
             throw NSError(domain: "BackupCodec", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Decryption failed: invalid sealed box"])
         }
 

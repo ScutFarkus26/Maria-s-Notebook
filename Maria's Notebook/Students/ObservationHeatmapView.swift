@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct ObservationHeatmapView: View {
+    private static let logger = Logger.students
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [
         SortDescriptor(\Student.firstName),
@@ -88,7 +90,7 @@ struct ObservationHeatmapView: View {
             do {
                 allMeetings = try context.fetch(FetchDescriptor<StudentMeeting>())
             } catch {
-                print("⚠️ [calculateObservationsAsync] Failed to fetch StudentMeetings: \(error)")
+                Self.logger.warning("Failed to fetch StudentMeetings: \(error)")
                 allMeetings = []
             }
 
@@ -97,7 +99,7 @@ struct ObservationHeatmapView: View {
             do {
                 allWorkModels = try context.fetch(FetchDescriptor<WorkModel>())
             } catch {
-                print("⚠️ [calculateObservationsAsync] Failed to fetch WorkModels: \(error)")
+                Self.logger.warning("Failed to fetch WorkModels: \(error)")
                 allWorkModels = []
             }
 
@@ -106,7 +108,7 @@ struct ObservationHeatmapView: View {
             do {
                 allNotes = try context.fetch(FetchDescriptor<Note>())
             } catch {
-                print("⚠️ [calculateObservationsAsync] Failed to fetch Notes: \(error)")
+                Self.logger.warning("Failed to fetch Notes: \(error)")
                 allNotes = []
             }
             
@@ -143,7 +145,7 @@ struct ObservationHeatmapView: View {
             do {
                 allLessonAssignments = try context.fetch(FetchDescriptor<LessonAssignment>())
             } catch {
-                print("⚠️ [calculateObservationsAsync] Failed to fetch LessonAssignments: \(error)")
+                Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
                 allLessonAssignments = []
             }
             for assignment in allLessonAssignments {
@@ -281,7 +283,7 @@ struct ObservationHeatmapView: View {
         do {
             allNotes = try modelContext.fetch(noteDesc)
         } catch {
-            print("⚠️ [findMostRecentNoteDate] Failed to fetch Notes: \(error)")
+            Self.logger.warning("Failed to fetch notes: \(error)")
             allNotes = []
         }
         let visibleNotes = allNotes.filter { note in
@@ -305,7 +307,7 @@ struct ObservationHeatmapView: View {
         do {
             presentationNotes = try modelContext.fetch(presentationNoteFetch)
         } catch {
-            print("⚠️ [findMostRecentNoteDate] Failed to fetch presentation notes: \(error)")
+            Self.logger.warning("Failed to fetch presentation notes: \(error)")
             presentationNotes = []
         }
 
@@ -330,7 +332,7 @@ struct ObservationHeatmapView: View {
         do {
             studentMeetings = try modelContext.fetch(meetingFetch)
         } catch {
-            print("⚠️ [findMostRecentNoteDate] Failed to fetch StudentMeetings: \(error)")
+            Self.logger.warning("Failed to fetch student meetings: \(error)")
             studentMeetings = []
         }
 

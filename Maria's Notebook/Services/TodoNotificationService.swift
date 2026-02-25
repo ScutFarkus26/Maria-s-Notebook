@@ -1,10 +1,12 @@
 import Foundation
 import UserNotifications
 import SwiftData
+import OSLog
 
 /// Service for managing todo notifications and reminders
 @MainActor
 class TodoNotificationService {
+    private static let logger = Logger.todos
     static let shared = TodoNotificationService()
     
     private init() {}
@@ -15,7 +17,7 @@ class TodoNotificationService {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
             return granted
         } catch {
-            print("Error requesting notification authorization: \(error)")
+            Self.logger.error("Failed to request notification authorization: \(error, privacy: .public)")
             return false
         }
     }
@@ -87,7 +89,7 @@ class TodoNotificationService {
         do {
             try context.save()
         } catch {
-            print("⚠️ [\(contextName)] Failed to save: \(error)")
+            Self.logger.warning("Failed to save in \(contextName, privacy: .public): \(error, privacy: .public)")
         }
     }
     

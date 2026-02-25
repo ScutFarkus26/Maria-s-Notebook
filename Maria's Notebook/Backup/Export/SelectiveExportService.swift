@@ -3,10 +3,12 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for creating selective backups with filtered entities
 @MainActor
 public final class SelectiveExportService {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -99,7 +101,7 @@ public final class SelectiveExportService {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [Backup:\(functionName)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("[\(functionName)] Failed to fetch \(T.self): \(error)")
             return []
         }
     }

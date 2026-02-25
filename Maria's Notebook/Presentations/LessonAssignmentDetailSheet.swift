@@ -8,8 +8,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct LessonAssignmentDetailSheet: View, Identifiable {
+    private static let logger = Logger.presentations
     let assignmentID: UUID
     var onDone: (() -> Void)? = nil
 
@@ -504,7 +506,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 self.unifiedNotes = []
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch refreshed assignment: \(error)")
+            Self.logger.warning("Failed to fetch refreshed assignment: \(error)")
             self.unifiedNotes = []
         }
     }
@@ -570,7 +572,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save presentation updates: \(error)")
+            Self.logger.warning("Failed to save presentation updates: \(error)")
         }
         
         // Reload the assignment to reflect changes

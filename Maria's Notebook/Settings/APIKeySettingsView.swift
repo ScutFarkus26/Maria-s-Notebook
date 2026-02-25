@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import OSLog
 
 // MARK: - URL Extension for Safe Known URLs
 
@@ -20,6 +21,7 @@ private extension URL {
 }
 
 struct APIKeySettingsView: View {
+    private static let logger = Logger.settings
     @State private var apiKey: String = ""
     @State private var showingKey = false
     @State private var saveMessage: String?
@@ -141,7 +143,7 @@ struct APIKeySettingsView: View {
             do {
                 try await Task.sleep(for: .seconds(3))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for message dismiss: \(error)")
+                Self.logger.warning("Failed to sleep for message dismiss: \(error, privacy: .public)")
             }
             saveMessage = nil
         }
@@ -156,7 +158,7 @@ struct APIKeySettingsView: View {
             do {
                 try await Task.sleep(for: .seconds(3))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for message dismiss: \(error)")
+                Self.logger.warning("Failed to sleep for message dismiss: \(error, privacy: .public)")
             }
             saveMessage = nil
         }

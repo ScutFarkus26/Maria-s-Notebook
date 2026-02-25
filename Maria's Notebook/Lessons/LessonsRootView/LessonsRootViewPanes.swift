@@ -3,6 +3,9 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
+
+private let logger = Logger.lessons
 
 // MARK: - LessonsRootView Panes Extension
 
@@ -276,7 +279,7 @@ extension LessonsRootView {
                                             scrollProxy.scrollTo(lesson.id, anchor: .center)
                                         }
                                     } catch {
-                                        print("⚠️ [expandedGroupSection] Task sleep failed: \(error)")
+                                        logger.warning("Task sleep failed in expandedGroupSection: \(error)")
                                     }
                                 }
                             },
@@ -305,7 +308,7 @@ extension LessonsRootView {
                                             scrollProxy.scrollTo(lesson.id, anchor: .center)
                                         }
                                     } catch {
-                                        print("⚠️ [expandedGroupSection] Task sleep failed: \(error)")
+                                        logger.warning("Task sleep failed in expandedGroupSection: \(error)")
                                     }
                                 }
                             },
@@ -387,7 +390,7 @@ extension LessonsRootView {
                     )
                     return settings.isSequential ? "list.number" : "list.bullet"
                 } catch {
-                    print("⚠️ [groupSectionHeader] Failed to get track settings: \(error)")
+                    logger.warning("Failed to get track settings: \(error)")
                     return "list.number"
                 }
             }

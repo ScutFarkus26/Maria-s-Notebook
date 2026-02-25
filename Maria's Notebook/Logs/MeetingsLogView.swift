@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct MeetingsLogView: View {
+    private static let logger = Logger.app_
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -362,7 +364,7 @@ struct MeetingsLogView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save after toggling meeting completion: \(error)")
+            Self.logger.warning("Failed to save after toggling meeting completion: \(error, privacy: .public)")
         }
     }
 
@@ -371,7 +373,7 @@ struct MeetingsLogView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save after deleting meeting: \(error)")
+            Self.logger.warning("Failed to save after deleting meeting: \(error, privacy: .public)")
         }
     }
 }

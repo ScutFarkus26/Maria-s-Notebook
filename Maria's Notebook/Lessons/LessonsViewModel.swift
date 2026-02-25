@@ -1,12 +1,14 @@
 // Maria's Notebook/Lessons/LessonsViewModel.swift
 
 import Foundation
+import OSLog
 import SwiftData
 
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
 @MainActor
 struct LessonsViewModel {
+    private static let logger = Logger.lessons
     // MARK: - Public API
 
     // Compute ordered unique subjects using FilterOrderStore
@@ -418,7 +420,7 @@ struct LessonsViewModel {
             let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
-            print("⚠️ [LessonsViewModel.isNonSchoolDaySync] Failed to fetch NonSchoolDay: \(error)")
+            logger.warning("Failed to fetch NonSchoolDay: \(error)")
         }
         
         let weekday = cal.component(.weekday, from: day)
@@ -431,7 +433,7 @@ struct LessonsViewModel {
             let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
-            print("⚠️ [LessonsViewModel.isNonSchoolDaySync] Failed to fetch SchoolDayOverride: \(error)")
+            logger.warning("Failed to fetch SchoolDayOverride: \(error)")
         }
         
         return true
@@ -456,7 +458,7 @@ struct LessonsViewModel {
         do {
             studentLessons = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [computeLessonStatusCounts] Failed to fetch StudentLesson: \(error)")
+            Self.logger.warning("Failed to fetch StudentLesson: \(error)")
             return [:]
         }
 

@@ -8,11 +8,13 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for manually unlocking next lessons when students are ready to progress
 @MainActor
 struct UnlockNextLessonService {
-    
+    private static let logger = Logger.lessons
+
     // MARK: - Result Type
     
     enum UnlockResult {
@@ -121,7 +123,7 @@ struct UnlockNextLessonService {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(context)] Failed to save: \(error)")
+            Self.logger.warning("Failed to save in \(context, privacy: .public): \(error, privacy: .public)")
         }
     }
 }

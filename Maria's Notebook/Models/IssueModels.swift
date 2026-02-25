@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// Categories of classroom/facility issues
@@ -88,6 +89,8 @@ enum IssueActionType: String, Codable, CaseIterable, Sendable {
 /// Main issue tracking entity
 @Model
 final class Issue: Identifiable {
+    private static let logger = Logger.database
+
     var id: UUID = UUID()
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -126,7 +129,7 @@ final class Issue: Identifiable {
             do {
                 return try JSONDecoder().decode([String].self, from: data)
             } catch {
-                print("⚠️ [\(#function)] Failed to decode student IDs: \(error)")
+                Self.logger.warning("Failed to decode student IDs: \(error.localizedDescription)")
                 return []
             }
         }
@@ -134,7 +137,7 @@ final class Issue: Identifiable {
             do {
                 _studentIDsData = try JSONEncoder().encode(newValue)
             } catch {
-                print("⚠️ [\(#function)] Failed to encode student IDs: \(error)")
+                Self.logger.warning("Failed to encode student IDs: \(error.localizedDescription)")
                 _studentIDsData = nil
             }
             updatedAt = Date()
@@ -181,6 +184,8 @@ final class Issue: Identifiable {
 /// Actions taken on an issue (conversations, agreements, follow-ups)
 @Model
 final class IssueAction: Identifiable {
+    private static let logger = Logger.database
+
     var id: UUID = UUID()
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -210,7 +215,7 @@ final class IssueAction: Identifiable {
             do {
                 return try JSONDecoder().decode([String].self, from: data)
             } catch {
-                print("⚠️ [\(#function)] Failed to decode participant IDs: \(error)")
+                Self.logger.warning("Failed to decode participant IDs: \(error.localizedDescription)")
                 return []
             }
         }
@@ -218,7 +223,7 @@ final class IssueAction: Identifiable {
             do {
                 _participantIDsData = try JSONEncoder().encode(newValue)
             } catch {
-                print("⚠️ [\(#function)] Failed to encode participant IDs: \(error)")
+                Self.logger.warning("Failed to encode participant IDs: \(error.localizedDescription)")
                 _participantIDsData = nil
             }
             updatedAt = Date()

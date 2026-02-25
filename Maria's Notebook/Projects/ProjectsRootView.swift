@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 #if os(iOS)
@@ -5,6 +6,7 @@ import UIKit
 #endif
 
 struct ProjectsRootView: View {
+    private static let logger = Logger.projects
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -173,7 +175,7 @@ struct ProjectsRootView: View {
         do {
             allSessions = try modelContext.fetch(FetchDescriptor<ProjectSession>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch project sessions: \(error)")
+            Self.logger.warning("Failed to fetch project sessions: \(error)")
             allSessions = []
         }
         let sessions = allSessions.filter { $0.projectID == clubIDString }
@@ -184,7 +186,7 @@ struct ProjectsRootView: View {
         do {
             allWorkModels = try modelContext.fetch(FetchDescriptor<WorkModel>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch work models: \(error)")
+            Self.logger.warning("Failed to fetch work models: \(error)")
             allWorkModels = []
         }
         let workModels = allWorkModels.filter {
@@ -204,7 +206,7 @@ struct ProjectsRootView: View {
         do {
             allTemplates = try modelContext.fetch(FetchDescriptor<ProjectAssignmentTemplate>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch project templates: \(error)")
+            Self.logger.warning("Failed to fetch project templates: \(error)")
             allTemplates = []
         }
         let templates = allTemplates.filter { $0.projectID == clubIDString }
@@ -215,7 +217,7 @@ struct ProjectsRootView: View {
         do {
             allRoles = try modelContext.fetch(FetchDescriptor<ProjectRole>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch project roles: \(error)")
+            Self.logger.warning("Failed to fetch project roles: \(error)")
             allRoles = []
         }
         let roles = allRoles.filter { $0.projectID == clubIDString }
@@ -226,7 +228,7 @@ struct ProjectsRootView: View {
         do {
             allWeeks = try modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch project template weeks: \(error)")
+            Self.logger.warning("Failed to fetch project template weeks: \(error)")
             allWeeks = []
         }
         let weeks = allWeeks.filter { $0.projectID == clubIDString }
@@ -236,7 +238,7 @@ struct ProjectsRootView: View {
             do {
                 allAssigns = try modelContext.fetch(FetchDescriptor<ProjectWeekRoleAssignment>())
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch week role assignments: \(error)")
+                Self.logger.warning("Failed to fetch week role assignments: \(error)")
                 allAssigns = []
             }
             let assigns = allAssigns.filter { $0.weekID == w.id.uuidString }

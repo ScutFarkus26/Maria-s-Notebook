@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - Checklist Batch Action Executor
@@ -7,6 +8,7 @@ import SwiftData
 /// Handles adding to inbox, marking presented/mastered, and clearing status.
 @MainActor
 enum ChecklistBatchActionExecutor {
+    private static let logger = Logger.lessons
 
     // MARK: - Batch Add to Inbox
 
@@ -254,7 +256,7 @@ enum ChecklistBatchActionExecutor {
                 scheduledDate: nil
             )
         } catch {
-            print("⚠️ [\(#function)] Failed to create work: \(error)")
+            logger.warning("Failed to create work: \(error)")
             return nil
         }
     }

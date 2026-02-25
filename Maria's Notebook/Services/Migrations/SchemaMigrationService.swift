@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Schema Migration Service
 
@@ -7,6 +8,7 @@ import SwiftData
 /// Handles migrations for data format changes like UUID to String conversions,
 /// property storage format changes, and other schema-related updates.
 enum SchemaMigrationService {
+    private static let logger = Logger.migration
 
     // MARK: - Date Normalization
 
@@ -127,7 +129,7 @@ enum SchemaMigrationService {
             do {
                 studentLessons = try context.fetch(FetchDescriptor<StudentLesson>()).uniqueByID
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch StudentLessons: \(error)")
+                logger.warning("Failed to fetch StudentLessons: \(error.localizedDescription)")
                 return
             }
             let studentLessonByID: [UUID: StudentLesson] = Dictionary(studentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })

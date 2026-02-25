@@ -3,8 +3,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct PresentationsCalendarStrip: View {
+    private static let logger = Logger.presentations
     let days: [Date]
     @Binding var startDate: Date
     let isNonSchool: (Date) -> Bool
@@ -30,7 +32,7 @@ struct PresentationsCalendarStrip: View {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch work items for range: \(error)")
+            Self.logger.warning("Failed to fetch work items for range: \(error)")
             return []
         }
     }
@@ -121,7 +123,7 @@ struct PresentationsCalendarStrip: View {
                     do {
                         try await Task.sleep(for: .milliseconds(100))
                     } catch {
-                        print("⚠️ [\(#function)] Task sleep interrupted: \(error)")
+                        Self.logger.warning("Task sleep interrupted: \(error)")
                     }
                     withAnimation {
                         proxy.scrollTo(first, anchor: .leading)
@@ -142,7 +144,7 @@ struct PresentationsCalendarStrip: View {
                         do {
                             try await Task.sleep(for: .milliseconds(100))
                         } catch {
-                            print("⚠️ [\(#function)] Task sleep interrupted: \(error)")
+                            Self.logger.warning("Task sleep interrupted: \(error)")
                         }
                         withAnimation {
                             proxy.scrollTo(first, anchor: .leading)
@@ -187,7 +189,7 @@ struct PresentationsCalendarStrip: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save lesson schedule changes: \(error)")
+            Self.logger.warning("Failed to save lesson schedule changes: \(error)")
         }
     }
 }

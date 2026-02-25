@@ -1,9 +1,11 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Thread-safe cache for school day calculations to avoid repeated database queries during rendering
 @MainActor
 final class SchoolDayCalculationCache {
+    private static let logger = Logger.calendar_
     static let shared = SchoolDayCalculationCache()
     
     private struct CacheKey: Hashable {
@@ -53,13 +55,13 @@ final class SchoolDayCalculationCache {
         do {
             nonSchoolDays = try context.fetch(nonSchoolDescriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch non-school days: \(error)")
+            Self.logger.warning("Failed to fetch non-school days: \(error)")
             nonSchoolDays = []
         }
         do {
             overrides = try context.fetch(overridesDescriptor)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch school day overrides: \(error)")
+            Self.logger.warning("Failed to fetch school day overrides: \(error)")
             overrides = []
         }
         let overrideDates = Set(overrides.map { $0.date })

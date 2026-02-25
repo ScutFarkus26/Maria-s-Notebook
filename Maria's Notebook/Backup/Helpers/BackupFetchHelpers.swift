@@ -6,6 +6,7 @@ import OSLog
 
 /// Helpers for safely fetching data during backup operations.
 enum BackupFetchHelpers {
+    private static let logger = Logger.backup
 
     // MARK: - Safe Fetch
 
@@ -15,7 +16,7 @@ enum BackupFetchHelpers {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [Backup:safeFetch] Failed to fetch \(T.self): \(error)")
+            logger.warning("Failed to fetch \(T.self): \(error)")
             return []
         }
     }
@@ -41,7 +42,7 @@ enum BackupFetchHelpers {
             do {
                 batch = try context.fetch(descriptor)
             } catch {
-                print("⚠️ [Backup:safeFetchInBatches] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
+                logger.warning("Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
                 break
             }
             guard !batch.isEmpty else { break }
@@ -74,7 +75,7 @@ enum BackupFetchHelpers {
             do {
                 batch = try context.fetch(descriptor)
             } catch {
-                print("⚠️ [Backup:safeFetchInBatchesWithErrorHandling] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
+                logger.warning("Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
                 break
             }
             guard !batch.isEmpty else { break }
@@ -96,8 +97,8 @@ enum BackupFetchHelpers {
         do {
             return try context.fetch(FetchDescriptor<T>())
         } catch {
-            print("⚠️ [Backup:safeFetchWithErrorHandling] Failed to fetch \(T.self): \(error)")
-            Logger.backup.error("Could not fetch \(String(describing: type)). Skipping this entity type.")
+            logger.warning("Failed to fetch \(T.self): \(error)")
+            logger.error("Could not fetch \(type). Skipping this entity type.")
             return []
         }
     }

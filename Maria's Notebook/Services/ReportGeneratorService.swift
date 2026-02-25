@@ -5,6 +5,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import PDFKit
+import OSLog
 
 #if canImport(UIKit)
 import UIKit
@@ -17,13 +18,15 @@ typealias PlatformColor = NSColor
 #endif
 
 struct ReportGeneratorService {
+    private static let logger = Logger.reports
+
     // MARK: - Helper Methods
 
     private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: ModelContext, contextName: String = #function) -> [T] {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(contextName)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(String(describing: T.self), privacy: .public) in \(contextName, privacy: .public): \(error, privacy: .public)")
             return []
         }
     }

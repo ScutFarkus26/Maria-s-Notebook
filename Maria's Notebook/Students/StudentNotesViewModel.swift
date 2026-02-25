@@ -1,8 +1,9 @@
 // StudentNotesViewModel.swift
 // Aggregates all notes for a specific Student
 
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 // MARK: - Unified Item
 public struct UnifiedNoteItem: Identifiable {
@@ -34,6 +35,8 @@ public struct UnifiedNoteItem: Identifiable {
 @Observable
 @MainActor
 final class StudentNotesViewModel {
+    private static let logger = Logger.students
+
     private let student: Student
     let modelContext: ModelContext
     private let saveCoordinator: SaveCoordinator
@@ -62,7 +65,7 @@ final class StudentNotesViewModel {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            print("⚠️ [\(functionName)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)")
             return []
         }
     }

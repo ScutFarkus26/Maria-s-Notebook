@@ -1,5 +1,6 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 import UniformTypeIdentifiers
 @preconcurrency import PDFKit
 #if os(macOS)
@@ -15,6 +16,8 @@ enum DocumentSortOption {
 }
 
 struct StudentFilesTab: View {
+    private static let logger = Logger.students
+
     let student: Student
     
     @Environment(\.modelContext) private var modelContext
@@ -249,7 +252,7 @@ struct StudentFilesTab: View {
         do {
             try repository.deleteDocument(id: document.id)
         } catch {
-            print("⚠️ [deleteDocument] Failed to delete document: \(error)")
+            Self.logger.warning("Failed to delete document: \(error)")
         }
     }
     

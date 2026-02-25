@@ -5,10 +5,13 @@
 // reducing repetitive typing during busy classroom moments.
 
 import Foundation
+import OSLog
 import SwiftData
 
 @Model
 final class NoteTemplate: Identifiable {
+    private static let logger = Logger.database
+
     // MARK: - Identity
     var id: UUID = UUID()
     var createdAt: Date = Date()
@@ -100,7 +103,7 @@ final class NoteTemplate: Identifiable {
         do {
             existing = try context.fetch(fetch)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch existing note templates: \(error)")
+            logger.warning("Failed to fetch existing note templates: \(error.localizedDescription)")
             return
         }
 
@@ -121,7 +124,7 @@ final class NoteTemplate: Identifiable {
         do {
             try context.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save built-in note templates: \(error)")
+            logger.warning("Failed to save built-in note templates: \(error.localizedDescription)")
         }
     }
 }

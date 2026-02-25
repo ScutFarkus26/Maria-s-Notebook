@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Check-In Migration Service
 
@@ -18,6 +19,8 @@ import SwiftData
 /// - Docs/Work_Models_Best_Practices.md
 /// - Docs/Work_Completion_System_Migration.md (pattern reference)
 enum CheckInMigrationService {
+    private static let logger = Logger.migration
+
     
     // MARK: - Legacy Check-In Reason Enum
 
@@ -66,7 +69,7 @@ enum CheckInMigrationService {
     @MainActor
     static func backfillWorkCheckInsFromLegacyCheckIns(using context: ModelContext) {
         // Migration already complete - legacy model removed in Phase 6
-        print("[CheckInMigration] Backfill already completed - legacy model removed")
+        logger.info("Backfill already completed - legacy model removed")
     }
     */
 
@@ -78,7 +81,7 @@ enum CheckInMigrationService {
     @MainActor
     static func deleteAllLegacyCheckIns(using context: ModelContext) {
         // Migration already complete - legacy model removed in Phase 6
-        print("[CheckInMigration] Cleanup already completed - legacy model removed")
+        logger.info("Cleanup already completed - legacy model removed")
     }
     */
 }

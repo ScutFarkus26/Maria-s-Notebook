@@ -3,8 +3,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct MeetingTemplateManagementView: View {
+    private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MeetingTemplate.sortOrder)
     private var templates: [MeetingTemplate]
@@ -135,7 +137,7 @@ struct MeetingTemplateManagementView: View {
             do {
                 try repository.deleteTemplate(id: template.id)
             } catch {
-                print("⚠️ [\(#function)] Failed to delete meeting template: \(error)")
+                Self.logger.warning("Failed to delete meeting template: \(error, privacy: .public)")
             }
         }
     }

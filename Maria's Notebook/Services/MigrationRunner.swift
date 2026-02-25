@@ -1,13 +1,16 @@
 import SwiftData
 import Foundation
+import OSLog
 
 enum MigrationRunner {
+    private static let logger = Logger.migration
+
     static func runIfNeeded(context: ModelContext) async {
         // Remove duplicate records that may have been created by CloudKit sync conflicts.
         // This must run early before other migrations that depend on clean data.
         let deduplicationResults = DataMigrations.deduplicateAllModels(using: context)
         for (modelType, count) in deduplicationResults.sorted(by: { $0.key < $1.key }) {
-            print("[MigrationRunner] Removed \(count) duplicate \(modelType) record(s)")
+            logger.info("Removed \(count, privacy: .public) duplicate \(modelType, privacy: .public) record(s)")
         }
 
         // Migrate legacy string notes on WorkModels to Note objects

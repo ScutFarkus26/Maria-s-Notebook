@@ -7,11 +7,14 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 struct ReminderRepository: SavingRepository {
     typealias Model = Reminder
+
+    private static let logger = Logger.database
 
     let context: ModelContext
     let saveCoordinator: SaveCoordinator?
@@ -147,7 +150,7 @@ struct ReminderRepository: SavingRepository {
         do {
             try context.save()
         } catch {
-            print("⚠️ [deleteReminder] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
             throw error
         }
     }

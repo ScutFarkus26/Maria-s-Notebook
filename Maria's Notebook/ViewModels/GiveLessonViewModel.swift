@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Foundation
+import OSLog
 
 // NOTE: Renamed type: GiveLessonViewModel -> LessonPickerViewModel
 
@@ -23,6 +24,8 @@ enum StudentLevelFilter: String, CaseIterable {
 @MainActor
 final class LessonPickerViewModel {
     // MARK: - Properties
+
+    private static let logger = Logger.lessons
 
     var selectedStudentIDs: Set<UUID> = []
     var scheduledFor: Date?
@@ -334,7 +337,7 @@ final class LessonPickerViewModel {
                             scheduledDate: nil
                         )
                     } catch {
-                        print("⚠️ [save] Failed to create practice work for student \(studentID): \(error)")
+                        Self.logger.warning("Failed to create practice work for student \(studentID): \(error)")
                     }
                 }
             }
@@ -373,7 +376,7 @@ final class LessonPickerViewModel {
                         // Store follow-up text in notes
                         workModel.notes = trimmedFollowUp
                     } catch {
-                        print("⚠️ [save] Failed to create follow-up work for student \(sid): \(error)")
+                        Self.logger.warning("Failed to create follow-up work for student \(sid, privacy: .public): \(error)")
                     }
                 }
             }
@@ -392,7 +395,8 @@ final class LessonPickerViewModel {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(functionName)] Failed to fetch \(T.self): \(error)")
+            let typeName = String(describing: T.self)
+            Self.logger.warning("Failed to fetch \(typeName, privacy: .public) in \(functionName, privacy: .public): \(error)")
             return []
         }
     }

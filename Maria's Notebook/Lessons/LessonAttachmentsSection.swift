@@ -1,45 +1,44 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 // MARK: - File Import Helpers
 
 private enum FileImportHelpers {
+    private static let logger = Logger.lessons
+
     static func accessSecurityScopedResource(url: URL) -> Bool {
         let needsAccess = url.startAccessingSecurityScopedResource()
         if needsAccess {
-            print("✅ Started security-scoped access")
+            logger.info("Started security-scoped access")
         } else {
-            print("ℹ️ File accessible without security scope")
+            logger.debug("File accessible without security scope")
         }
         return needsAccess
     }
-    
+
     static func logImportAttempt(url: URL) {
-        print("📁 Attempting to import: \(url.lastPathComponent)")
-        print("📍 From path: \(url.path)")
+        logger.debug("Attempting to import: \(url.lastPathComponent) from path: \(url.path)")
     }
-    
+
     static func logImportSuccess(url: URL, relativePath: String, fileSize: Int64) {
-        print("✅ File copied to: \(url.path)")
-        print("📍 Relative path: \(relativePath)")
-        print("📊 File size: \(fileSize) bytes")
-        print("🔖 Bookmark created")
-        print("✅ Successfully imported attachment: \(url.lastPathComponent)")
+        logger.info("File copied to: \(url.path), relative path: \(relativePath), size: \(fileSize) bytes")
+        logger.info("Successfully imported attachment: \(url.lastPathComponent)")
     }
-    
+
     static func logImportError(_ error: Error) {
-        print("❌ Failed to import attachment: \(error)")
-        print("❌ Error details: \(error.localizedDescription)")
+        logger.error("Failed to import attachment: \(error)")
         if let nsError = error as NSError? {
-            print("❌ Error domain: \(nsError.domain), code: \(nsError.code)")
-            print("❌ Error userInfo: \(nsError.userInfo)")
+            logger.error("Error domain: \(nsError.domain), code: \(nsError.code)")
         }
     }
 }
 
 /// Displays and manages attachments for a lesson, including inherited attachments from group and subject.
 struct LessonAttachmentsSection: View {
+    private static let logger = Logger.lessons
+
     let lesson: Lesson
     @Environment(\.modelContext) private var modelContext
     
@@ -196,7 +195,7 @@ struct LessonAttachmentsSection: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else {
-                print("❌ No URL in result")
+                Self.logger.error("No URL in result")
                 return
             }
             
@@ -206,12 +205,12 @@ struct LessonAttachmentsSection: View {
             defer {
                 if needsSecurityScope {
                     url.stopAccessingSecurityScopedResource()
-                    print("✅ Stopped security-scoped access")
+                    Self.logger.info("Stopped security-scoped access")
                 }
             }
             
             do {
-                print("📂 Getting organizational directory for lesson: \(lesson.name)")
+                Self.logger.debug("Getting organizational directory for lesson: \(lesson.name)")
                 
                 // Import the file
                 let (destURL, relativePath) = try LessonFileStorage.importAttachment(
@@ -239,19 +238,19 @@ struct LessonAttachmentsSection: View {
                     lesson: lesson
                 )
                 
-                print("💾 Inserting attachment into context")
+                Self.logger.debug("Inserting attachment into context")
                 modelContext.insert(attachment)
-                
-                print("💾 Saving context")
+
+                Self.logger.debug("Saving context")
                 try modelContext.save()
                 
                 // Delete original file if requested
                 if deleteOriginalAfterImport {
                     do {
                         try FileManager.default.trashItem(at: url, resultingItemURL: nil)
-                        print("🗑️ Moved original file to trash: \(url.lastPathComponent)")
+                        Self.logger.info("Moved original file to trash: \(url.lastPathComponent)")
                     } catch {
-                        print("⚠️ Failed to delete original file: \(error)")
+                        Self.logger.warning("Failed to delete original file: \(error)")
                     }
                 }
                 
@@ -260,8 +259,7 @@ struct LessonAttachmentsSection: View {
             }
             
         case .failure(let error):
-            print("❌ File import error: \(error)")
-            print("❌ Error details: \(error.localizedDescription)")
+            Self.logger.error("File import error: \(error)")
         }
     }
     
@@ -278,21 +276,18 @@ struct LessonAttachmentsSection: View {
             try modelContext.save()
             
         } catch {
-            print("Failed to delete attachment: \(error)")
+            Self.logger.error("Failed to delete attachment: \(error)")
         }
     }
-    
+
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else {
-            print("❌ No provider")
+            Self.logger.error("No provider")
             return false
         }
-        
-        // Debug: print all available type identifiers
-        print("📋 Available type identifiers:")
-        provider.registeredTypeIdentifiers.forEach { identifier in
-            print("  - \(identifier)")
-        }
+
+        // Debug: log all available type identifiers
+        Self.logger.debug("Available type identifiers: \(provider.registeredTypeIdentifiers.joined(separator: ", "))")
         
         // Try multiple type identifiers that might work
         let typeIdentifiers = [
@@ -306,44 +301,44 @@ struct LessonAttachmentsSection: View {
         var foundType: String?
         for typeId in typeIdentifiers {
             if provider.hasItemConformingToTypeIdentifier(typeId) {
-                print("✅ Found conforming type: \(typeId)")
+                Self.logger.info("Found conforming type: \(typeId)")
                 foundType = typeId
                 break
             }
         }
         
         guard let typeIdentifier = foundType else {
-            print("❌ No compatible type found")
+            Self.logger.error("No compatible type found")
             return false
         }
         
         // Load the file URL asynchronously - don't block!
         provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
             if let error = error {
-                print("❌ Drop error: \(error)")
+                Self.logger.error("Drop error: \(error)")
                 return
             }
-            
-            print("📦 Received item type: \(type(of: item))")
-            
+
+            Self.logger.debug("Received item type: \(String(describing: type(of: item)))")
+
             var url: URL?
-            
+
             // Handle different data types
             if let urlItem = item as? URL {
                 url = urlItem
-                print("✅ Got URL directly: \(urlItem.path)")
+                Self.logger.info("Got URL directly: \(urlItem.path)")
             } else if let data = item as? Data {
                 url = URL(dataRepresentation: data, relativeTo: nil)
-                print("✅ Got URL from Data: \(url?.path ?? "nil")")
+                Self.logger.info("Got URL from Data: \(url?.path ?? "nil")")
             } else if let string = item as? String {
                 url = URL(string: string)
-                print("✅ Got URL from String: \(url?.path ?? "nil")")
+                Self.logger.info("Got URL from String: \(url?.path ?? "nil")")
             } else {
-                print("❌ Unknown item type: \(type(of: item))")
+                Self.logger.error("Unknown item type: \(String(describing: type(of: item)))")
             }
-            
+
             guard let fileURL = url else {
-                print("❌ Failed to get URL from dropped item")
+                Self.logger.error("Failed to get URL from dropped item")
                 return
             }
             
@@ -361,6 +356,8 @@ struct LessonAttachmentsSection: View {
 
 /// Row view for displaying a single attachment
 struct AttachmentRow: View {
+    private static let logger = Logger.lessons
+
     let attachment: LessonAttachment
     let isInherited: Bool
     let onDelete: () -> Void
@@ -476,7 +473,7 @@ struct AttachmentRow: View {
             NSWorkspace.shared.open(fileURL)
             #endif
         } catch {
-            print("Failed to open attachment: \(error)")
+            Self.logger.error("Failed to open attachment: \(error)")
         }
     }
 
@@ -490,7 +487,7 @@ struct AttachmentRow: View {
             }
             #endif
         } catch {
-            print("Failed to share attachment: \(error)")
+            Self.logger.error("Failed to share attachment: \(error)")
         }
     }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 #if os(macOS)
 import AppKit
@@ -9,6 +10,7 @@ import UIKit
 #endif
 
 struct DataManagementGrid: View {
+    private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dependencies) private var dependencies
     @State private var viewModel: SettingsViewModel
@@ -81,12 +83,12 @@ struct DataManagementGrid: View {
                     do {
                         try BackupDestination.setDefaultFolder(url)
                     } catch {
-                        print("⚠️ [\(#function)] Failed to set default backup folder: \(error)")
+                        Self.logger.warning("Failed to set default backup folder: \(error, privacy: .public)")
                     }
                     viewModel.loadDefaultFolderName()
                 }
             } catch {
-                print("⚠️ [\(#function)] Failed to get folder URL: \(error)")
+                Self.logger.warning("Failed to get folder URL: \(error, privacy: .public)")
             }
         }
         .sheet(item: $viewModel.operationSummary) { summary in

@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -6,6 +7,7 @@ import AppKit
 #endif
 
 struct LessonDetailView: View {
+    private static let logger = Logger.lessons
     var lesson: Lesson
     var onSave: (Lesson) -> Void
     var onDone: (() -> Void)? = nil
@@ -87,13 +89,13 @@ struct LessonDetailView: View {
                     do {
                         try LessonFileStorage.deleteIfManaged(url)
                     } catch {
-                        print("⚠️ [Delete Alert] Failed to delete managed file: \(error)")
+                        Self.logger.warning("Failed to delete managed file: \(error)")
                     }
                 }
                 do {
                     try repository.deleteLesson(id: lesson.id)
                 } catch {
-                    print("⚠️ [Delete Alert] Failed to delete lesson: \(error)")
+                    Self.logger.warning("Failed to delete lesson: \(error)")
                 }
                 if let onDone { onDone() } else { dismiss() }
             }
@@ -126,7 +128,7 @@ struct LessonDetailView: View {
                             do {
                                 try LessonFileStorage.deleteIfManaged(oldURL)
                             } catch {
-                                print("⚠️ [LessonDetailView] Failed to delete old managed file: \(error)")
+                                Self.logger.warning("Failed to delete old managed file: \(error)")
                             }
                         }
                         await MainActor.run {
@@ -292,7 +294,7 @@ struct LessonDetailView: View {
                                     do {
                                         try LessonFileStorage.deleteIfManaged(url)
                                     } catch {
-                                        print("⚠️ [Remove button] Failed to delete managed file: \(error)")
+                                        Self.logger.warning("Failed to delete managed file: \(error)")
                                     }
                                 }
                                 lesson.pagesFileBookmark = nil
@@ -448,7 +450,7 @@ struct LessonDetailView: View {
             do {
                 return try LessonFileStorage.resolve(relativePath: rel)
             } catch {
-                print("⚠️ [resolveLessonFileURL] Failed to resolve relative path: \(error)")
+                Self.logger.warning("Failed to resolve relative path: \(error)")
             }
         }
         return resolvePagesURL()

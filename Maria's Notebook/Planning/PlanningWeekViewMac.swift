@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 #if DEBUG
 import Foundation
 #endif
@@ -8,6 +9,7 @@ import Foundation
 /// The Mac has the power to handle automatic query monitoring, providing instant updates.
 @MainActor
 struct PlanningWeekViewMac: View {
+    private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
@@ -45,7 +47,7 @@ struct PlanningWeekViewMac: View {
         )
         .task {
             #if DEBUG
-            print("🚀 PlanningWeekViewMac loaded with \(inboxLessons.count) inbox items (Using @Query magic)")
+            Self.logger.info("PlanningWeekViewMac loaded with \(self.inboxLessons.count) inbox items (Using @Query magic)")
             PerformanceLogger.logScreenLoad(
                 screenName: "PlanningWeekViewMac",
                 itemCounts: [

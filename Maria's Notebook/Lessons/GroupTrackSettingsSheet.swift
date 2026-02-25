@@ -3,8 +3,11 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct GroupTrackSettingsSheet: View {
+    private static let logger = Logger.lessons
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
@@ -87,9 +90,7 @@ struct GroupTrackSettingsSheet: View {
                 isSequential = true
             }
         } catch {
-            #if DEBUG
-            print("Failed to load track settings: \(error)")
-            #endif
+            Self.logger.error("Failed to load track settings: \(error)")
             // On error, default to true (is a track, sequential)
             isTrack = true
             isSequential = true
@@ -119,9 +120,7 @@ struct GroupTrackSettingsSheet: View {
             try modelContext.save()
             dismiss()
         } catch {
-            #if DEBUG
-            print("Failed to save track settings: \(error)")
-            #endif
+            Self.logger.error("Failed to save track settings: \(error)")
         }
     }
 }

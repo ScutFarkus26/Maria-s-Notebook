@@ -1,10 +1,12 @@
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - Observations Data Loader
 
 /// Loads and manages note data for the ObservationsView.
 enum ObservationsDataLoader {
+    private static let logger = Logger.notes
 
     // MARK: - Load All Notes
 
@@ -41,9 +43,7 @@ enum ObservationsDataLoader {
                 ))
             }
         } catch {
-            #if DEBUG
-            print("Error fetching Note objects: \(error)")
-            #endif
+            logger.error("Error fetching Note objects: \(error)")
         }
 
         // Sort by date (newest first)
@@ -77,7 +77,7 @@ enum ObservationsDataLoader {
         do {
             allStudents = try context.fetch(FetchDescriptor<Student>())
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch students: \(error)")
+            logger.warning("Failed to fetch students: \(error)")
             allStudents = []
         }
         let fetched = allStudents.filter { missing.contains($0.id) }

@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
 enum StudentLessonMergeService {
+    private static let logger = Logger.students
+
     @discardableResult
     static func merge(sourceID: UUID, targetID: UUID, context: ModelContext, toastService: ToastService = ToastService.shared) -> Bool {
         guard sourceID != targetID else { return false }
@@ -48,7 +51,7 @@ enum StudentLessonMergeService {
         do {
             return try context.fetch(desc).first
         } catch {
-            print("⚠️ [fetchStudentLesson] Failed to fetch: \(error)")
+            logger.warning("Failed to fetch StudentLesson: \(error)")
             return nil
         }
     }

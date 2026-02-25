@@ -1,10 +1,13 @@
 import Foundation
+import OSLog
 import SwiftData
 import SwiftUI
 
 @Observable
 @MainActor
 final class WorkDetailViewModel {
+    private static let logger = Logger.work
+
     // MARK: - State
     var work: WorkModel?
     var relatedLesson: Lesson?
@@ -53,7 +56,7 @@ final class WorkDetailViewModel {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(functionName)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("\(functionName): Failed to fetch \(T.self): \(error)")
             return []
         }
     }

@@ -2,10 +2,12 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 /// Service for migrating and normalizing lesson ordering indices.
 /// Ensures existing lessons have sequential sortIndex values within their subject.
 enum LessonOrderMigration {
+    private static let logger = Logger.lessons
     /// Migrates lessons to have sequential sortIndex values within each subject.
     /// Should be called once on app launch or when first needed.
     /// - Parameter context: ModelContext to migrate lessons
@@ -23,7 +25,7 @@ enum LessonOrderMigration {
         do {
             allLessons = try context.fetch(descriptor)
         } catch {
-            print("⚠️ [migrateSortIndices] Failed to fetch lessons: \(error)")
+            logger.warning("Failed to fetch lessons for sort index migration: \(error)")
             return 0
         }
         
@@ -61,7 +63,7 @@ enum LessonOrderMigration {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [migrateSortIndices] Failed to save context: \(error)")
+                logger.warning("Failed to save context after sort index migration: \(error)")
             }
         }
         
@@ -95,7 +97,7 @@ enum LessonOrderMigration {
         do {
             try context.save()
         } catch {
-            print("⚠️ [normalizeSortIndices] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error)")
         }
     }
     
@@ -126,7 +128,7 @@ enum LessonOrderMigration {
         do {
             try context.save()
         } catch {
-            print("⚠️ [normalizeOrderInGroup] Failed to save context: \(error)")
+            Self.logger.warning("Failed to save context: \(error)")
         }
     }
 }

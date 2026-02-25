@@ -183,7 +183,7 @@ enum CloudKitConfigurationService {
             let data = try JSONEncoder().encode(logs)
             UserDefaults.standard.set(data, forKey: "cloudKitErrorLog")
         } catch {
-            print("⚠️ [\(#function)] Failed to encode error log: \(error)")
+            logger.warning("Failed to encode error log: \(error)")
         }
     }
 
@@ -196,7 +196,7 @@ enum CloudKitConfigurationService {
             let logs = try JSONDecoder().decode([ErrorLogEntry].self, from: data)
             return logs
         } catch {
-            print("⚠️ [\(#function)] Failed to decode error log: \(error)")
+            logger.warning("Failed to decode error log: \(error)")
             return []
         }
     }

@@ -4,6 +4,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 
 struct PresentationsDayColumn: View {
     @Environment(\.modelContext) private var modelContext
@@ -211,6 +212,7 @@ struct PresentationsDayColumn: View {
 
 // MARK: - Drop Delegate for day column
 private struct PresentationsDayColumnDropDelegate: DropDelegate {
+    private static let logger = Logger.presentations
     let calendar: Calendar
     let modelContext: ModelContext
     let allStudentLessons: [StudentLesson]
@@ -312,9 +314,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
             }
             try modelContext.save()
         } catch {
-            #if DEBUG
-            print("Presentations schedule save failed: \(error)")
-            #endif
+            Self.logger.warning("Presentations schedule save failed: \(error)")
         }
     }
     
@@ -327,7 +327,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
             do {
                 return try modelContext.fetch(descriptor).first
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch work check-in: \(error)")
+                Self.logger.warning("Failed to fetch work check-in: \(error)")
                 return nil
             }
         }() else { return }
@@ -344,14 +344,14 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
                     work.dueAt = normalized
                 }
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch associated work model: \(error)")
+                Self.logger.warning("Failed to fetch associated work model: \(error)")
             }
         }
 
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save work item schedule: \(error)")
+            Self.logger.warning("Failed to save work item schedule: \(error)")
         }
     }
 

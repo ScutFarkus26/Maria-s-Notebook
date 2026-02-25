@@ -3,6 +3,7 @@
 // Behavior-preserving cleanup: comments and MARKs only.
 
 import Foundation
+import OSLog
 import SwiftData
 import SwiftUI
 
@@ -12,6 +13,8 @@ import SwiftUI
 @Observable
 @MainActor
 final class StudentDetailViewModel {
+    private static let logger = Logger.students
+
     // MARK: - Properties
     let student: Student
 
@@ -166,7 +169,7 @@ final class StudentDetailViewModel {
         do {
             return try context.fetch(descriptor)
         } catch {
-            print("⚠️ [\(functionName)] Failed to fetch \(T.self): \(error)")
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)")
             return []
         }
     }

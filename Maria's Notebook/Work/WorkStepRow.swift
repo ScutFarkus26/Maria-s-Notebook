@@ -1,7 +1,10 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct WorkStepRow: View {
+    private static let logger = Logger.work
+
     @Environment(\.modelContext) private var modelContext
     @Bindable var step: WorkStep
     var onEdit: () -> Void
@@ -58,7 +61,7 @@ struct WorkStepRow: View {
         do {
             try service.toggleCompletion(step)
         } catch {
-            print("⚠️ [toggleCompletion] Failed to toggle step completion: \(error)")
+            Self.logger.warning("Failed to toggle step completion: \(error)")
         }
     }
 }

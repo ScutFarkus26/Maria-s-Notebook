@@ -3,8 +3,10 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct MeetingTemplateEditorSheet: View {
+    private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -144,7 +146,7 @@ struct MeetingTemplateEditorSheet: View {
                     )
                 )
             } catch {
-                print("⚠️ [\(#function)] Failed to fetch custom template count: \(error)")
+                Self.logger.warning("Failed to fetch custom template count: \(error, privacy: .public)")
                 customCount = 0
             }
 
@@ -164,7 +166,7 @@ struct MeetingTemplateEditorSheet: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save meeting template: \(error)")
+            Self.logger.warning("Failed to save meeting template: \(error, privacy: .public)")
         }
         onSaved()
         dismiss()

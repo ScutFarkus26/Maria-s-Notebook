@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 #if os(macOS)
 import AppKit
@@ -6,6 +7,7 @@ import AppKit
 
 /// Stores and resolves the user's preferred default backup folder using bookmarks.
 enum BackupDestination {
+    private static let logger = Logger.backup
     private static let bookmarkKey = "Backup.defaultFolderBookmark"
 
     /// Save the chosen folder as a bookmark.
@@ -37,20 +39,16 @@ enum BackupDestination {
             if stale {
                 // If the system tells us the bookmark is stale (e.g. folder moved/renamed),
                 // but we successfully resolved it, re-save it immediately to fix the link.
-                #if DEBUG
-                print("BackupDestination: Bookmark is stale. Refreshing...")
-                #endif
+                logger.debug("Bookmark is stale. Refreshing...")
                 do {
                     try setDefaultFolder(url)
                 } catch {
-                    print("⚠️ [Backup:resolveDefaultFolder] Failed to refresh stale bookmark: \(error)")
+                    logger.warning("Failed to refresh stale bookmark: \(error)")
                 }
             }
             return url
         } catch {
-            #if DEBUG
-            print("BackupDestination: Failed to resolve backup folder bookmark: \(error)")
-            #endif
+            logger.debug("Failed to resolve backup folder bookmark: \(error)")
             return nil
         }
     }

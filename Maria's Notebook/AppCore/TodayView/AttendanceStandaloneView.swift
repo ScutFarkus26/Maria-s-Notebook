@@ -4,10 +4,13 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 /// Standalone attendance view for iPhone that displays just the attendance grid
 /// without the Today view's reminders, lessons, and other sections.
 struct AttendanceStandaloneView: View {
+    private static let logger = Logger.attendance
+
     // MARK: - Environment
     @Environment(\.modelContext) var modelContext
     @Environment(\.calendar) var calendar
@@ -183,7 +186,7 @@ struct AttendanceStandaloneView: View {
             do {
                 try await Task.sleep(for: .seconds(2.0))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for toast dismissal: \(error)")
+                Self.logger.warning("Failed to sleep for toast dismissal: \(error)")
             }
             withAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil

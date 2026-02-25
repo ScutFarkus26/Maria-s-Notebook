@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 #if os(macOS)
 import AppKit
 #else
@@ -7,6 +8,8 @@ import UIKit
 #endif
 
 struct NoteEditSheet: View {
+    private static let logger = Logger.notes
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @FocusState private var isTextEditorFocused: Bool
@@ -65,7 +68,7 @@ struct NoteEditSheet: View {
             do {
                 try await Task.sleep(for: .milliseconds(200))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for auto-focus: \(error)")
+                Self.logger.warning("Failed to sleep for auto-focus: \(error)")
             }
             isTextEditorFocused = true
         }
@@ -92,7 +95,7 @@ struct NoteEditSheet: View {
             do {
                 try await Task.sleep(for: .milliseconds(300))
             } catch {
-                print("⚠️ [\(#function)] Failed to sleep for auto-focus: \(error)")
+                Self.logger.warning("Failed to sleep for auto-focus: \(error)")
             }
             isTextEditorFocused = true
         }
@@ -213,7 +216,7 @@ struct NoteEditSheet: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save note: \(error)")
+            Self.logger.warning("Failed to save note: \(error)")
         }
         onSaved?()
         dismiss()

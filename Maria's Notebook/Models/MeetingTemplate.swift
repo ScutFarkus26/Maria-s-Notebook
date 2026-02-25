@@ -5,10 +5,13 @@
 // allowing teachers to customize the questions for reflection, focus, requests, and notes.
 
 import Foundation
+import OSLog
 import SwiftData
 
 @Model
 final class MeetingTemplate: Identifiable {
+    private static let logger = Logger.database
+
     // MARK: - Identity
     var id: UUID = UUID()
     var createdAt: Date = Date()
@@ -109,7 +112,7 @@ final class MeetingTemplate: Identifiable {
         do {
             existing = try context.fetch(fetch)
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch existing templates: \(error)")
+            logger.warning("Failed to fetch existing templates: \(error.localizedDescription)")
             return
         }
 
@@ -133,7 +136,7 @@ final class MeetingTemplate: Identifiable {
         do {
             try context.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save built-in templates: \(error)")
+            logger.warning("Failed to save built-in templates: \(error.localizedDescription)")
         }
     }
 }

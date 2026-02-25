@@ -1,7 +1,10 @@
 import Foundation
+import OSLog
 #if os(macOS)
 import AppKit
 #endif
+
+private let logger = Logger.reports
 
 /// Minimal DOCX merger that edits only word/document.xml.
 /// - Important: Preserves all other parts (media, styles) by copying them unchanged.
@@ -17,7 +20,7 @@ enum DocxTemplateMerger {
             do {
                 try fm.removeItem(at: tempDir)
             } catch {
-                print("⚠️ [\(#function)] Failed to remove temp directory: \(error)")
+                logger.warning("Failed to remove temp directory: \(error, privacy: .public)")
             }
         }
 
