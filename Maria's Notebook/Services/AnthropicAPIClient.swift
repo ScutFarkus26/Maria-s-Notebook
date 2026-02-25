@@ -32,20 +32,29 @@ final class AnthropicAPIClient: MCPClientProtocol {
     // MARK: - MCPClientProtocol Implementation
     
     func generateText(prompt: String, temperature: Double) async throws -> String {
+        try await generateText(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
+    }
+    
+    func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
         
         let response = try await sendClaudeRequest(
             prompt: prompt,
+            systemMessage: systemMessage,
             temperature: temperature,
-            maxTokens: 2048
+            maxTokens: maxTokens ?? 2048
         )
         
         return response
     }
     
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
+        try await generateStructuredJSON(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
+    }
+    
+    func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
@@ -59,8 +68,9 @@ final class AnthropicAPIClient: MCPClientProtocol {
         
         let response = try await sendClaudeRequest(
             prompt: enhancedPrompt,
+            systemMessage: systemMessage,
             temperature: temperature,
-            maxTokens: 4096
+            maxTokens: maxTokens ?? 4096
         )
         
         // Clean up response if it contains markdown code blocks
@@ -131,7 +141,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
     
     // MARK: - Private Helpers
     
-    private func sendClaudeRequest(prompt: String, temperature: Double, maxTokens: Int) async throws -> String {
+    private func sendClaudeRequest(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int) async throws -> String {
         // Double-check API key
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
@@ -147,7 +157,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.timeoutInterval = 30
         
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "model": "claude-opus-4-6",
             "max_tokens": maxTokens,
             "temperature": temperature,
@@ -158,6 +168,10 @@ final class AnthropicAPIClient: MCPClientProtocol {
                 ]
             ]
         ]
+        
+        if let systemMessage, !systemMessage.isEmpty {
+            requestBody["system"] = systemMessage
+        }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         

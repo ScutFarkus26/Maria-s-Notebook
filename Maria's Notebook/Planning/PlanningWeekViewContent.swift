@@ -47,6 +47,7 @@ struct PlanningWeekViewContent: View {
         case giveLessonDraft(UUID)
         case addLesson
         case inbox
+        case aiPlanning
 
         var id: String {
             switch self {
@@ -55,6 +56,7 @@ struct PlanningWeekViewContent: View {
             case .giveLessonDraft(let id): return "giveLessonDraft_\(id.uuidString)"
             case .addLesson: return "addLesson"
             case .inbox: return "inbox"
+            case .aiPlanning: return "aiPlanning"
             }
         }
     }
@@ -156,6 +158,8 @@ struct PlanningWeekViewContent: View {
                 }
             )
             .largeSheetSizing()
+        case .aiPlanning:
+            AIPlanningAssistantView(mode: .wholeClass)
         }
     }
     
@@ -272,7 +276,8 @@ struct PlanningWeekViewContent: View {
                     onPrevWeek: handlePrevWeek,
                     onNextWeek: handleNextWeek,
                     onToday: handleToday,
-                    onAddNew: handleAddNew
+                    onAddNew: handleAddNew,
+                    onAISuggest: { activeSheet = .aiPlanning }
                 )
                 Divider()
                 GeometryReader { geometry in

@@ -290,6 +290,19 @@ final class AppDependencies {
         return service
     }
     
+    private var _lessonPlanningService: LessonPlanningService?
+    var lessonPlanningService: LessonPlanningService {
+        if let service = _lessonPlanningService {
+            return service
+        }
+        let service = LessonPlanningService(
+            modelContext: modelContext,
+            mcpClient: mcpClient
+        )
+        _lessonPlanningService = service
+        return service
+    }
+    
     private var _reportGeneratorService: ReportGeneratorService?
     var reportGeneratorService: ReportGeneratorService {
         if let service = _reportGeneratorService {

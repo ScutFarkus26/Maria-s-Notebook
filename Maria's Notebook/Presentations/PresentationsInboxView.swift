@@ -33,6 +33,7 @@ struct PresentationsInboxView: View {
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
     @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @State private var showAIPlanning = false
 
     // Default sorting is by age
     private let sortMode: PresentationsSortMode = .age
@@ -68,6 +69,15 @@ struct PresentationsInboxView: View {
         return blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
     }
 
+    private var aiSuggestButton: some View {
+        Button(action: { showAIPlanning = true }) {
+            Label("Suggest Next", systemImage: "sparkles")
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.accentColor)
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             // Left side: Presentations inbox
@@ -80,6 +90,9 @@ struct PresentationsInboxView: View {
                             .foregroundStyle(Color.accentColor)
                         Text("Presentations")
                             .font(.title3.weight(.semibold))
+                        
+                        aiSuggestButton
+                        
                         Spacer()
 
                         #if os(iOS)
@@ -200,6 +213,9 @@ struct PresentationsInboxView: View {
             // Initialize cached dictionaries on first load
             cachedLessonsByID = Dictionary(cachedLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             cachedStudentsByID = Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+        .sheet(isPresented: $showAIPlanning) {
+            AIPlanningAssistantView(mode: .quickSuggest(cachedStudents.map { $0.id }))
         }
     }
     

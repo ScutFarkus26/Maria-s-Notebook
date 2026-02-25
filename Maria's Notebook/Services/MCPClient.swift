@@ -12,14 +12,32 @@ protocol MCPClientProtocol {
     /// Generates text using MCP's language model tools
     func generateText(prompt: String, temperature: Double) async throws -> String
     
+    /// Generates text with system message and configurable max tokens
+    func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String
+    
     /// Generates structured JSON response using MCP's language model tools
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String
+    
+    /// Generates structured JSON with system message and configurable max tokens
+    func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String
     
     /// Analyzes text and extracts patterns
     func analyzePatterns(text: String, context: String) async throws -> [String]
     
     /// Searches external knowledge bases (e.g., educational standards, curriculum frameworks)
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult]
+}
+
+// MARK: - Default Implementations
+
+extension MCPClientProtocol {
+    func generateText(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int? = nil) async throws -> String {
+        try await generateText(prompt: prompt, temperature: temperature)
+    }
+    
+    func generateStructuredJSON(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int? = nil) async throws -> String {
+        try await generateStructuredJSON(prompt: prompt, temperature: temperature)
+    }
 }
 
 /// Represents a result from an external knowledge base query

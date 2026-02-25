@@ -6,6 +6,7 @@ struct PlanningHeaderView: View {
     let onNextWeek: () -> Void
     let onToday: () -> Void
     let onAddNew: () -> Void
+    var onAISuggest: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -27,6 +28,13 @@ struct PlanningHeaderView: View {
                 .background(Color.primary.opacity(0.08), in: Capsule())
 
             Spacer(minLength: 0)
+
+            if let onAISuggest {
+                Button(action: onAISuggest) {
+                    Label("AI Suggest", systemImage: "sparkles")
+                }
+                .buttonStyle(.plain)
+            }
 
             Button(action: onAddNew) {
                 Label("Add New", systemImage: "plus.circle.fill")

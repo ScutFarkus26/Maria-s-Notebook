@@ -36,6 +36,7 @@ struct StudentDetailView: View {
 
     @State private var selectedWorkID: UUID? = nil
     @State private var workCache: [WorkModel] = []
+    @State private var showAIPlanning = false
 
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
     private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
@@ -126,15 +127,26 @@ struct StudentDetailView: View {
         if let onDone { onDone() } else { dismiss() }
     }
 
+    private var headerRow: some View {
+        HStack {
+            Text("Student Info")
+                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Button(action: { showAIPlanning = true }) {
+                Label("Plan Lessons", systemImage: "sparkles")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Student Info")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
+            headerRow
 
             StudentDetailTabNavigation(selectedTab: $selectedTab)
 
@@ -209,6 +221,9 @@ struct StudentDetailView: View {
             } else if selectedWorkID != nil {
                 ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
             }
+        }
+        .sheet(isPresented: $showAIPlanning) {
+            AIPlanningAssistantView(mode: .singleStudent(student.id))
         }
         .task {
             vm.loadData(modelContext: modelContext)
