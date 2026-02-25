@@ -65,6 +65,8 @@ struct RootDetailContent: View {
                 SchedulesView()
             case .issues:
                 IssuesListView()
+            case .askAI:
+                ChatView()
             case .logs:
                 LogsMenuRootView()
             case .settings:
@@ -143,6 +145,10 @@ struct MoreMenuView: View {
                     moreMenuButton(.procedures)
                     moreMenuButton(.schedules)
                     moreMenuButton(.issues)
+                }
+
+                Section("AI") {
+                    moreMenuButton(.askAI)
                 }
 
                 Section("System") {

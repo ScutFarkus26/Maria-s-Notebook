@@ -41,6 +41,7 @@ struct RootView: View {
         case community
         case schedules
         case issues
+        case askAI
         case logs
         case settings
 
@@ -65,6 +66,7 @@ struct RootView: View {
             case .community: return "Community"
             case .schedules: return "Schedules"
             case .issues: return "Issues"
+            case .askAI: return "Ask AI"
             case .logs: return "Logs"
             case .settings: return "Settings"
             }
@@ -89,6 +91,7 @@ struct RootView: View {
             case .community: return "bubble.left.and.bubble.right"
             case .schedules: return "clock.badge.checkmark"
             case .issues: return "exclamationmark.triangle"
+            case .askAI: return "bubble.left.and.text.bubble.right"
             case .logs: return "list.bullet"
             case .settings: return "gear"
             }
@@ -109,7 +112,7 @@ struct RootView: View {
 
         var isInMoreMenu: Bool {
             switch self {
-            case .lessons, .supplies, .procedures, .meetings, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .schedules, .logs, .settings:
+            case .lessons, .supplies, .procedures, .meetings, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .schedules, .askAI, .logs, .settings:
                 return true
             default:
                 return false
@@ -132,6 +135,7 @@ struct RootView: View {
             case .community: return .community
             case .schedules: return nil
             case .issues: return nil
+            case .askAI: return nil
             case .logs: return .logs
             case .settings: return .settings
             }

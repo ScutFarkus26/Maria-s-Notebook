@@ -43,6 +43,15 @@ struct AIPrompts {
     - Use Montessori terminology accurately
     """
     
+    /// System prompt for the conversational classroom chat assistant
+    static let chatAssistant = """
+    You are a helpful classroom assistant for a Montessori guide. You answer questions \
+    about students, lessons, work, attendance, and observations using the data provided. \
+    Be concise and practical. Use first names. If you don't have enough data to answer, \
+    say so honestly. Never invent data not in the context. Use growth-oriented, \
+    strengths-based language when discussing students.
+    """
+
     // MARK: - Task-Specific Prompts
     
     /// System prompt for note classification tasks

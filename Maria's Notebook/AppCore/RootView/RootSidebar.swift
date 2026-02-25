@@ -115,6 +115,12 @@ struct RootSidebar: View {
                 }
             }
 
+            Section("AI") {
+                NavigationLink(value: RootView.NavigationItem.askAI) {
+                    Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
+                }
+            }
+
             Section("System") {
                 NavigationLink(value: RootView.NavigationItem.logs) {
                     Label("Logs", systemImage: "list.bullet")
@@ -218,6 +224,14 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Track and resolve classroom issues")
+            }
+
+            Section("AI") {
+                Button { selection = .askAI } label: {
+                    Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Ask questions about your classroom data")
             }
 
             Section("System") {

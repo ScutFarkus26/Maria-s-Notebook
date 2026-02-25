@@ -277,6 +277,16 @@ final class AppDependencies {
         return client
     }
     
+    private var _chatService: ChatService?
+    var chatService: ChatService {
+        if let service = _chatService {
+            return service
+        }
+        let service = ChatService(modelContext: modelContext, mcpClient: mcpClient)
+        _chatService = service
+        return service
+    }
+    
     private var _studentAnalysisService: StudentAnalysisService?
     var studentAnalysisService: StudentAnalysisService {
         if let service = _studentAnalysisService {
