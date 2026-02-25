@@ -11,12 +11,18 @@ extension TodayView {
     // MARK: - Todos Section (Things-inspired "Today" section)
 
     var todosListSection: some View {
-        Section {
+        let selectedDay = AppCalendar.startOfDay(viewModel.date)
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
+
+        return Section {
             if todayTodos.isEmpty {
                 emptyStateText("No todos for today")
             } else {
-                // Overdue todos
-                let overdue = todayTodos.filter { $0.isOverdue }
+                // Overdue todos (due before the selected day)
+                let overdue = todayTodos.filter { todo in
+                    guard let dueDate = todo.dueDate else { return false }
+                    return dueDate < selectedDay
+                }
                 if !overdue.isEmpty {
                     Text("Overdue")
                         .font(AppTheme.ScaledFont.caption)
@@ -47,9 +53,12 @@ extension TodayView {
                             }
                     }
                 }
-                // Due today
-                let dueToday = todayTodos.filter { $0.isDueToday && !$0.isOverdue }
-                if !dueToday.isEmpty {
+                // Due on selected day
+                let dueOnDay = todayTodos.filter { todo in
+                    guard let dueDate = todo.dueDate else { return false }
+                    return dueDate >= selectedDay && dueDate < nextDay
+                }
+                if !dueOnDay.isEmpty {
                     if !overdue.isEmpty {
                         Text("Due Today")
                             .font(AppTheme.ScaledFont.caption)
@@ -59,7 +68,7 @@ extension TodayView {
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
                     }
-                    ForEach(dueToday) { todo in
+                    ForEach(dueOnDay) { todo in
                         TodoTodayRow(todo: todo, onToggle: { toggleTodoItem(todo) }, onTap: { selectedTodoItem = todo })
                             .id(todo.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -73,10 +82,14 @@ extension TodayView {
                             }
                     }
                 }
-                // High priority without due date
-                let highPriority = todayTodos.filter { !$0.isOverdue && !$0.isDueToday }
+                // High priority without a due date on the selected day
+                let highPriority = todayTodos.filter { todo in
+                    let isOverdueForDay = todo.dueDate.map { $0 < selectedDay } ?? false
+                    let isDueOnDay = todo.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+                    return !isOverdueForDay && !isDueOnDay
+                }
                 if !highPriority.isEmpty {
-                    if !overdue.isEmpty || !dueToday.isEmpty {
+                    if !overdue.isEmpty || !dueOnDay.isEmpty {
                         Text("High Priority")
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.tertiary)
@@ -136,15 +149,37 @@ extension TodayView {
         .accessibilityElement(children: .combine)
     }
 
-    /// Todos relevant to Today: overdue + due today + high priority
+    /// Todos relevant to the selected day: overdue + due on selected date + high priority
     var todayTodos: [TodoItem] {
-        todayTodoItems.filter { todo in
-            !todo.isCompleted && (todo.isOverdue || todo.isDueToday || todo.priority == .high)
+        let selectedDay = AppCalendar.startOfDay(viewModel.date)
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
+
+        return todayTodoItems.filter { todo in
+            guard !todo.isCompleted else { return false }
+
+            // Overdue relative to the selected date
+            if let dueDate = todo.dueDate, dueDate < selectedDay {
+                return true
+            }
+            // Due on the selected date
+            if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay {
+                return true
+            }
+            // High priority (always shown)
+            if todo.priority == .high {
+                return true
+            }
+            return false
         }
         .sorted { lhs, rhs in
-            // Overdue first, then due today, then high priority
-            if lhs.isOverdue != rhs.isOverdue { return lhs.isOverdue }
-            if lhs.isDueToday != rhs.isDueToday { return lhs.isDueToday }
+            let lhsOverdue = lhs.dueDate.map { $0 < selectedDay } ?? false
+            let rhsOverdue = rhs.dueDate.map { $0 < selectedDay } ?? false
+            let lhsDueOnDay = lhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+            let rhsDueOnDay = rhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+
+            // Overdue first, then due on selected day, then high priority
+            if lhsOverdue != rhsOverdue { return lhsOverdue }
+            if lhsDueOnDay != rhsDueOnDay { return lhsDueOnDay }
             return lhs.priority.sortOrder < rhs.priority.sortOrder
         }
     }
