@@ -9,6 +9,7 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 extension UUID: @retroactive Identifiable {
     public var id: UUID { self }
@@ -16,6 +17,8 @@ extension UUID: @retroactive Identifiable {
 
 /// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
 struct RootView: View {
+    private static let logger = Logger.app_
+
     // MARK: - Navigation Items
     enum NavigationItem: String, Hashable, Identifiable {
         case today
@@ -171,6 +174,7 @@ struct RootView: View {
     @State private var isShowingQuickNote = false
     @State private var newPresentationDraftID: UUID? = nil
     @State private var isShowingNewWorkItem = false
+    @State private var isShowingNewTodo = false
     @State private var workDetailIDToOpen: UUID?
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -232,11 +236,14 @@ struct RootView: View {
                     do {
                         try modelContext.save()
                     } catch {
-                        print("⚠️ [\(#function)] Failed to save new presentation draft: \(error)")
+                        Self.logger.warning("Failed to save new presentation draft: \(error)")
                     }
                     newPresentationDraftID = draft.id
                 },
-                isShowingWorkItemSheet: $isShowingNewWorkItem
+                isShowingWorkItemSheet: $isShowingNewWorkItem,
+                onNewTodo: {
+                    isShowingNewTodo = true
+                }
             )
         }
         .sheet(isPresented: $isShowingQuickNote) {
@@ -261,7 +268,7 @@ struct RootView: View {
                     do {
                         try await Task.sleep(for: .milliseconds(300))
                     } catch {
-                        print("⚠️ [\(#function)] Failed to sleep before opening work detail: \(error)")
+                        Self.logger.warning("Failed to sleep before opening work detail: \(error)")
                     }
                     workDetailIDToOpen = workID
                 }
@@ -276,6 +283,22 @@ struct RootView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             #endif
+        }
+        .sheet(isPresented: $isShowingNewTodo) {
+            NavigationStack {
+                NewTodoForm()
+                    .navigationTitle("New Todo")
+                    #if !os(macOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                isShowingNewTodo = false
+                            }
+                        }
+                    }
+            }
         }
     #if os(macOS)
         .background(EnsureResizableWindow(minSize: NSSize(width: UIConstants.WindowSize.minWidth, height: UIConstants.WindowSize.minHeight)))

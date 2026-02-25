@@ -80,6 +80,9 @@ enum UserDefaultsKeys {
     // MARK: - Debug
     static let debugSimulateDatabaseInitFailure = "DEBUG_SimulateDatabaseInitFailure"
     
+    // MARK: - Todos
+    static let todoTagOrder = "Todo.tagOrder"
+
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
 }
