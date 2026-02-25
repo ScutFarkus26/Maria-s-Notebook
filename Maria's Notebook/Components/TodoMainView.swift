@@ -1436,7 +1436,13 @@ struct TodoRowCard: View {
 struct NewTodoForm: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudents: [Student]
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudentsRaw: [Student]
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    private var allStudents: [Student] {
+        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
 
     @State private var title = ""
     @State private var notes = ""
@@ -1698,7 +1704,14 @@ struct NewTodoForm: View {
 struct TodoDetailView: View {
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudents: [Student]
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudentsRaw: [Student]
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    private var allStudents: [Student] {
+        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
+
     let onClose: () -> Void
     let onEdit: () -> Void
 

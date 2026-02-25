@@ -57,14 +57,17 @@ final class LessonPlanningViewModel {
     init(mode: PlanningMode) {
         self.mode = mode
         
-        // Set default depth based on mode
+        // Read saved default depth, fallback to mode-appropriate default
+        let savedDepth = UserDefaults.standard.string(forKey: UserDefaultsKeys.lessonPlanningDefaultDepth)
+            .flatMap { PlanningDepth(rawValue: $0) }
+        
         switch mode {
         case .quickSuggest:
             selectedDepth = .quick
         case .singleStudent:
-            selectedDepth = .standard
+            selectedDepth = savedDepth ?? .standard
         case .wholeClass:
-            selectedDepth = .deep
+            selectedDepth = savedDepth ?? .deep
         }
     }
     
@@ -301,7 +304,8 @@ final class LessonPlanningViewModel {
     
     private func fetchStudents(context: ModelContext) -> [Student] {
         let descriptor = FetchDescriptor<Student>(sortBy: [SortDescriptor(\Student.lastName)])
-        return (try? context.fetch(descriptor)) ?? []
+        let all = (try? context.fetch(descriptor)) ?? []
+        return TestStudentsFilter.filterVisible(all)
     }
 }
 

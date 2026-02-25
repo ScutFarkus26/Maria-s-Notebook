@@ -88,9 +88,15 @@ enum TodoFilter: String, CaseIterable, Identifiable {
 struct TodoListPanel: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TodoItem.orderIndex) private var todos: [TodoItem]
-    @Query(sort: \Student.firstName) private var students: [Student]
+    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     @Environment(\.modelContext) private var modelContext
-    
+
+    private var students: [Student] {
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
+
     @State private var newTodoTitle = ""
     @State private var editingTodo: TodoItem?
     @State private var selectedFilter: TodoFilter = .all
@@ -796,7 +802,14 @@ struct TodoRow: View {
 
 struct TodoEditSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Student.firstName) private var students: [Student]
+    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
+    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
+    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    private var students: [Student] {
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    }
+
     let todo: TodoItem
     let onDone: (() -> Void)?
     

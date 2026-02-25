@@ -21,7 +21,7 @@ final class ChatContextAssembler {
     /// Builds a compact classroom snapshot including roster, subjects, and weekly activity.
     func buildClassroomSnapshot() -> String {
         let queryService = DataQueryService(context: context)
-        let students = queryService.fetchAllStudents()
+        let students = queryService.fetchAllStudents(excludeTest: true)
         let lessons = queryService.fetchAllLessons()
 
         var lines: [String] = []
@@ -76,7 +76,7 @@ final class ChatContextAssembler {
     /// Returns the context string and the set of matched student IDs.
     func buildQuestionContext(question: String, existingMentionedIDs: Set<UUID>) -> (context: String, mentionedIDs: Set<UUID>) {
         let queryService = DataQueryService(context: context)
-        let allStudents = queryService.fetchAllStudents()
+        let allStudents = queryService.fetchAllStudents(excludeTest: true)
 
         // Match student names in the question
         let matched = matchStudents(in: question, from: allStudents)
