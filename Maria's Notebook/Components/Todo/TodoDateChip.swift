@@ -24,7 +24,7 @@ struct TodoDateChip: View {
 
     @ViewBuilder
     private var chipContent: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             if let icon = chipIcon {
                 Image(systemName: icon)
                     .font(.system(size: 10, weight: .medium))
@@ -36,17 +36,13 @@ struct TodoDateChip: View {
             if todo.hasDeadline && !todo.isOverdue {
                 Image(systemName: "flag.fill")
                     .font(.system(size: 9))
-                    .foregroundStyle(.red.opacity(0.8))
+                    .foregroundStyle(.red.opacity(0.6))
             }
         }
-        .padding(.horizontal, AppTheme.Spacing.verySmall)
-        .padding(.vertical, AppTheme.Spacing.xxsmall)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
         .foregroundStyle(chipForeground)
         .background(chipBackground, in: Capsule(style: .continuous))
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(chipBorderColor, lineWidth: UIConstants.StrokeWidth.thin)
-        )
     }
 
     // MARK: - Chip State
@@ -120,36 +116,25 @@ struct TodoDateChip: View {
 
     private var chipForeground: Color {
         switch chipState {
-        case .overdue: return .white
-        case .today: return .blue
-        case .tomorrow: return .orange
-        case .thisWeek: return .primary
-        case .future: return .secondary
-        case .someday: return .secondary
-        case .noDate: return .gray
+        case .overdue: return .red
+        case .today: return .orange
+        case .tomorrow: return .orange.opacity(0.8)
+        case .thisWeek: return .secondary
+        case .future: return .secondary.opacity(0.6)
+        case .someday: return .secondary.opacity(0.6)
+        case .noDate: return .secondary.opacity(0.5)
         }
     }
 
     private var chipBackground: some ShapeStyle {
         switch chipState {
-        case .overdue: return AnyShapeStyle(Color.red)
-        case .today: return AnyShapeStyle(Color.blue.opacity(UIConstants.OpacityConstants.medium))
-        case .tomorrow: return AnyShapeStyle(Color.orange.opacity(UIConstants.OpacityConstants.faint))
-        case .thisWeek: return AnyShapeStyle(Color.primary.opacity(UIConstants.OpacityConstants.faint))
-        case .future: return AnyShapeStyle(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-        case .someday: return AnyShapeStyle(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        case .overdue: return AnyShapeStyle(Color.red.opacity(0.1))
+        case .today: return AnyShapeStyle(Color.orange.opacity(0.1))
+        case .tomorrow: return AnyShapeStyle(Color.orange.opacity(0.06))
+        case .thisWeek: return AnyShapeStyle(Color.primary.opacity(0.04))
+        case .future: return AnyShapeStyle(Color.clear)
+        case .someday: return AnyShapeStyle(Color.clear)
         case .noDate: return AnyShapeStyle(Color.clear)
-        }
-    }
-
-    private var chipBorderColor: Color {
-        switch chipState {
-        case .overdue: return .clear
-        case .today: return .blue.opacity(UIConstants.OpacityConstants.statusBg)
-        case .tomorrow: return .orange.opacity(UIConstants.OpacityConstants.accent)
-        case .thisWeek, .future: return .primary.opacity(UIConstants.OpacityConstants.faint)
-        case .someday: return .primary.opacity(UIConstants.OpacityConstants.faint)
-        case .noDate: return .primary.opacity(UIConstants.OpacityConstants.subtle)
         }
     }
 

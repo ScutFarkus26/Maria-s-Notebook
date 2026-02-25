@@ -74,6 +74,19 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
         case .custom: return "Custom interval"
         }
     }
+
+    var shortLabel: String {
+        switch self {
+        case .none: return ""
+        case .daily: return "Daily"
+        case .weekdays: return "Weekdays"
+        case .weekly: return "Weekly"
+        case .biweekly: return "2 Weeks"
+        case .monthly: return "Monthly"
+        case .yearly: return "Yearly"
+        case .custom: return "Custom"
+        }
+    }
     
     /// Calculate the next due date based on the current due date
     /// For `.custom`, returns nil — handled externally using `customIntervalDays`.

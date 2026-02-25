@@ -380,6 +380,7 @@ struct TodoMainView: View {
         List {
             Section {
                 ForEach(TodoListFilter.allCases) { filter in
+                    let isActive = selectedTag == nil && selectedFolder == nil && selectedFilter == filter
                     Button {
                         selectedTag = nil
                         selectedFolder = nil
@@ -387,29 +388,33 @@ struct TodoMainView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: filter.icon)
+                                .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(filter.color)
-                                .font(.system(size: 16, weight: .medium))
-                                .frame(width: 24)
-                            
+                                .frame(width: 28, height: 28)
+                                .background(filter.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+
                             Text(filter.title)
-                                .font(.system(size: 15))
-                            
+                                .font(.system(size: 15, weight: isActive ? .semibold : .regular))
+
                             Spacer()
-                            
+
                             if filter != .all {
-                                Text("\(countForFilter(filter))")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                let count = countForFilter(filter)
+                                if count > 0 {
+                                    Text("\(count)")
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 3)
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(
-                        selectedTag == nil && selectedFolder == nil && selectedFilter == filter
-                            ? Color.accentColor.opacity(0.15)
+                        isActive
+                            ? Color.accentColor.opacity(0.1)
                             : Color.clear
                     )
                 }
@@ -703,33 +708,28 @@ struct TodoMainView: View {
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 15))
-            
-            TextField("Search todos", text: $searchText)
+                .foregroundStyle(.tertiary)
+                .font(.system(size: 14))
+
+            TextField("Search", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
-            
+
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 15))
+                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 14))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        #if os(iOS)
-        .background(Color(.systemBackground))
-        #else
-        .background(Color(nsColor: .controlBackgroundColor))
-        #endif
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+        .padding(.vertical, 8)
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .clipShape(Capsule(style: .continuous))
     }
     
     // MARK: - Grouped Todos
@@ -823,45 +823,61 @@ struct TodoMainView: View {
     }
     
     private func todoSection(title: String, todos: [TodoItem]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Section header
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
-                .padding(.horizontal, 4)
-                .padding(.top, 16)
-                .padding(.bottom, 4)
-            
-            // Todo cards
-            VStack(spacing: 1) {
-                ForEach(todos) { todo in
-                    HStack(spacing: 0) {
-                        if isSelectMode {
-                            Button {
-                                toggleSelection(todo)
-                            } label: {
-                                Image(systemName: selectedTodoIDs.contains(todo.id) ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(selectedTodoIDs.contains(todo.id) ? Color.accentColor : .secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.leading, 12)
-                            .transition(.move(edge: .leading).combined(with: .opacity))
-                        }
-                        
-                        TodoRowCard(todo: todo, onSelect: {
+        VStack(alignment: .leading, spacing: 0) {
+            // Things-style section header
+            HStack(spacing: 10) {
+                sectionIcon(for: title)
+                    .frame(width: 26, height: 26)
+
+                Text(title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("\(todos.count)")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 4)
+            .padding(.top, 20)
+            .padding(.bottom, 10)
+
+            // Todo rows with thin dividers
+            VStack(spacing: 0) {
+                ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
+                    VStack(spacing: 0) {
+                        HStack(spacing: 0) {
                             if isSelectMode {
-                                toggleSelection(todo)
-                            } else {
-                                selectedTodo = todo
+                                Button {
+                                    toggleSelection(todo)
+                                } label: {
+                                    Image(systemName: selectedTodoIDs.contains(todo.id) ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(selectedTodoIDs.contains(todo.id) ? Color.accentColor : .secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.leading, 12)
+                                .transition(.move(edge: .leading).combined(with: .opacity))
                             }
-                        }, onEdit: {
-                            selectedTodo = todo
-                        }, onDelete: {
-                            deleteTodo(todo)
-                        })
+
+                            TodoRowCard(todo: todo, onSelect: {
+                                if isSelectMode {
+                                    toggleSelection(todo)
+                                } else {
+                                    selectedTodo = todo
+                                }
+                            }, onEdit: {
+                                selectedTodo = todo
+                            }, onDelete: {
+                                deleteTodo(todo)
+                            })
+                        }
+
+                        if index < todos.count - 1 {
+                            Divider()
+                                .padding(.leading, 54)
+                        }
                     }
                 }
             }
@@ -870,50 +886,72 @@ struct TodoMainView: View {
             #else
             .background(Color(nsColor: .controlBackgroundColor))
             #endif
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private func sectionIcon(for title: String) -> some View {
+        let config = sectionIconConfig(for: title)
+        Image(systemName: config.icon)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(config.color)
+            .frame(width: 26, height: 26)
+            .background(config.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private func sectionIconConfig(for title: String) -> (icon: String, color: Color) {
+        switch title {
+        case "Overdue": return ("exclamationmark.triangle.fill", .red)
+        case "Today": return ("star.fill", .orange)
+        case "Tomorrow": return ("sunrise.fill", .orange)
+        case "Upcoming": return ("calendar", .purple)
+        case "Anytime": return ("tray.fill", .blue)
+        case "Someday": return ("moon.zzz.fill", .mint)
+        case "Later": return ("calendar.badge.clock", .secondary)
+        case "Completed": return ("checkmark.circle.fill", .green)
+        default: return ("calendar", .secondary)
         }
     }
     
     // MARK: - Empty State
     
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             if selectedFolder != nil {
                 Image(systemName: "folder")
-                    .font(.system(size: 56, weight: .thin))
-                    .foregroundStyle(.secondary.opacity(0.3))
+                    .font(.system(size: 64, weight: .ultraLight))
+                    .foregroundStyle(.quaternary)
             } else if let tag = selectedTag {
                 Circle()
-                    .fill(TodoTagHelper.tagColor(tag).color.opacity(0.3))
-                    .frame(width: 56, height: 56)
+                    .fill(TodoTagHelper.tagColor(tag).color.opacity(0.12))
+                    .frame(width: 64, height: 64)
                     .overlay {
                         Image(systemName: "tag")
-                            .font(.system(size: 24, weight: .thin))
-                            .foregroundStyle(TodoTagHelper.tagColor(tag).color)
+                            .font(.system(size: 28, weight: .ultraLight))
+                            .foregroundStyle(TodoTagHelper.tagColor(tag).color.opacity(0.6))
                     }
             } else {
-                Image(systemName: (selectedFilter ?? .inbox).icon)
-                    .font(.system(size: 56, weight: .thin))
-                    .foregroundStyle((selectedFilter ?? .inbox).color.opacity(0.3))
+                let filter = selectedFilter ?? .inbox
+                Image(systemName: filter.icon)
+                    .font(.system(size: 64, weight: .ultraLight))
+                    .foregroundStyle(filter.color.opacity(0.25))
             }
-            
-            Text(emptyStateMessage)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(.secondary)
-            
-            if selectedTag == nil && selectedFolder == nil && (selectedFilter == .inbox || selectedFilter == .all) {
-                Button {
-                    isShowingNewTodo = true
-                } label: {
-                    Label("New Todo", systemImage: "plus.circle.fill")
-                        .font(.system(size: 15, weight: .medium))
+
+            VStack(spacing: 6) {
+                Text(emptyStateMessage)
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                if selectedTag == nil && selectedFolder == nil && (selectedFilter == .inbox || selectedFilter == .all) {
+                    Text("Press \(Image(systemName: "command")) N to add a new task")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.tertiary)
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(40)
+        .padding(60)
     }
     
     private var emptyStateMessage: String {
@@ -1114,79 +1152,121 @@ struct TodoRowCard: View {
     let onSelect: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
-    
+
+    @State private var checkboxScale: CGFloat = 1.0
+
     var body: some View {
         Button {
             onSelect()
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: 0) {
+                // Priority left-edge bar
+                if todo.priority != .none {
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(priorityColor(todo.priority))
+                        .frame(width: 3)
+                        .padding(.vertical, 6)
+                        .padding(.trailing, 11)
+                } else {
+                    Spacer()
+                        .frame(width: 14)
+                }
+
                 // Checkbox
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) {
-                        todo.isCompleted.toggle()
-                        if todo.isCompleted {
-                            todo.completedAt = Date()
-                        } else {
-                            todo.completedAt = nil
-                        }
-                        do {
-                            try modelContext.save()
-                        } catch {
-                            print("⚠️ [\(#function)] Failed to save todo completion state: \(error)")
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                        checkboxScale = 0.8
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                            todo.isCompleted.toggle()
+                            todo.completedAt = todo.isCompleted ? Date() : nil
+                            checkboxScale = 1.0
+                            do {
+                                try modelContext.save()
+                            } catch {
+                                print("⚠️ [\(#function)] Failed to save todo completion state: \(error)")
+                            }
                         }
                     }
                 } label: {
                     Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 22))
-                        .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                        .font(.system(size: 24, weight: .light))
+                        .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
                         .contentTransition(.symbolEffect(.replace))
+                        .scaleEffect(checkboxScale)
                 }
                 .buttonStyle(.plain)
-                
+                #if os(iOS)
+                .sensoryFeedback(.success, trigger: todo.isCompleted)
+                #endif
+
+                Spacer().frame(width: 14)
+
                 // Content
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(todo.title)
-                        .font(.system(size: 16))
+                        .font(.system(size: 17))
                         .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                        .strikethrough(todo.isCompleted)
-                    
-                    if !todo.notes.isEmpty || todo.effectiveDate != nil || todo.isSomeday || !todo.tags.isEmpty {
-                        HStack(spacing: 8) {
-                            TodoDateChip(todo: todo)
-                            
+                        .strikethrough(todo.isCompleted, color: .secondary.opacity(0.5))
+
+                    if !todo.notes.isEmpty {
+                        Text(todo.notes)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+
+                    if todo.effectiveDate != nil || todo.isSomeday || !todo.tags.isEmpty || todo.recurrence != .none {
+                        HStack(spacing: 6) {
+                            if todo.effectiveDate != nil || todo.isSomeday {
+                                TodoDateChip(todo: todo)
+                            }
+
+                            if todo.recurrence != .none {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "repeat")
+                                        .font(.system(size: 10))
+                                    Text(todo.recurrence.shortLabel)
+                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                }
+                                .foregroundStyle(.purple.opacity(0.7))
+                            }
+
                             if !todo.tags.isEmpty {
                                 fittingTagBadges(todo.tags)
                             }
                         }
+                        .padding(.top, 2)
                     }
                 }
-                
-                Spacer()
-                
-                // Priority indicator
-                if todo.priority != .none {
-                    Circle()
-                        .fill(priorityColor(todo.priority))
-                        .frame(width: 8, height: 8)
+
+                Spacer(minLength: 8)
+
+                // Subtask count
+                if let progressText = todo.subtasksProgressText {
+                    HStack(spacing: 3) {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 11))
+                        Text(progressText)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(0.7) : .secondary.opacity(0.5))
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.trailing, 16)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        #if os(iOS)
-        .background(Color(.systemBackground))
-        #else
-        .background(Color(nsColor: .controlBackgroundColor))
-        #endif
+        .opacity(todo.isCompleted ? 0.5 : 1.0)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 onDelete()
             } label: {
                 Label("Delete", systemImage: "trash")
             }
-            
+
             Button {
                 onEdit()
             } label: {
@@ -1202,8 +1282,8 @@ struct TodoRowCard: View {
             } label: {
                 Label("Today", systemImage: "star.fill")
             }
-            .tint(.blue)
-            
+            .tint(.orange)
+
             Button {
                 todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
                 todo.isSomeday = false
@@ -1211,8 +1291,8 @@ struct TodoRowCard: View {
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
-            .tint(.orange)
-            
+            .tint(.orange.opacity(0.8))
+
             Button {
                 todo.scheduledDate = nextMonday()
                 todo.isSomeday = false
@@ -1228,15 +1308,15 @@ struct TodoRowCard: View {
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
-            
+
             Button {
                 togglePriority()
             } label: {
                 Label("Change Priority", systemImage: "flag")
             }
-            
+
             Divider()
-            
+
             Menu("Move to...") {
                 Button {
                     todo.scheduledDate = AppCalendar.startOfDay(Date())
@@ -1276,9 +1356,9 @@ struct TodoRowCard: View {
                     Label("Remove Date", systemImage: "xmark.circle")
                 }
             }
-            
+
             Divider()
-            
+
             Button(role: .destructive) {
                 onDelete()
             } label: {
@@ -1286,7 +1366,7 @@ struct TodoRowCard: View {
             }
         }
     }
-    
+
     private func togglePriority() {
         switch todo.priority {
         case .none: todo.priority = .low
@@ -1300,7 +1380,7 @@ struct TodoRowCard: View {
             print("⚠️ [\(#function)] Failed to save priority change: \(error)")
         }
     }
-    
+
     private func priorityColor(_ priority: TodoPriority) -> Color {
         switch priority {
         case .none: return .gray
@@ -1309,7 +1389,7 @@ struct TodoRowCard: View {
         case .high: return .red
         }
     }
-    
+
     private func nextMonday() -> Date {
         let today = AppCalendar.startOfDay(Date())
         let cal = Calendar.current
@@ -1329,7 +1409,7 @@ struct TodoRowCard: View {
 
             Text("+\(tags.count)")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -1337,7 +1417,7 @@ struct TodoRowCard: View {
         let visibleTags = Array(tags.prefix(visibleCount))
         let hiddenCount = max(tags.count - visibleCount, 0)
 
-        return HStack(spacing: 8) {
+        return HStack(spacing: 6) {
             ForEach(Array(visibleTags.enumerated()), id: \.offset) { _, tag in
                 TagBadge(tag: tag, compact: true)
             }
@@ -1345,7 +1425,7 @@ struct TodoRowCard: View {
             if hiddenCount > 0 {
                 Text("+\(hiddenCount)")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
         }
     }

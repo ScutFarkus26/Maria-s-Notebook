@@ -114,49 +114,55 @@ struct TodoListPanel: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Header
-                HStack {
-                    Text("To-Do List")
-                        .font(AppTheme.ScaledFont.titleLarge)
-                    
+                HStack(spacing: 12) {
+                    Text("To-Do")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+
                     Spacer()
-                    
-                    Button {
-                        showTemplates = true
-                    } label: {
-                        Image(systemName: "doc.text.fill")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
+
+                    HStack(spacing: 4) {
+                        Button {
+                            showTemplates = true
+                        } label: {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 30, height: 30)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            showAnalytics = true
+                        } label: {
+                            Image(systemName: "chart.bar")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 30, height: 30)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            showExport = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 30, height: 30)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                    
-                    Button {
-                        showAnalytics = true
-                    } label: {
-                        Image(systemName: "chart.bar.fill")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button {
-                        showExport = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up.fill")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    
+
                     Button {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 20))
+                            .foregroundStyle(.quaternary)
                     }
                     .buttonStyle(.plain)
                 }
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
                 
                 Divider()
                 
@@ -203,77 +209,77 @@ struct TodoListPanel: View {
                 } else {
                     // Todo list
                     ScrollView {
-                        LazyVStack(spacing: 8) {
+                        LazyVStack(spacing: 0) {
                             if filteredTodos.isEmpty {
-                                VStack(spacing: 12) {
+                                VStack(spacing: 16) {
                                     Image(systemName: selectedFilter.icon)
-                                        .font(.system(size: 48))
-                                        .foregroundStyle(.secondary.opacity(0.5))
-                                    Text("No tasks")
-                                        .font(.headline)
-                                        .foregroundStyle(.secondary)
+                                        .font(.system(size: 56, weight: .ultraLight))
+                                        .foregroundStyle(.quaternary)
                                     Text(emptyStateMessage)
-                                        .font(.subheadline)
+                                        .font(.system(size: 16, weight: .medium, design: .rounded))
                                         .foregroundStyle(.secondary)
-                                        .multilineTextAlignment(.center)
                                 }
-                                .padding(40)
+                                .padding(48)
                             } else {
-                                ForEach(filteredTodos) { todo in
-                                    TodoRow(
-                                        todo: todo,
-                                        students: students,
-                                        onToggle: { toggleTodo(todo) },
-                                        onDelete: { deleteTodo(todo) },
-                                        onEdit: { editingTodo = todo }
-                                    )
+                                ForEach(Array(filteredTodos.enumerated()), id: \.element.id) { index, todo in
+                                    VStack(spacing: 0) {
+                                        TodoRow(
+                                            todo: todo,
+                                            students: students,
+                                            onToggle: { toggleTodo(todo) },
+                                            onDelete: { deleteTodo(todo) },
+                                            onEdit: { editingTodo = todo }
+                                        )
+
+                                        if index < filteredTodos.count - 1 {
+                                            Divider()
+                                                .padding(.leading, 48)
+                                        }
+                                    }
                                 }
                                 .onMove(perform: moveTodos)
                             }
                         }
-                        .padding()
+                        .padding(.horizontal, 4)
                     }
                 }
                 
                 Divider()
                 
-                // Add new todo
-                HStack(spacing: 12) {
-                    TextField("New task...", text: $newTodoTitle)
+                // Things-style quick-add bar
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.blue.opacity(0.7))
+
+                    TextField("New To-Do", text: $newTodoTitle)
                         .textFieldStyle(.plain)
-                        .font(AppTheme.ScaledFont.body)
+                        .font(.system(size: 16))
                         .focused($isAddingFocused)
                         .onSubmit {
                             addTodo()
                         }
-                    
-                    Button {
-                        Task { await addTodoWithAI() }
-                    } label: {
-                        if isParsingWithAI {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "sparkles")
-                                .font(.title2)
-                                .foregroundStyle(.purple)
+
+                    if !newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button {
+                            Task { await addTodoWithAI() }
+                        } label: {
+                            if isParsingWithAI {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.purple.opacity(0.7))
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .disabled(isParsingWithAI)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isParsingWithAI)
-                    
-                    Button {
-                        addTodo()
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .padding()
-                .background(Color.primary.opacity(0.02))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             }
             .frame(width: 360)
         }
@@ -596,184 +602,110 @@ struct TodoRow: View {
         return text
     }
     
+    @State private var checkboxScale: CGFloat = 1.0
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 0) {
+            // Priority left-edge bar
+            if todo.priority != .none {
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(priorityColor(todo.priority))
+                    .frame(width: 3)
+                    .padding(.vertical, 6)
+                    .padding(.trailing, 9)
+            } else {
+                Spacer().frame(width: 12)
+            }
+
+            // Checkbox
             Button {
-                onToggle()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                    checkboxScale = 0.8
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                        checkboxScale = 1.0
+                        onToggle()
+                    }
+                }
             } label: {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                    .font(.system(size: 24, weight: .light))
+                    .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
+                    .contentTransition(.symbolEffect(.replace))
+                    .scaleEffect(checkboxScale)
             }
             .buttonStyle(.plain)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(todo.title)
-                        .font(AppTheme.ScaledFont.body)
-                        .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                        .strikethrough(todo.isCompleted)
+            #if os(iOS)
+            .sensoryFeedback(.success, trigger: todo.isCompleted)
+            #endif
+
+            Spacer().frame(width: 12)
+
+            // Content
+            VStack(alignment: .leading, spacing: 3) {
+                Text(todo.title)
+                    .font(.system(size: 17))
+                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
+                    .strikethrough(todo.isCompleted, color: .secondary.opacity(0.5))
+
+                if !todo.notes.isEmpty {
+                    Text(todo.notes)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
-                
-                HStack(spacing: 12) {
+
+                HStack(spacing: 6) {
                     if !assignedStudents.isEmpty {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Image(systemName: "person.fill")
-                                .font(.caption2)
+                                .font(.system(size: 10))
                             Text(assignedStudents.map { $0.firstName }.joined(separator: ", "))
-                                .font(AppTheme.ScaledFont.caption)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
                         }
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.blue.opacity(0.7))
                     }
-                    
+
                     if todo.effectiveDate != nil || todo.isSomeday {
                         TodoDateChip(todo: todo)
                     }
-                    
+
                     if todo.recurrence != .none {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.caption2)
-                            Text(todo.recurrence.rawValue)
-                                .font(AppTheme.ScaledFont.caption)
+                        HStack(spacing: 3) {
+                            Image(systemName: "repeat")
+                                .font(.system(size: 10))
+                            Text(todo.recurrence.shortLabel)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
                         }
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(.purple.opacity(0.7))
                     }
-                    
+
                     if let progressText = todo.subtasksProgressText {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Image(systemName: "checklist")
-                                .font(.caption2)
+                                .font(.system(size: 10))
                             Text(progressText)
-                                .font(AppTheme.ScaledFont.caption)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
                         }
-                        .foregroundStyle(todo.allSubtasksCompleted ? .green : .secondary)
-                    }
-                    
-                    if todo.linkedWorkItemID != nil {
-                        HStack(spacing: 4) {
-                            Image(systemName: "link")
-                                .font(.caption2)
-                            Text("Work")
-                                .font(AppTheme.ScaledFont.caption)
-                        }
-                        .foregroundStyle(.indigo)
-                    }
-                    
-                    if todo.hasAttachments {
-                        HStack(spacing: 4) {
-                            Image(systemName: "paperclip")
-                                .font(.caption2)
-                            Text("\(todo.attachmentPaths.count)")
-                                .font(AppTheme.ScaledFont.caption)
-                        }
-                        .foregroundStyle(.brown)
-                    }
-                    
-                    if let estimated = todo.estimatedMinutes, estimated > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                                .font(.caption2)
-                            Text(formatTimeEstimate(estimated))
-                                .font(AppTheme.ScaledFont.caption)
-                            
-                            // Show actual vs estimated if actual time is logged
-                            if let actual = todo.actualMinutes, actual > 0 {
-                                let variance = actual - estimated
-                                Image(systemName: variance > 0 ? "arrow.up.circle.fill" : variance < 0 ? "arrow.down.circle.fill" : "checkmark.circle.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(variance > 0 ? .orange : variance < 0 ? .green : .blue)
-                            }
-                        }
-                        .foregroundStyle(.cyan)
-                    }
-                    
-                    if todo.hasReminder {
-                        HStack(spacing: 4) {
-                            Image(systemName: "bell.fill")
-                                .font(.caption2)
-                            if let reminderDate = todo.reminderDate {
-                                Text(formatReminderBadge(reminderDate))
-                                    .font(AppTheme.ScaledFont.caption)
-                            }
-                        }
-                        .foregroundStyle(.yellow)
-                    }
-                    
-                    if let mood = todo.mood {
-                        HStack(spacing: 4) {
-                            Text(mood.emoji)
-                                .font(.caption)
-                            Text(mood.rawValue)
-                                .font(AppTheme.ScaledFont.caption)
-                        }
-                        .foregroundStyle(mood.color)
-                    }
-                    
-                    if let locationName = todo.locationName, !locationName.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "location.fill")
-                                .font(.caption2)
-                            Text(locationName)
-                                .font(AppTheme.ScaledFont.caption)
-                        }
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(0.7) : .secondary.opacity(0.5))
                     }
                 }
-                
-                if !todo.notes.isEmpty {
-                    Text(todo.notes)
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
+                .padding(.top, 2)
             }
-            
-            Spacer()
-            
-            // Priority indicator
-            if todo.priority != .none {
-                Image(systemName: todo.priority.icon)
-                    .font(.system(size: 16))
-                    .foregroundStyle(priorityColor(todo.priority))
-            }
-            
-            Menu {
-                Button("Edit") {
-                    onEdit()
-                }
-                
-                ShareLink(item: formatTodoAsText(todo)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-                
-                Divider()
-                
-                Button("Delete", role: .destructive) {
-                    onDelete()
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+
+            Spacer(minLength: 8)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.02))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-        )
+        .padding(.trailing, 12)
+        .padding(.vertical, 10)
+        .opacity(todo.isCompleted ? 0.5 : 1.0)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 onDelete()
             } label: {
                 Label("Delete", systemImage: "trash")
             }
-            
+
             Button {
                 onEdit()
             } label: {
@@ -796,7 +728,7 @@ struct TodoRow: View {
             } label: {
                 Label("Today", systemImage: "star.fill")
             }
-            .tint(.blue)
+            .tint(.orange)
 
             Button {
                 todo.scheduledDate = AppCalendar.startOfDay(Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date())
@@ -804,7 +736,7 @@ struct TodoRow: View {
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
-            .tint(.orange)
+            .tint(.orange.opacity(0.8))
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -2666,31 +2598,28 @@ private struct TodoFilterChip: View {
     let isSelected: Bool
     let count: Int
     let onTap: () -> Void
-    
+
     var body: some View {
         Button {
             onTap()
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: filter.icon)
-                    .font(.system(size: 12))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(isSelected ? .white : filter.color)
                 Text(filter.rawValue)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular, design: .rounded))
-                if count > 0 {
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium, design: .rounded))
+                if count > 0 && !isSelected {
                     Text("\(count)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isSelected ? .white : .secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.3) : Color.secondary.opacity(0.2))
-                        .clipShape(Capsule())
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.tertiary)
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .padding(.vertical, 6)
             .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
+                Capsule(style: .continuous)
+                    .fill(isSelected ? filter.color : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             }
             .foregroundStyle(isSelected ? .white : .primary)
         }
