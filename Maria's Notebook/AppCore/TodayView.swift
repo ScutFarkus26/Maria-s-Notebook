@@ -53,6 +53,7 @@ struct TodayView: View {
 
     // MARK: - Todo State
     @State var selectedTodoItem: TodoItem? = nil
+    @State var isShowingNewTodo = false
     @Query(filter: #Predicate<TodoItem> { !$0.isCompleted }, sort: \TodoItem.createdAt, order: .reverse) var todayTodoItems: [TodoItem]
 
     // MARK: - Filtered Query State
@@ -131,21 +132,39 @@ struct TodayView: View {
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet()
         }
+#if os(iOS)
         .sheet(item: $selectedTodoItem) { todo in
             NavigationStack {
-                TodoDetailView(todo: todo, onClose: {
-                    selectedTodoItem = nil
-                }, onEdit: {
-                    selectedTodoItem = nil
-                })
+                EditTodoForm(todo: todo)
+                    .navigationTitle("Edit Todo")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") {
+                                selectedTodoItem = nil
+                            }
+                        }
+                    }
             }
-#if os(macOS)
-            .frame(minWidth: 520, minHeight: 420)
-            .presentationSizingFitted()
-#else
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
 #endif
+        .sheet(isPresented: $isShowingNewTodo) {
+            NavigationStack {
+                NewTodoForm()
+                    .navigationTitle("New Todo")
+                    #if !os(macOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                isShowingNewTodo = false
+                            }
+                        }
+                    }
+            }
         }
         .sheet(item: $noteBeingEdited) { note in
             NoteEditSheet(note: note) {
@@ -265,6 +284,31 @@ struct TodayView: View {
 
             Divider()
 
+            rightColumnContent
+        }
+    }
+
+    @ViewBuilder
+    private var rightColumnContent: some View {
+        if let selectedTodoItem {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Edit Todo")
+                        .font(AppTheme.ScaledFont.body.weight(.semibold))
+                    Spacer()
+                    Button("Done") {
+                        self.selectedTodoItem = nil
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                Divider()
+
+                EditTodoForm(todo: selectedTodoItem)
+            }
+        } else {
             // Right column: Agenda (lessons + work items)
             List {
                 agendaListSection

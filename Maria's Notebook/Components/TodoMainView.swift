@@ -15,7 +15,6 @@ struct TodoMainView: View {
     @State private var isShowingNewTodo = false
     @State private var isShowingTemplates = false
     @State private var isShowingExport = false
-    @State private var editingTodo: TodoItem?
     @State private var showingSortOptions = false
     @State private var sortBy: TodoSortOption = .dueDate
     @State private var isSelectMode = false
@@ -61,18 +60,31 @@ struct TodoMainView: View {
     }
     
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
             sidebar
                 .frame(width: 220)
             
             Divider()
             
             if let selectedTodo = selectedTodo {
-                TodoDetailView(todo: selectedTodo, onClose: {
-                    self.selectedTodo = nil
-                }, onEdit: {
-                    editingTodo = selectedTodo
-                })
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Edit Todo")
+                            .font(AppTheme.ScaledFont.body.weight(.semibold))
+                        Spacer()
+                        Button("Done") {
+                            self.selectedTodo = nil
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                    Divider()
+
+                    EditTodoForm(todo: selectedTodo)
+                }
+                .frame(maxHeight: .infinity, alignment: .topLeading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 todoListContent
@@ -144,9 +156,6 @@ struct TodoMainView: View {
         }
         .sheet(isPresented: $isShowingExport) {
             TodoExportView(todos: filteredTodos)
-        }
-        .sheet(item: $editingTodo) { todo in
-            editTodoSheet(todo: todo)
         }
     }
     
@@ -247,23 +256,6 @@ struct TodoMainView: View {
         }
     }
     
-    private func editTodoSheet(todo: TodoItem) -> some View {
-        NavigationStack {
-            EditTodoForm(todo: todo)
-                .navigationTitle("Edit Todo")
-                #if !os(macOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") {
-                            editingTodo = nil
-                        }
-                    }
-                }
-        }
-    }
-    
     // MARK: - Sidebar
     
     private var allUsedTags: [String] {
@@ -313,6 +305,8 @@ struct TodoMainView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                         .padding(.vertical, 4)
                     }
                     .buttonStyle(.plain)
@@ -345,6 +339,8 @@ struct TodoMainView: View {
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(.secondary)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                             .padding(.vertical, 4)
                         }
                         .buttonStyle(.plain)
@@ -387,6 +383,8 @@ struct TodoMainView: View {
                                             .font(.system(size: 13, weight: .medium))
                                             .foregroundStyle(.secondary)
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                                     .padding(.vertical, 4)
                                 }
                                 .buttonStyle(.plain)
@@ -647,7 +645,7 @@ struct TodoMainView: View {
                                 selectedTodo = todo
                             }
                         }, onEdit: {
-                            editingTodo = todo
+                            selectedTodo = todo
                         }, onDelete: {
                             deleteTodo(todo)
                         })
@@ -895,19 +893,11 @@ struct TodoRowCard: View {
                                 .foregroundStyle(isOverdue(dueDate) ? .red : .secondary)
                             }
                             
-                            if !todo.tags.isEmpty {
-                                ForEach(todo.tags.prefix(2), id: \.self) { tag in
-                                    TagBadge(tag: tag, compact: true)
-                                }
-                                
-                                if todo.tags.count > 2 {
-                                    Text("+\(todo.tags.count - 2)")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                    if !todo.tags.isEmpty {
+                        fittingTagBadges(todo.tags)
                     }
+                }
+            }
                 }
                 
                 Spacer()
@@ -1006,6 +996,36 @@ struct TodoRowCard: View {
     
     private func isOverdue(_ date: Date) -> Bool {
         return date < Date() && !Calendar.current.isDateInToday(date)
+    }
+
+    @ViewBuilder
+    private func fittingTagBadges(_ tags: [String]) -> some View {
+        ViewThatFits(in: .horizontal) {
+            ForEach(Array(stride(from: tags.count, through: 1, by: -1)), id: \.self) { visibleCount in
+                tagBadgeRow(tags: tags, visibleCount: visibleCount)
+            }
+
+            Text("+\(tags.count)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func tagBadgeRow(tags: [String], visibleCount: Int) -> some View {
+        let visibleTags = Array(tags.prefix(visibleCount))
+        let hiddenCount = max(tags.count - visibleCount, 0)
+
+        return HStack(spacing: 8) {
+            ForEach(Array(visibleTags.enumerated()), id: \.offset) { _, tag in
+                TagBadge(tag: tag, compact: true)
+            }
+
+            if hiddenCount > 0 {
+                Text("+\(hiddenCount)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
@@ -1584,7 +1604,6 @@ struct TodoDetailView: View {
 struct EditTodoForm: View {
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         Form {
@@ -1642,12 +1661,14 @@ struct EditTodoForm: View {
                 }
             }
         }
-        .onChange(of: todo) {
-            do {
-                try modelContext.save()
-            } catch {
-                print("⚠️ [\(#function)] Failed to save todo changes: \(error)")
-            }
+        .onChange(of: todo.title) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.notes) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.dueDate) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.priority) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.tags) { _, _ in saveTodoChanges() }
+        .onChange(of: todo.isCompleted) { _, _ in saveTodoChanges() }
+        .onDisappear {
+            saveTodoChanges()
         }
     }
     
@@ -1665,6 +1686,14 @@ struct EditTodoForm: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func saveTodoChanges() {
+        do {
+            try modelContext.save()
+        } catch {
+            print("⚠️ [\(#function)] Failed to save todo changes: \(error)")
+        }
     }
 }
 
@@ -1713,8 +1742,15 @@ struct TagBadge: View {
 
 struct TagPicker: View {
     @Binding var selectedTags: [String]
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
+    @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
     @State private var isShowingCustomTagSheet = false
     @State private var searchText = ""
+    @State private var pendingNewTagName = ""
+    @State private var pendingTagColor: TagColor = .blue
+    @State private var editingOriginalTag: String?
+    @FocusState private var isSearchFieldFocused: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1727,6 +1763,10 @@ struct TagPicker: View {
                 TextField("Search tags", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
+                    .focused($isSearchFieldFocused)
+                    .onSubmit {
+                        createTagFromSearchIfNeeded()
+                    }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -1737,35 +1777,30 @@ struct TagPicker: View {
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 8))
             
-            // Common tags
+            // Student tags
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(filteredCommonTags, id: \.0) { name, color in
-                        let tag = TodoTagHelper.createTag(name: name, color: color)
+                    ForEach(filteredStudentTags, id: \.self) { tag in
                         TagButton(
                             tag: tag,
                             isSelected: selectedTags.contains(tag),
                             onToggle: { toggleTag(tag) }
                         )
                     }
-                    
-                    Button {
-                        isShowingCustomTagSheet = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "plus.circle.fill")
-                            Text("New Tag")
-                        }
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        #if os(iOS)
-                        .background(Color(.systemGray5))
-                        #else
-                        .background(Color(nsColor: .controlBackgroundColor))
-                        #endif
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .padding(.horizontal, 2)
+            }
+
+            // Previously used non-student tags
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(filteredUsedTags, id: \.self) { tag in
+                        TagButton(
+                            tag: tag,
+                            isSelected: selectedTags.contains(tag),
+                            onToggle: { toggleTag(tag) },
+                            onEdit: { beginEditing(tag: tag) }
+                        )
                     }
                 }
                 .padding(.horizontal, 2)
@@ -1793,23 +1828,70 @@ struct TagPicker: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+                            .contextMenu {
+                                if !TodoTagHelper.isStudentTag(tag) {
+                                    Button("Edit Tag") {
+                                        beginEditing(tag: tag)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        .sheet(isPresented: $isShowingCustomTagSheet) {
-            CustomTagSheet(selectedTags: $selectedTags)
+        .sheet(isPresented: $isShowingCustomTagSheet, onDismiss: {
+            pendingNewTagName = ""
+            pendingTagColor = .blue
+            editingOriginalTag = nil
+        }) {
+            CustomTagSheet(
+                selectedTags: $selectedTags,
+                initialName: pendingNewTagName,
+                initialColor: pendingTagColor,
+                isEditing: editingOriginalTag != nil,
+                onSave: { savedTag in
+                    handleSavedTag(savedTag)
+                }
+            )
         }
+        #if os(macOS)
+        .onExitCommand {
+            searchText = ""
+            isSearchFieldFocused = true
+        }
+        #endif
     }
     
-    private var filteredCommonTags: [(String, TagColor)] {
-        if searchText.isEmpty {
-            return TodoTagHelper.commonTags
+    private var usedNonStudentTags: [String] {
+        let tags = Set(
+            allTodos
+                .flatMap(\.tags)
+                .filter { !TodoTagHelper.isStudentTag($0) }
+        )
+        return tags.sorted {
+            TodoTagHelper.tagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
         }
-        return TodoTagHelper.commonTags.filter {
-            $0.0.localizedCaseInsensitiveContains(searchText)
+    }
+
+    private var filteredUsedTags: [String] {
+        guard !searchText.isEmpty else { return usedNonStudentTags }
+        return usedNonStudentTags.filter {
+            TodoTagHelper.tagName($0).localizedCaseInsensitiveContains(searchText)
         }
+    }
+
+    private var filteredStudentTags: [String] {
+        let tags = students.map { TodoTagHelper.createStudentTag(name: $0.fullName) }
+        guard !searchText.isEmpty else { return tags }
+        return tags.filter {
+            TodoTagHelper.leafTagName($0).localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var hasSearchResults: Bool {
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+        return !filteredStudentTags.isEmpty || !filteredUsedTags.isEmpty
     }
     
     private func toggleTag(_ tag: String) {
@@ -1819,15 +1901,61 @@ struct TagPicker: View {
             selectedTags.append(tag)
         }
     }
+
+    private func createTagFromSearchIfNeeded() {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard hasSearchResults == false else { return }
+        editingOriginalTag = nil
+        pendingNewTagName = trimmed
+        pendingTagColor = .blue
+        isShowingCustomTagSheet = true
+    }
+
+    private func beginEditing(tag: String) {
+        guard !TodoTagHelper.isStudentTag(tag) else { return }
+        editingOriginalTag = tag
+        pendingNewTagName = TodoTagHelper.tagName(tag)
+        pendingTagColor = TodoTagHelper.tagColor(tag)
+        isShowingCustomTagSheet = true
+    }
+
+    private func handleSavedTag(_ savedTag: String) {
+        if let originalTag = editingOriginalTag {
+            selectedTags = uniqueTags(selectedTags.map { $0 == originalTag ? savedTag : $0 })
+
+            for todo in allTodos where todo.tags.contains(originalTag) {
+                let updated = todo.tags.map { $0 == originalTag ? savedTag : $0 }
+                todo.tags = uniqueTags(updated)
+            }
+
+            do {
+                try modelContext.save()
+            } catch {
+                print("⚠️ [\(#function)] Failed to save tag edit: \(error)")
+            }
+        } else if selectedTags.contains(savedTag) == false {
+            selectedTags.append(savedTag)
+        }
+    }
+
+    private func uniqueTags(_ tags: [String]) -> [String] {
+        var seen = Set<String>()
+        return tags.filter { seen.insert($0).inserted }
+    }
 }
 
 struct TagButton: View {
     let tag: String
     let isSelected: Bool
     let onToggle: () -> Void
+    var onEdit: (() -> Void)? = nil
     
     private var tagName: String {
-        TodoTagHelper.tagName(tag)
+        if TodoTagHelper.isStudentTag(tag) {
+            return TodoTagHelper.leafTagName(tag)
+        }
+        return TodoTagHelper.tagName(tag)
     }
     
     private var tagColor: TagColor {
@@ -1853,6 +1981,13 @@ struct TagButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if let onEdit {
+                Button("Edit Tag") {
+                    onEdit()
+                }
+            }
+        }
     }
 }
 
@@ -1860,8 +1995,24 @@ struct CustomTagSheet: View {
     @Binding var selectedTags: [String]
     @Environment(\.dismiss) private var dismiss
     
-    @State private var tagName = ""
-    @State private var selectedColor: TagColor = .blue
+    @State private var tagName: String
+    @State private var selectedColor: TagColor
+    let isEditing: Bool
+    let onSave: ((String) -> Void)?
+
+    init(
+        selectedTags: Binding<[String]>,
+        initialName: String = "",
+        initialColor: TagColor = .blue,
+        isEditing: Bool = false,
+        onSave: ((String) -> Void)? = nil
+    ) {
+        self._selectedTags = selectedTags
+        self._tagName = State(initialValue: initialName)
+        self._selectedColor = State(initialValue: initialColor)
+        self.isEditing = isEditing
+        self.onSave = onSave
+    }
     
     var body: some View {
         NavigationStack {
@@ -1894,7 +2045,7 @@ struct CustomTagSheet: View {
                     }
                 }
             }
-            .navigationTitle("New Tag")
+            .navigationTitle(isEditing ? "Edit Tag" : "New Tag")
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -1906,9 +2057,13 @@ struct CustomTagSheet: View {
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button(isEditing ? "Save" : "Add") {
                         let tag = TodoTagHelper.createTag(name: tagName, color: selectedColor)
-                        selectedTags.append(tag)
+                        if let onSave {
+                            onSave(tag)
+                        } else if selectedTags.contains(tag) == false {
+                            selectedTags.append(tag)
+                        }
                         dismiss()
                     }
                     .disabled(tagName.isEmpty)

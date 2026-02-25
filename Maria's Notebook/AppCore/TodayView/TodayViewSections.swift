@@ -41,7 +41,7 @@ extension TodayView {
                                 Button {
                                     selectedTodoItem = todo
                                 } label: {
-                                    Label("View", systemImage: "eye")
+                                    Label("Edit", systemImage: "pencil")
                                 }
                                 .tint(.blue)
                             }
@@ -124,6 +124,14 @@ extension TodayView {
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Color.accentColor))
             }
+            Button {
+                isShowingNewTodo = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
         .accessibilityElement(children: .combine)
     }

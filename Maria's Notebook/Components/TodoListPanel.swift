@@ -175,37 +175,58 @@ struct TodoListPanel: View {
                 
                 Divider()
                 
-                // Todo list
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        if filteredTodos.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: selectedFilter.icon)
-                                    .font(.system(size: 48))
-                                    .foregroundStyle(.secondary.opacity(0.5))
-                                Text("No tasks")
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                Text(emptyStateMessage)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
+                if let editingTodo {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text("Edit Todo")
+                                .font(AppTheme.ScaledFont.body.weight(.semibold))
+                            Spacer()
+                            Button("Done") {
+                                self.editingTodo = nil
                             }
-                            .padding(40)
-                        } else {
-                            ForEach(filteredTodos) { todo in
-                                TodoRow(
-                                    todo: todo,
-                                    students: students,
-                                    onToggle: { toggleTodo(todo) },
-                                    onDelete: { deleteTodo(todo) },
-                                    onEdit: { editingTodo = todo }
-                                )
-                            }
-                            .onMove(perform: moveTodos)
+                            .buttonStyle(.plain)
                         }
+                        .padding()
+
+                        Divider()
+
+                        TodoEditSheet(todo: editingTodo, onDone: {
+                            self.editingTodo = nil
+                        })
                     }
-                    .padding()
+                } else {
+                    // Todo list
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            if filteredTodos.isEmpty {
+                                VStack(spacing: 12) {
+                                    Image(systemName: selectedFilter.icon)
+                                        .font(.system(size: 48))
+                                        .foregroundStyle(.secondary.opacity(0.5))
+                                    Text("No tasks")
+                                        .font(.headline)
+                                        .foregroundStyle(.secondary)
+                                    Text(emptyStateMessage)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .padding(40)
+                            } else {
+                                ForEach(filteredTodos) { todo in
+                                    TodoRow(
+                                        todo: todo,
+                                        students: students,
+                                        onToggle: { toggleTodo(todo) },
+                                        onDelete: { deleteTodo(todo) },
+                                        onEdit: { editingTodo = todo }
+                                    )
+                                }
+                                .onMove(perform: moveTodos)
+                            }
+                        }
+                        .padding()
+                    }
                 }
                 
                 Divider()
@@ -250,9 +271,11 @@ struct TodoListPanel: View {
             }
             .frame(width: 360)
         }
+#if !os(macOS)
         .sheet(item: $editingTodo) { todo in
             TodoEditSheet(todo: todo)
         }
+#endif
         .sheet(isPresented: $showAnalytics) {
             TodoAnalyticsView(todos: todos)
         }
@@ -735,6 +758,10 @@ struct TodoRow: View {
             }
             .tint(todo.isCompleted ? .orange : .green)
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit()
+        }
     }
 }
 
@@ -742,6 +769,7 @@ struct TodoEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Student.firstName) private var students: [Student]
     let todo: TodoItem
+    let onDone: (() -> Void)?
     
     @State private var title: String
     @State private var notes: String
@@ -773,8 +801,9 @@ struct TodoEditSheet: View {
     @State private var isShowingMapPicker = false
     @FocusState private var isTitleFocused: Bool
     
-    init(todo: TodoItem) {
+    init(todo: TodoItem, onDone: (() -> Void)? = nil) {
         self.todo = todo
+        self.onDone = onDone
         _title = State(initialValue: todo.title)
         _notes = State(initialValue: todo.notes)
         _selectedStudentIDs = State(initialValue: Set(todo.studentIDs))
@@ -860,7 +889,7 @@ struct TodoEditSheet: View {
                     }
                     .buttonStyle(.plain)
                     
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { closeEditor() }
                         .keyboardShortcut(.cancelAction)
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
@@ -1094,7 +1123,7 @@ struct TodoEditSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { closeEditor() }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
@@ -2416,6 +2445,14 @@ struct TodoEditSheet: View {
                 }
             }
 
+            closeEditor()
+        }
+    }
+
+    private func closeEditor() {
+        if let onDone {
+            onDone()
+        } else {
             dismiss()
         }
     }
