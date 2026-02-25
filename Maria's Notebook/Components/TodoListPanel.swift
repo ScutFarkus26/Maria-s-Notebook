@@ -2327,6 +2327,13 @@ struct TodoEditSheet: View {
         
         let trimmedName = templateName.trimmingCharacters(in: .whitespacesAndNewlines)
         let totalEstimated = estimatedHours * 60 + estimatedMinutes
+        let selectedNames = students
+            .filter { selectedStudentIDs.contains($0.id.uuidString) }
+            .map(\.fullName)
+        let syncedTemplateTags = TodoTagHelper.syncStudentTags(
+            existingTags: todo.tags,
+            studentNames: selectedNames
+        )
         
         let template = TodoTemplate(
             name: trimmedName,
@@ -2335,7 +2342,7 @@ struct TodoEditSheet: View {
             priority: priority,
             defaultEstimatedMinutes: totalEstimated > 0 ? totalEstimated : nil,
             defaultStudentIDs: Array(selectedStudentIDs),
-            tags: todo.tags
+            tags: syncedTemplateTags
         )
 
         context.insert(template)
@@ -2352,6 +2359,13 @@ struct TodoEditSheet: View {
         todo.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         todo.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         todo.studentIDs = Array(selectedStudentIDs)
+        let selectedNames = students
+            .filter { selectedStudentIDs.contains($0.id.uuidString) }
+            .map(\.fullName)
+        todo.tags = TodoTagHelper.syncStudentTags(
+            existingTags: todo.tags,
+            studentNames: selectedNames
+        )
         todo.dueDate = hasDueDate ? dueDate : nil
         todo.priority = priority
         todo.recurrence = hasDueDate ? recurrence : .none
@@ -2615,4 +2629,3 @@ private struct QuickLookPreview: NSViewRepresentable {
     }
 }
 #endif
-

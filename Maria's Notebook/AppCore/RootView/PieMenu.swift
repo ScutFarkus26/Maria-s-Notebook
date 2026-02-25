@@ -5,14 +5,16 @@ import SwiftUI
 
 // MARK: - Pie Menu Action
 
-enum PieMenuAction: CaseIterable {
+enum PieMenuAction: String, CaseIterable, Hashable {
     case newPresentation
     case newWorkItem
+    case newTodo
 
     var icon: String {
         switch self {
         case .newPresentation: return "person.crop.rectangle.stack"
         case .newWorkItem: return "tray.and.arrow.down"
+        case .newTodo: return "checklist.checked"
         }
     }
 
@@ -20,6 +22,7 @@ enum PieMenuAction: CaseIterable {
         switch self {
         case .newPresentation: return "Present"
         case .newWorkItem: return "Work"
+        case .newTodo: return "Todo"
         }
     }
 
@@ -27,6 +30,42 @@ enum PieMenuAction: CaseIterable {
         switch self {
         case .newPresentation: return .blue
         case .newWorkItem: return .orange
+        case .newTodo: return .green
+        }
+    }
+
+    var gradientColors: [Color] {
+        switch self {
+        case .newPresentation:
+            return [Color.cyan, Color.blue]
+        case .newWorkItem:
+            return [Color.orange, Color.pink]
+        case .newTodo:
+            return [Color.mint, Color.green]
+        }
+    }
+
+    var startAngle: Double {
+        switch self {
+        case .newPresentation: return -160
+        case .newWorkItem: return -40
+        case .newTodo: return 80
+        }
+    }
+
+    var endAngle: Double {
+        startAngle + 120
+    }
+
+    var centerAngle: Double {
+        (startAngle + endAngle) / 2
+    }
+
+    var animationDelay: Double {
+        switch self {
+        case .newPresentation: return 0.00
+        case .newWorkItem: return 0.04
+        case .newTodo: return 0.08
         }
     }
 }
@@ -35,49 +74,63 @@ enum PieMenuAction: CaseIterable {
 
 struct PieMenuSegment: View {
     let action: PieMenuAction
-    let isTop: Bool
     let isExpanded: Bool
     let isHighlighted: Bool
     let radius: CGFloat
 
-    private let segmentAngle: Double = 180 // Each segment covers 180 degrees (half circle)
     private let innerRadius: CGFloat = 35
 
     var body: some View {
-        ZStack {
-            // Segment background
-            PieSlice(
-                startAngle: .degrees(isTop ? -180 : 0),
-                endAngle: .degrees(isTop ? 0 : 180),
-                innerRadius: innerRadius,
-                outerRadius: radius
-            )
-            .fill(
-                isHighlighted
-                    ? action.color.opacity(0.9)
-                    : Color.white.opacity(0.15)
-            )
-            .overlay(
-                PieSlice(
-                    startAngle: .degrees(isTop ? -180 : 0),
-                    endAngle: .degrees(isTop ? 0 : 180),
-                    innerRadius: innerRadius,
-                    outerRadius: radius
-                )
-                .strokeBorder(
-                    isHighlighted ? action.color : Color.white.opacity(0.3),
-                    lineWidth: 1.5
-                )
-            )
+        let slice = PieSlice(
+            startAngle: .degrees(action.startAngle),
+            endAngle: .degrees(action.endAngle),
+            innerRadius: innerRadius,
+            outerRadius: radius
+        )
 
-            // Icon only, centered in segment
-            Image(systemName: action.icon)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(isHighlighted ? .white : .white.opacity(0.9))
-                .offset(y: isTop ? -(innerRadius + radius) / 2 : (innerRadius + radius) / 2)
+        ZStack {
+            slice
+                .fill(
+                    LinearGradient(
+                        colors: isHighlighted
+                            ? [action.gradientColors[0].opacity(0.95), action.gradientColors[1].opacity(0.95)]
+                            : [action.gradientColors[0].opacity(0.55), action.gradientColors[1].opacity(0.55)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            slice
+                .strokeBorder(
+                    isHighlighted ? Color.white.opacity(0.95) : Color.white.opacity(0.35),
+                    lineWidth: isHighlighted ? 2.4 : 1.2
+                )
+
+            VStack(spacing: 4) {
+                Image(systemName: action.icon)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                Text(action.label)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(.white)
+            .offset(iconOffset)
+            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
         }
-        .scaleEffect(isExpanded ? 1.0 : 0.01)
+        .scaleEffect(isExpanded ? (isHighlighted ? 1.08 : 1.0) : 0.2)
+        .rotationEffect(.degrees(isExpanded ? 0 : 14))
         .opacity(isExpanded ? 1.0 : 0.0)
+        .animation(
+            .spring(response: 0.42, dampingFraction: 0.68)
+                .delay(action.animationDelay),
+            value: isExpanded
+        )
+        .animation(.easeInOut(duration: 0.15), value: isHighlighted)
+    }
+
+    private var iconOffset: CGSize {
+        let iconRadius = (innerRadius + radius) / 2
+        let radians = action.centerAngle * .pi / 180
+        return CGSize(width: cos(radians) * iconRadius, height: sin(radians) * iconRadius)
     }
 }
 
@@ -97,14 +150,12 @@ struct PieSlice: InsettableShape {
 
         var path = Path()
 
-        // Start at inner arc
         let innerStart = CGPoint(
             x: center.x + adjustedInnerRadius * cos(CGFloat(startAngle.radians)),
             y: center.y + adjustedInnerRadius * sin(CGFloat(startAngle.radians))
         )
         path.move(to: innerStart)
 
-        // Draw outer arc
         let outerStart = CGPoint(
             x: center.x + adjustedOuterRadius * cos(CGFloat(startAngle.radians)),
             y: center.y + adjustedOuterRadius * sin(CGFloat(startAngle.radians))
@@ -118,14 +169,12 @@ struct PieSlice: InsettableShape {
             clockwise: false
         )
 
-        // Draw line to inner arc end
         let innerEnd = CGPoint(
             x: center.x + adjustedInnerRadius * cos(CGFloat(endAngle.radians)),
             y: center.y + adjustedInnerRadius * sin(CGFloat(endAngle.radians))
         )
         path.addLine(to: innerEnd)
 
-        // Draw inner arc back
         path.addArc(
             center: center,
             radius: adjustedInnerRadius,

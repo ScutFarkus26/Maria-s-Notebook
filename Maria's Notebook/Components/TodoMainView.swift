@@ -21,6 +21,7 @@ struct TodoMainView: View {
     @State private var isSelectMode = false
     @State private var selectedTodoIDs: Set<UUID> = []
     @State private var selectedTag: String?
+    @State private var expandedTagGroups: Set<String> = [TodoTagHelper.studentTagParent]
     
     private var filteredTodos: [TodoItem] {
         let todos: [TodoItem]
@@ -274,6 +275,18 @@ struct TodoMainView: View {
         }
         return tagSet.sorted { TodoTagHelper.tagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending }
     }
+
+    private var topLevelTags: [String] {
+        allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count <= 1 }
+    }
+
+    private var groupedNestedTags: [(group: String, tags: [String])] {
+        let nested = allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count > 1 }
+        let grouped = Dictionary(grouping: nested, by: { TodoTagHelper.rootTagName($0) })
+        return grouped
+            .map { (group: $0.key, tags: $0.value.sorted { TodoTagHelper.leafTagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName($1)) == .orderedAscending }) }
+            .sorted { $0.group.localizedCaseInsensitiveCompare($1.group) == .orderedAscending }
+    }
     
     private var sidebar: some View {
         List {
@@ -313,7 +326,7 @@ struct TodoMainView: View {
             
             if !allUsedTags.isEmpty {
                 Section {
-                    ForEach(allUsedTags, id: \.self) { tag in
+                    ForEach(topLevelTags, id: \.self) { tag in
                         Button {
                             selectedFilter = nil
                             selectedTag = tag
@@ -340,6 +353,61 @@ struct TodoMainView: View {
                                 ? Color.accentColor.opacity(0.15)
                                 : Color.clear
                         )
+                    }
+
+                    ForEach(groupedNestedTags, id: \.group) { group in
+                        DisclosureGroup(
+                            isExpanded: Binding(
+                                get: { expandedTagGroups.contains(group.group) },
+                                set: { isExpanded in
+                                    if isExpanded {
+                                        expandedTagGroups.insert(group.group)
+                                    } else {
+                                        expandedTagGroups.remove(group.group)
+                                    }
+                                }
+                            )
+                        ) {
+                            ForEach(group.tags, id: \.self) { childTag in
+                                Button {
+                                    selectedFilter = nil
+                                    selectedTag = childTag
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Circle()
+                                            .fill(TodoTagHelper.tagColor(childTag).color)
+                                            .frame(width: 8, height: 8)
+
+                                        Text(TodoTagHelper.leafTagName(childTag))
+                                            .font(.system(size: 14))
+
+                                        Spacer()
+
+                                        Text("\(countForTag(childTag))")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                                .buttonStyle(.plain)
+                                .listRowBackground(
+                                    selectedTag == childTag
+                                        ? Color.accentColor.opacity(0.15)
+                                        : Color.clear
+                                )
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "folder")
+                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .frame(width: 10)
+
+                                Text(group.group)
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                            .padding(.vertical, 4)
+                        }
                     }
                 } header: {
                     HStack {
@@ -960,6 +1028,7 @@ struct NewTodoForm: View {
     @State private var newSubtaskTitle = ""
     @State private var estimatedHours = 0
     @State private var estimatedMinutes = 0
+    @State private var isCreatingTodo = false
 
     var body: some View {
         Form {
@@ -1085,16 +1154,20 @@ struct NewTodoForm: View {
             // Create
             Section {
                 Button {
-                    createTodo()
+                    Task { await createTodo() }
                 } label: {
                     HStack {
                         Spacer()
+                        if isCreatingTodo {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
                         Label("Create Todo", systemImage: "plus.circle.fill")
                             .font(.system(size: 16, weight: .semibold))
                         Spacer()
                     }
                 }
-                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreatingTodo)
             }
         }
     }
@@ -1106,11 +1179,23 @@ struct NewTodoForm: View {
         newSubtaskTitle = ""
     }
 
-    private func createTodo() {
+    private func createTodo() async {
+        isCreatingTodo = true
+        defer { isCreatingTodo = false }
+
+        let resolvedStudentIDs = await resolveStudentIDs()
+        let resolvedStudentNames = allStudents
+            .filter { resolvedStudentIDs.contains($0.id) }
+            .map(\.fullName)
+        let resolvedTags = TodoTagHelper.syncStudentTags(
+            existingTags: selectedTags,
+            studentNames: resolvedStudentNames
+        )
+
         let todo = TodoItem(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-            studentIDs: selectedStudentIDs.map(\.uuidString),
+            studentIDs: resolvedStudentIDs.map(\.uuidString),
             priority: priority
         )
 
@@ -1119,7 +1204,7 @@ struct NewTodoForm: View {
             todo.recurrence = recurrence
         }
 
-        todo.tags = selectedTags
+        todo.tags = resolvedTags
 
         let totalEstimated = estimatedHours * 60 + estimatedMinutes
         if totalEstimated > 0 {
@@ -1141,6 +1226,31 @@ struct NewTodoForm: View {
             print("⚠️ [\(#function)] Failed to create todo: \(error)")
         }
         dismiss()
+    }
+
+    private func resolveStudentIDs() async -> Set<UUID> {
+        var resolved = selectedStudentIDs
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        if #available(macOS 26.0, iOS 26.0, *) {
+            let combinedText = "\(title) \(notes)".trimmingCharacters(in: .whitespacesAndNewlines)
+            guard combinedText.isEmpty == false else { return resolved }
+
+            do {
+                let extractedNames = try await TodoStudentSuggestionService.extractStudentNames(
+                    from: combinedText,
+                    availableStudents: allStudents
+                )
+                let matchedStudents = TodoStudentSuggestionService.matchStudents(
+                    extractedNames: extractedNames,
+                    from: allStudents
+                )
+                resolved.formUnion(matchedStudents.map(\.id))
+            } catch {
+                // Fall back to manual student selection if extraction fails.
+            }
+        }
+        #endif
+        return resolved
     }
 }
 
@@ -1578,7 +1688,10 @@ struct TagBadge: View {
     var compact: Bool = false
     
     private var tagName: String {
-        TodoTagHelper.tagName(tag)
+        if TodoTagHelper.isStudentTag(tag) {
+            return TodoTagHelper.leafTagName(tag)
+        }
+        return TodoTagHelper.tagName(tag)
     }
     
     private var tagColor: TagColor {

@@ -8,6 +8,7 @@ struct QuickNoteGlassButton: View {
     @Binding var isShowingSheet: Bool
     var onNewPresentation: () -> Void
     @Binding var isShowingWorkItemSheet: Bool
+    var onNewTodo: () -> Void
 
     @State private var offset: CGSize = .zero
     @State private var isPressed: Bool = false
@@ -15,6 +16,7 @@ struct QuickNoteGlassButton: View {
     @State private var highlightedAction: PieMenuAction? = nil
     @State private var dragTranslation: CGSize = .zero
     @State private var longPressTask: Task<Void, Never>? = nil
+    @State private var sparklePhase: Bool = false
 
     @AppStorage("QuickNoteButton.offsetX") private var savedOffsetX: Double = 0
     @AppStorage("QuickNoteButton.offsetY") private var savedOffsetY: Double = 0
@@ -44,33 +46,54 @@ struct QuickNoteGlassButton: View {
         .onAppear {
             self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
         }
+        .onChange(of: isPieMenuExpanded) { _, expanded in
+            sparklePhase = expanded
+        }
         .onDisappear {
             longPressTask?.cancel()
         }
         .accessibilityLabel("Add quick note")
-        .accessibilityHint("Double tap to open note editor, hold to see more options, or drag to reposition")
+        .accessibilityHint("Double tap to open note editor, hold for presentation, work, and todo actions, or drag to reposition")
         .accessibilityAddTraits(.isButton)
     }
 
     private var pieMenuOverlay: some View {
         ZStack {
-            // Top segment - New Presentation
-            PieMenuSegment(
-                action: .newPresentation,
-                isTop: true,
-                isExpanded: isPieMenuExpanded,
-                isHighlighted: highlightedAction == .newPresentation,
-                radius: pieMenuRadius
-            )
+            Circle()
+                .fill(
+                    AngularGradient(
+                        colors: [.cyan.opacity(0.4), .pink.opacity(0.4), .mint.opacity(0.4), .cyan.opacity(0.4)],
+                        center: .center
+                    )
+                )
+                .blur(radius: 12)
+                .frame(width: pieMenuRadius * 2 + 26, height: pieMenuRadius * 2 + 26)
+                .scaleEffect(sparklePhase ? 1.04 : 0.96)
+                .opacity(0.95)
+                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: sparklePhase)
 
-            // Bottom segment - New Work Item
-            PieMenuSegment(
-                action: .newWorkItem,
-                isTop: false,
-                isExpanded: isPieMenuExpanded,
-                isHighlighted: highlightedAction == .newWorkItem,
-                radius: pieMenuRadius
-            )
+            ForEach(0..<6, id: \.self) { index in
+                Image(systemName: "sparkle")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .offset(orbitOffset(for: index, radius: pieMenuRadius + 20))
+                    .rotationEffect(.degrees(sparklePhase ? 360 : 0))
+                    .opacity(0.8)
+                    .animation(
+                        .linear(duration: 2.6 + Double(index) * 0.2)
+                            .repeatForever(autoreverses: false),
+                        value: sparklePhase
+                    )
+            }
+
+            ForEach(PieMenuAction.allCases, id: \.self) { action in
+                PieMenuSegment(
+                    action: action,
+                    isExpanded: isPieMenuExpanded,
+                    isHighlighted: highlightedAction == action,
+                    radius: pieMenuRadius
+                )
+            }
         }
         .background(
             Circle()
@@ -84,10 +107,21 @@ struct QuickNoteGlassButton: View {
         Group {
             #if os(iOS)
             Image(systemName: isPieMenuExpanded ? "xmark" : "plus")
-                .font(.system(size: 24, weight: .semibold))
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background(.ultraThinMaterial)
+                .background(
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: isPieMenuExpanded
+                                    ? [.pink.opacity(0.9), .orange.opacity(0.9)]
+                                    : [.blue.opacity(0.9), .teal.opacity(0.85)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
                 .overlay(
                     Circle()
                         .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
@@ -97,10 +131,21 @@ struct QuickNoteGlassButton: View {
                 .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
             #else
             Image(systemName: isPieMenuExpanded ? "xmark" : "plus")
-                .font(.system(size: 24, weight: .semibold))
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background(Color.accentColor)
+                .background(
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: isPieMenuExpanded
+                                    ? [.pink.opacity(0.9), .orange.opacity(0.9)]
+                                    : [.blue.opacity(0.9), .teal.opacity(0.85)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(UIConstants.OpacityConstants.statusBg), radius: AppTheme.Spacing.xsmall, x: 0, y: AppTheme.Spacing.xxsmall)
                 .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
@@ -210,12 +255,14 @@ struct QuickNoteGlassButton: View {
             return
         }
 
-        // Determine which segment based on vertical position
-        // Top half = presentation, Bottom half = work item
-        if translation.height < 0 {
+        let angle = normalizedDegrees(atan2(translation.height, translation.width) * 180 / .pi)
+
+        if angleInRange(angle, from: 200, to: 320) {
             highlightedAction = .newPresentation
-        } else {
+        } else if angleInRange(angle, from: 320, to: 80) {
             highlightedAction = .newWorkItem
+        } else {
+            highlightedAction = .newTodo
         }
     }
 
@@ -230,6 +277,25 @@ struct QuickNoteGlassButton: View {
             onNewPresentation()
         case .newWorkItem:
             isShowingWorkItemSheet = true
+        case .newTodo:
+            onNewTodo()
         }
+    }
+
+    private func normalizedDegrees(_ angle: Double) -> Double {
+        angle < 0 ? angle + 360 : angle
+    }
+
+    private func angleInRange(_ angle: Double, from start: Double, to end: Double) -> Bool {
+        if start <= end {
+            return angle >= start && angle < end
+        }
+        return angle >= start || angle < end
+    }
+
+    private func orbitOffset(for index: Int, radius: CGFloat) -> CGSize {
+        let angle = Double(index) * (360.0 / 6.0)
+        let radians = angle * .pi / 180
+        return CGSize(width: cos(radians) * radius, height: sin(radians) * radius)
     }
 }

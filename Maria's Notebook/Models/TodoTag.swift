@@ -32,6 +32,8 @@ enum TagColor: String, Codable, CaseIterable {
 
 /// Helper for managing tags
 struct TodoTagHelper {
+    static let studentTagParent = "Students"
+
     /// Common predefined tags
     static let commonTags = [
         ("Work", TagColor.blue),
@@ -74,5 +76,50 @@ struct TodoTagHelper {
     /// Get color for a tag
     static func tagColor(_ tag: String) -> TagColor {
         return parseTag(tag).color
+    }
+
+    static func tagPathComponents(_ tag: String) -> [String] {
+        tagName(tag)
+            .split(separator: "/")
+            .map(String.init)
+    }
+
+    static func rootTagName(_ tag: String) -> String {
+        tagPathComponents(tag).first ?? tagName(tag)
+    }
+
+    static func leafTagName(_ tag: String) -> String {
+        tagPathComponents(tag).last ?? tagName(tag)
+    }
+
+    static func isStudentTag(_ tag: String) -> Bool {
+        rootTagName(tag).localizedCaseInsensitiveCompare(studentTagParent) == .orderedSame
+    }
+
+    static func createStudentTag(name: String, color: TagColor = .green) -> String {
+        createTag(name: "\(studentTagParent)/\(name)", color: color)
+    }
+
+    static func syncStudentTags(
+        existingTags: [String],
+        studentNames: [String],
+        color: TagColor = .green
+    ) -> [String] {
+        var synced = existingTags.filter { !isStudentTag($0) }
+        let existingNames = Set(synced.map { tagName($0).lowercased() })
+        var mutableExistingNames = existingNames
+
+        for studentName in studentNames {
+            let trimmed = studentName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+
+            let studentTag = createStudentTag(name: trimmed, color: color)
+            let normalized = tagName(studentTag).lowercased()
+            guard mutableExistingNames.contains(normalized) == false else { continue }
+            synced.append(studentTag)
+            mutableExistingNames.insert(normalized)
+        }
+
+        return synced
     }
 }
