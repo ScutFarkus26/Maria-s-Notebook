@@ -856,6 +856,11 @@ public struct TodoItemDTO: Codable, Sendable {
     public var reminderDate: Date?
     public var reflectionNotes: String
     public var tags: [String]
+    // Schedule fields
+    public var scheduledDate: Date?
+    public var isSomeday: Bool?
+    public var repeatAfterCompletion: Bool?
+    public var customIntervalDays: Int?
     // Location fields
     public var locationName: String?
     public var locationLatitude: Double?

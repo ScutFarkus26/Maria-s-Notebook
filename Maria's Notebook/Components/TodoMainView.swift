@@ -21,10 +21,23 @@ struct TodoMainView: View {
     @State private var selectedTodoIDs: Set<UUID> = []
     @State private var selectedTag: String?
     @State private var expandedTagGroups: Set<String> = [TodoTagHelper.studentTagParent]
+    @State private var tagOrder: [String] = UserDefaults.standard.stringArray(forKey: UserDefaultsKeys.todoTagOrder) ?? []
+    @State private var selectedFolder: String?
+    @State private var isShowingNewFolder = false
+    @State private var newFolderName = ""
+    @State private var draggingTag: String?
     
     private var filteredTodos: [TodoItem] {
         let todos: [TodoItem]
-        if let tag = selectedTag {
+        if let folder = selectedFolder {
+            // Show all todos that have any tag belonging to this folder
+            let folderTags = Set(allUsedTags.filter {
+                TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == folder
+            })
+            todos = allTodos.filter { todo in
+                todo.tags.contains(where: { folderTags.contains($0) })
+            }
+        } else if let tag = selectedTag {
             todos = allTodos.filter { $0.tags.contains(tag) }
         } else {
             let filter = selectedFilter ?? .inbox
@@ -45,10 +58,10 @@ struct TodoMainView: View {
             // Then sort by selected option
             switch sortBy {
             case .dueDate:
-                if let lhsDate = lhs.dueDate, let rhsDate = rhs.dueDate {
+                if let lhsDate = lhs.effectiveDate, let rhsDate = rhs.effectiveDate {
                     return lhsDate < rhsDate
                 }
-                return lhs.dueDate != nil && rhs.dueDate == nil
+                return lhs.effectiveDate != nil && rhs.effectiveDate == nil
             case .priority:
                 return lhs.priority.sortOrder < rhs.priority.sortOrder
             case .title:
@@ -156,6 +169,9 @@ struct TodoMainView: View {
         }
         .sheet(isPresented: $isShowingExport) {
             TodoExportView(todos: filteredTodos)
+        }
+        .sheet(isPresented: $isShowingNewFolder) {
+            newFolderSheet
         }
     }
     
@@ -268,8 +284,65 @@ struct TodoMainView: View {
         return tagSet.sorted { TodoTagHelper.tagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending }
     }
 
+    /// All sidebar items (top-level tags + group names) in user-defined order.
+    /// Items not yet in tagOrder are appended alphabetically.
+    private var orderedSidebarItems: [String] {
+        // Collect unique sidebar entries: top-level tag strings and group folder names (prefixed with "folder:")
+        var items: [String] = []
+        var seen = Set<String>()
+
+        for tag in allUsedTags {
+            let components = TodoTagHelper.tagPathComponents(tag)
+            if components.count <= 1 {
+                // top-level tag
+                if seen.insert(tag).inserted { items.append(tag) }
+            } else {
+                // nested – represent folder by its root name
+                let folderKey = "folder:" + TodoTagHelper.rootTagName(tag)
+                if seen.insert(folderKey).inserted { items.append(folderKey) }
+            }
+        }
+
+        // Also include empty folders from tagOrder that don't match any current tags
+        for key in tagOrder where key.hasPrefix("folder:") && !seen.contains(key) {
+            seen.insert(key)
+            items.append(key)
+        }
+
+        // Sort by position in tagOrder; unknowns go to the end in their natural order
+        let orderMap: [String: Int] = Dictionary(uniqueKeysWithValues: tagOrder.enumerated().map { ($1, $0) })
+        return items.sorted { lhs, rhs in
+            let lhsIdx = orderMap[lhs] ?? Int.max
+            let rhsIdx = orderMap[rhs] ?? Int.max
+            if lhsIdx != rhsIdx { return lhsIdx < rhsIdx }
+            // Both unknown – fall back to alphabetical
+            return displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
+        }
+    }
+
+    private func displayName(for sidebarItem: String) -> String {
+        if sidebarItem.hasPrefix("folder:") {
+            return String(sidebarItem.dropFirst("folder:".count))
+        }
+        return TodoTagHelper.tagName(sidebarItem)
+    }
+
     private var topLevelTags: [String] {
         allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count <= 1 }
+    }
+
+    private func nestedTags(forGroup group: String) -> [String] {
+        let nested = allUsedTags.filter {
+            TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == group
+        }
+        // Sort children by position in tagOrder, then alphabetically
+        let orderMap: [String: Int] = Dictionary(uniqueKeysWithValues: tagOrder.enumerated().map { ($1, $0) })
+        return nested.sorted { lhs, rhs in
+            let lhsIdx = orderMap[lhs] ?? Int.max
+            let rhsIdx = orderMap[rhs] ?? Int.max
+            if lhsIdx != rhsIdx { return lhsIdx < rhsIdx }
+            return TodoTagHelper.leafTagName(lhs).localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName(rhs)) == .orderedAscending
+        }
     }
 
     private var groupedNestedTags: [(group: String, tags: [String])] {
@@ -279,6 +352,29 @@ struct TodoMainView: View {
             .map { (group: $0.key, tags: $0.value.sorted { TodoTagHelper.leafTagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName($1)) == .orderedAscending }) }
             .sorted { $0.group.localizedCaseInsensitiveCompare($1.group) == .orderedAscending }
     }
+
+    private func persistTagOrder() {
+        UserDefaults.standard.set(tagOrder, forKey: UserDefaultsKeys.todoTagOrder)
+    }
+
+    private func moveTag(from source: String, toAfter destination: String) {
+        // Build full ordered list if empty
+        if tagOrder.isEmpty {
+            tagOrder = orderedSidebarItems
+        }
+        // Ensure both are in the list
+        if !tagOrder.contains(source) { tagOrder.append(source) }
+        if !tagOrder.contains(destination) { tagOrder.append(destination) }
+        // Remove source
+        tagOrder.removeAll { $0 == source }
+        // Insert after destination
+        if let destIdx = tagOrder.firstIndex(of: destination) {
+            tagOrder.insert(source, at: destIdx + 1)
+        } else {
+            tagOrder.append(source)
+        }
+        persistTagOrder()
+    }
     
     private var sidebar: some View {
         List {
@@ -286,6 +382,7 @@ struct TodoMainView: View {
                 ForEach(TodoListFilter.allCases) { filter in
                     Button {
                         selectedTag = nil
+                        selectedFolder = nil
                         selectedFilter = filter
                     } label: {
                         HStack(spacing: 12) {
@@ -311,100 +408,103 @@ struct TodoMainView: View {
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(
-                        selectedTag == nil && selectedFilter == filter
+                        selectedTag == nil && selectedFolder == nil && selectedFilter == filter
                             ? Color.accentColor.opacity(0.15)
                             : Color.clear
                     )
                 }
             }
             
-            if !allUsedTags.isEmpty {
+            if !allUsedTags.isEmpty || tagOrder.contains(where: { $0.hasPrefix("folder:") }) {
                 Section {
-                    ForEach(topLevelTags, id: \.self) { tag in
-                        Button {
-                            selectedFilter = nil
-                            selectedTag = tag
-                        } label: {
-                            HStack(spacing: 10) {
-                                Circle()
-                                    .fill(TodoTagHelper.tagColor(tag).color)
-                                    .frame(width: 10, height: 10)
-                                
-                                Text(TodoTagHelper.tagName(tag))
-                                    .font(.system(size: 15))
-                                
-                                Spacer()
-                                
-                                Text("\(countForTag(tag))")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 4)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowBackground(
-                            selectedTag == tag
-                                ? Color.accentColor.opacity(0.15)
-                                : Color.clear
-                        )
-                    }
-
-                    ForEach(groupedNestedTags, id: \.group) { group in
-                        DisclosureGroup(
-                            isExpanded: Binding(
-                                get: { expandedTagGroups.contains(group.group) },
-                                set: { isExpanded in
-                                    if isExpanded {
-                                        expandedTagGroups.insert(group.group)
-                                    } else {
-                                        expandedTagGroups.remove(group.group)
+                    ForEach(orderedSidebarItems, id: \.self) { item in
+                        if item.hasPrefix("folder:") {
+                            let groupName = String(item.dropFirst("folder:".count))
+                            DisclosureGroup(
+                                isExpanded: Binding(
+                                    get: { expandedTagGroups.contains(groupName) },
+                                    set: { isExpanded in
+                                        if isExpanded {
+                                            expandedTagGroups.insert(groupName)
+                                        } else {
+                                            expandedTagGroups.remove(groupName)
+                                        }
                                     }
-                                }
-                            )
-                        ) {
-                            ForEach(group.tags, id: \.self) { childTag in
-                                Button {
-                                    selectedFilter = nil
-                                    selectedTag = childTag
-                                } label: {
-                                    HStack(spacing: 10) {
-                                        Circle()
-                                            .fill(TodoTagHelper.tagColor(childTag).color)
-                                            .frame(width: 8, height: 8)
-
-                                        Text(TodoTagHelper.leafTagName(childTag))
-                                            .font(.system(size: 14))
-
-                                        Spacer()
-
-                                        Text("\(countForTag(childTag))")
-                                            .font(.system(size: 13, weight: .medium))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .contentShape(Rectangle())
-                                    .padding(.vertical, 4)
-                                }
-                                .buttonStyle(.plain)
-                                .listRowBackground(
-                                    selectedTag == childTag
-                                        ? Color.accentColor.opacity(0.15)
-                                        : Color.clear
                                 )
-                            }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "folder")
-                                    .foregroundStyle(.secondary)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .frame(width: 10)
+                            ) {
+                                ForEach(nestedTags(forGroup: groupName), id: \.self) { childTag in
+                                    tagRow(
+                                        tag: childTag,
+                                        displayName: TodoTagHelper.leafTagName(childTag),
+                                        dotSize: 8,
+                                        fontSize: 14,
+                                        dragKey: childTag
+                                    )
+                                }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: selectedFolder == groupName ? "folder.fill" : "folder")
+                                        .foregroundStyle(selectedFolder == groupName ? Color.accentColor : .secondary)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .frame(width: 10)
 
-                                Text(group.group)
-                                    .font(.system(size: 15, weight: .semibold))
+                                    Text(groupName)
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(selectedFolder == groupName ? Color.accentColor : .primary)
+
+                                    Spacer()
+
+                                    if selectedFolder == groupName {
+                                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(Color.accentColor)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation(.snappy(duration: 0.2)) {
+                                        if selectedFolder == groupName {
+                                            // Deselect folder
+                                            selectedFolder = nil
+                                            selectedFilter = .inbox
+                                        } else {
+                                            // Select folder — show all items with tags in this folder
+                                            selectedFolder = groupName
+                                            selectedTag = nil
+                                            selectedFilter = nil
+                                        }
+                                    }
+                                }
+                                .draggable(item) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "folder")
+                                            .foregroundStyle(.secondary)
+                                            .font(.system(size: 12, weight: .semibold))
+                                        Text(groupName)
+                                            .font(.system(size: 13, weight: .semibold))
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.regularMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                .dropDestination(for: String.self) { items, _ in
+                                    guard let dropped = items.first, dropped != item else { return false }
+                                    withAnimation(.snappy(duration: 0.2)) {
+                                        moveTag(from: dropped, toAfter: item)
+                                    }
+                                    return true
+                                }
                             }
-                            .padding(.vertical, 4)
+                        } else {
+                            tagRow(
+                                tag: item,
+                                displayName: TodoTagHelper.tagName(item),
+                                dotSize: 10,
+                                fontSize: 15,
+                                dragKey: item
+                            )
                         }
                     }
                 } header: {
@@ -418,6 +518,15 @@ struct TodoMainView: View {
                             .font(.caption)
                             .foregroundStyle(.red)
                         }
+                        Button {
+                            newFolderName = ""
+                            isShowingNewFolder = true
+                        } label: {
+                            Image(systemName: "folder.badge.plus")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -425,6 +534,53 @@ struct TodoMainView: View {
         .listStyle(.sidebar)
     }
     
+    // MARK: - Tag Row Helper
+
+    private func tagRow(tag: String, displayName: String, dotSize: CGFloat, fontSize: CGFloat, dragKey: String) -> some View {
+        Button {
+            selectedFilter = nil
+            selectedFolder = nil
+            selectedTag = tag
+        } label: {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(TodoTagHelper.tagColor(tag).color)
+                    .frame(width: dotSize, height: dotSize)
+                    .contentShape(.dragPreview, Circle())
+                    .draggable(dragKey) {
+                        Circle()
+                            .fill(TodoTagHelper.tagColor(tag).color)
+                            .frame(width: dotSize + 4, height: dotSize + 4)
+                    }
+
+                Text(displayName)
+                    .font(.system(size: fontSize))
+
+                Spacer()
+
+                Text("\(countForTag(tag))")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(
+            selectedTag == tag
+                ? Color.accentColor.opacity(0.15)
+                : Color.clear
+        )
+        .dropDestination(for: String.self) { items, _ in
+            guard let dropped = items.first, dropped != dragKey else { return false }
+            withAnimation(.snappy(duration: 0.2)) {
+                moveTag(from: dropped, toAfter: dragKey)
+            }
+            return true
+        }
+    }
+
     // MARK: - Todo List Content
     
     private var todoListContent: some View {
@@ -467,7 +623,7 @@ struct TodoMainView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(groupedTodos.keys.sorted(), id: \.self) { section in
+                        ForEach(sortedSectionKeys, id: \.self) { section in
                             if let todos = groupedTodos[section], !todos.isEmpty {
                                 todoSection(title: section, todos: todos)
                             }
@@ -489,7 +645,7 @@ struct TodoMainView: View {
         #else
         .background(Color(nsColor: .controlBackgroundColor))
         #endif
-        .navigationTitle(selectedTag != nil ? TodoTagHelper.tagName(selectedTag!) : (selectedFilter ?? .inbox).title)
+        .navigationTitle(selectedFolder ?? (selectedTag != nil ? TodoTagHelper.tagName(selectedTag!) : (selectedFilter ?? .inbox).title))
     }
     
     // MARK: - Batch Action Bar
@@ -580,22 +736,41 @@ struct TodoMainView: View {
     
     private var groupedTodos: [String: [TodoItem]] {
         var groups: [String: [TodoItem]] = [:]
+        let cal = Calendar.current
+        let today = AppCalendar.startOfDay(Date())
+        
+        // For Upcoming filter, use day-by-day timeline
+        let useDayTimeline = selectedFilter == .upcoming
         
         for todo in filteredTodos {
             let section: String
             
             if selectedFilter == .completed {
                 section = "Completed"
-            } else if let dueDate = todo.dueDate {
-                if Calendar.current.isDateInToday(dueDate) {
-                    section = "Today"
-                } else if Calendar.current.isDateInTomorrow(dueDate) {
-                    section = "Tomorrow"
-                } else if dueDate < Date() {
+            } else if selectedFilter == .someday {
+                section = "Someday"
+            } else if let effective = todo.effectiveDate {
+                if todo.isOverdue {
                     section = "Overdue"
+                } else if cal.isDateInToday(effective) {
+                    section = "Today"
+                } else if cal.isDateInTomorrow(effective) {
+                    section = useDayTimeline ? dayTimelineKey(effective) : "Tomorrow"
+                } else if effective < today {
+                    section = "Overdue"
+                } else if useDayTimeline {
+                    // Day-by-day grouping for upcoming timeline
+                    let weeksAhead = cal.dateComponents([.day], from: today, to: effective).day ?? 0
+                    if weeksAhead <= 28 {
+                        section = dayTimelineKey(effective)
+                    } else {
+                        section = "Later"
+                    }
                 } else {
                     section = "Upcoming"
                 }
+            } else if todo.isSomeday {
+                section = "Someday"
             } else {
                 section = "Anytime"
             }
@@ -607,6 +782,44 @@ struct TodoMainView: View {
         }
         
         return groups
+    }
+    
+    /// Sorted section keys for display order in the grouped todos view.
+    private var sortedSectionKeys: [String] {
+        let keys = groupedTodos.keys
+        let order = ["Overdue", "Today", "Tomorrow"]
+        
+        var sorted: [String] = []
+        // Add known sections first in order
+        for key in order where keys.contains(key) {
+            sorted.append(key)
+        }
+        // Add day-timeline keys sorted by date
+        let dayKeys = keys.filter { $0.contains(",") }.sorted { a, b in
+            // Parse "EEE, MMM d" format for sorting
+            dayTimelineDate(a) ?? .distantFuture < dayTimelineDate(b) ?? .distantFuture
+        }
+        sorted.append(contentsOf: dayKeys)
+        // Add remaining keys
+        let remaining = ["Upcoming", "Anytime", "Someday", "Later", "Completed"]
+        for key in remaining where keys.contains(key) {
+            sorted.append(key)
+        }
+        return sorted
+    }
+    
+    private func dayTimelineKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d"
+        return formatter.string(from: date)
+    }
+    
+    private func dayTimelineDate(_ key: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d"
+        // Set the year context for parsing
+        formatter.defaultDate = AppCalendar.startOfDay(Date())
+        return formatter.date(from: key)
     }
     
     private func todoSection(title: String, todos: [TodoItem]) -> some View {
@@ -666,7 +879,11 @@ struct TodoMainView: View {
     
     private var emptyState: some View {
         VStack(spacing: 16) {
-            if let tag = selectedTag {
+            if selectedFolder != nil {
+                Image(systemName: "folder")
+                    .font(.system(size: 56, weight: .thin))
+                    .foregroundStyle(.secondary.opacity(0.3))
+            } else if let tag = selectedTag {
                 Circle()
                     .fill(TodoTagHelper.tagColor(tag).color.opacity(0.3))
                     .frame(width: 56, height: 56)
@@ -685,7 +902,7 @@ struct TodoMainView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.secondary)
             
-            if selectedTag == nil && (selectedFilter == .inbox || selectedFilter == .all) {
+            if selectedTag == nil && selectedFolder == nil && (selectedFilter == .inbox || selectedFilter == .all) {
                 Button {
                     isShowingNewTodo = true
                 } label: {
@@ -702,6 +919,9 @@ struct TodoMainView: View {
     private var emptyStateMessage: String {
         if !searchText.isEmpty {
             return "No todos found"
+        }
+        if let folder = selectedFolder {
+            return "No todos in \"\(folder)\""
         }
         if let tag = selectedTag {
             return "No todos tagged \"\(TodoTagHelper.tagName(tag))\""
@@ -728,6 +948,46 @@ struct TodoMainView: View {
         }
     }
     
+    // MARK: - New Folder Sheet
+
+    private var newFolderSheet: some View {
+        NavigationStack {
+            Form {
+                Section("Folder Name") {
+                    TextField("Enter folder name", text: $newFolderName)
+                }
+            }
+            .navigationTitle("New Tag Folder")
+            #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        isShowingNewFolder = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        let trimmed = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        let folderKey = "folder:" + trimmed
+                        if !tagOrder.contains(folderKey) {
+                            if tagOrder.isEmpty {
+                                tagOrder = orderedSidebarItems
+                            }
+                            tagOrder.append(folderKey)
+                            persistTagOrder()
+                        }
+                        expandedTagGroups.insert(trimmed)
+                        isShowingNewFolder = false
+                    }
+                    .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
     // MARK: - Helper Functions
     
     private func countForFilter(_ filter: TodoListFilter) -> Int {
@@ -771,6 +1031,7 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
     case today
     case upcoming
     case anytime
+    case someday
     case completed
     case all
     
@@ -782,6 +1043,7 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .today: return "Today"
         case .upcoming: return "Upcoming"
         case .anytime: return "Anytime"
+        case .someday: return "Someday"
         case .completed: return "Completed"
         case .all: return "All"
         }
@@ -793,6 +1055,7 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .today: return "star.fill"
         case .upcoming: return "calendar"
         case .anytime: return "clock"
+        case .someday: return "moon.zzz"
         case .completed: return "checkmark.circle.fill"
         case .all: return "list.bullet"
         }
@@ -804,6 +1067,7 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .today: return .orange
         case .upcoming: return .purple
         case .anytime: return .gray
+        case .someday: return .brown
         case .completed: return .green
         case .all: return .primary
         }
@@ -815,6 +1079,7 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         case .today: return "No tasks scheduled for today"
         case .upcoming: return "No upcoming tasks"
         case .anytime: return "No unscheduled tasks"
+        case .someday: return "No someday tasks"
         case .completed: return "No completed tasks yet"
         case .all: return "Add a task to get started"
         }
@@ -823,13 +1088,16 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
     func matches(_ todo: TodoItem) -> Bool {
         switch self {
         case .inbox:
-            return !todo.isCompleted && todo.tags.isEmpty
+            return !todo.isCompleted && !todo.isSomeday && todo.tags.isEmpty
         case .today:
-            return !todo.isCompleted && todo.isScheduledForToday
+            return !todo.isCompleted && !todo.isSomeday && todo.isScheduledForToday
         case .upcoming:
-            return !todo.isCompleted && todo.dueDate != nil && !todo.isScheduledForToday
+            let hasDate = todo.scheduledDate != nil || todo.dueDate != nil
+            return !todo.isCompleted && !todo.isSomeday && hasDate && !todo.isScheduledForToday
         case .anytime:
-            return !todo.isCompleted && todo.dueDate == nil
+            return !todo.isCompleted && !todo.isSomeday && todo.scheduledDate == nil && todo.dueDate == nil
+        case .someday:
+            return !todo.isCompleted && todo.isSomeday
         case .completed:
             return todo.isCompleted
         case .all:
@@ -882,22 +1150,15 @@ struct TodoRowCard: View {
                         .foregroundStyle(todo.isCompleted ? .secondary : .primary)
                         .strikethrough(todo.isCompleted)
                     
-                    if !todo.notes.isEmpty || todo.dueDate != nil || !todo.tags.isEmpty {
+                    if !todo.notes.isEmpty || todo.effectiveDate != nil || todo.isSomeday || !todo.tags.isEmpty {
                         HStack(spacing: 8) {
-                            if let dueDate = todo.dueDate {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "calendar")
-                                    Text(formatDueDate(dueDate))
-                                }
-                                .font(.system(size: 12))
-                                .foregroundStyle(isOverdue(dueDate) ? .red : .secondary)
-                            }
+                            TodoDateChip(todo: todo)
                             
-                    if !todo.tags.isEmpty {
-                        fittingTagBadges(todo.tags)
+                            if !todo.tags.isEmpty {
+                                fittingTagBadges(todo.tags)
+                            }
+                        }
                     }
-                }
-            }
                 }
                 
                 Spacer()
@@ -933,6 +1194,34 @@ struct TodoRowCard: View {
             }
             .tint(.blue)
         }
+        .swipeActions(edge: .leading) {
+            Button {
+                todo.scheduledDate = AppCalendar.startOfDay(Date())
+                todo.isSomeday = false
+                try? modelContext.save()
+            } label: {
+                Label("Today", systemImage: "star.fill")
+            }
+            .tint(.blue)
+            
+            Button {
+                todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
+                todo.isSomeday = false
+                try? modelContext.save()
+            } label: {
+                Label("Tomorrow", systemImage: "sunrise")
+            }
+            .tint(.orange)
+            
+            Button {
+                todo.scheduledDate = nextMonday()
+                todo.isSomeday = false
+                try? modelContext.save()
+            } label: {
+                Label("+1 Week", systemImage: "calendar.badge.plus")
+            }
+            .tint(.purple)
+        }
         .contextMenu {
             Button {
                 onEdit()
@@ -944,6 +1233,48 @@ struct TodoRowCard: View {
                 togglePriority()
             } label: {
                 Label("Change Priority", systemImage: "flag")
+            }
+            
+            Divider()
+            
+            Menu("Move to...") {
+                Button {
+                    todo.scheduledDate = AppCalendar.startOfDay(Date())
+                    todo.isSomeday = false
+                    try? modelContext.save()
+                } label: {
+                    Label("Today", systemImage: "star.fill")
+                }
+                Button {
+                    todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
+                    todo.isSomeday = false
+                    try? modelContext.save()
+                } label: {
+                    Label("Tomorrow", systemImage: "sunrise")
+                }
+                Button {
+                    todo.scheduledDate = nextMonday()
+                    todo.isSomeday = false
+                    try? modelContext.save()
+                } label: {
+                    Label("Next Week", systemImage: "calendar.badge.plus")
+                }
+                Button {
+                    todo.scheduledDate = nil
+                    todo.isSomeday = true
+                    try? modelContext.save()
+                } label: {
+                    Label("Someday", systemImage: "moon.zzz")
+                }
+                Divider()
+                Button {
+                    todo.scheduledDate = nil
+                    todo.dueDate = nil
+                    todo.isSomeday = false
+                    try? modelContext.save()
+                } label: {
+                    Label("Remove Date", systemImage: "xmark.circle")
+                }
             }
             
             Divider()
@@ -979,23 +1310,14 @@ struct TodoRowCard: View {
         }
     }
     
-    private func formatDueDate(_ date: Date) -> String {
-        if Calendar.current.isDateInToday(date) {
-            return "Today"
-        } else if Calendar.current.isDateInTomorrow(date) {
-            return "Tomorrow"
-        } else if Calendar.current.isDateInYesterday(date) {
-            return "Yesterday"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .none
-            return formatter.string(from: date)
+    private func nextMonday() -> Date {
+        let today = AppCalendar.startOfDay(Date())
+        let cal = Calendar.current
+        var d = cal.date(byAdding: .day, value: 1, to: today) ?? today
+        while cal.component(.weekday, from: d) != 2 {
+            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
-    }
-    
-    private func isOverdue(_ date: Date) -> Bool {
-        return date < Date() && !Calendar.current.isDateInToday(date)
+        return d
     }
 
     @ViewBuilder
@@ -1038,10 +1360,13 @@ struct NewTodoForm: View {
 
     @State private var title = ""
     @State private var notes = ""
-    @State private var dueDate = Date()
-    @State private var hasDueDate = false
+    @State private var dueDate: Date? = nil
+    @State private var scheduledDate: Date? = nil
+    @State private var isSomeday = false
     @State private var priority: TodoPriority = .none
     @State private var recurrence: RecurrencePattern = .none
+    @State private var repeatAfterCompletion = false
+    @State private var customIntervalDays = 7
     @State private var selectedTags: [String] = []
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var subtaskTitles: [String] = []
@@ -1093,15 +1418,26 @@ struct NewTodoForm: View {
 
             // Schedule
             Section("Schedule") {
-                Toggle("Due Date", isOn: $hasDueDate)
+                HStack {
+                    Text("When")
+                    Spacer()
+                    TodoSchedulePickerButton(
+                        scheduledDate: $scheduledDate,
+                        dueDate: $dueDate,
+                        isSomeday: $isSomeday
+                    )
+                }
 
-                if hasDueDate {
-                    DatePicker("Date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                Picker("Repeats", selection: $recurrence) {
+                    ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
+                        Text(pattern.rawValue).tag(pattern)
+                    }
+                }
 
-                    Picker("Repeats", selection: $recurrence) {
-                        ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
-                            Text(pattern.rawValue).tag(pattern)
-                        }
+                if recurrence != .none {
+                    Toggle("Repeat after completion", isOn: $repeatAfterCompletion)
+                    if recurrence == .custom {
+                        Stepper("Every \(customIntervalDays) days", value: $customIntervalDays, in: 1...365)
                     }
                 }
             }
@@ -1216,12 +1552,15 @@ struct NewTodoForm: View {
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             studentIDs: resolvedStudentIDs.map(\.uuidString),
-            priority: priority
+            dueDate: dueDate,
+            scheduledDate: scheduledDate,
+            priority: priority,
+            recurrence: recurrence
         )
-
-        if hasDueDate {
-            todo.dueDate = dueDate
-            todo.recurrence = recurrence
+        todo.isSomeday = isSomeday
+        todo.repeatAfterCompletion = repeatAfterCompletion
+        if recurrence == .custom {
+            todo.customIntervalDays = customIntervalDays
         }
 
         todo.tags = resolvedTags
@@ -1327,14 +1666,23 @@ struct TodoDetailView: View {
                 }
 
                 // Due Date & Recurrence
-                if todo.dueDate != nil || todo.recurrence != .none {
+                if todo.dueDate != nil || todo.scheduledDate != nil || todo.isSomeday || todo.recurrence != .none {
                     detailSection("Schedule", icon: "calendar") {
                         VStack(alignment: .leading, spacing: 10) {
+                            if let scheduled = todo.scheduledDate {
+                                metadataRow(icon: "star", label: "Scheduled", value: formatDate(scheduled), valueColor: .blue)
+                            }
                             if let dueDate = todo.dueDate {
-                                metadataRow(icon: "calendar", label: "Due", value: formatDate(dueDate), valueColor: todo.isOverdue ? .red : .secondary)
+                                metadataRow(icon: "flag.fill", label: "Deadline", value: formatDate(dueDate), valueColor: todo.isOverdue ? .red : .orange)
+                            }
+                            if todo.isSomeday {
+                                metadataRow(icon: "moon.zzz", label: "Status", value: "Someday", valueColor: .secondary)
                             }
                             if todo.recurrence != .none {
                                 metadataRow(icon: todo.recurrence.icon, label: "Repeats", value: todo.recurrence.description, valueColor: .purple)
+                            }
+                            if todo.repeatAfterCompletion {
+                                metadataRow(icon: "arrow.clockwise", label: "Mode", value: "After completion", valueColor: .purple)
                             }
                         }
                     }
@@ -1617,16 +1965,34 @@ struct EditTodoForm: View {
             }
             
             Section("Schedule") {
-                DatePicker("Due Date", selection: Binding(
-                    get: { todo.dueDate ?? Date() },
-                    set: { todo.dueDate = $0 }
-                ), displayedComponents: [.date, .hourAndMinute])
-                
-                if todo.dueDate != nil {
-                    Button("Clear Due Date") {
-                        todo.dueDate = nil
+                HStack {
+                    Text("When")
+                    Spacer()
+                    TodoSchedulePickerButton(
+                        scheduledDate: $todo.scheduledDate,
+                        dueDate: $todo.dueDate,
+                        isSomeday: $todo.isSomeday
+                    )
+                }
+
+                Picker("Repeats", selection: $todo.recurrence) {
+                    ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
+                        Text(pattern.rawValue).tag(pattern)
                     }
-                    .foregroundStyle(.red)
+                }
+
+                if todo.recurrence != .none {
+                    Toggle("Repeat after completion", isOn: $todo.repeatAfterCompletion)
+                    if todo.recurrence == .custom {
+                        Stepper(
+                            "Every \(todo.customIntervalDays ?? 7) days",
+                            value: Binding(
+                                get: { todo.customIntervalDays ?? 7 },
+                                set: { todo.customIntervalDays = $0 }
+                            ),
+                            in: 1...365
+                        )
+                    }
                 }
             }
             
@@ -2075,9 +2441,4 @@ struct CustomTagSheet: View {
 
 // MARK: - TodoItem Extension
 
-extension TodoItem {
-    var isScheduledForToday: Bool {
-        guard let dueDate = dueDate else { return false }
-        return Calendar.current.isDateInToday(dueDate)
-    }
-}
+

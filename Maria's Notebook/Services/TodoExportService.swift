@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 #if os(macOS)
 import AppKit
 #else
@@ -9,7 +10,8 @@ import UIKit
 /// Service for exporting todos to various formats
 @MainActor
 class TodoExportService {
-    
+    private static let logger = Logger.todos
+
     // MARK: - Export Formats
     
     enum ExportFormat {
@@ -38,10 +40,18 @@ class TodoExportService {
                 output += "    Priority: \(todo.priority.rawValue)\n"
             }
             
+            if let scheduled = todo.scheduledDate {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                output += "    Scheduled: \(formatter.string(from: scheduled))\n"
+            }
             if let dueDate = todo.dueDate {
                 let formatter = DateFormatter()
                 formatter.dateStyle = .medium
-                output += "    Due: \(formatter.string(from: dueDate))\n"
+                output += "    Deadline: \(formatter.string(from: dueDate))\n"
+            }
+            if todo.isSomeday {
+                output += "    Status: Someday\n"
             }
             
             if let mood = todo.mood {
@@ -68,24 +78,30 @@ class TodoExportService {
     // MARK: - CSV Export
     
     static func exportAsCSV(todos: [TodoItem]) -> String {
-        var output = "Title,Status,Priority,Tags,Due Date,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
+        var output = "Title,Status,Priority,Tags,Scheduled Date,Deadline,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .short
         
         for todo in todos {
             let title = escapeCSV(todo.title)
-            let status = todo.isCompleted ? "Completed" : "Active"
+            let status: String
+            if todo.isSomeday {
+                status = "Someday"
+            } else {
+                status = todo.isCompleted ? "Completed" : "Active"
+            }
             let priority = todo.priority.rawValue
             let tags = escapeCSV(todo.tags.map { TodoTagHelper.tagName($0) }.joined(separator: "; "))
-            let dueDate = todo.dueDate.map { dateFormatter.string(from: $0) } ?? ""
+            let scheduledDate = todo.scheduledDate.map { dateFormatter.string(from: $0) } ?? ""
+            let deadline = todo.dueDate.map { dateFormatter.string(from: $0) } ?? ""
             let created = dateFormatter.string(from: todo.createdAt)
             let notes = escapeCSV(todo.notes)
             let mood = todo.mood?.rawValue ?? ""
             let subtasksCompleted = todo.subtasks.filter { $0.isCompleted }.count
             let subtasksTotal = todo.subtasks.count
             
-            output += "\(title),\(status),\(priority),\(tags),\(dueDate),\(created),\(notes),\(mood),\(subtasksCompleted),\(subtasksTotal)\n"
+            output += "\(title),\(status),\(priority),\(tags),\(scheduledDate),\(deadline),\(created),\(notes),\(mood),\(subtasksCompleted),\(subtasksTotal)\n"
         }
         
         return output
@@ -113,10 +129,18 @@ class TodoExportService {
             if todo.priority != .none {
                 metadata.append("**Priority:** \(todo.priority.rawValue)")
             }
+            if let scheduled = todo.scheduledDate {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                metadata.append("**Scheduled:** \(formatter.string(from: scheduled))")
+            }
             if let dueDate = todo.dueDate {
                 let formatter = DateFormatter()
                 formatter.dateStyle = .medium
-                metadata.append("**Due:** \(formatter.string(from: dueDate))")
+                metadata.append("**Deadline:** \(formatter.string(from: dueDate))")
+            }
+            if todo.isSomeday {
+                metadata.append("**Someday**")
             }
             if let mood = todo.mood {
                 metadata.append("**Mood:** \(mood.emoji) \(mood.rawValue)")
@@ -173,8 +197,14 @@ class TodoExportService {
                 dict["notes"] = todo.notes
             }
             
+            if let scheduled = todo.scheduledDate {
+                dict["scheduledDate"] = ISO8601DateFormatter().string(from: scheduled)
+            }
             if let dueDate = todo.dueDate {
-                dict["dueDate"] = ISO8601DateFormatter().string(from: dueDate)
+                dict["deadline"] = ISO8601DateFormatter().string(from: dueDate)
+            }
+            if todo.isSomeday {
+                dict["isSomeday"] = true
             }
             
             if let mood = todo.mood {
@@ -202,7 +232,7 @@ class TodoExportService {
         do {
             jsonData = try JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted, .sortedKeys])
         } catch {
-            print("⚠️ [exportAsJSON] Failed to serialize JSON: \(error)")
+            Self.logger.warning("Failed to serialize JSON: \(error, privacy: .public)")
             return nil
         }
         
@@ -228,7 +258,7 @@ class TodoExportService {
             try content.write(to: tempURL, atomically: true, encoding: .utf8)
             return tempURL
         } catch {
-            print("⚠️ [saveToFile] Error saving file: \(error)")
+            Self.logger.warning("Failed to save file: \(error, privacy: .public)")
             return nil
         }
     }

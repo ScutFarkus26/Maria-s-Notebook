@@ -12,6 +12,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
     case completed = "Completed"
     case today = "Today"
     case thisWeek = "This Week"
+    case someday = "Someday"
     case overdue = "Overdue"
     case highPriority = "High Priority"
     case hasSubtasks = "With Checklist"
@@ -25,6 +26,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .completed: return "checkmark.circle.fill"
         case .today: return "calendar.badge.clock"
         case .thisWeek: return "calendar"
+        case .someday: return "moon.zzz"
         case .overdue: return "exclamationmark.triangle.fill"
         case .highPriority: return "flag.fill"
         case .hasSubtasks: return "checklist"
@@ -38,6 +40,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .completed: return .green
         case .today: return .orange
         case .thisWeek: return .purple
+        case .someday: return .brown
         case .overdue: return .red
         case .highPriority: return .red
         case .hasSubtasks: return .indigo
@@ -51,6 +54,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .completed: return "No completed tasks yet"
         case .today: return "No tasks due today"
         case .thisWeek: return "No tasks due this week"
+        case .someday: return "No someday tasks"
         case .overdue: return "You're all caught up!"
         case .highPriority: return "No high priority tasks"
         case .hasSubtasks: return "No tasks with checklists"
@@ -62,13 +66,15 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .all:
             return true
         case .active:
-            return !todo.isCompleted
+            return !todo.isCompleted && !todo.isSomeday
         case .completed:
             return todo.isCompleted
         case .today:
-            return todo.isDueToday && !todo.isCompleted
+            return todo.isScheduledForToday && !todo.isCompleted
         case .thisWeek:
             return todo.isDueThisWeek && !todo.isCompleted
+        case .someday:
+            return todo.isSomeday && !todo.isCompleted
         case .overdue:
             return todo.isOverdue
         case .highPriority:
@@ -290,10 +296,12 @@ struct TodoListPanel: View {
     private func addTodo() {
         let trimmed = newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        
+
+        let parseResult = TodoDateParser.parse(trimmed)
         let newTodo = TodoItem(
-            title: trimmed,
-            orderIndex: todos.count
+            title: parseResult.cleanTitle,
+            orderIndex: todos.count,
+            scheduledDate: parseResult.suggestedDate
         )
         modelContext.insert(newTodo)
         do {
@@ -381,19 +389,49 @@ struct TodoListPanel: View {
             todo.completedAt = Date()
             
             // Handle recurring todos
-            if todo.recurrence != .none, let currentDueDate = todo.dueDate,
-               let nextDueDate = todo.recurrence.nextDate(after: currentDueDate) {
-                // Create a new todo instance for the next occurrence
-                let newTodo = TodoItem(
-                    title: todo.title,
-                    notes: todo.notes,
-                    orderIndex: todos.count,
-                    studentIDs: todo.studentIDs,
-                    dueDate: nextDueDate,
-                    priority: todo.priority,
-                    recurrence: todo.recurrence
-                )
-                modelContext.insert(newTodo)
+            if todo.recurrence != .none {
+                let baseDate: Date
+                let today = AppCalendar.startOfDay(Date())
+                
+                if todo.repeatAfterCompletion {
+                    // "After completion" mode: calculate from today
+                    baseDate = today
+                } else {
+                    baseDate = todo.dueDate ?? today
+                }
+                
+                let nextDueDate: Date?
+                if todo.recurrence == .custom, let interval = todo.customIntervalDays {
+                    nextDueDate = Calendar.current.date(byAdding: .day, value: interval, to: baseDate)
+                } else {
+                    nextDueDate = todo.recurrence.nextDate(after: baseDate)
+                }
+                
+                if let nextDueDate {
+                    // Preserve the scheduledDate offset if both were set
+                    var nextScheduled: Date?
+                    if let scheduled = todo.scheduledDate, let due = todo.dueDate {
+                        let offset = Calendar.current.dateComponents([.day], from: due, to: scheduled).day ?? 0
+                        nextScheduled = Calendar.current.date(byAdding: .day, value: offset, to: nextDueDate)
+                    } else if todo.scheduledDate != nil {
+                        nextScheduled = nextDueDate
+                    }
+                    
+                    let newTodo = TodoItem(
+                        title: todo.title,
+                        notes: todo.notes,
+                        orderIndex: todos.count,
+                        studentIDs: todo.studentIDs,
+                        dueDate: nextDueDate,
+                        scheduledDate: nextScheduled,
+                        priority: todo.priority,
+                        recurrence: todo.recurrence
+                    )
+                    newTodo.repeatAfterCompletion = todo.repeatAfterCompletion
+                    newTodo.customIntervalDays = todo.customIntervalDays
+                    newTodo.tags = todo.tags
+                    modelContext.insert(newTodo)
+                }
             }
         } else {
             todo.completedAt = nil
@@ -588,14 +626,8 @@ struct TodoRow: View {
                         .foregroundStyle(.blue)
                     }
                     
-                    if let dueDate = todo.dueDate {
-                        HStack(spacing: 4) {
-                            Image(systemName: "calendar")
-                                .font(.caption2)
-                            Text(formatDueDate(dueDate))
-                                .font(AppTheme.ScaledFont.caption)
-                        }
-                        .foregroundStyle(todo.isOverdue ? .red : (todo.isDueToday ? .orange : .secondary))
+                    if todo.effectiveDate != nil || todo.isSomeday {
+                        TodoDateChip(todo: todo)
                     }
                     
                     if todo.recurrence != .none {
@@ -753,14 +785,79 @@ struct TodoRow: View {
             Button {
                 onToggle()
             } label: {
-                Label(todo.isCompleted ? "Incomplete" : "Complete", 
+                Label(todo.isCompleted ? "Incomplete" : "Complete",
                       systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark")
             }
             .tint(todo.isCompleted ? .orange : .green)
+
+            Button {
+                todo.scheduledDate = AppCalendar.startOfDay(Date())
+                todo.isSomeday = false
+            } label: {
+                Label("Today", systemImage: "star.fill")
+            }
+            .tint(.blue)
+
+            Button {
+                todo.scheduledDate = AppCalendar.startOfDay(Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+                todo.isSomeday = false
+            } label: {
+                Label("Tomorrow", systemImage: "sunrise")
+            }
+            .tint(.orange)
         }
         .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
+        }
+        .contextMenu {
+            Button { onEdit() } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Divider()
+            Menu("Move to...") {
+                Button {
+                    todo.scheduledDate = AppCalendar.startOfDay(Date())
+                    todo.isSomeday = false
+                } label: {
+                    Label("Today", systemImage: "star.fill")
+                }
+                Button {
+                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                    todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
+                    todo.isSomeday = false
+                } label: {
+                    Label("Tomorrow", systemImage: "sunrise")
+                }
+                Button {
+                    let cal = Calendar.current
+                    let weekday = cal.component(.weekday, from: Date())
+                    let daysUntilMonday = weekday == 1 ? 1 : (9 - weekday)
+                    let nextMon = cal.date(byAdding: .day, value: daysUntilMonday, to: Date()) ?? Date()
+                    todo.scheduledDate = AppCalendar.startOfDay(nextMon)
+                    todo.isSomeday = false
+                } label: {
+                    Label("Next Week", systemImage: "calendar.badge.plus")
+                }
+                Divider()
+                Button {
+                    todo.isSomeday = true
+                    todo.scheduledDate = nil
+                } label: {
+                    Label("Someday", systemImage: "moon.zzz")
+                }
+                Button {
+                    todo.scheduledDate = nil
+                    todo.dueDate = nil
+                    todo.isSomeday = false
+                } label: {
+                    Label("Remove Date", systemImage: "calendar.badge.minus")
+                }
+            }
+            Divider()
+            Button(role: .destructive) { onDelete() } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 }
@@ -777,6 +874,11 @@ struct TodoEditSheet: View {
     @State private var isSuggestingStudents = false
     @State private var hasDueDate: Bool
     @State private var dueDate: Date
+    @State private var scheduledDate: Date?
+    @State private var deadlineDate: Date?
+    @State private var isSomeday: Bool
+    @State private var repeatAfterCompletion: Bool
+    @State private var customIntervalDays: Int
     @State private var priority: TodoPriority
     @State private var recurrence: RecurrencePattern
     @State private var estimatedHours: Int
@@ -809,6 +911,11 @@ struct TodoEditSheet: View {
         _selectedStudentIDs = State(initialValue: Set(todo.studentIDs))
         _hasDueDate = State(initialValue: todo.dueDate != nil)
         _dueDate = State(initialValue: todo.dueDate ?? AppCalendar.startOfDay(Date()))
+        _scheduledDate = State(initialValue: todo.scheduledDate)
+        _deadlineDate = State(initialValue: todo.dueDate)
+        _isSomeday = State(initialValue: todo.isSomeday)
+        _repeatAfterCompletion = State(initialValue: todo.repeatAfterCompletion)
+        _customIntervalDays = State(initialValue: todo.customIntervalDays ?? 7)
         _priority = State(initialValue: todo.priority)
         _recurrence = State(initialValue: todo.recurrence)
         
@@ -1283,24 +1390,37 @@ struct TodoEditSheet: View {
     @ViewBuilder
     private var dueDateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle(isOn: $hasDueDate) {
-                Text("Set Due Date")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
+            Text("Schedule")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.5)
+
+            HStack {
+                Text("When")
+                    .font(.system(size: 14, design: .rounded))
+                Spacer()
+                TodoSchedulePickerButton(
+                    scheduledDate: $scheduledDate,
+                    dueDate: $deadlineDate,
+                    isSomeday: $isSomeday
+                )
             }
-            .toggleStyle(.switch)
-            .onChange(of: hasDueDate) { _, newValue in
-                if newValue && dueDate < AppCalendar.startOfDay(Date()) {
-                    dueDate = AppCalendar.startOfDay(Date())
+
+            Picker("Repeats", selection: $recurrence) {
+                ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
+                    Text(pattern.rawValue).tag(pattern)
                 }
             }
-            
-            if hasDueDate {
-                DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
+            .pickerStyle(.menu)
+
+            if recurrence != .none {
+                Toggle("Repeat after completion", isOn: $repeatAfterCompletion)
+                    .font(.system(size: 14, design: .rounded))
+                if recurrence == .custom {
+                    Stepper("Every \(customIntervalDays) days", value: $customIntervalDays, in: 1...365)
+                        .font(.system(size: 14, design: .rounded))
+                }
             }
         }
     }
@@ -2395,9 +2515,13 @@ struct TodoEditSheet: View {
             existingTags: todo.tags,
             studentNames: selectedNames
         )
-        todo.dueDate = hasDueDate ? dueDate : nil
+        todo.scheduledDate = scheduledDate
+        todo.dueDate = deadlineDate
+        todo.isSomeday = isSomeday
         todo.priority = priority
-        todo.recurrence = hasDueDate ? recurrence : .none
+        todo.recurrence = recurrence
+        todo.repeatAfterCompletion = recurrence != .none ? repeatAfterCompletion : false
+        todo.customIntervalDays = recurrence == .custom ? customIntervalDays : nil
         
         // Save time estimates
         let totalEstimated = estimatedHours * 60 + estimatedMinutes

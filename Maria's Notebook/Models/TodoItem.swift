@@ -47,6 +47,7 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
     case biweekly = "Biweekly"
     case monthly = "Monthly"
     case yearly = "Yearly"
+    case custom = "Custom"
     
     var icon: String {
         switch self {
@@ -57,6 +58,7 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
         case .biweekly: return "calendar.badge.clock"
         case .monthly: return "calendar.badge.clock"
         case .yearly: return "calendar.badge.clock"
+        case .custom: return "calendar.badge.clock"
         }
     }
     
@@ -69,14 +71,16 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
         case .biweekly: return "Every 2 weeks"
         case .monthly: return "Every month"
         case .yearly: return "Every year"
+        case .custom: return "Custom interval"
         }
     }
     
     /// Calculate the next due date based on the current due date
+    /// For `.custom`, returns nil — handled externally using `customIntervalDays`.
     func nextDate(after date: Date) -> Date? {
         let calendar = Calendar.current
         switch self {
-        case .none:
+        case .none, .custom:
             return nil
         case .daily:
             return calendar.date(byAdding: .day, value: 1, to: date)
@@ -144,6 +148,10 @@ final class TodoItem {
     var completedAt: Date?
     var orderIndex: Int
     var dueDate: Date?
+    var scheduledDate: Date? // When to work on it (appears in Today view)
+    var isSomeday: Bool = false // Deferred — hidden from Inbox/Today/Upcoming
+    var repeatAfterCompletion: Bool = false // Recur relative to completion date, not calendar
+    var customIntervalDays: Int? // Custom recurrence interval in days (e.g., 14 = every 2 weeks)
     private var priorityRaw: String = TodoPriority.none.rawValue
     private var recurrenceRaw: String = RecurrencePattern.none.rawValue
     
@@ -214,6 +222,7 @@ final class TodoItem {
         orderIndex: Int = 0,
         studentIDs: [String] = [],
         dueDate: Date? = nil,
+        scheduledDate: Date? = nil,
         priority: TodoPriority = .none,
         recurrence: RecurrencePattern = .none,
         linkedWorkItemID: String? = nil
@@ -227,6 +236,7 @@ final class TodoItem {
         self.orderIndex = orderIndex
         self.studentIDs = studentIDs
         self.dueDate = dueDate
+        self.scheduledDate = scheduledDate
         self.priorityRaw = priority.rawValue
         self.recurrenceRaw = recurrence.rawValue
         self.linkedWorkItemID = linkedWorkItemID
@@ -289,5 +299,26 @@ final class TodoItem {
     /// Check if todo has location-based reminder
     var hasLocationReminder: Bool {
         locationLatitude != nil && locationLongitude != nil
+    }
+    
+    /// The effective date for sorting and grouping (scheduled date takes priority)
+    var effectiveDate: Date? {
+        scheduledDate ?? dueDate
+    }
+    
+    /// Whether this todo has a hard deadline set
+    var hasDeadline: Bool {
+        dueDate != nil
+    }
+    
+    /// Whether this todo is scheduled for today (checks scheduledDate first, falls back to dueDate)
+    var isScheduledForToday: Bool {
+        if let scheduled = scheduledDate {
+            return Calendar.current.isDateInToday(scheduled)
+        }
+        if let due = dueDate {
+            return Calendar.current.isDateInToday(due)
+        }
+        return false
     }
 }

@@ -1,11 +1,13 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Handles transformation between domain models and backup DTOs.
 ///
 /// This extracts the DTO transformation logic from BackupService for better
 /// testability and separation of concerns.
 enum BackupDTOTransformers {
+    private static let logger = Logger.backup
 
     // MARK: - Student
 
@@ -75,7 +77,7 @@ enum BackupDTOTransformers {
             let data = try JSONEncoder().encode(note.scope)
             scopeString = String(data: data, encoding: .utf8) ?? "{}"
         } catch {
-            print("⚠️ [Backup:toDTO] Failed to encode note scope: \(error)")
+            logger.warning("Failed to encode note scope: \(error)")
             scopeString = "{}"
         }
 
@@ -692,6 +694,10 @@ enum BackupDTOTransformers {
             reminderDate: t.reminderDate,
             reflectionNotes: t.reflectionNotes,
             tags: t.tags,
+            scheduledDate: t.scheduledDate,
+            isSomeday: t.isSomeday,
+            repeatAfterCompletion: t.repeatAfterCompletion,
+            customIntervalDays: t.customIntervalDays,
             locationName: t.locationName,
             locationLatitude: t.locationLatitude,
             locationLongitude: t.locationLongitude,

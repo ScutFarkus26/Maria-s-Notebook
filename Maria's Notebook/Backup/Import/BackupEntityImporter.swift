@@ -1113,6 +1113,10 @@ enum BackupEntityImporter {
             t.reminderDate = dto.reminderDate
             t.reflectionNotes = dto.reflectionNotes
             t.tags = dto.tags
+            t.scheduledDate = dto.scheduledDate
+            t.isSomeday = dto.isSomeday ?? false
+            t.repeatAfterCompletion = dto.repeatAfterCompletion ?? false
+            t.customIntervalDays = dto.customIntervalDays
             t.locationName = dto.locationName
             t.locationLatitude = dto.locationLatitude
             t.locationLongitude = dto.locationLongitude
