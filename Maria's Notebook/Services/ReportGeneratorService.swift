@@ -315,8 +315,9 @@ struct ReportGeneratorService {
         bodyString.draw(in: CGRect(x: margin, y: y, width: contentWidth, height: boundingRect.height))
         y += boundingRect.height + 4
 
-        // Category badge
-        let categoryText = "[\(note.category.rawValue.capitalized)]"
+        // Tags badge
+        let tagNames = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
+        let categoryText = tagNames.isEmpty ? "[General]" : "[\(tagNames)]"
         let categoryAttrs: [NSAttributedString.Key: Any] = [
             .font: PlatformFont.systemFont(ofSize: 9),
             .foregroundColor: PlatformColor.systemBlue
@@ -417,7 +418,9 @@ struct ReportGeneratorService {
                     .font: NSFont.systemFont(ofSize: 9),
                     .foregroundColor: NSColor.systemBlue
                 ]
-                result.append(NSAttributedString(string: "[\(note.category.rawValue.capitalized)]\n\n", attributes: categoryAttrs))
+                let noteTagNames = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
+                let tagLabel = noteTagNames.isEmpty ? "General" : noteTagNames
+                result.append(NSAttributedString(string: "[\(tagLabel)]\n\n", attributes: categoryAttrs))
             }
         }
 
@@ -481,15 +484,18 @@ struct ReportGeneratorService {
     // MARK: - Common Helpers
 
     private func groupNotesByCategory(_ notes: [Note]) -> [(String, [Note])] {
-        var grouped: [NoteCategory: [Note]] = [:]
+        // Group notes by their first tag (or "General" if untagged)
+        var grouped: [String: [Note]] = [:]
         for note in notes {
-            grouped[note.category, default: []].append(note)
+            if let firstTag = note.tags.first {
+                let tagName = TagHelper.tagName(firstTag)
+                grouped[tagName, default: []].append(note)
+            } else {
+                grouped["General", default: []].append(note)
+            }
         }
 
-        // Return in consistent order
-        return NoteCategory.allCases.compactMap { category in
-            guard let categoryNotes = grouped[category], !categoryNotes.isEmpty else { return nil }
-            return (category.rawValue.capitalized, categoryNotes)
-        }
+        // Return sorted alphabetically
+        return grouped.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
     }
 }

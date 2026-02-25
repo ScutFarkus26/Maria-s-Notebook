@@ -30,8 +30,11 @@ enum TagColor: String, Codable, CaseIterable {
     }
 }
 
+/// Backward-compatible alias
+typealias TodoTagHelper = TagHelper
+
 /// Helper for managing tags
-struct TodoTagHelper {
+struct TagHelper {
     static let studentTagParent = "Students"
 
     /// Common predefined tags
@@ -121,5 +124,28 @@ struct TodoTagHelper {
         }
 
         return synced
+    }
+
+    // MARK: - Note Category Migration Helpers
+
+    /// Maps old NoteCategory raw values to TagColor for migration
+    static func colorForNoteCategory(_ categoryRaw: String) -> TagColor {
+        switch categoryRaw {
+        case "academic": return .blue
+        case "behavioral": return .orange
+        case "social": return .purple
+        case "emotional": return .pink
+        case "health": return .red
+        case "attendance": return .green
+        case "general": return .gray
+        default: return .gray
+        }
+    }
+
+    /// Creates a tag string from an old NoteCategory raw value
+    static func tagFromNoteCategory(_ categoryRaw: String) -> String {
+        let name = categoryRaw.prefix(1).uppercased() + categoryRaw.dropFirst()
+        let color = colorForNoteCategory(categoryRaw)
+        return createTag(name: name, color: color)
     }
 }

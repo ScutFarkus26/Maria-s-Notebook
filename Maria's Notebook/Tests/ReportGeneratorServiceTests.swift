@@ -319,7 +319,7 @@ struct ReportGeneratorServicePDFTests {
         let student = makeTestStudent(firstName: "Alice", lastName: "Test")
         context.insert(student)
 
-        let note = Note(body: "Test observation", scope: .student(student.id), category: .academic, includeInReport: true)
+        let note = Note(body: "Test observation", scope: .student(student.id), tags: [TagHelper.tagFromNoteCategory("academic")], includeInReport: true)
         context.insert(note)
         try context.save()
 
@@ -394,9 +394,9 @@ struct ReportGeneratorServicePDFTests {
         let student = makeTestStudent(firstName: "Alice", lastName: "Test")
         context.insert(student)
 
-        let academicNote = Note(body: "Academic progress", scope: .student(student.id), category: .academic, includeInReport: true)
-        let behavioralNote = Note(body: "Behavioral observation", scope: .student(student.id), category: .behavioral, includeInReport: true)
-        let socialNote = Note(body: "Social interaction", scope: .student(student.id), category: .social, includeInReport: true)
+        let academicNote = Note(body: "Academic progress", scope: .student(student.id), tags: [TagHelper.tagFromNoteCategory("academic")], includeInReport: true)
+        let behavioralNote = Note(body: "Behavioral observation", scope: .student(student.id), tags: [TagHelper.tagFromNoteCategory("behavioral")], includeInReport: true)
+        let socialNote = Note(body: "Social interaction", scope: .student(student.id), tags: [TagHelper.tagFromNoteCategory("social")], includeInReport: true)
         context.insert(academicNote)
         context.insert(behavioralNote)
         context.insert(socialNote)

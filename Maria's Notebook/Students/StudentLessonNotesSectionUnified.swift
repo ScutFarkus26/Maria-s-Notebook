@@ -323,16 +323,8 @@ struct StudentLessonNotesSectionUnified: View {
     private func unifiedNoteRow(_ note: Note) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                if note.category != .general {
-                    Text(note.category.rawValue.capitalized)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.secondary.opacity(0.1))
-                        )
+                ForEach(note.tags, id: \.self) { tag in
+                    TagBadge(tag: tag, compact: true)
                 }
                 Spacer()
                 Text(note.createdAt, style: .date)

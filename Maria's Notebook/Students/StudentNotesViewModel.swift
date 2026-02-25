@@ -23,8 +23,9 @@ public struct UnifiedNoteItem: Identifiable {
     public let contextText: String
     public let color: Color
     public let associatedID: UUID?
-    public let category: NoteCategory
+    public let tags: [String]
     public let includeInReport: Bool
+    public let needsFollowUp: Bool
     public let imagePath: String?
     public let reportedBy: String?
     public let reporterName: String?
@@ -150,10 +151,11 @@ final class StudentNotesViewModel {
                 body: note.body,
                 source: .general,
                 contextText: context,
-                color: .blue, // Blue for general
+                color: .blue,
                 associatedID: note.id,
-                category: note.category,
+                tags: note.tags,
                 includeInReport: note.includeInReport,
+                needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath,
                 reportedBy: note.reportedBy,
                 reporterName: note.reporterName,
@@ -194,8 +196,9 @@ final class StudentNotesViewModel {
                     contextText: context,
                     color: .orange,
                     associatedID: work.id,
-                    category: note.category,
+                    tags: note.tags,
                     includeInReport: note.includeInReport,
+                    needsFollowUp: note.needsFollowUp,
                     imagePath: note.imagePath,
                     reportedBy: note.reportedBy,
                     reporterName: note.reporterName,
@@ -241,8 +244,9 @@ final class StudentNotesViewModel {
                 contextText: context,
                 color: .purple,
                 associatedID: pres.id,
-                category: note.category,
+                tags: note.tags,
                 includeInReport: note.includeInReport,
+                needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath,
                 reportedBy: note.reportedBy,
                 reporterName: note.reporterName,
@@ -292,8 +296,9 @@ final class StudentNotesViewModel {
                 contextText: "Attendance Note",
                 color: record.status.color,
                 associatedID: record.id,
-                category: note.category,
+                tags: note.tags,
                 includeInReport: note.includeInReport,
+                needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath,
                 reportedBy: note.reportedBy,
                 reporterName: note.reporterName,
@@ -322,8 +327,9 @@ final class StudentNotesViewModel {
             contextText: context,
             color: .green,
             associatedID: meeting.id,
-            category: .general,
+            tags: [],
             includeInReport: false,
+            needsFollowUp: false,
             imagePath: nil,
             reportedBy: nil,
             reporterName: nil,
@@ -409,14 +415,43 @@ final class StudentNotesViewModel {
         }
     }
 
-    func batchUpdateCategory(_ category: NoteCategory, for ids: Set<UUID>) {
+    func batchAddTags(_ tagsToAdd: [String], for ids: Set<UUID>) {
         for id in ids {
             if let note = fetchNote(id: id) {
-                note.category = category
+                var current = note.tags
+                for tag in tagsToAdd where !current.contains(tag) {
+                    current.append(tag)
+                }
+                note.tags = current
                 note.updatedAt = Date()
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Updating note categories") {
+        if saveCoordinator.save(modelContext, reason: "Adding tags to notes") {
+            fetchAllNotes()
+        }
+    }
+
+    func batchRemoveTags(_ tagsToRemove: [String], for ids: Set<UUID>) {
+        let removeSet = Set(tagsToRemove)
+        for id in ids {
+            if let note = fetchNote(id: id) {
+                note.tags = note.tags.filter { !removeSet.contains($0) }
+                note.updatedAt = Date()
+            }
+        }
+        if saveCoordinator.save(modelContext, reason: "Removing tags from notes") {
+            fetchAllNotes()
+        }
+    }
+
+    func batchToggleFollowUp(for ids: Set<UUID>) {
+        for id in ids {
+            if let note = fetchNote(id: id) {
+                note.needsFollowUp.toggle()
+                note.updatedAt = Date()
+            }
+        }
+        if saveCoordinator.save(modelContext, reason: "Toggling follow-up flags") {
             fetchAllNotes()
         }
     }

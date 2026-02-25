@@ -169,6 +169,48 @@ enum SchemaMigrationService {
         }
     }
 
+    // MARK: - Note Category to Tags Migration
+
+    /// Migrates Note and NoteTemplate records from the legacy categoryRaw field to the new tags array.
+    /// Converts each category to a tag in "Name|Color" format using TagHelper.
+    /// Idempotent: guarded by a UserDefaults flag, only updates records where tags is empty.
+    static func migrateNoteCategoryToTagsIfNeeded(using context: ModelContext) async {
+        let flagKey = "Migration.noteCategoryToTags.v1"
+        await MigrationFlag.runIfNeeded(key: flagKey) {
+            // Migrate Notes
+            let notes = context.safeFetch(FetchDescriptor<Note>())
+            var notesChanged = 0
+            for (index, note) in notes.enumerated() {
+                if index % 100 == 0 { await Task.yield() }
+                if note.tags.isEmpty {
+                    let categoryRaw = note.legacyCategoryRaw
+                    if !categoryRaw.isEmpty && categoryRaw != "general" {
+                        note.tags = [TagHelper.tagFromNoteCategory(categoryRaw)]
+                        notesChanged += 1
+                    }
+                }
+            }
+
+            // Migrate NoteTemplates
+            let templates = context.safeFetch(FetchDescriptor<NoteTemplate>())
+            var templatesChanged = 0
+            for template in templates {
+                if template.tags.isEmpty {
+                    let categoryRaw = template.legacyCategoryRaw
+                    if !categoryRaw.isEmpty && categoryRaw != "general" {
+                        template.tags = [TagHelper.tagFromNoteCategory(categoryRaw)]
+                        templatesChanged += 1
+                    }
+                }
+            }
+
+            if notesChanged > 0 || templatesChanged > 0 {
+                context.safeSave()
+                logger.info("Migrated \(notesChanged) notes and \(templatesChanged) templates from category to tags")
+            }
+        }
+    }
+
     // MARK: - Run All Schema Migrations
 
     /// Runs all schema migrations in sequence.
@@ -179,5 +221,6 @@ enum SchemaMigrationService {
         migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
         await syncStudentLessonIDsFromRelationshipsIfNeeded(using: context)
         await migrateWorkContractsToWorkModelsIfNeeded(using: context)
+        await migrateNoteCategoryToTagsIfNeeded(using: context)
     }
 }

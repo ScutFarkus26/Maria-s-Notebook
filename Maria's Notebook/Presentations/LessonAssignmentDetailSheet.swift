@@ -433,22 +433,11 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
             // Metadata row
             HStack(spacing: 8) {
-                // Category badge with color
-                if note.category != .general {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(NoteCategoryHelpers.color(for: note.category))
-                            .frame(width: 6, height: 6)
-                        Text(NoteCategoryHelpers.label(for: note.category))
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                // Tag badges
+                if !note.tags.isEmpty {
+                    ForEach(note.tags.prefix(2), id: \.self) { tag in
+                        TagBadge(tag: tag, compact: true)
                     }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(NoteCategoryHelpers.color(for: note.category).opacity(0.1))
-                    )
                 }
 
                 Text(note.createdAt, style: .date)

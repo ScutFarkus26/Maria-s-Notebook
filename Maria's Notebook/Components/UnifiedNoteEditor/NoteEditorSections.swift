@@ -18,9 +18,7 @@ extension UnifiedNoteEditor {
                 studentSelectionSection
             }
             templatePickerSection
-            if shouldShowCategory {
-                categorySelectionSection
-            }
+            tagSelectionSection
             noteBodySection
             reportToggleSection
         }
@@ -179,23 +177,23 @@ extension UnifiedNoteEditor {
         .frame(minWidth: 320)
     }
 
-    // MARK: - Category Selection Section
+    // MARK: - Tag Selection Section
 
-    var categorySelectionSection: some View {
+    var tagSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             HStack {
-                Text("Category")
+                Text("Tags")
                     .font(AppTheme.ScaledFont.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
                 if !bodyText.trimmed().isEmpty {
                     Button {
-                        Task { await suggestCategoryAndScope() }
+                        Task { await suggestTagsAndScope() }
                     } label: {
                         HStack(spacing: AppTheme.Spacing.xsmall) {
                             Image(systemName: "wand.and.stars")
-                            Text(isSuggesting ? "Suggesting…" : "Suggest")
+                            Text(isSuggesting ? "Suggesting…" : "Suggest Tags")
                         }
                     }
                     .disabled(isSuggesting)
@@ -203,22 +201,42 @@ extension UnifiedNoteEditor {
 #endif
             }
 
-            Picker("Category", selection: $category) {
-                ForEach(NoteCategory.allCases, id: \.self) { cat in
-                    Text(cat.rawValue.capitalized).tag(cat)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Spacing.small) {
+                    ForEach(tags, id: \.self) { tag in
+                        HStack(spacing: 4) {
+                            TagBadge(tag: tag)
+                            Button {
+                                withAnimation { tags.removeAll { $0 == tag } }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    Button {
+                        showingTagPicker = true
+                    } label: {
+                        HStack(spacing: AppTheme.Spacing.xsmall) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Add Tag")
+                                .font(AppTheme.ScaledFont.caption.weight(.medium))
+                        }
+                        .padding(.horizontal, AppTheme.Spacing.compact)
+                        .padding(.vertical, AppTheme.Spacing.verySmall)
+                        .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
+                        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+                    }
+                    .buttonStyle(.plain)
                 }
+                .padding(.vertical, AppTheme.Spacing.xxsmall)
             }
-            .pickerStyle(.menu)
-            .padding(.horizontal, AppTheme.Spacing.compact)
-            .padding(.vertical, AppTheme.Spacing.small)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                    .fill(cardBackgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                    .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
-            )
+            .sheet(isPresented: $showingTagPicker) {
+                NoteTagPickerSheet(selectedTags: $tags)
+            }
         }
     }
 
@@ -404,9 +422,25 @@ extension UnifiedNoteEditor {
     // MARK: - Report Toggle Section
 
     var reportToggleSection: some View {
-        Toggle("Flag for Report", isOn: $includeInReport)
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+            Toggle(isOn: $needsFollowUp) {
+                HStack(spacing: AppTheme.Spacing.xsmall) {
+                    Image(systemName: "flag.fill")
+                        .foregroundStyle(.red)
+                    Text("Follow Up")
+                }
+            }
             .font(AppTheme.ScaledFont.body)
-            .accessibilityHint(includeInReport ? "Currently flagged. Double tap to unflag." : "Not flagged. Double tap to flag this note for inclusion in reports.")
+
+            Toggle(isOn: $includeInReport) {
+                HStack(spacing: AppTheme.Spacing.xsmall) {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundStyle(.secondary)
+                    Text("Include in Report")
+                }
+            }
+            .font(AppTheme.ScaledFont.body)
+        }
     }
 
     // MARK: - Header View (macOS)
@@ -452,7 +486,10 @@ extension UnifiedNoteEditor {
         // If body is empty, replace entirely; otherwise append
         if bodyText.trimmed().isEmpty {
             bodyText = template.body
-            category = template.category
+            // Apply template tags, merging with any existing
+            for tag in template.tags where !tags.contains(tag) {
+                tags.append(tag)
+            }
         } else {
             // Append template text with a space separator
             bodyText = bodyText.trimmed() + " " + template.body
@@ -471,11 +508,20 @@ private struct TemplatePickerView: View {
     let onSelect: (NoteTemplate) -> Void
 
     @State private var isExpanded: Bool = false
-    @State private var selectedCategory: NoteCategory? = nil
+    @State private var selectedFilterTag: String? = nil
+
+    /// All unique tags used across templates
+    private var allTemplateTags: [String] {
+        var tagSet = Set<String>()
+        for template in templates {
+            for tag in template.tags { tagSet.insert(tag) }
+        }
+        return tagSet.sorted { TagHelper.tagName($0).localizedCaseInsensitiveCompare(TagHelper.tagName($1)) == .orderedAscending }
+    }
 
     var filteredTemplates: [NoteTemplate] {
-        if let cat = selectedCategory {
-            return templates.filter { $0.category == cat }
+        if let filterTag = selectedFilterTag {
+            return templates.filter { $0.tags.contains(filterTag) }
         }
         return templates
     }
@@ -526,7 +572,7 @@ private struct TemplatePickerView: View {
                 // "All" chip
                 Button {
                     withAnimation {
-                        selectedCategory = nil
+                        selectedFilterTag = nil
                     }
                 } label: {
                     Text("All")
@@ -535,30 +581,31 @@ private struct TemplatePickerView: View {
                         .padding(.vertical, AppTheme.Spacing.xsmall)
                         .background(
                             Capsule()
-                                .fill(selectedCategory == nil ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
+                                .fill(selectedFilterTag == nil ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
                         )
-                        .foregroundStyle(selectedCategory == nil ? Color.accentColor : .secondary)
+                        .foregroundStyle(selectedFilterTag == nil ? Color.accentColor : .secondary)
                 }
                 .buttonStyle(.plain)
 
-                // Category chips
-                ForEach(NoteCategory.allCases, id: \.self) { cat in
-                    let count = templates.filter { $0.category == cat }.count
+                // Tag filter chips
+                ForEach(allTemplateTags, id: \.self) { tag in
+                    let count = templates.filter { $0.tags.contains(tag) }.count
                     if count > 0 {
+                        let tagColor = TagHelper.tagColor(tag).color
                         Button {
                             withAnimation {
-                                selectedCategory = (selectedCategory == cat) ? nil : cat
+                                selectedFilterTag = (selectedFilterTag == tag) ? nil : tag
                             }
                         } label: {
-                            Text(cat.rawValue.capitalized)
+                            Text(TagHelper.tagName(tag))
                                 .font(.caption)
                                 .padding(.horizontal, AppTheme.Spacing.small)
                                 .padding(.vertical, AppTheme.Spacing.xsmall)
                                 .background(
                                     Capsule()
-                                        .fill(selectedCategory == cat ? categoryColor(cat).opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
+                                        .fill(selectedFilterTag == tag ? tagColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
                                 )
-                                .foregroundStyle(selectedCategory == cat ? categoryColor(cat) : .secondary)
+                                .foregroundStyle(selectedFilterTag == tag ? tagColor : .secondary)
                         }
                         .buttonStyle(.plain)
                     }
@@ -570,6 +617,7 @@ private struct TemplatePickerView: View {
     private var templateChipsGrid: some View {
         FlowLayout(spacing: AppTheme.Spacing.verySmall) {
             ForEach(filteredTemplates) { template in
+                let chipColor = template.tags.first.map { TagHelper.tagColor($0).color } ?? Color.gray
                 Button {
                     onSelect(template)
                 } label: {
@@ -580,26 +628,14 @@ private struct TemplatePickerView: View {
                         .padding(.vertical, AppTheme.Spacing.verySmall)
                         .background(
                             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
-                                .fill(categoryColor(template.category).opacity(UIConstants.OpacityConstants.light))
+                                .fill(chipColor.opacity(UIConstants.OpacityConstants.light))
                         )
-                        .foregroundStyle(categoryColor(template.category))
+                        .foregroundStyle(chipColor)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(template.title)
                 .accessibilityHint("Double tap to insert: \(template.body)")
             }
-        }
-    }
-
-    private func categoryColor(_ category: NoteCategory) -> Color {
-        switch category {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .purple
-        case .emotional: return .pink
-        case .health: return .red
-        case .attendance: return .green
-        case .general: return .gray
         }
     }
 }

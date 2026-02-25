@@ -194,11 +194,21 @@ enum BackupEntityImporter {
                 continue
             }
 
+            // Determine tags: prefer dto.tags, fallback to converting legacy categoryRaw if present
+            let importedTags: [String]
+            if let dtoTags = dto.tags, !dtoTags.isEmpty {
+                importedTags = dtoTags
+            } else {
+                importedTags = []
+            }
+
             let note = Note(
                 id: dto.id,
                 createdAt: dto.createdAt,
                 updatedAt: dto.updatedAt,
                 body: dto.body,
+                tags: importedTags,
+                needsFollowUp: dto.needsFollowUp ?? false,
                 imagePath: dto.imagePath
             )
             note.isPinned = dto.isPinned
@@ -712,12 +722,20 @@ enum BackupEntityImporter {
 
     static func importNoteTemplates(_ dtos: [NoteTemplateDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<NoteTemplate>) rethrows {
         try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
-            NoteTemplate(
+            let templateTags: [String]
+            if let dtoTags = dto.tags, !dtoTags.isEmpty {
+                templateTags = dtoTags
+            } else if !dto.categoryRaw.isEmpty, dto.categoryRaw != "general" {
+                templateTags = [TagHelper.tagFromNoteCategory(dto.categoryRaw)]
+            } else {
+                templateTags = []
+            }
+            return NoteTemplate(
                 id: dto.id,
                 createdAt: dto.createdAt,
                 title: dto.title,
                 body: dto.body,
-                category: NoteCategory(rawValue: dto.categoryRaw) ?? .general,
+                tags: templateTags,
                 sortOrder: dto.sortOrder,
                 isBuiltIn: dto.isBuiltIn
             )

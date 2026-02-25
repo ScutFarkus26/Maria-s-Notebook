@@ -42,8 +42,15 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "PlanningRootView.mode", type: .string),
         PreferenceDefinition(key: "PresentationsCalendar.showWork", type: .bool, defaultValue: .bool(true)),
         PreferenceDefinition(key: "WorkCalendar.showPresentations", type: .bool, defaultValue: .bool(true)),
-        PreferenceDefinition(key: "WorkAgenda.hideScheduled", type: .bool, defaultValue: .bool(false))
+        PreferenceDefinition(key: "WorkAgenda.hideScheduled", type: .bool, defaultValue: .bool(false)),
         // Attendance locks handled dynamically: keys "Attendance.locked.<yyyy-MM-dd>"
+
+        // Lesson Planning
+        PreferenceDefinition(key: "LessonPlanning.model", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),
+        PreferenceDefinition(key: "LessonPlanning.timeout", type: .int, defaultValue: .int(120)),
+        PreferenceDefinition(key: "LessonPlanning.systemPrompt", type: .string),
+        PreferenceDefinition(key: "LessonPlanning.defaultDepth", type: .string, defaultValue: .string("standard")),
+        PreferenceDefinition(key: "LessonPlanning.temperature", type: .double, defaultValue: .double(0.3))
     ]
 
     public static let byKey: [String: PreferenceDefinition] = definitions.toDictionary(by: \.key)
@@ -57,7 +64,8 @@ public enum PreferenceRegistry {
         "StudentDetailView.",
         "Backup.",
         "Attendance.locked.",
-        "ReminderSync."
+        "ReminderSync.",
+        "LessonPlanning."
     ]
 }
 

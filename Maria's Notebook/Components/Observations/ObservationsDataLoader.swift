@@ -34,7 +34,7 @@ enum ObservationsDataLoader {
                     id: note.id,
                     date: note.createdAt,
                     body: note.body,
-                    category: note.category,
+                    tags: note.tags,
                     includeInReport: note.includeInReport,
                     imagePath: note.imagePath,
                     contextText: contextText,

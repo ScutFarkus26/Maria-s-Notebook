@@ -25,12 +25,12 @@ import AVFoundation
 import FoundationModels
 
 @available(macOS 26.0, *)
-@Generable(description: "Classification for a single note")
-struct NoteClassificationSuggestion {
-    @Guide(description: "One of: academic, behavioral, social, emotional, health, attendance, general")
-    var category: String
+@Generable(description: "Tag suggestions for a classroom note")
+struct NoteTagSuggestion {
+    @Guide(description: "Suggested tag names, e.g. Academic, Behavioral, Social, Emotional, Health, Attendance, or any relevant custom tag")
+    var suggestedTags: [String]
 
-    @Guide(description: "IDs or names indicating student-specific scope; empty means all")
+    @Guide(description: "Student names mentioned in the note; empty means all students")
     var studentIdentifiers: [String]
 }
 #endif
@@ -73,9 +73,11 @@ struct UnifiedNoteEditor: View {
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []
     @State var detectedStudentIDs: Set<UUID> = []
-    @State var category: NoteCategory = .general
+    @State var tags: [String] = []
     @State var bodyText: String = ""
     @State var includeInReport: Bool = false
+    @State var needsFollowUp: Bool = false
+    @State var showingTagPicker: Bool = false
     @State var showingStudentPicker: Bool = false
     @State var selectedPhoto: PhotosPickerItem? = nil
 
@@ -96,7 +98,7 @@ struct UnifiedNoteEditor: View {
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @State var isSuggesting: Bool = false
     @State var showingSuggestionSheet: Bool = false
-    @State var proposedCategory: NoteCategory? = nil
+    @State var proposedTags: [String] = []
     @State var proposedStudentIDs: [UUID] = []
     @State var suggestionError: String? = nil
     #endif
@@ -119,11 +121,14 @@ struct UnifiedNoteEditor: View {
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         .sheet(isPresented: $showingSuggestionSheet) {
             SuggestionPreviewSheet(
-                proposedCategory: proposedCategory,
+                proposedTags: proposedTags,
                 proposedStudentIDs: proposedStudentIDs,
                 allStudents: students,
-                onApply: {
-                    if let cat = proposedCategory { self.category = cat }
+                onApply: { appliedTags in
+                    // Merge suggested tags with existing, avoiding duplicates
+                    for tag in appliedTags where !self.tags.contains(tag) {
+                        self.tags.append(tag)
+                    }
                     if !proposedStudentIDs.isEmpty { self.selectedStudentIDs = Set(proposedStudentIDs) }
                     showingSuggestionSheet = false
                 },

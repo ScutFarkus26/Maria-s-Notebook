@@ -7,7 +7,7 @@ struct UnifiedObservationItem: Identifiable {
     let id: UUID
     let date: Date
     let body: String
-    let category: NoteCategory
+    let tags: [String]
     let includeInReport: Bool
     let imagePath: String?
     let contextText: String?

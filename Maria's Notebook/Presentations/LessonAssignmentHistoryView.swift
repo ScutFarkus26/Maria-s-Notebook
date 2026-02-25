@@ -577,16 +577,11 @@ struct LessonAssignmentHistoryView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 6) {
-                // Category badge if not general
-                if note.category != .general {
-                    HStack(spacing: 3) {
-                        Circle()
-                            .fill(categoryColor(for: note.category))
-                            .frame(width: 5, height: 5)
-                        Text(note.category.rawValue.capitalized)
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                // Tag badges
+                if !note.tags.isEmpty {
+                    ForEach(note.tags.prefix(2), id: \.self) { tag in
+                        TagBadge(tag: tag, compact: true)
                     }
-                    .foregroundStyle(.secondary)
                 }
 
                 // Image indicator
@@ -603,18 +598,6 @@ struct LessonAssignmentHistoryView: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(Color.primary.opacity(0.03))
         )
-    }
-
-    private func categoryColor(for category: NoteCategory) -> Color {
-        switch category {
-        case .general: return .gray
-        case .behavioral: return .orange
-        case .academic: return .blue
-        case .social: return .green
-        case .emotional: return .pink
-        case .health: return .red
-        case .attendance: return .teal
-        }
     }
 
     private func deleteAssignment(_ assignment: LessonAssignment) {

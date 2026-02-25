@@ -82,10 +82,11 @@ struct NoteRepository: SavingRepository {
     /// Create a new Note
     /// - Parameters:
     ///   - body: The note content
-    ///   - category: The note category. Defaults to .general
+    ///   - tags: Tags in "Name|Color" format. Defaults to empty
     ///   - scope: The note scope (all, student, or students). Defaults to .all
     ///   - isPinned: Whether the note is pinned. Defaults to false
     ///   - includeInReport: Whether to include in reports. Defaults to false
+    ///   - needsFollowUp: Whether the note needs follow-up. Defaults to false
     ///   - lesson: Optional lesson relationship
     ///   - work: Optional work relationship
     ///   - studentLesson: Optional studentLesson relationship
@@ -97,10 +98,11 @@ struct NoteRepository: SavingRepository {
     @discardableResult
     func createNote(
         body: String,
-        category: NoteCategory = .general,
+        tags: [String] = [],
         scope: NoteScope = .all,
         isPinned: Bool = false,
         includeInReport: Bool = false,
+        needsFollowUp: Bool = false,
         lesson: Lesson? = nil,
         work: WorkModel? = nil,
         studentLesson: StudentLesson? = nil,
@@ -113,8 +115,9 @@ struct NoteRepository: SavingRepository {
             body: body,
             scope: scope,
             isPinned: isPinned,
-            category: category,
+            tags: tags,
             includeInReport: includeInReport,
+            needsFollowUp: needsFollowUp,
             lesson: lesson,
             work: work,
             studentLesson: studentLesson,
@@ -139,27 +142,29 @@ struct NoteRepository: SavingRepository {
     /// - Parameters:
     ///   - id: The UUID of the note to update
     ///   - body: New body content (optional)
-    ///   - category: New category (optional)
+    ///   - tags: New tags array (optional)
     ///   - scope: New scope (optional)
     ///   - isPinned: New pinned status (optional)
     ///   - includeInReport: New report inclusion status (optional)
+    ///   - needsFollowUp: New follow-up status (optional)
     /// - Returns: true if update succeeded, false if note not found
     @discardableResult
     func updateNote(
         id: UUID,
         body: String? = nil,
-        category: NoteCategory? = nil,
+        tags: [String]? = nil,
         scope: NoteScope? = nil,
         isPinned: Bool? = nil,
-        includeInReport: Bool? = nil
+        includeInReport: Bool? = nil,
+        needsFollowUp: Bool? = nil
     ) -> Bool {
         guard let note = fetchNote(id: id) else { return false }
 
         if let body = body {
             note.body = body
         }
-        if let category = category {
-            note.category = category
+        if let tags = tags {
+            note.tags = tags
         }
         if let scope = scope {
             note.scope = scope
@@ -170,6 +175,9 @@ struct NoteRepository: SavingRepository {
         }
         if let includeInReport = includeInReport {
             note.includeInReport = includeInReport
+        }
+        if let needsFollowUp = needsFollowUp {
+            note.needsFollowUp = needsFollowUp
         }
 
         note.updatedAt = Date()

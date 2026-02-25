@@ -12,9 +12,25 @@ final class LessonPlanningService {
     private let modelContext: ModelContext
     private let mcpClient: MCPClientProtocol
     
+    /// Resolved settings read from UserDefaults at init time.
+    private let resolvedModel: String
+    private let resolvedTimeout: TimeInterval
+    private let resolvedTemperature: Double
+    private let resolvedSystemPrompt: String
+    
     init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
         self.modelContext = modelContext
         self.mcpClient = mcpClient
+        
+        let defaults = UserDefaults.standard
+        self.resolvedModel = defaults.string(forKey: UserDefaultsKeys.lessonPlanningModel).flatMap({ $0.isEmpty ? nil : $0 })
+            ?? "claude-sonnet-4-20250514"
+        let storedTimeout = defaults.integer(forKey: UserDefaultsKeys.lessonPlanningTimeout)
+        self.resolvedTimeout = storedTimeout > 0 ? TimeInterval(storedTimeout) : 120
+        let storedTemp = defaults.double(forKey: UserDefaultsKeys.lessonPlanningTemperature)
+        self.resolvedTemperature = storedTemp > 0 ? storedTemp : 0.3
+        let customPrompt = defaults.string(forKey: UserDefaultsKeys.lessonPlanningSystemPrompt) ?? ""
+        self.resolvedSystemPrompt = customPrompt.isEmpty ? AIPrompts.lessonPlanningAssistant : customPrompt
     }
     
     // MARK: - Public API
@@ -47,9 +63,11 @@ final class LessonPlanningService {
         
         let gapResponse = try await mcpClient.generateStructuredJSON(
             prompt: gapPrompt,
-            systemMessage: AIPrompts.lessonPlanningAssistant,
-            temperature: 0.3,
-            maxTokens: 4096
+            systemMessage: resolvedSystemPrompt,
+            temperature: resolvedTemperature,
+            maxTokens: 4096,
+            model: resolvedModel,
+            timeout: resolvedTimeout
         )
         
         var recommendations = parseRecommendations(from: gapResponse, students: [student])
@@ -67,9 +85,11 @@ final class LessonPlanningService {
             
             let synthesisResponse = try await mcpClient.generateStructuredJSON(
                 prompt: synthesisPrompt,
-                systemMessage: AIPrompts.lessonPlanningAssistant,
-                temperature: 0.3,
-                maxTokens: 4096
+                systemMessage: resolvedSystemPrompt,
+                temperature: resolvedTemperature,
+                maxTokens: 4096,
+                model: resolvedModel,
+                timeout: resolvedTimeout
             )
             
             recommendations = parseRecommendations(from: synthesisResponse, students: [student])
@@ -117,9 +137,11 @@ final class LessonPlanningService {
         
         let gapResponse = try await mcpClient.generateStructuredJSON(
             prompt: gapPrompt,
-            systemMessage: AIPrompts.lessonPlanningAssistant,
-            temperature: 0.3,
-            maxTokens: 6144
+            systemMessage: resolvedSystemPrompt,
+            temperature: resolvedTemperature,
+            maxTokens: 6144,
+            model: resolvedModel,
+            timeout: resolvedTimeout
         )
         
         let candidates = parseRecommendations(from: gapResponse, students: students)
@@ -136,9 +158,11 @@ final class LessonPlanningService {
         
         let synthesisResponse = try await mcpClient.generateStructuredJSON(
             prompt: synthesisPrompt,
-            systemMessage: AIPrompts.lessonPlanningAssistant,
-            temperature: 0.3,
-            maxTokens: 6144
+            systemMessage: resolvedSystemPrompt,
+            temperature: resolvedTemperature,
+            maxTokens: 6144,
+            model: resolvedModel,
+            timeout: resolvedTimeout
         )
         
         var scheduledRecs = parseRecommendations(from: synthesisResponse, students: students)
@@ -154,9 +178,11 @@ final class LessonPlanningService {
         
         let optimizationResponse = try await mcpClient.generateStructuredJSON(
             prompt: optimizationPrompt,
-            systemMessage: AIPrompts.lessonPlanningAssistant,
-            temperature: 0.3,
-            maxTokens: 6144
+            systemMessage: resolvedSystemPrompt,
+            temperature: resolvedTemperature,
+            maxTokens: 6144,
+            model: resolvedModel,
+            timeout: resolvedTimeout
         )
         
         scheduledRecs = parseRecommendations(from: optimizationResponse, students: students)
@@ -204,9 +230,11 @@ final class LessonPlanningService {
         
         let response = try await mcpClient.generateStructuredJSON(
             prompt: followUpPrompt,
-            systemMessage: AIPrompts.lessonPlanningAssistant,
-            temperature: 0.4,
-            maxTokens: 4096
+            systemMessage: resolvedSystemPrompt,
+            temperature: min(resolvedTemperature + 0.1, 1.0),
+            maxTokens: 4096,
+            model: resolvedModel,
+            timeout: resolvedTimeout
         )
         
         let students = fetchStudents(for: session.mode)

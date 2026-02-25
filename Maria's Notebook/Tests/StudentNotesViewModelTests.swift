@@ -383,28 +383,29 @@ struct StudentNotesViewModelBatchTests {
         #expect(vm.items.contains { $0.id == note3.id })
     }
 
-    @Test("batchUpdateCategory updates category for multiple items")
-    func batchUpdateCategoryUpdatesMultiple() throws {
+    @Test("batchAddTag adds tag for multiple items")
+    func batchAddTagAddsToMultiple() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
         let student = makeTestStudent()
         context.insert(student)
 
-        let note1 = Note(body: "Note 1", scope: .student(student.id), category: .general)
-        let note2 = Note(body: "Note 2", scope: .student(student.id), category: .general)
+        let note1 = Note(body: "Note 1", scope: .student(student.id))
+        let note2 = Note(body: "Note 2", scope: .student(student.id))
         context.insert(note1)
         context.insert(note2)
         try context.save()
 
         let vm = StudentNotesViewModel(student: student, modelContext: context, saveCoordinator: SaveCoordinator())
         let idsToUpdate = Set([note1.id, note2.id])
+        let academicTag = TagHelper.tagFromNoteCategory("academic")
 
-        vm.batchUpdateCategory(.academic, for: idsToUpdate)
+        vm.batchAddTag(academicTag, for: idsToUpdate)
 
         // Verify notes were updated
         let updatedItems = vm.items.filter { idsToUpdate.contains($0.id) }
-        #expect(updatedItems.allSatisfy { $0.category == .academic })
+        #expect(updatedItems.allSatisfy { $0.tags.contains(academicTag) })
     }
 
     @Test("batchToggleReportFlag toggles flag for multiple items")
@@ -525,12 +526,13 @@ struct UnifiedNoteItemTests {
             contextText: "Context",
             color: .blue,
             associatedID: nil,
-            category: .general,
+            tags: [],
             includeInReport: false,
             imagePath: nil,
             reportedBy: nil,
             reporterName: nil,
-            isPinned: false
+            isPinned: false,
+            needsFollowUp: false
         )
 
         #expect(item.id != UUID()) // Has a valid ID

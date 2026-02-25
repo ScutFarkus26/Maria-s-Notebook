@@ -311,12 +311,13 @@ struct SmartNoteFormatter {
         let studentName = resolveStudentName(for: note.scope)
         let contextDetail = resolveContextDetail(for: note)
         let dateStr = note.updatedAt.formatted(date: .abbreviated, time: .shortened)
-        let category = note.category.rawValue.capitalized
+        let tagNames = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
+        let tagLabel = tagNames.isEmpty ? "General" : tagNames
         
         return """
         ENTRY: \(dateStr)
         STUDENT: \(studentName)
-        CONTEXT: \(contextDetail) (\(category))
+        CONTEXT: \(contextDetail) (\(tagLabel))
         NOTE:
         \(note.body)
         """

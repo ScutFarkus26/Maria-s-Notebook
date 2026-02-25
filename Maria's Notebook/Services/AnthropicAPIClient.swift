@@ -36,6 +36,10 @@ final class AnthropicAPIClient: MCPClientProtocol {
     }
     
     func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String {
+        try await generateText(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: nil, timeout: nil)
+    }
+    
+    func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?, model: String?, timeout: TimeInterval?) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
@@ -44,7 +48,9 @@ final class AnthropicAPIClient: MCPClientProtocol {
             prompt: prompt,
             systemMessage: systemMessage,
             temperature: temperature,
-            maxTokens: maxTokens ?? 2048
+            maxTokens: maxTokens ?? 2048,
+            model: model,
+            timeout: timeout
         )
         
         return response
@@ -55,6 +61,10 @@ final class AnthropicAPIClient: MCPClientProtocol {
     }
     
     func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String {
+        try await generateStructuredJSON(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: nil, timeout: nil)
+    }
+    
+    func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?, model: String?, timeout: TimeInterval?) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
@@ -70,7 +80,9 @@ final class AnthropicAPIClient: MCPClientProtocol {
             prompt: enhancedPrompt,
             systemMessage: systemMessage,
             temperature: temperature,
-            maxTokens: maxTokens ?? 4096
+            maxTokens: maxTokens ?? 4096,
+            model: model,
+            timeout: timeout
         )
         
         // Clean up response if it contains markdown code blocks
@@ -141,13 +153,16 @@ final class AnthropicAPIClient: MCPClientProtocol {
     
     // MARK: - Private Helpers
     
-    private func sendClaudeRequest(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int) async throws -> String {
+    private func sendClaudeRequest(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
         // Double-check API key
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
         
-        Self.logger.debug("Making request to \(self.baseURL, privacy: .public)")
+        let resolvedModel = model ?? "claude-sonnet-4-20250514"
+        let resolvedTimeout = timeout ?? 60
+        
+        Self.logger.debug("Making request to \(self.baseURL, privacy: .public) with model \(resolvedModel, privacy: .public)")
         Self.logger.debug("API Key length: \(self.apiKey.count, privacy: .public), starts with: \(self.apiKey.prefix(7), privacy: .private)")
         
         var request = URLRequest(url: baseURL)
@@ -155,10 +170,10 @@ final class AnthropicAPIClient: MCPClientProtocol {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.timeoutInterval = 30
+        request.timeoutInterval = resolvedTimeout
         
         var requestBody: [String: Any] = [
-            "model": "claude-opus-4-6",
+            "model": resolvedModel,
             "max_tokens": maxTokens,
             "temperature": temperature,
             "messages": [
@@ -271,22 +286,25 @@ final class AnthropicAPIClient: MCPClientProtocol {
     ///   - temperature: Sampling temperature.
     ///   - maxTokens: Maximum tokens in the response.
     /// - Returns: The assistant's response text.
-    func sendConversation(messages: [[String: String]], systemMessage: String? = nil, temperature: Double = 0.7, maxTokens: Int = 2048) async throws -> String {
+    func sendConversation(messages: [[String: String]], systemMessage: String? = nil, temperature: Double = 0.7, maxTokens: Int = 2048, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
         
-        Self.logger.debug("Sending conversation with \(messages.count) messages")
+        let resolvedModel = model ?? "claude-sonnet-4-20250514"
+        let resolvedTimeout = timeout ?? 90
+        
+        Self.logger.debug("Sending conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)")
         
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.timeoutInterval = 60
+        request.timeoutInterval = resolvedTimeout
         
         var requestBody: [String: Any] = [
-            "model": "claude-opus-4-6",
+            "model": resolvedModel,
             "max_tokens": maxTokens,
             "temperature": temperature,
             "messages": messages

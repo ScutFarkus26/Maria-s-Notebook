@@ -96,20 +96,26 @@ final class Note: Identifiable {
     // Content
     var body: String = ""
     var isPinned: Bool = false
-    // Store category as raw string for SwiftData/CloudKit compatibility
+    // Legacy category field — kept for migration; new code uses `tags`
     private var categoryRaw: String = NoteCategory.general.rawValue
+    /// Tags in "Name|Color" format, matching the todo tag system
+    var tags: [String] = []
     var includeInReport: Bool = false
+    var needsFollowUp: Bool = false
     var imagePath: String? = nil
     
     // Reporter information
     var reportedBy: String? = nil // e.g., "guide", "assistant", "parent"
     var reporterName: String? = nil // e.g., "Mom", "Assistant", etc.
     
-    // Computed property for category enum
+    // Legacy computed property — reads from categoryRaw for migration; prefer `tags`
     var category: NoteCategory {
         get { NoteCategory(rawValue: categoryRaw) ?? .general }
         set { categoryRaw = newValue.rawValue }
     }
+
+    /// The legacy categoryRaw value (read-only, for migration)
+    var legacyCategoryRaw: String { categoryRaw }
 
     // Persisted scope storage (JSON-encoded) kept small; no external storage needed
     private var scopeBlob: Data?
@@ -224,8 +230,9 @@ final class Note: Identifiable {
         body: String,
         scope: NoteScope = .all,
         isPinned: Bool = false,
-        category: NoteCategory = .general,
+        tags: [String] = [],
         includeInReport: Bool = false,
+        needsFollowUp: Bool = false,
         lesson: Lesson? = nil,
         work: WorkModel? = nil,
         studentLesson: StudentLesson? = nil,
@@ -250,7 +257,8 @@ final class Note: Identifiable {
         self.updatedAt = updatedAt
         self.body = body
         self.isPinned = isPinned
-        self.categoryRaw = category.rawValue
+        self.tags = tags
+        self.needsFollowUp = needsFollowUp
         self.includeInReport = includeInReport
         self.lesson = lesson
         self.work = work
@@ -259,7 +267,6 @@ final class Note: Identifiable {
         self.attendanceRecord = attendanceRecord
         self.workCheckIn = workCheckIn
         self.workCompletionRecord = workCompletionRecord
-        // workPlanItem removed in Phase 6 - migrated to WorkCheckIn
         self.studentMeeting = studentMeeting
         self.projectSession = projectSession
         self.communityTopic = communityTopic

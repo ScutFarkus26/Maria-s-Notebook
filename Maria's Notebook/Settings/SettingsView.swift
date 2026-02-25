@@ -230,41 +230,48 @@ struct SettingsView: View {
     private var aiFeaturesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "AI Features", systemImage: "brain.head.profile")
-            SettingsGroup(title: "Development Insights", systemImage: "sparkles") {
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Claude AI Integration")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                            
-                            if AnthropicAPIClient.hasAPIKey() {
-                                Label("API key configured", systemImage: "checkmark.circle.fill")
+            VStack(spacing: 12) {
+                SettingsGroup(title: "Development Insights", systemImage: "sparkles") {
+                    VStack(spacing: 12) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Claude AI Integration")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                
+                                if AnthropicAPIClient.hasAPIKey() {
+                                    Label("API key configured", systemImage: "checkmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                } else {
+                                    Label("API key required", systemImage: "exclamationmark.triangle")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                            Spacer()
+                        }
+                        
+                        Divider()
+                        
+                        NavigationLink {
+                            APIKeySettingsView()
+                        } label: {
+                            HStack {
+                                Text("Configure API Key")
+                                Spacer()
+                                Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundStyle(.green)
-                            } else {
-                                Label("API key required", systemImage: "exclamationmark.triangle")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(.secondary)
                             }
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
                     }
-                    
-                    Divider()
-                    
-                    NavigationLink {
-                        APIKeySettingsView()
-                    } label: {
-                        HStack {
-                            Text("Configure API Key")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
+                }
+                
+                SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard") {
+                    LessonPlanningSettingsView()
+                        .frame(maxWidth: .infinity)
                 }
             }
         }

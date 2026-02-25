@@ -13,7 +13,7 @@ struct StudentNoteRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // 1. Leading Icon with optional pin indicator
+            // 1. Leading Icon with pin/follow-up indicators
             ZStack(alignment: .topTrailing) {
                 ZStack {
                     Circle()
@@ -31,6 +31,14 @@ struct StudentNoteRowView: View {
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.orange)
                         .offset(x: 4, y: -4)
+                }
+
+                // Follow-up indicator
+                if item.needsFollowUp {
+                    Image(systemName: "flag.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.red)
+                        .offset(x: item.isPinned ? 4 : 4, y: item.isPinned ? 8 : -4)
                 }
             }
 
@@ -53,8 +61,16 @@ struct StudentNoteRowView: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                // Category badge
-                categoryBadge(item.category)
+                // Tag badges
+                if !item.tags.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(item.tags, id: \.self) { tag in
+                                TagBadge(tag: tag, compact: true)
+                            }
+                        }
+                    }
+                }
 
                 Text(item.body)
                     .font(.body)
@@ -142,38 +158,7 @@ struct StudentNoteRowView: View {
         DateFormatters.mediumDateTimeRelative.string(from: date)
     }
     
-    @ViewBuilder
-    private func categoryBadge(_ category: NoteCategory) -> some View {
-        let color = categoryColor(for: category)
-        Text(category.rawValue.capitalized)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-            .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(color.opacity(0.15))
-            )
-    }
-    
-    private func categoryColor(for category: NoteCategory) -> Color {
-        switch category {
-        case .academic:
-            return .blue
-        case .behavioral:
-            return .orange
-        case .social:
-            return .green
-        case .emotional:
-            return .pink
-        case .health:
-            return .red
-        case .attendance:
-            return .teal
-        case .general:
-            return .gray
-        }
-    }
+
 }
 
 // MARK: - Preview
@@ -189,8 +174,9 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 contextText: "Decimal System",
                 color: .green,
                 associatedID: nil,
-                category: .academic,
+                tags: [TagHelper.createTag(name: "Academic", color: .blue)],
                 includeInReport: false,
+                needsFollowUp: false,
                 imagePath: nil,
                 reportedBy: nil,
                 reporterName: nil,
@@ -205,8 +191,9 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 contextText: "Handwriting Practice",
                 color: .orange,
                 associatedID: nil,
-                category: .academic,
+                tags: [TagHelper.createTag(name: "Academic", color: .blue), TagHelper.createTag(name: "Behavioral", color: .orange)],
                 includeInReport: true,
+                needsFollowUp: true,
                 imagePath: nil,
                 reportedBy: nil,
                 reporterName: nil,
@@ -221,8 +208,9 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 contextText: "General Note",
                 color: .blue,
                 associatedID: nil,
-                category: .general,
+                tags: [],
                 includeInReport: false,
+                needsFollowUp: false,
                 imagePath: nil,
                 reportedBy: "parent",
                 reporterName: "Mom",

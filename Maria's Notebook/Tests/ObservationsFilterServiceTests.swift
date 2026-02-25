@@ -11,7 +11,7 @@ private func makeTestObservationItem(
     id: UUID = UUID(),
     date: Date = Date(),
     body: String = "Test observation",
-    category: NoteCategory = .general,
+    tags: [String] = [],
     includeInReport: Bool = false,
     imagePath: String? = nil,
     contextText: String? = nil,
@@ -19,14 +19,14 @@ private func makeTestObservationItem(
     context: ModelContext
 ) -> UnifiedObservationItem {
     // Create a backing Note for the source
-    let note = Note(body: body, scope: studentIDs.isEmpty ? .all : (studentIDs.count == 1 ? .student(studentIDs[0]) : .students(studentIDs)), category: category, includeInReport: includeInReport)
+    let note = Note(body: body, scope: studentIDs.isEmpty ? .all : (studentIDs.count == 1 ? .student(studentIDs[0]) : .students(studentIDs)), tags: tags, includeInReport: includeInReport)
     context.insert(note)
 
     return UnifiedObservationItem(
         id: id,
         date: date,
         body: body,
-        category: category,
+        tags: tags,
         includeInReport: includeInReport,
         imagePath: imagePath,
         contextText: contextText,
@@ -35,28 +35,32 @@ private func makeTestObservationItem(
     )
 }
 
-// MARK: - ObservationsFilterService Category Filter Tests
+// MARK: - ObservationsFilterService Tag Filter Tests
 
-@Suite("ObservationsFilterService Category Filter Tests", .serialized)
+@Suite("ObservationsFilterService Tag Filter Tests", .serialized)
 @MainActor
-struct ObservationsFilterServiceCategoryTests {
+struct ObservationsFilterServiceTagTests {
 
     private func makeContainer() throws -> ModelContainer {
         return try makeTestContainer(for: [Note.self])
     }
 
-    @Test("filter returns all items when category is nil")
-    func filterReturnsAllWhenCategoryNil() throws {
+    private let academicTag = TagHelper.tagFromNoteCategory("academic")
+    private let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
+    private let healthTag = TagHelper.tagFromNoteCategory("health")
+
+    @Test("filter returns all items when filterTags is empty")
+    func filterReturnsAllWhenNoTags() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let item1 = makeTestObservationItem(category: .academic, context: context)
-        let item2 = makeTestObservationItem(category: .behavioral, context: context)
-        let item3 = makeTestObservationItem(category: .general, context: context)
+        let item1 = makeTestObservationItem(tags: [academicTag], context: context)
+        let item2 = makeTestObservationItem(tags: [behavioralTag], context: context)
+        let item3 = makeTestObservationItem(tags: [], context: context)
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2, item3],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: ""
         )
@@ -64,37 +68,37 @@ struct ObservationsFilterServiceCategoryTests {
         #expect(result.count == 3)
     }
 
-    @Test("filter returns only matching category items")
-    func filterReturnsMatchingCategory() throws {
+    @Test("filter returns only matching tag items")
+    func filterReturnsMatchingTag() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let academic1 = makeTestObservationItem(body: "Academic 1", category: .academic, context: context)
-        let academic2 = makeTestObservationItem(body: "Academic 2", category: .academic, context: context)
-        let behavioral = makeTestObservationItem(body: "Behavioral", category: .behavioral, context: context)
+        let academic1 = makeTestObservationItem(body: "Academic 1", tags: [academicTag], context: context)
+        let academic2 = makeTestObservationItem(body: "Academic 2", tags: [academicTag], context: context)
+        let behavioral = makeTestObservationItem(body: "Behavioral", tags: [behavioralTag], context: context)
 
         let result = ObservationsFilterService.filter(
             items: [academic1, academic2, behavioral],
-            category: .academic,
+            filterTags: Set([academicTag]),
             scope: .all,
             searchText: ""
         )
 
         #expect(result.count == 2)
-        #expect(result.allSatisfy { $0.category == .academic })
+        #expect(result.allSatisfy { $0.tags.contains(academicTag) })
     }
 
-    @Test("filter returns empty when no items match category")
+    @Test("filter returns empty when no items match tag")
     func filterReturnsEmptyWhenNoMatch() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let item1 = makeTestObservationItem(category: .academic, context: context)
-        let item2 = makeTestObservationItem(category: .behavioral, context: context)
+        let item1 = makeTestObservationItem(tags: [academicTag], context: context)
+        let item2 = makeTestObservationItem(tags: [behavioralTag], context: context)
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2],
-            category: .health,
+            filterTags: Set([healthTag]),
             scope: .all,
             searchText: ""
         )
@@ -124,7 +128,7 @@ struct ObservationsFilterServiceScopeTests {
 
         let result = ObservationsFilterService.filter(
             items: [studentSpecific, allStudents],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: ""
         )
@@ -143,7 +147,7 @@ struct ObservationsFilterServiceScopeTests {
 
         let result = ObservationsFilterService.filter(
             items: [studentSpecific, allStudents],
-            category: nil,
+            filterTags: [],
             scope: .studentSpecific,
             searchText: ""
         )
@@ -163,7 +167,7 @@ struct ObservationsFilterServiceScopeTests {
 
         let result = ObservationsFilterService.filter(
             items: [studentSpecific, allStudents],
-            category: nil,
+            filterTags: [],
             scope: .allStudents,
             searchText: ""
         )
@@ -184,7 +188,7 @@ struct ObservationsFilterServiceScopeTests {
 
         let result = ObservationsFilterService.filter(
             items: [multiStudent, allStudents],
-            category: nil,
+            filterTags: [],
             scope: .studentSpecific,
             searchText: ""
         )
@@ -214,7 +218,7 @@ struct ObservationsFilterServiceSearchTests {
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: ""
         )
@@ -232,7 +236,7 @@ struct ObservationsFilterServiceSearchTests {
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: "   "
         )
@@ -251,7 +255,7 @@ struct ObservationsFilterServiceSearchTests {
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2, item3],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: "observation"
         )
@@ -269,7 +273,7 @@ struct ObservationsFilterServiceSearchTests {
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: "acad"
         )
@@ -288,7 +292,7 @@ struct ObservationsFilterServiceSearchTests {
 
         let result = ObservationsFilterService.filter(
             items: [item1, item2],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: "xyz123"
         )
@@ -307,19 +311,22 @@ struct ObservationsFilterServiceCombinedTests {
         return try makeTestContainer(for: [Note.self])
     }
 
-    @Test("filter combines category and scope filters")
-    func filterCombinesCategoryAndScope() throws {
+    private let academicTag = TagHelper.tagFromNoteCategory("academic")
+    private let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
+
+    @Test("filter combines tags and scope filters")
+    func filterCombinesTagsAndScope() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
         let studentID = UUID()
-        let academicStudent = makeTestObservationItem(body: "Academic student", category: .academic, studentIDs: [studentID], context: context)
-        let academicAll = makeTestObservationItem(body: "Academic all", category: .academic, studentIDs: [], context: context)
-        let behavioralStudent = makeTestObservationItem(body: "Behavioral student", category: .behavioral, studentIDs: [studentID], context: context)
+        let academicStudent = makeTestObservationItem(body: "Academic student", tags: [academicTag], studentIDs: [studentID], context: context)
+        let academicAll = makeTestObservationItem(body: "Academic all", tags: [academicTag], studentIDs: [], context: context)
+        let behavioralStudent = makeTestObservationItem(body: "Behavioral student", tags: [behavioralTag], studentIDs: [studentID], context: context)
 
         let result = ObservationsFilterService.filter(
             items: [academicStudent, academicAll, behavioralStudent],
-            category: .academic,
+            filterTags: Set([academicTag]),
             scope: .studentSpecific,
             searchText: ""
         )
@@ -328,18 +335,18 @@ struct ObservationsFilterServiceCombinedTests {
         #expect(result.first?.body == "Academic student")
     }
 
-    @Test("filter combines category and search text")
-    func filterCombinesCategoryAndSearch() throws {
+    @Test("filter combines tags and search text")
+    func filterCombinesTagsAndSearch() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let academicMath = makeTestObservationItem(body: "Math progress excellent", category: .academic, context: context)
-        let academicReading = makeTestObservationItem(body: "Reading needs work", category: .academic, context: context)
-        let behavioralMath = makeTestObservationItem(body: "Math behavior issues", category: .behavioral, context: context)
+        let academicMath = makeTestObservationItem(body: "Math progress excellent", tags: [academicTag], context: context)
+        let academicReading = makeTestObservationItem(body: "Reading needs work", tags: [academicTag], context: context)
+        let behavioralMath = makeTestObservationItem(body: "Math behavior issues", tags: [behavioralTag], context: context)
 
         let result = ObservationsFilterService.filter(
             items: [academicMath, academicReading, behavioralMath],
-            category: .academic,
+            filterTags: Set([academicTag]),
             scope: .all,
             searchText: "math"
         )
@@ -360,7 +367,7 @@ struct ObservationsFilterServiceCombinedTests {
 
         let result = ObservationsFilterService.filter(
             items: [studentMath, studentReading, allMath],
-            category: nil,
+            filterTags: [],
             scope: .studentSpecific,
             searchText: "math"
         )
@@ -376,14 +383,14 @@ struct ObservationsFilterServiceCombinedTests {
 
         let studentID = UUID()
         // Create various combinations
-        let target = makeTestObservationItem(body: "Math academic student", category: .academic, studentIDs: [studentID], context: context)
-        let wrongCategory = makeTestObservationItem(body: "Math behavioral student", category: .behavioral, studentIDs: [studentID], context: context)
-        let wrongScope = makeTestObservationItem(body: "Math academic all", category: .academic, studentIDs: [], context: context)
-        let wrongSearch = makeTestObservationItem(body: "Reading academic student", category: .academic, studentIDs: [studentID], context: context)
+        let target = makeTestObservationItem(body: "Math academic student", tags: [academicTag], studentIDs: [studentID], context: context)
+        let wrongTag = makeTestObservationItem(body: "Math behavioral student", tags: [behavioralTag], studentIDs: [studentID], context: context)
+        let wrongScope = makeTestObservationItem(body: "Math academic all", tags: [academicTag], studentIDs: [], context: context)
+        let wrongSearch = makeTestObservationItem(body: "Reading academic student", tags: [academicTag], studentIDs: [studentID], context: context)
 
         let result = ObservationsFilterService.filter(
-            items: [target, wrongCategory, wrongScope, wrongSearch],
-            category: .academic,
+            items: [target, wrongTag, wrongScope, wrongSearch],
+            filterTags: Set([academicTag]),
             scope: .studentSpecific,
             searchText: "math"
         )
@@ -398,11 +405,11 @@ struct ObservationsFilterServiceCombinedTests {
         let context = ModelContext(container)
 
         let studentID = UUID()
-        let item = makeTestObservationItem(body: "Reading behavioral student", category: .behavioral, studentIDs: [studentID], context: context)
+        let item = makeTestObservationItem(body: "Reading behavioral student", tags: [behavioralTag], studentIDs: [studentID], context: context)
 
         let result = ObservationsFilterService.filter(
             items: [item],
-            category: .academic,
+            filterTags: Set([academicTag]),
             scope: .allStudents,
             searchText: "math"
         )
@@ -425,7 +432,7 @@ struct ObservationsFilterServiceEdgeCaseTests {
     func filterHandlesEmptyArray() {
         let result = ObservationsFilterService.filter(
             items: [],
-            category: .academic,
+            filterTags: Set([TagHelper.tagFromNoteCategory("academic")]),
             scope: .studentSpecific,
             searchText: "test"
         )
@@ -442,7 +449,7 @@ struct ObservationsFilterServiceEdgeCaseTests {
 
         let result = ObservationsFilterService.filter(
             items: [item],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: "(with)"
         )
@@ -459,7 +466,7 @@ struct ObservationsFilterServiceEdgeCaseTests {
 
         let result = ObservationsFilterService.filter(
             items: [item],
-            category: nil,
+            filterTags: [],
             scope: .all,
             searchText: "caf\u{00E9}"
         )

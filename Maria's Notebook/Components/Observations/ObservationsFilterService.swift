@@ -17,25 +17,27 @@ enum ObservationsFilterService {
 
     // MARK: - Apply Filters
 
-    /// Filters observation items based on category, scope, and search text.
+    /// Filters observation items based on tags, scope, and search text.
     ///
     /// - Parameters:
     ///   - items: Items to filter
-    ///   - category: Optional category filter
+    ///   - filterTags: Tags to filter by (empty means no filter)
     ///   - scope: Scope filter
     ///   - searchText: Search text filter
     /// - Returns: Filtered items
     static func filter(
         items: [UnifiedObservationItem],
-        category: NoteCategory?,
+        filterTags: Set<String>,
         scope: ScopeFilter,
         searchText: String
     ) -> [UnifiedObservationItem] {
         var result = items
 
-        // Category filter
-        if let cat = category {
-            result = result.filter { $0.category == cat }
+        // Tag filter
+        if !filterTags.isEmpty {
+            result = result.filter { item in
+                !filterTags.isDisjoint(with: item.tags)
+            }
         }
 
         // Scope filter

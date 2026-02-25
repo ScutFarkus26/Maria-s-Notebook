@@ -168,14 +168,15 @@ struct NoteTemplateRepositoryCreateTests {
         let context = ModelContext(container)
 
         let repository = NoteTemplateRepository(context: context)
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
         let template = repository.createTemplate(
             title: "Observation",
             body: "The student demonstrated...",
-            category: .behavioral,
+            tags: [behavioralTag],
             sortOrder: 50
         )
 
-        #expect(template.category == .behavioral)
+        #expect(template.tags == [behavioralTag])
         #expect(template.sortOrder == 50)
     }
 
@@ -253,20 +254,21 @@ struct NoteTemplateRepositoryUpdateTests {
         #expect(template.body == "Updated body")
     }
 
-    @Test("updateTemplate updates category")
-    func updateTemplateUpdatesCategory() throws {
+    @Test("updateTemplate updates tags")
+    func updateTemplateUpdatesTags() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let template = NoteTemplate(title: "Test", body: "Body", category: .general, isBuiltIn: false)
+        let template = NoteTemplate(title: "Test", body: "Body", isBuiltIn: false)
         context.insert(template)
         try context.save()
 
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
         let repository = NoteTemplateRepository(context: context)
-        let result = repository.updateTemplate(id: template.id, category: .behavioral)
+        let result = repository.updateTemplate(id: template.id, tags: [behavioralTag])
 
         #expect(result == true)
-        #expect(template.category == .behavioral)
+        #expect(template.tags == [behavioralTag])
     }
 
     @Test("updateTemplate updates sortOrder")
@@ -317,7 +319,8 @@ struct NoteTemplateRepositoryUpdateTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let template = NoteTemplate(title: "Original", body: "Original body", category: .behavioral, isBuiltIn: false)
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
+        let template = NoteTemplate(title: "Original", body: "Original body", tags: [behavioralTag], isBuiltIn: false)
         context.insert(template)
         try context.save()
 
@@ -326,7 +329,7 @@ struct NoteTemplateRepositoryUpdateTests {
 
         #expect(template.title == "Updated")
         #expect(template.body == "Original body") // Unchanged
-        #expect(template.category == .behavioral) // Unchanged
+        #expect(template.tags == [behavioralTag]) // Unchanged
     }
 }
 

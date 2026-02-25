@@ -75,7 +75,7 @@ struct NoteTemplateRepository: SavingRepository {
     func createTemplate(
         title: String,
         body: String,
-        category: NoteCategory = .general,
+        tags: [String] = [],
         sortOrder: Int? = nil
     ) -> NoteTemplate {
         // Calculate sort order if not provided (after existing custom templates)
@@ -90,7 +90,7 @@ struct NoteTemplateRepository: SavingRepository {
         let template = NoteTemplate(
             title: title,
             body: body,
-            category: category,
+            tags: tags,
             sortOrder: order,
             isBuiltIn: false
         )
@@ -113,7 +113,7 @@ struct NoteTemplateRepository: SavingRepository {
         id: UUID,
         title: String? = nil,
         body: String? = nil,
-        category: NoteCategory? = nil,
+        tags: [String]? = nil,
         sortOrder: Int? = nil
     ) -> Bool {
         guard let template = fetchTemplate(id: id) else { return false }
@@ -126,8 +126,8 @@ struct NoteTemplateRepository: SavingRepository {
         if let body = body {
             template.body = body
         }
-        if let category = category {
-            template.category = category
+        if let tags = tags {
+            template.tags = tags
         }
         if let sortOrder = sortOrder {
             template.sortOrder = sortOrder

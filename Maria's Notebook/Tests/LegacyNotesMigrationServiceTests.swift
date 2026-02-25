@@ -224,7 +224,7 @@ struct LegacyNotesMigrationServiceAttendanceRecordTests {
         let notes = context.safeFetch(FetchDescriptor<Note>())
         #expect(notes.count == 1)
         #expect(notes[0].body == "Arrived late due to appointment")
-        #expect(notes[0].category == .attendance)
+        #expect(notes[0].tags.contains(TagHelper.tagFromNoteCategory("attendance")))
         #expect(notes[0].attendanceRecord?.id == record.id)
     }
 

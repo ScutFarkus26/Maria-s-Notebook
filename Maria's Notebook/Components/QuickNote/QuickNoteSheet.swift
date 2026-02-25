@@ -104,19 +104,40 @@ struct QuickNoteSheet: View {
                             .labelsHidden().datePickerStyle(.compact)
                     }
                     
-                    // Category Picker
+                    // Tags
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("Category", systemImage: "tag")
+                        Label("Tags", systemImage: "tag")
                             .font(.caption).foregroundStyle(.secondary)
-                        QuickNoteCategoryMenu(
-                            category: $viewModel.category,
-                            categoryColor: viewModel.categoryColor
-                        )
+                        
+                        FlowLayout(spacing: 4) {
+                            ForEach(viewModel.tags, id: \.self) { tag in
+                                TagBadge(tag: tag, compact: true)
+                            }
+                            
+                            Button {
+                                viewModel.showingTagPicker = true
+                            } label: {
+                                Label("Add", systemImage: "plus")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                    .sheet(isPresented: $viewModel.showingTagPicker) {
+                        NoteTagPickerSheet(selectedTags: $viewModel.tags)
+                            .frame(minWidth: 400, minHeight: 400)
                     }
                     
                     // Flags
+                    Toggle(isOn: $viewModel.needsFollowUp) {
+                        Label("Follow-Up", systemImage: "flag")
+                    }
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    
                     Toggle(isOn: $viewModel.includeInReport) {
-                        Label("Flag for Report", systemImage: "flag")
+                        Label("Flag for Report", systemImage: "doc.text")
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)
@@ -282,23 +303,18 @@ struct QuickNoteSheet: View {
                             .fixedSize()
                     }
                     
-                    // Category
-                    Menu {
-                        ForEach(NoteCategory.allCases, id: \.self) { cat in
-                            Button { viewModel.category = cat } label: {
-                                HStack {
-                                    if viewModel.category == cat {
-                                        Image(systemName: "checkmark")
-                                    }
-                                    Text(cat.rawValue.capitalized)
-                                }
+                    // Tags
+                    Button { viewModel.showingTagPicker = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "tag")
+                            if !viewModel.tags.isEmpty {
+                                Text("\(viewModel.tags.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
                             }
                         }
-                    } label: {
-                        Circle()
-                            .fill(viewModel.categoryColor(viewModel.category))
-                            .frame(width: 20, height: 20)
-                            .overlay(Circle().strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+                        .foregroundStyle(viewModel.tags.isEmpty ? .primary : .blue)
+                        .font(.system(size: 20))
                     }
                     
                     // Divider
@@ -325,9 +341,16 @@ struct QuickNoteSheet: View {
                     aiMenuButton(students: students)
                         .foregroundStyle(.purple)
                     
-                    // Flag
+                    // Follow-up flag
+                    Button { viewModel.needsFollowUp.toggle() } label: {
+                        Image(systemName: viewModel.needsFollowUp ? "flag.fill" : "flag")
+                            .foregroundStyle(viewModel.needsFollowUp ? .red : .secondary)
+                            .font(.system(size: 20))
+                    }
+                    
+                    // Report flag
                     Button { viewModel.includeInReport.toggle() } label: {
-                        Image(systemName: viewModel.includeInReport ? "flag.fill" : "flag")
+                        Image(systemName: viewModel.includeInReport ? "doc.text.fill" : "doc.text")
                             .foregroundStyle(viewModel.includeInReport ? .orange : .secondary)
                             .font(.system(size: 20))
                     }
@@ -363,6 +386,10 @@ struct QuickNoteSheet: View {
                     onDone: { viewModel.isShowingStudentPicker = false }
                 )
                 .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $viewModel.showingTagPicker) {
+                NoteTagPickerSheet(selectedTags: $viewModel.tags)
+                    .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $viewModel.isShowingCamera) {
                 #if os(iOS)

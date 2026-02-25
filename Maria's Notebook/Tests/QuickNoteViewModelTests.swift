@@ -15,7 +15,7 @@ struct QuickNoteViewModelInitTests {
         let vm = QuickNoteViewModel()
 
         #expect(vm.bodyText == "")
-        #expect(vm.category == .general)
+        #expect(vm.tags.isEmpty)
         #expect(vm.selectedStudentIDs.isEmpty)
         #expect(vm.includeInReport == false)
         #expect(vm.initialStudentID == nil)
@@ -91,52 +91,43 @@ struct QuickNoteViewModelSetupTests {
     }
 }
 
-// MARK: - QuickNoteViewModel Category Tests
+// MARK: - QuickNoteViewModel Tag Tests
 
-@Suite("QuickNoteViewModel Category Tests", .serialized)
+@Suite("QuickNoteViewModel Tag Tests", .serialized)
 @MainActor
-struct QuickNoteViewModelCategoryTests {
+struct QuickNoteViewModelTagTests {
 
-    @Test("category can be set to academic")
-    func categoryCanBeSetToAcademic() {
+    private let academicTag = TagHelper.tagFromNoteCategory("academic")
+    private let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
+    private let socialTag = TagHelper.tagFromNoteCategory("social")
+
+    @Test("tags can be set to academic")
+    func tagsCanBeSetToAcademic() {
         let vm = QuickNoteViewModel()
 
-        vm.category = .academic
+        vm.tags = [academicTag]
 
-        #expect(vm.category == .academic)
+        #expect(vm.tags == [academicTag])
     }
 
-    @Test("category can be set to behavioral")
-    func categoryCanBeSetToBehavioral() {
+    @Test("tags can be set to behavioral")
+    func tagsCanBeSetToBehavioral() {
         let vm = QuickNoteViewModel()
 
-        vm.category = .behavioral
+        vm.tags = [behavioralTag]
 
-        #expect(vm.category == .behavioral)
+        #expect(vm.tags == [behavioralTag])
     }
 
-    @Test("category can be set to social")
-    func categoryCanBeSetToSocial() {
+    @Test("tags can hold multiple values")
+    func tagsCanHoldMultipleValues() {
         let vm = QuickNoteViewModel()
 
-        vm.category = .social
+        vm.tags = [academicTag, socialTag]
 
-        #expect(vm.category == .social)
-    }
-
-    @Test("categoryColor returns different colors for different categories")
-    func categoryColorReturnsDifferentColors() {
-        let vm = QuickNoteViewModel()
-
-        let academicColor = vm.categoryColor(.academic)
-        let behavioralColor = vm.categoryColor(.behavioral)
-        let socialColor = vm.categoryColor(.social)
-        let generalColor = vm.categoryColor(.general)
-
-        // Colors should all be different
-        #expect(academicColor != behavioralColor)
-        #expect(academicColor != socialColor)
-        #expect(academicColor != generalColor)
+        #expect(vm.tags.count == 2)
+        #expect(vm.tags.contains(academicTag))
+        #expect(vm.tags.contains(socialTag))
     }
 }
 
@@ -278,7 +269,7 @@ struct QuickNoteViewModelSaveTests {
 
         let vm = QuickNoteViewModel()
         vm.bodyText = "Test observation text"
-        vm.category = .academic
+        vm.tags = [TagHelper.tagFromNoteCategory("academic")]
 
         vm.saveNote(modelContext: context)
 
@@ -287,7 +278,7 @@ struct QuickNoteViewModelSaveTests {
 
         #expect(notes.count == 1)
         #expect(notes.first?.body == "Test observation text")
-        #expect(notes.first?.category == .academic)
+        #expect(notes.first?.tags == [TagHelper.tagFromNoteCategory("academic")])
     }
 
     @Test("saveNote trims whitespace from body")

@@ -23,13 +23,20 @@ final class NoteTemplate: Identifiable {
     /// Full template text that gets inserted (e.g., "Completed work independently with confidence.")
     var body: String = ""
 
-    /// The category to auto-select when this template is used
+    /// Legacy category field — kept for migration; new code uses `tags`
     private var categoryRaw: String = NoteCategory.general.rawValue
 
+    /// Legacy computed property — reads from categoryRaw for migration; prefer `tags`
     var category: NoteCategory {
         get { NoteCategory(rawValue: categoryRaw) ?? .general }
         set { categoryRaw = newValue.rawValue }
     }
+
+    /// The legacy categoryRaw value (read-only, for migration)
+    var legacyCategoryRaw: String { categoryRaw }
+
+    /// Tags in "Name|Color" format to auto-apply when this template is used
+    var tags: [String] = []
 
     // MARK: - Organization
     /// Display order in the template list (lower = first)
@@ -45,7 +52,7 @@ final class NoteTemplate: Identifiable {
         createdAt: Date = Date(),
         title: String,
         body: String,
-        category: NoteCategory = .general,
+        tags: [String] = [],
         sortOrder: Int = 0,
         isBuiltIn: Bool = false
     ) {
@@ -53,42 +60,42 @@ final class NoteTemplate: Identifiable {
         self.createdAt = createdAt
         self.title = title
         self.body = body
-        self.categoryRaw = category.rawValue
+        self.tags = tags
         self.sortOrder = sortOrder
         self.isBuiltIn = isBuiltIn
     }
 
     // MARK: - Built-in Templates
 
-    nonisolated(unsafe) static let builtInTemplates: [(title: String, body: String, category: NoteCategory)] = [
+    nonisolated(unsafe) static let builtInTemplates: [(title: String, body: String, tags: [String])] = [
         // Academic
-        ("Completed independently", "Completed work independently with confidence.", .academic),
-        ("Showed mastery", "Demonstrated strong mastery of the material.", .academic),
-        ("Needs more practice", "Would benefit from additional practice with this concept.", .academic),
-        ("Made great progress", "Made excellent progress today.", .academic),
+        ("Completed independently", "Completed work independently with confidence.", [TagHelper.tagFromNoteCategory("academic")]),
+        ("Showed mastery", "Demonstrated strong mastery of the material.", [TagHelper.tagFromNoteCategory("academic")]),
+        ("Needs more practice", "Would benefit from additional practice with this concept.", [TagHelper.tagFromNoteCategory("academic")]),
+        ("Made great progress", "Made excellent progress today.", [TagHelper.tagFromNoteCategory("academic")]),
 
         // Behavioral
-        ("Needed redirection", "Required redirection to stay focused on task.", .behavioral),
-        ("Followed directions", "Followed directions well and stayed on task.", .behavioral),
-        ("Showed focus", "Demonstrated excellent focus and concentration.", .behavioral),
+        ("Needed redirection", "Required redirection to stay focused on task.", [TagHelper.tagFromNoteCategory("behavioral")]),
+        ("Followed directions", "Followed directions well and stayed on task.", [TagHelper.tagFromNoteCategory("behavioral")]),
+        ("Showed focus", "Demonstrated excellent focus and concentration.", [TagHelper.tagFromNoteCategory("behavioral")]),
 
         // Social
-        ("Worked well with peers", "Collaborated effectively with classmates.", .social),
-        ("Helped others", "Showed kindness by helping a classmate.", .social),
-        ("Participated actively", "Actively participated in group discussion.", .social),
+        ("Worked well with peers", "Collaborated effectively with classmates.", [TagHelper.tagFromNoteCategory("social")]),
+        ("Helped others", "Showed kindness by helping a classmate.", [TagHelper.tagFromNoteCategory("social")]),
+        ("Participated actively", "Actively participated in group discussion.", [TagHelper.tagFromNoteCategory("social")]),
 
         // Emotional
-        ("Showed confidence", "Displayed confidence in their abilities.", .emotional),
-        ("Seemed frustrated", "Appeared frustrated; may need additional support.", .emotional),
-        ("Very enthusiastic", "Showed great enthusiasm for the activity.", .emotional),
+        ("Showed confidence", "Displayed confidence in their abilities.", [TagHelper.tagFromNoteCategory("emotional")]),
+        ("Seemed frustrated", "Appeared frustrated; may need additional support.", [TagHelper.tagFromNoteCategory("emotional")]),
+        ("Very enthusiastic", "Showed great enthusiasm for the activity.", [TagHelper.tagFromNoteCategory("emotional")]),
 
         // Attendance
-        ("Arrived late", "Arrived late to class.", .attendance),
-        ("Left early", "Left class early.", .attendance),
+        ("Arrived late", "Arrived late to class.", [TagHelper.tagFromNoteCategory("attendance")]),
+        ("Left early", "Left class early.", [TagHelper.tagFromNoteCategory("attendance")]),
 
         // General
-        ("Parent request", "Per parent request: ", .general),
-        ("Follow up needed", "Requires follow-up: ", .general),
+        ("Parent request", "Per parent request: ", [TagHelper.tagFromNoteCategory("general")]),
+        ("Follow up needed", "Requires follow-up: ", [TagHelper.tagFromNoteCategory("general")]),
     ]
 
     /// Seeds the built-in templates into the database if they don't exist.
@@ -114,7 +121,7 @@ final class NoteTemplate: Identifiable {
             let template = NoteTemplate(
                 title: templateData.title,
                 body: templateData.body,
-                category: templateData.category,
+                tags: templateData.tags,
                 sortOrder: index,
                 isBuiltIn: true
             )

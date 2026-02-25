@@ -25,7 +25,7 @@ extension Note {
     @discardableResult
     static func upsertLegacyFieldNote(
         text: String?,
-        category: NoteCategory,
+        tags: [String] = [],
         scope: NoteScope,
         existingNotes: [Note]?,
         context: ModelContext,
@@ -54,7 +54,7 @@ extension Note {
         let note = Note(
             body: trimmed,
             scope: scope,
-            category: category,
+            tags: tags,
             reportedBy: LegacyNoteFieldConstants.reporter,
             reporterName: LegacyNoteFieldConstants.reporterName
         )
@@ -75,7 +75,7 @@ extension AttendanceRecord {
         let scope: NoteScope = studentUUID.map { .student($0) } ?? .all
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .attendance,
+            tags: [TagHelper.tagFromNoteCategory("attendance")],
             scope: scope,
             existingNotes: notes,
             context: context
@@ -94,7 +94,6 @@ extension WorkModel {
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: .all,
             existingNotes: unifiedNotes,
             context: context
@@ -129,7 +128,6 @@ extension WorkCheckIn {
 
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: scope,
             existingNotes: notes,
             context: context
@@ -155,7 +153,6 @@ extension WorkCompletionRecord {
 
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: scope,
             existingNotes: notes,
             context: context
@@ -184,7 +181,6 @@ extension StudentLesson {
 
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: scope,
             existingNotes: unifiedNotes,
             context: context
@@ -203,7 +199,6 @@ extension ProjectSession {
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: .all,
             existingNotes: noteItems,
             context: context
@@ -229,7 +224,6 @@ extension StudentTrackEnrollment {
 
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: scope,
             existingNotes: richNotes,
             context: context
@@ -248,7 +242,6 @@ extension SchoolDayOverride {
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: .all,
             existingNotes: notes,
             context: context
@@ -267,7 +260,6 @@ extension Reminder {
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         return Note.upsertLegacyFieldNote(
             text: text,
-            category: .general,
             scope: .all,
             existingNotes: noteItems,
             context: context

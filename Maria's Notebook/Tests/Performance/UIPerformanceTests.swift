@@ -563,20 +563,21 @@ struct ComputedPropertyConsistencyTests {
         }
     }
 
-    @Test("Note category getter returns same value")
-    func noteCategoryConsistency() throws {
+    @Test("Note tags getter returns same value")
+    func noteTagsConsistency() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let note = Note(body: "Test", scope: .all, category: .behavioral)
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
+        let note = Note(body: "Test", scope: .all, tags: [behavioralTag])
         context.insert(note)
         try context.save()
 
-        let cat1 = note.category
-        let cat2 = note.category
+        let tags1 = note.tags
+        let tags2 = note.tags
 
-        #expect(cat1 == .behavioral)
-        #expect(cat2 == .behavioral)
+        #expect(tags1 == [behavioralTag])
+        #expect(tags2 == [behavioralTag])
     }
 }
 

@@ -169,7 +169,7 @@ struct NoteRepositoryCreateTests {
         let note = repository.createNote(body: "Test note content")
 
         #expect(note.body == "Test note content")
-        #expect(note.category == .general) // Default
+        #expect(note.tags.isEmpty) // Default
         #expect(note.isPinned == false) // Default
     }
 
@@ -180,17 +180,18 @@ struct NoteRepositoryCreateTests {
 
         let studentID = UUID()
 
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
         let repository = NoteRepository(context: context)
         let note = repository.createNote(
             body: "Important observation",
-            category: .behavioral,
+            tags: [behavioralTag],
             scope: .student(studentID),
             isPinned: true,
             includeInReport: true
         )
 
         #expect(note.body == "Important observation")
-        #expect(note.category == .behavioral)
+        #expect(note.tags == [behavioralTag])
         #expect(note.isPinned == true)
         #expect(note.includeInReport == true)
         if case .student(let id) = note.scope {
@@ -267,20 +268,21 @@ struct NoteRepositoryUpdateTests {
         #expect(note.body == "Updated content")
     }
 
-    @Test("updateNote updates category")
-    func updateNoteUpdatesCategory() throws {
+    @Test("updateNote updates tags")
+    func updateNoteUpdatesTags() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let note = Note(body: "Test note", scope: .all, category: .general)
+        let note = Note(body: "Test note", scope: .all)
         context.insert(note)
         try context.save()
 
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
         let repository = NoteRepository(context: context)
-        let result = repository.updateNote(id: note.id, category: .behavioral)
+        let result = repository.updateNote(id: note.id, tags: [behavioralTag])
 
         #expect(result == true)
-        #expect(note.category == .behavioral)
+        #expect(note.tags == [behavioralTag])
     }
 
     @Test("updateNote updates isPinned")
@@ -355,7 +357,8 @@ struct NoteRepositoryUpdateTests {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let note = Note(body: "Original", scope: .all, isPinned: true, category: .behavioral)
+        let behavioralTag = TagHelper.tagFromNoteCategory("behavioral")
+        let note = Note(body: "Original", scope: .all, isPinned: true, tags: [behavioralTag])
         context.insert(note)
         try context.save()
 
@@ -364,7 +367,7 @@ struct NoteRepositoryUpdateTests {
 
         #expect(note.body == "Updated")
         #expect(note.isPinned == true) // Unchanged
-        #expect(note.category == .behavioral) // Unchanged
+        #expect(note.tags == [behavioralTag]) // Unchanged
     }
 }
 

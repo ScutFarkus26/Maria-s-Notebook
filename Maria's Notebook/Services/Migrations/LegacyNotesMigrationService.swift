@@ -39,7 +39,6 @@ enum LegacyNotesMigrationService {
                 createdAt: sl.createdAt,
                 body: sl.notes,
                 scope: scope,
-                category: .general,
                 studentLesson: sl
             )
 
@@ -137,7 +136,6 @@ enum LegacyNotesMigrationService {
                 createdAt: checkIn.date,
                 body: checkIn.note,
                 scope: scope,
-                category: .general,
                 workCheckIn: checkIn
             )
 
@@ -180,7 +178,6 @@ enum LegacyNotesMigrationService {
                 createdAt: record.completedAt,
                 body: record.note,
                 scope: scope,
-                category: .general,
                 workCompletionRecord: record
             )
 
@@ -221,7 +218,7 @@ enum LegacyNotesMigrationService {
                 createdAt: record.date,
                 body: legacyNote,
                 scope: scope,
-                category: .attendance,
+                tags: [TagHelper.tagFromNoteCategory("attendance")],
                 attendanceRecord: record
             )
 
@@ -254,7 +251,6 @@ enum LegacyNotesMigrationService {
                 createdAt: session.meetingDate,
                 body: legacyNotes,
                 scope: .all,
-                category: .general,
                 projectSession: session
             )
 
@@ -295,7 +291,6 @@ enum LegacyNotesMigrationService {
                 createdAt: enrollment.createdAt,
                 body: legacyNotes,
                 scope: scope,
-                category: .general,
                 studentTrackEnrollment: enrollment
             )
 
@@ -328,7 +323,6 @@ enum LegacyNotesMigrationService {
                 createdAt: override.date,
                 body: legacyNote,
                 scope: .all,
-                category: .general,
                 schoolDayOverride: override
             )
 
@@ -365,7 +359,6 @@ enum LegacyNotesMigrationService {
                 createdAt: reminder.createdAt,
                 body: legacyNotes,
                 scope: .all,
-                category: .general,
                 reminder: reminder
             )
 

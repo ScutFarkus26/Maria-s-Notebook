@@ -21,6 +21,12 @@ protocol MCPClientProtocol {
     /// Generates structured JSON with system message and configurable max tokens
     func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String
     
+    /// Generates text with full configuration including model and timeout
+    func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?, model: String?, timeout: TimeInterval?) async throws -> String
+    
+    /// Generates structured JSON with full configuration including model and timeout
+    func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?, model: String?, timeout: TimeInterval?) async throws -> String
+    
     /// Analyzes text and extracts patterns
     func analyzePatterns(text: String, context: String) async throws -> [String]
     
@@ -37,6 +43,14 @@ extension MCPClientProtocol {
     
     func generateStructuredJSON(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int? = nil) async throws -> String {
         try await generateStructuredJSON(prompt: prompt, temperature: temperature)
+    }
+    
+    func generateText(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int? = nil, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
+        try await generateText(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens)
+    }
+    
+    func generateStructuredJSON(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int? = nil, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
+        try await generateStructuredJSON(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens)
     }
 }
 

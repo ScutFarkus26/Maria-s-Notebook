@@ -351,6 +351,8 @@ public struct NoteDTO: Codable, Sendable {
     public var body: String
     public var isPinned: Bool
     public var scope: String // serialized enum value
+    public var tags: [String]?
+    public var needsFollowUp: Bool?
     public var lessonID: UUID?
     public var workID: UUID?
     public var imagePath: String?
@@ -621,6 +623,7 @@ public struct NoteTemplateDTO: Codable, Sendable {
     public var title: String
     public var body: String
     public var categoryRaw: String
+    public var tags: [String]?
     public var sortOrder: Int
     public var isBuiltIn: Bool
 }

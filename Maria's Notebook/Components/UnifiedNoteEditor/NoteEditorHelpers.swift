@@ -44,14 +44,7 @@ extension UnifiedNoteEditor {
         }
     }
 
-    var shouldShowCategory: Bool {
-        switch context {
-        case .studentLesson:
-            return false
-        default:
-            return true
-        }
-    }
+    // shouldShowCategory removed — tags are always shown
 
     var preSelectedStudents: Set<UUID> {
         switch context {
@@ -109,8 +102,9 @@ extension UnifiedNoteEditor {
 
         if let note = initialNote {
             bodyText = note.body
-            category = note.category
+            tags = note.tags
             includeInReport = note.includeInReport
+            needsFollowUp = note.needsFollowUp
             imagePath = note.imagePath
             // Store original image path for cleanup if image changes
             originalImagePath = note.imagePath
@@ -125,7 +119,7 @@ extension UnifiedNoteEditor {
             }
         } else {
             if case .attendance = context {
-                category = .attendance
+                tags = [TagHelper.tagFromNoteCategory("attendance")]
             }
         }
     }

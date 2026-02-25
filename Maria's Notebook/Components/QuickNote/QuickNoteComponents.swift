@@ -114,39 +114,6 @@ struct SuggestionsBar: View {
     }
 }
 
-// MARK: - Category Menu
-
-struct QuickNoteCategoryMenu: View {
-    @Binding var category: NoteCategory
-    let categoryColor: (NoteCategory) -> Color
-    
-    var body: some View {
-        Menu {
-            ForEach(NoteCategory.allCases, id: \.self) { cat in
-                Button { category = cat } label: {
-                    HStack {
-                        if category == cat { Image(systemName: "checkmark") }
-                        Text(cat.rawValue.capitalized)
-                    }
-                }
-            }
-        } label: {
-            HStack {
-                Circle().fill(categoryColor(category)).frame(width: 8, height: 8)
-                Text(category.rawValue.capitalized).font(.system(.body, design: .rounded))
-                Spacer()
-                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.secondary)
-            }
-            .padding(6)
-            #if os(macOS)
-            .background(Color(nsColor: .controlBackgroundColor))
-            #endif
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .menuStyle(.borderlessButton)
-    }
-}
-
 // MARK: - AI Menu Button
 
 struct QuickNoteAIMenuButton: View {

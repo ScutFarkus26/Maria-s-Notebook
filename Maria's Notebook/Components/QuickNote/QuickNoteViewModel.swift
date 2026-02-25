@@ -23,10 +23,12 @@ class QuickNoteViewModel {
 
     // Content
     var bodyText: String = ""
-    var category: NoteCategory = .general
+    var tags: [String] = []
+    var needsFollowUp: Bool = false
     var selectedStudentIDs: Set<UUID> = []
     var includeInReport: Bool = false
     var noteDate: Date = Date()
+    var showingTagPicker: Bool = false
 
     // Attachments
     var selectedPhotoItem: PhotosPickerItem? = nil
@@ -249,8 +251,9 @@ class QuickNoteViewModel {
             createdAt: noteDate,
             body: trimmed,
             scope: scope,
-            category: category,
+            tags: tags,
             includeInReport: includeInReport,
+            needsFollowUp: needsFollowUp,
             studentTrackEnrollment: studentTrackEnrollment,
             imagePath: attachedImagePath
         )
@@ -289,18 +292,6 @@ class QuickNoteViewModel {
             return "\(student.firstName) \(lastInitial)."
         }
         return student.firstName
-    }
-    
-    func categoryColor(_ cat: NoteCategory) -> Color {
-        switch cat {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .purple
-        case .emotional: return .pink
-        case .health: return .green
-        case .attendance: return .teal
-        case .general: return .gray
-        }
     }
     
     // MARK: - Private Methods

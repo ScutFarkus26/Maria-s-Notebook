@@ -15,7 +15,8 @@ struct NoteTemplateEditorSheet: View {
 
     @State private var titleText: String = ""
     @State private var bodyText: String = ""
-    @State private var category: NoteCategory = .general
+    @State private var tags: [String] = []
+    @State private var showingTagPicker: Bool = false
 
     private var isEditing: Bool { template != nil }
 
@@ -25,7 +26,7 @@ struct NoteTemplateEditorSheet: View {
         if let template = template {
             _titleText = State(initialValue: template.title)
             _bodyText = State(initialValue: template.body)
-            _category = State(initialValue: template.category)
+            _tags = State(initialValue: template.tags)
         }
     }
 
@@ -53,24 +54,40 @@ struct NoteTemplateEditorSheet: View {
                 }
 
                 Section {
-                    Picker("Category", selection: $category) {
-                        ForEach(NoteCategory.allCases, id: \.self) { cat in
-                            HStack {
-                                Circle()
-                                    .fill(categoryColor(for: cat))
-                                    .frame(width: 10, height: 10)
-                                Text(cat.rawValue.capitalized)
+                    FlowLayout(spacing: 4) {
+                        ForEach(tags, id: \.self) { tag in
+                            HStack(spacing: 4) {
+                                TagBadge(tag: tag, compact: true)
+                                Button {
+                                    tags.removeAll { $0 == tag }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .tag(cat)
+                        }
+                        
+                        Button {
+                            showingTagPicker = true
+                        } label: {
+                            Label("Add Tag", systemImage: "plus.circle")
+                                .font(.caption)
                         }
                     }
-                    #if os(iOS)
-                    .pickerStyle(.navigationLink)
-                    #endif
+                    .sheet(isPresented: $showingTagPicker) {
+                        NoteTagPickerSheet(selectedTags: $tags)
+                        #if os(iOS)
+                            .presentationDetents([.medium, .large])
+                        #else
+                            .frame(minWidth: 400, minHeight: 400)
+                        #endif
+                    }
                 } header: {
-                    Text("Default Category")
+                    Text("Default Tags")
                 } footer: {
-                    Text("Category to auto-select when using this template")
+                    Text("Tags to auto-select when using this template")
                 }
             }
             .navigationTitle(isEditing ? "Edit Template" : "New Template")
@@ -116,7 +133,7 @@ struct NoteTemplateEditorSheet: View {
             // Update existing template
             existing.title = trimmedTitle
             existing.body = trimmedBody
-            existing.category = category
+            existing.tags = tags
         } else {
             // Create new template
             // Get the next sort order for custom templates
@@ -135,7 +152,7 @@ struct NoteTemplateEditorSheet: View {
             let newTemplate = NoteTemplate(
                 title: trimmedTitle,
                 body: trimmedBody,
-                category: category,
+                tags: tags,
                 sortOrder: 100 + customCount, // Custom templates start at 100
                 isBuiltIn: false
             )
@@ -151,17 +168,6 @@ struct NoteTemplateEditorSheet: View {
         dismiss()
     }
 
-    private func categoryColor(for category: NoteCategory) -> Color {
-        switch category {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .purple
-        case .emotional: return .pink
-        case .health: return .green
-        case .attendance: return .teal
-        case .general: return .gray
-        }
-    }
 }
 
 // MARK: - Preview

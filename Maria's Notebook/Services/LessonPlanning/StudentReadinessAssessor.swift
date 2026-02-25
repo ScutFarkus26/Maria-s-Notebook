@@ -115,7 +115,12 @@ struct StudentReadinessAssessor {
         }
         
         // Check notes for behavioral indicators
-        let behavioralNotes = studentNotes.filter { $0.category == .behavioral || $0.category == .emotional }
+        let behavioralNotes = studentNotes.filter { note in
+            note.tags.contains { tag in
+                let name = TagHelper.tagName(tag).lowercased()
+                return name == "behavioral" || name == "emotional"
+            }
+        }
         if !behavioralNotes.isEmpty {
             behavioralFlags.append("\(behavioralNotes.count) behavioral/emotional notes")
         }

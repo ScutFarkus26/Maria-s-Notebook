@@ -54,10 +54,12 @@ struct AIPrompts {
 
     // MARK: - Task-Specific Prompts
     
-    /// System prompt for note classification tasks
+    /// System prompt for note tag suggestion tasks
     static let noteClassification = """
-    Classify notes for a Montessori classroom.
-    Only use categories: academic, behavioral, social, emotional, health, general.
+    Suggest tags for notes in a Montessori classroom.
+    Common tags include: Academic, Behavioral, Social, Emotional, Health, Attendance, General.
+    You may also suggest other relevant tags if the content warrants it.
+    Suggest one or more tags that best describe the note.
     If specific students are clearly mentioned, include their names; otherwise leave the list empty.
     """
     

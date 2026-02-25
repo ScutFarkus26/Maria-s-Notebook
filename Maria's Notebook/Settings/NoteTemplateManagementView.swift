@@ -147,24 +147,15 @@ private struct NoteTemplateCardRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Category color indicator
-                Circle()
-                    .fill(categoryColor(for: template.category))
-                    .frame(width: 10, height: 10)
-
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text(template.title)
                             .font(.headline)
                             .foregroundStyle(.primary)
 
-                        Text(template.category.rawValue.capitalized)
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(categoryColor(for: template.category).opacity(0.15)))
-                            .foregroundStyle(categoryColor(for: template.category))
+                        ForEach(template.tags.prefix(2), id: \.self) { tag in
+                            TagBadge(tag: tag, compact: true)
+                        }
                     }
 
                     Text(template.body)
@@ -220,17 +211,6 @@ private struct NoteTemplateCardRow: View {
         .buttonStyle(.plain)
     }
 
-    private func categoryColor(for category: NoteCategory) -> Color {
-        switch category {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .purple
-        case .emotional: return .pink
-        case .health: return .green
-        case .attendance: return .teal
-        case .general: return .gray
-        }
-    }
 }
 
 // MARK: - Note Template Preview Sheet
@@ -243,15 +223,14 @@ private struct NoteTemplatePreviewSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Category badge
-                    HStack {
-                        Text(template.category.rawValue.capitalized)
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(categoryColor.opacity(0.15)))
-                            .foregroundStyle(categoryColor)
-                        Spacer()
+                    // Tag badges
+                    if !template.tags.isEmpty {
+                        HStack(spacing: 6) {
+                            ForEach(template.tags, id: \.self) { tag in
+                                TagBadge(tag: tag)
+                            }
+                            Spacer()
+                        }
                     }
 
                     // Template content
@@ -284,17 +263,6 @@ private struct NoteTemplatePreviewSheet: View {
         }
     }
 
-    private var categoryColor: Color {
-        switch template.category {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .purple
-        case .emotional: return .pink
-        case .health: return .green
-        case .attendance: return .teal
-        case .general: return .gray
-        }
-    }
 }
 
 // MARK: - Preview

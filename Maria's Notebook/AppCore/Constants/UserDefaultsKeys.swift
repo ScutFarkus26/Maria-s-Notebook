@@ -83,6 +83,13 @@ enum UserDefaultsKeys {
     // MARK: - Todos
     static let todoTagOrder = "Todo.tagOrder"
 
+    // MARK: - Lesson Planning
+    static let lessonPlanningModel = "LessonPlanning.model"
+    static let lessonPlanningTimeout = "LessonPlanning.timeout"
+    static let lessonPlanningSystemPrompt = "LessonPlanning.systemPrompt"
+    static let lessonPlanningDefaultDepth = "LessonPlanning.defaultDepth"
+    static let lessonPlanningTemperature = "LessonPlanning.temperature"
+
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
 }

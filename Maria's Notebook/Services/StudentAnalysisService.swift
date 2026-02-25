@@ -247,10 +247,12 @@ final class StudentAnalysisService {
     
     private func prepareAnalysisPayload(studentData: StudentDataPackage, student: Student) -> AnalysisPayload {
         // Summarize observations from notes
-        let notesByCategory = Dictionary(grouping: studentData.notes, by: { $0.category })
+        let notesByTag = Dictionary(grouping: studentData.notes, by: { note -> String in
+            note.tags.first.map { TagHelper.tagName($0) } ?? "General"
+        })
         var observationsSummary = ""
-        for (category, notes) in notesByCategory.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
-            observationsSummary += "\n\(category.rawValue.capitalized) (\(notes.count) notes):\n"
+        for (tagName, notes) in notesByTag.sorted(by: { $0.key < $1.key }) {
+            observationsSummary += "\n\(tagName) (\(notes.count) notes):\n"
             for note in notes.prefix(3) {
                 observationsSummary += "  - \(note.body.prefix(100))\n"
             }

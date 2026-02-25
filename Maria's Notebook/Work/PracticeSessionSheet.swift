@@ -480,7 +480,7 @@ struct PracticeSessionSheet: View {
             let note = Note(
                 body: fullNoteBody,
                 scope: .student(studentID),
-                category: .academic,
+                tags: [TagHelper.tagFromNoteCategory("academic")],
                 practiceSession: session
             )
             modelContext.insert(note)

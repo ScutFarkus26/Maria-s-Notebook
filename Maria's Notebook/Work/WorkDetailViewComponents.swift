@@ -157,41 +157,18 @@ private struct DeleteButton: View {
     }
 }
 
-// MARK: - Category Badge
+// MARK: - Note Tags Display
 
-private struct CategoryBadge: View {
-    let category: NoteCategory
+private struct NoteTagsRow: View {
+    let tags: [String]
 
     var body: some View {
-        Text(categoryLabel)
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
-            .foregroundStyle(categoryColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(categoryColor.opacity(0.15)))
-    }
-
-    private var categoryLabel: String {
-        switch category {
-        case .academic: return "Academic"
-        case .behavioral: return "Behavioral"
-        case .social: return "Social"
-        case .emotional: return "Emotional"
-        case .health: return "Health"
-        case .attendance: return "Attendance"
-        case .general: return "General"
-        }
-    }
-
-    private var categoryColor: Color {
-        switch category {
-        case .academic: return .blue
-        case .behavioral: return .orange
-        case .social: return .green
-        case .emotional: return .purple
-        case .health: return .red
-        case .attendance: return .indigo
-        case .general: return .gray
+        if !tags.isEmpty {
+            HStack(spacing: 4) {
+                ForEach(tags.prefix(3), id: \.self) { tag in
+                    TagBadge(tag: tag, compact: true)
+                }
+            }
         }
     }
 }
@@ -210,7 +187,7 @@ struct NoteRowView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 8) {
-                CategoryBadge(category: note.category)
+                NoteTagsRow(tags: note.tags)
                 
                 Text(note.createdAt, style: .date)
                     .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))

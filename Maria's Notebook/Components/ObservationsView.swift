@@ -72,7 +72,7 @@ struct ObservationsView: View {
     @State private var lastCursorDate: Date? = nil // fetch notes where createdAt < lastCursorDate
 
     // Filters (applied in-memory) - uses ObservationsFilterService.ScopeFilter
-    @State private var selectedCategory: NoteCategory? = nil
+    @State private var selectedFilterTags: Set<String> = []
     @State private var selectedScope: ObservationsFilterService.ScopeFilter = .all
     @State private var searchText: String = ""
     // Selection state for multi-select summarize
@@ -97,8 +97,8 @@ struct ObservationsView: View {
             .onChange(of: loadedItems.map { $0.id }) { _, _ in
                 loadStudentsIfNeeded(for: filteredItems)
             }
-            .onChange(of: selectedCategory) { _, _ in
-                // Category is filtered in-memory; keep pages as-is
+            .onChange(of: selectedFilterTags) { _, _ in
+                // Tags are filtered in-memory; keep pages as-is
                 loadStudentsIfNeeded(for: filteredItems)
             }
             .onChange(of: selectedScope) { _, _ in
@@ -264,22 +264,33 @@ struct ObservationsView: View {
             }
 
             Menu {
-                Button("All Categories") { selectedCategory = nil }
+                Button("All Tags") {
+                    selectedFilterTags.removeAll()
+                }
+
                 Divider()
-                ForEach(NoteCategory.allCases, id: \.self) { cat in
-                    Button(action: { selectedCategory = cat }) {
+
+                let allUsedTags = Set(loadedItems.flatMap { $0.tags }).sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
+                ForEach(allUsedTags, id: \.self) { tag in
+                    Button(action: {
+                        if selectedFilterTags.contains(tag) {
+                            selectedFilterTags.remove(tag)
+                        } else {
+                            selectedFilterTags.insert(tag)
+                        }
+                    }) {
                         HStack {
-                            if selectedCategory == cat {
+                            if selectedFilterTags.contains(tag) {
                                 Image(systemName: "checkmark")
                             }
-                            Text(cat.rawValue.capitalized)
+                            Text(TagHelper.tagName(tag))
                         }
                     }
                 }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text(selectedCategoryLabel)
+                    Text(selectedFilterTags.isEmpty ? "All Tags" : "\(selectedFilterTags.count) tag\(selectedFilterTags.count == 1 ? "" : "s")")
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
@@ -291,11 +302,6 @@ struct ObservationsView: View {
         .padding(.horizontal, 12)
     }
 
-    private var selectedCategoryLabel: String {
-        if let cat = selectedCategory { return cat.rawValue.capitalized }
-        return "All Categories"
-    }
-
     // MARK: - Rows
 
     @ViewBuilder
@@ -303,9 +309,12 @@ struct ObservationsView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "note.text").foregroundStyle(.tint)
-                Text(item.category.rawValue.capitalized)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
+                
+                if !item.tags.isEmpty {
+                    ForEach(item.tags.prefix(3), id: \.self) { tag in
+                        TagBadge(tag: tag, compact: true)
+                    }
+                }
                 
                 // Show context badge if note is attached to a specific entity
                 if let contextText = item.contextText {
@@ -408,7 +417,7 @@ struct ObservationsView: View {
     private var filteredItems: [UnifiedObservationItem] {
         ObservationsFilterService.filter(
             items: loadedItems,
-            category: selectedCategory,
+            filterTags: selectedFilterTags,
             scope: selectedScope,
             searchText: searchText
         )

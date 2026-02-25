@@ -88,6 +88,8 @@ enum BackupDTOTransformers {
             body: note.body,
             isPinned: note.isPinned,
             scope: scopeString,
+            tags: note.tags.isEmpty ? nil : note.tags,
+            needsFollowUp: note.needsFollowUp ? true : nil,
             lessonID: note.lesson?.id,
             imagePath: note.imagePath
         )
@@ -415,7 +417,8 @@ enum BackupDTOTransformers {
             createdAt: t.createdAt,
             title: t.title,
             body: t.body,
-            categoryRaw: t.category.rawValue,
+            categoryRaw: t.legacyCategoryRaw,
+            tags: t.tags.isEmpty ? nil : t.tags,
             sortOrder: t.sortOrder,
             isBuiltIn: t.isBuiltIn
         )

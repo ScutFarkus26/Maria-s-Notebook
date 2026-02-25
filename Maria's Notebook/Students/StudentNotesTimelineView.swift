@@ -66,6 +66,7 @@ private struct StudentNotesTimelineList: View {
     enum NoteFilter: String, CaseIterable, Identifiable {
         case all = "All Notes"
         case reportItems = "Report Items Only"
+        case followUp = "Needs Follow-Up"
 
         var id: String { rawValue }
     }
@@ -74,11 +75,11 @@ private struct StudentNotesTimelineList: View {
     @State private var newNoteText: String = ""
     @State private var noteBeingEdited: Note? = nil
 
-    // Search and category filtering state
+    // Search and tag filtering state
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
-    @State private var selectedCategories: Set<NoteCategory> = []
-    @State private var showingCategoryFilter: Bool = false
+    @State private var selectedFilterTags: Set<String> = []
+    @State private var showingTagFilter: Bool = false
 
     // Batch selection state
     @State private var isSelecting: Bool = false
@@ -86,17 +87,27 @@ private struct StudentNotesTimelineList: View {
     @State private var showingDeleteConfirmation: Bool = false
 
     // All filtered items (for counting)
+    /// All unique tag strings used across current items
+    private var allUsedTags: [String] {
+        let tagSet = Set(viewModel.items.flatMap { $0.tags })
+        return tagSet.sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
+    }
+
     var allFilteredItems: [UnifiedNoteItem] {
         var items = viewModel.items
 
         // Apply report filter
         if selectedFilter == .reportItems {
             items = items.filter { $0.includeInReport }
+        } else if selectedFilter == .followUp {
+            items = items.filter { $0.needsFollowUp }
         }
 
-        // Apply category filter
-        if !selectedCategories.isEmpty {
-            items = items.filter { selectedCategories.contains($0.category) }
+        // Apply tag filter
+        if !selectedFilterTags.isEmpty {
+            items = items.filter { item in
+                !selectedFilterTags.isDisjoint(with: item.tags)
+            }
         }
 
         // Apply search filter
@@ -136,7 +147,7 @@ private struct StudentNotesTimelineList: View {
     }
 
     private var hasActiveFilters: Bool {
-        !selectedCategories.isEmpty || !debouncedSearchText.isEmpty || selectedFilter == .reportItems
+        !selectedFilterTags.isEmpty || !debouncedSearchText.isEmpty || selectedFilter != .all
     }
 
     // Separate pinned and unpinned items
@@ -218,30 +229,30 @@ private struct StudentNotesTimelineList: View {
                     }
                 }
 
-                // Category filter button
+                // Tag filter button
                 Button {
-                    showingCategoryFilter.toggle()
+                    showingTagFilter.toggle()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
-                        if !selectedCategories.isEmpty {
-                            Text("\(selectedCategories.count)")
+                        if !selectedFilterTags.isEmpty {
+                            Text("\(selectedFilterTags.count)")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }
                     }
-                    .foregroundStyle(selectedCategories.isEmpty ? Color.secondary : Color.accentColor)
+                    .foregroundStyle(selectedFilterTags.isEmpty ? Color.secondary : Color.accentColor)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Filter by category")
+                .accessibilityLabel("Filter by tag")
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(.background)
 
-            // Category filter chips (collapsible)
-            if showingCategoryFilter {
-                categoryFilterSection
+            // Tag filter chips (collapsible)
+            if showingTagFilter {
+                tagFilterSection
             }
 
             // Active filters summary
@@ -356,22 +367,48 @@ private struct StudentNotesTimelineList: View {
 
                         Divider()
 
+                        // Add tags from common tags
                         Menu {
-                            ForEach(NoteCategory.allCases, id: \.self) { category in
+                            ForEach(TagHelper.commonTags, id: \.0) { name, color in
                                 Button {
-                                    batchUpdateCategory(to: category)
+                                    batchAddTag(TagHelper.createTag(name: name, color: color))
                                 } label: {
-                                    Label(NoteCategoryHelpers.label(for: category), systemImage: NoteCategoryHelpers.icon(for: category))
+                                    Label(name, systemImage: "tag")
                                 }
                             }
                         } label: {
-                            Label("Change Category", systemImage: "tag")
+                            Label("Add Tag", systemImage: "tag.fill")
+                        }
+
+                        // Remove tags used by selected notes
+                        let selectedItems = viewModel.items.filter { selectedNoteIDs.contains($0.id) }
+                        let usedTags = Set(selectedItems.flatMap { $0.tags })
+                        if !usedTags.isEmpty {
+                            Menu {
+                                ForEach(usedTags.sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }, id: \.self) { tag in
+                                    Button {
+                                        batchRemoveTag(tag)
+                                    } label: {
+                                        Label(TagHelper.tagName(tag), systemImage: "minus.circle")
+                                    }
+                                }
+                            } label: {
+                                Label("Remove Tag", systemImage: "tag.slash")
+                            }
+                        }
+
+                        Divider()
+
+                        Button {
+                            batchToggleFollowUp()
+                        } label: {
+                            Label("Toggle Follow-Up", systemImage: "flag")
                         }
 
                         Button {
                             batchToggleReportFlag()
                         } label: {
-                            Label("Toggle Report Flag", systemImage: "flag")
+                            Label("Toggle Report Flag", systemImage: "doc.text")
                         }
 
                         Button {
@@ -413,8 +450,16 @@ private struct StudentNotesTimelineList: View {
         performBatchAction(viewModel.batchDelete(ids:))
     }
 
-    private func batchUpdateCategory(to category: NoteCategory) {
-        performBatchAction { viewModel.batchUpdateCategory(category, for: $0) }
+    private func batchAddTag(_ tag: String) {
+        performBatchAction { viewModel.batchAddTags([tag], for: $0) }
+    }
+
+    private func batchRemoveTag(_ tag: String) {
+        performBatchAction { viewModel.batchRemoveTags([tag], for: $0) }
+    }
+
+    private func batchToggleFollowUp() {
+        performBatchAction(viewModel.batchToggleFollowUp(for:))
     }
 
     private func batchToggleReportFlag() {
@@ -447,6 +492,8 @@ private struct StudentNotesTimelineList: View {
             return "This student has no notes recorded yet."
         case .reportItems:
             return "No notes are flagged for reports."
+        case .followUp:
+            return "No notes need follow-up."
         }
     }
 
@@ -577,32 +624,33 @@ private struct StudentNotesTimelineList: View {
         }
     }
 
-    // MARK: - Category Filter Section
+    // MARK: - Tag Filter Section
 
-    private var categoryFilterSection: some View {
+    private var tagFilterSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(NoteCategory.allCases, id: \.self) { category in
-                    CategoryFilterChip(
-                        category: category,
-                        isSelected: selectedCategories.contains(category)
-                    ) {
+                ForEach(allUsedTags, id: \.self) { tag in
+                    Button {
                         withAnimation {
-                            if selectedCategories.contains(category) {
-                                selectedCategories.remove(category)
+                            if selectedFilterTags.contains(tag) {
+                                selectedFilterTags.remove(tag)
                             } else {
-                                selectedCategories.insert(category)
+                                selectedFilterTags.insert(tag)
                             }
                             resetPagination()
                         }
+                    } label: {
+                        TagBadge(tag: tag, compact: true)
+                            .opacity(selectedFilterTags.contains(tag) ? 1.0 : 0.5)
                     }
+                    .buttonStyle(.plain)
                 }
 
                 // Clear all button
-                if !selectedCategories.isEmpty {
+                if !selectedFilterTags.isEmpty {
                     Button {
                         withAnimation {
-                            selectedCategories.removeAll()
+                            selectedFilterTags.removeAll()
                             resetPagination()
                         }
                     } label: {
@@ -633,7 +681,7 @@ private struct StudentNotesTimelineList: View {
                 withAnimation {
                     searchText = ""
                     debouncedSearchText = ""
-                    selectedCategories.removeAll()
+                    selectedFilterTags.removeAll()
                     selectedFilter = .all
                     resetPagination()
                 }
@@ -647,24 +695,6 @@ private struct StudentNotesTimelineList: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
         .background(Color.accentColor.opacity(0.08))
-    }
-}
-
-// MARK: - Category Filter Chip
-
-private struct CategoryFilterChip: View {
-    let category: NoteCategory
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        StudentFilterChip(
-            label: NoteCategoryHelpers.label(for: category),
-            icon: NoteCategoryHelpers.icon(for: category),
-            color: NoteCategoryHelpers.color(for: category),
-            isSelected: isSelected,
-            action: action
-        )
     }
 }
 

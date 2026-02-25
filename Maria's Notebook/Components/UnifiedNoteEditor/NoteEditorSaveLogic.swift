@@ -58,8 +58,9 @@ extension UnifiedNoteEditor {
         }
 
         existing.body = body
-        existing.category = category
+        existing.tags = tags
         existing.includeInReport = includeInReport
+        existing.needsFollowUp = needsFollowUp
         existing.imagePath = imagePath
         existing.updatedAt = Date()
         existing.scope = scope
@@ -74,8 +75,9 @@ extension UnifiedNoteEditor {
         let note = Note(
             body: body,
             scope: scope,
-            category: category,
+            tags: tags,
             includeInReport: includeInReport,
+            needsFollowUp: needsFollowUp,
             imagePath: imagePath
         )
 

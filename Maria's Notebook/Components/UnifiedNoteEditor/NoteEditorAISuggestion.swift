@@ -12,7 +12,7 @@ import FoundationModels
 extension UnifiedNoteEditor {
 
     @MainActor
-    func suggestCategoryAndScope() async {
+    func suggestTagsAndScope() async {
         guard !bodyText.trimmed().isEmpty else { return }
         
         guard SystemLanguageModel.default.isAvailable else {
@@ -38,12 +38,19 @@ extension UnifiedNoteEditor {
         do {
             let response = try await session.respond(
                 to: AIPrompts.classifyNote(bodyText),
-                generating: NoteClassificationSuggestion.self,
+                generating: NoteTagSuggestion.self,
                 options: .init(temperature: 0.2)
             )
             let content = response.content
 
-            let proposedCat = NoteCategory(rawValue: content.category.lowercased()) ?? .general
+            // Convert suggested tag names to tag strings with appropriate colors
+            let suggestedTags: [String] = content.suggestedTags.map { tagName in
+                let normalized = tagName.trimmed().lowercased()
+                // Check if it maps to a known category color
+                let color = TagHelper.colorForNoteCategory(normalized)
+                let displayName = tagName.trimmed().prefix(1).uppercased() + tagName.trimmed().dropFirst()
+                return TagHelper.createTag(name: displayName, color: color)
+            }
 
             let ids: [UUID] = content.studentIdentifiers.compactMap { ident in
                 let token = ident.folding(options: .diacriticInsensitive, locale: .current).trimmed().lowercased()
@@ -56,7 +63,7 @@ extension UnifiedNoteEditor {
                 })?.id
             }
 
-            self.proposedCategory = proposedCat
+            self.proposedTags = suggestedTags
             self.proposedStudentIDs = Array(Set(ids))
             self.showingSuggestionSheet = true
         } catch let error as LanguageModelSession.GenerationError {
@@ -83,11 +90,13 @@ extension UnifiedNoteEditor {
 // MARK: - Suggestion Preview Sheet
 
 struct SuggestionPreviewSheet: View {
-    let proposedCategory: NoteCategory?
+    let proposedTags: [String]
     let proposedStudentIDs: [UUID]
     let allStudents: [Student]
-    let onApply: () -> Void
+    let onApply: ([String]) -> Void
     let onCancel: () -> Void
+
+    @State private var selectedTags: Set<String> = []
 
     private func name(for id: UUID) -> String {
         if let s = allStudents.first(where: { $0.id == id }) {
@@ -101,12 +110,33 @@ struct SuggestionPreviewSheet: View {
     var body: some View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 16) {
-            Text("Suggested Classification")
+            Text("Suggested Tags")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-            if let cat = proposedCategory {
-                HStack {
-                    Text("Category:").bold()
-                    Text(cat.rawValue.capitalized)
+            if !proposedTags.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tags:").bold()
+                    FlowLayout(spacing: 8) {
+                        ForEach(proposedTags, id: \.self) { tag in
+                            Button {
+                                if selectedTags.contains(tag) {
+                                    selectedTags.remove(tag)
+                                } else {
+                                    selectedTags.insert(tag)
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    TagBadge(tag: tag)
+                                    if selectedTags.contains(tag) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                                .opacity(selectedTags.contains(tag) ? 1.0 : 0.5)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
             if !proposedStudentIDs.isEmpty {
@@ -122,19 +152,41 @@ struct SuggestionPreviewSheet: View {
             HStack {
                 Spacer()
                 Button("Cancel") { onCancel() }
-                Button("Apply") { onApply() }.buttonStyle(.borderedProminent)
+                Button("Apply") { onApply(Array(selectedTags)) }.buttonStyle(.borderedProminent)
             }
         }
         .padding(20)
         .frame(minWidth: 420)
         .presentationSizingFitted()
+        .onAppear { selectedTags = Set(proposedTags) }
         #else
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
-                if let cat = proposedCategory {
-                    HStack {
-                        Text("Category:").bold()
-                        Text(cat.rawValue.capitalized)
+                if !proposedTags.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Tags:").bold()
+                        FlowLayout(spacing: 8) {
+                            ForEach(proposedTags, id: \.self) { tag in
+                                Button {
+                                    if selectedTags.contains(tag) {
+                                        selectedTags.remove(tag)
+                                    } else {
+                                        selectedTags.insert(tag)
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        TagBadge(tag: tag)
+                                        if selectedTags.contains(tag) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.green)
+                                        }
+                                    }
+                                    .opacity(selectedTags.contains(tag) ? 1.0 : 0.5)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                 }
                 if !proposedStudentIDs.isEmpty {
@@ -150,15 +202,16 @@ struct SuggestionPreviewSheet: View {
                 Spacer()
             }
             .padding(20)
-            .navigationTitle("Suggested Classification")
+            .navigationTitle("Suggested Tags")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { onCancel() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Apply") { onApply() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Apply") { onApply(Array(selectedTags)) } }
             }
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onAppear { selectedTags = Set(proposedTags) }
         #endif
     }
 }
