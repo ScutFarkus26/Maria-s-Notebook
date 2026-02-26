@@ -67,6 +67,11 @@ struct ObservationsView: View {
     @State private var summaryPartialDigest: NotesDigest.PartiallyGenerated? = nil
     @State private var summaryPartialNarrative: NotesNarrative.PartiallyGenerated? = nil
     @State private var summaryTask: Task<Void, Never>? = nil
+
+    // AI scope picker state
+    @State private var showingAIScopeSheet: Bool = false
+    @State private var aiScopeDate: Date = Date()
+    @State private var aiScopeContext: String? = nil
 #endif
     @State private var hasMore: Bool = true
     @State private var lastCursorDate: Date? = nil // fetch notes where createdAt < lastCursorDate
@@ -88,6 +93,35 @@ struct ObservationsView: View {
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     fileprivate enum SummaryMode { case digest, narrative }
+
+    /// Scope choices for AI analysis of observations.
+    fileprivate enum AIAnalysisScope: Identifiable {
+        case today
+        case specificDay(Date)
+        case context(String)
+        case selectedNotes
+
+        var id: String {
+            switch self {
+            case .today: return "today"
+            case .specificDay(let date): return "day-\(date.timeIntervalSince1970)"
+            case .context(let ctx): return "context-\(ctx)"
+            case .selectedNotes: return "selected"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .today: return "Today's Observations"
+            case .specificDay(let date):
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                return formatter.string(from: date)
+            case .context(let ctx): return ctx
+            case .selectedNotes: return "Selected Notes"
+            }
+        }
+    }
 #endif
 
     var body: some View {
@@ -117,6 +151,12 @@ struct ObservationsView: View {
                 }
             }
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+            .sheet(isPresented: $showingAIScopeSheet) {
+                AIDayPickerSheet(date: $aiScopeDate) { pickedDate in
+                    showingAIScopeSheet = false
+                    analyzeScope(.specificDay(pickedDate), mode: .digest)
+                }
+            }
             .sheet(isPresented: $showingSummarySheet) {
                 ObservationsSummarySheet(
                     mode: summaryMode,
@@ -205,38 +245,82 @@ struct ObservationsView: View {
             }
         }
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if isSelecting && !selectedItemIDs.isEmpty {
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    Button {
-                        summarizeSelected(as: .digest)
-                    } label: {
-                        Label("Key Points", systemImage: "list.bullet")
-                    }
-                    Button {
-                        summarizeSelected(as: .narrative)
-                    } label: {
-                        Label("Narrative", systemImage: "text.justify")
-                    }
-                } label: {
-                    Label("Summarize Selected", systemImage: "sparkles")
-                }
-            }
-        }
-#endif
-#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         ToolbarItem(placement: .automatic) {
             if #available(macOS 26.0, *) {
-                Button {
-                    startStreamingSummary(mode: .digest)
-                } label: {
-                    Label("Summarize", systemImage: isSummarizing ? "sparkles.rectangle.stack" : "sparkles")
-                }
-                .disabled(isSummarizing || loadedItems.isEmpty)
+                aiMenu
+                    .disabled(isSummarizing || loadedItems.isEmpty)
             }
         }
 #endif
     }
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    @available(macOS 26.0, *)
+    private var aiMenu: some View {
+        Menu {
+            // MARK: Today
+            Button {
+                analyzeScope(.today, mode: .digest)
+            } label: {
+                Label("Today", systemImage: "calendar")
+            }
+
+            // MARK: Specific Day
+            Button {
+                showingAIScopeSheet = true
+            } label: {
+                Label("Pick a Day…", systemImage: "calendar.badge.clock")
+            }
+
+            // MARK: By Context / Period
+            let contexts = uniqueContexts
+            if !contexts.isEmpty {
+                Divider()
+                Menu {
+                    ForEach(contexts, id: \.self) { ctx in
+                        Button {
+                            analyzeScope(.context(ctx), mode: .digest)
+                        } label: {
+                            Text(ctx)
+                        }
+                    }
+                } label: {
+                    Label("By Context", systemImage: "tray.2")
+                }
+            }
+
+            // MARK: Selected Notes
+            if isSelecting && !selectedItemIDs.isEmpty {
+                Divider()
+                Button {
+                    analyzeScope(.selectedNotes, mode: .digest)
+                } label: {
+                    Label("Selected Notes (\(selectedItemIDs.count))", systemImage: "checkmark.circle")
+                }
+            }
+
+            Divider()
+
+            // MARK: Summary mode toggle
+            Menu {
+                Button {
+                    startStreamingSummary(mode: .digest)
+                } label: {
+                    Label("Key Points", systemImage: "list.bullet")
+                }
+                Button {
+                    startStreamingSummary(mode: .narrative)
+                } label: {
+                    Label("Narrative", systemImage: "text.justify")
+                }
+            } label: {
+                Label("Summarize All Visible", systemImage: "sparkles.rectangle.stack")
+            }
+        } label: {
+            Label("AI", systemImage: isSummarizing ? "sparkles.rectangle.stack" : "sparkles")
+        }
+    }
+#endif
 
     // MARK: - Filters UI
 
@@ -544,6 +628,102 @@ struct ObservationsView: View {
     private func summarizeSelected(as mode: SummaryMode) {
         let bodies = filteredItems.filter { selectedItemIDs.contains($0.id) }.map { $0.body }
         startStreamingSummary(bodies: bodies, mode: mode)
+    }
+
+    // MARK: - AI Scope Analysis
+
+    /// Unique context strings from the current filtered items, for the "By Context" menu.
+    private var uniqueContexts: [String] {
+        let all = filteredItems.compactMap { $0.contextText }
+        // Deduplicate while preserving order
+        var seen = Set<String>()
+        return all.filter { seen.insert($0).inserted }
+    }
+
+    /// Runs the AI summary for a given scope.
+    @MainActor
+    private func analyzeScope(_ scope: AIAnalysisScope, mode: SummaryMode) {
+        let calendar = Calendar.current
+        let bodies: [String]
+
+        switch scope {
+        case .today:
+            let todayStart = calendar.startOfDay(for: Date())
+            bodies = filteredItems
+                .filter { calendar.startOfDay(for: $0.date) == todayStart }
+                .map { "- \($0.body)" }
+
+        case .specificDay(let date):
+            let dayStart = calendar.startOfDay(for: date)
+            bodies = filteredItems
+                .filter { calendar.startOfDay(for: $0.date) == dayStart }
+                .map { "- \($0.body)" }
+
+        case .context(let ctx):
+            bodies = filteredItems
+                .filter { $0.contextText == ctx }
+                .map { "- \($0.body)" }
+
+        case .selectedNotes:
+            bodies = filteredItems
+                .filter { selectedItemIDs.contains($0.id) }
+                .map { "- \($0.body)" }
+        }
+
+        guard !bodies.isEmpty else { return }
+        startStreamingSummary(bodies: bodies, mode: mode)
+    }
+#endif
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    // MARK: - Day Picker Sheet
+
+    private struct AIDayPickerSheet: View {
+        @Binding var date: Date
+        let onConfirm: (Date) -> Void
+        @Environment(\.dismiss) private var dismiss
+
+        var body: some View {
+            #if os(macOS)
+            VStack(spacing: 16) {
+                Text("Pick a Day")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                DatePicker("Date", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                HStack {
+                    Button("Cancel") { dismiss() }
+                        .buttonStyle(.bordered)
+                    Spacer()
+                    Button("Analyze") { onConfirm(date) }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(20)
+            .frame(width: 340)
+            .presentationSizingFitted()
+            #else
+            NavigationStack {
+                VStack(spacing: 16) {
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                    Button("Analyze") { onConfirm(date) }
+                        .buttonStyle(.borderedProminent)
+                }
+                .padding(20)
+                .navigationTitle("Pick a Day")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
     }
 #endif
 
