@@ -188,8 +188,8 @@ struct DropZone: View {
         .onTapGesture { onSelectLesson(sl) }
         .contextMenu {
             Button { onQuickActions(sl) } label: { Label("Quick Actions…", systemImage: "bolt") }
-            Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus") }
-            Button { onSelectLesson(sl) } label: { Label("Open Details", systemImage: "info.circle") }
+            Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus) }
+            Button { onSelectLesson(sl) } label: { Label("Open Details", systemImage: SFSymbol.Status.infoCircle) }
         }
         .background(
             GeometryReader { proxy in

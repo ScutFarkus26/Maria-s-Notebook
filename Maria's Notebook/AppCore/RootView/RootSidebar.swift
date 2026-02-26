@@ -92,6 +92,10 @@ struct RootSidebar: View {
                     }
                 }
 
+                NavigationLink(value: RootView.NavigationItem.planningProgression) {
+                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
+                }
+
                 NavigationLink(value: RootView.NavigationItem.planningProjects) {
                     Label("Projects", systemImage: SFSymbol.Document.folder)
                 }
@@ -192,6 +196,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View and manage student work")
+
+                Button { selection = .planningProgression } label: {
+                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View student progression through curriculum")
 
                 Button { selection = .planningProjects } label: {
                     Label("Projects", systemImage: SFSymbol.Document.folder)

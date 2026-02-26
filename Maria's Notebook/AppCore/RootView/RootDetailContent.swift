@@ -57,6 +57,8 @@ struct RootDetailContent: View {
                 PresentationsView()
             case .planningWork:
                 WorksAgendaView()
+            case .planningProgression:
+                ProgressionRootView()
             case .planningProjects:
                 ProjectsRootView()
             case .community:
@@ -137,6 +139,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.planningChecklist)
                     moreMenuButton(.planningAgenda)
                     moreMenuButton(.planningWork)
+                    moreMenuButton(.planningProgression)
                     moreMenuButton(.planningProjects)
                 }
 

@@ -168,13 +168,13 @@ struct AgendaSlot: View {
             Button {
                 onPlanNext(sl)
             } label: {
-                Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
+                Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
             }
             
             Button {
                 onSelectLesson(sl)
             } label: {
-                Label("Open Details", systemImage: "info.circle")
+                Label("Open Details", systemImage: SFSymbol.Status.infoCircle)
             }
             
             Button {
@@ -186,7 +186,7 @@ struct AgendaSlot: View {
             Button {
                 onMoveToInbox(sl)
             } label: {
-                Label("Move to Inbox", systemImage: "tray")
+                Label("Move to Inbox", systemImage: SFSymbol.Document.tray)
             }
         }
         .background(

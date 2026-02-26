@@ -98,7 +98,7 @@ struct QuickNoteSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Date Picker
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("Date", systemImage: "calendar")
+                        Label("Date", systemImage: SFSymbol.Time.calendar)
                             .font(.caption).foregroundStyle(.secondary)
                         DatePicker("", selection: $viewModel.noteDate, displayedComponents: [.date, .hourAndMinute])
                             .labelsHidden().datePickerStyle(.compact)
@@ -131,7 +131,7 @@ struct QuickNoteSheet: View {
                     
                     // Flags
                     Toggle(isOn: $viewModel.needsFollowUp) {
-                        Label("Follow-Up", systemImage: "flag")
+                        Label("Follow-Up", systemImage: SFSymbol.Rating.flag)
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)

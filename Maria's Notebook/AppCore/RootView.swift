@@ -36,6 +36,7 @@ struct RootView: View {
         case planningChecklist
         case planningAgenda
         case planningWork
+        case planningProgression
         case planningProjects
 
         case community
@@ -62,6 +63,7 @@ struct RootView: View {
             case .planningChecklist: return "Checklist"
             case .planningAgenda: return "Presentations"
             case .planningWork: return "Open Work"
+            case .planningProgression: return "Progression"
             case .planningProjects: return "Projects"
             case .community: return "Community"
             case .schedules: return "Schedules"
@@ -87,6 +89,7 @@ struct RootView: View {
             case .planningChecklist: return "list.clipboard"
             case .planningAgenda: return "calendar"
             case .planningWork: return "tray.full"
+            case .planningProgression: return "chart.line.uptrend.xyaxis"
             case .planningProjects: return "folder"
             case .community: return "bubble.left.and.bubble.right"
             case .schedules: return "clock.badge.checkmark"
@@ -112,7 +115,7 @@ struct RootView: View {
 
         var isInMoreMenu: Bool {
             switch self {
-            case .lessons, .supplies, .procedures, .meetings, .planningChecklist, .planningAgenda, .planningWork, .planningProjects, .community, .schedules, .askAI, .logs, .settings:
+            case .lessons, .supplies, .procedures, .meetings, .planningChecklist, .planningAgenda, .planningWork, .planningProgression, .planningProjects, .community, .schedules, .askAI, .logs, .settings:
                 return true
             default:
                 return false
@@ -131,7 +134,7 @@ struct RootView: View {
             case .lessons: return .albums
             case .more: return nil
             case .todos: return nil
-            case .planningChecklist, .planningAgenda, .planningWork, .planningProjects: return .planning
+            case .planningChecklist, .planningAgenda, .planningWork, .planningProgression, .planningProjects: return .planning
             case .community: return .community
             case .schedules: return nil
             case .issues: return nil
