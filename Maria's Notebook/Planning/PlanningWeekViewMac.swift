@@ -15,8 +15,8 @@ struct PlanningWeekViewMac: View {
     @Environment(\.modelContext) private var modelContext
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Magic @Query - automatically updates when data changes
     // Migrated to LessonAssignment: fetch draft and unscheduled presentations
@@ -31,7 +31,7 @@ struct PlanningWeekViewMac: View {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
+    @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @State private var startDate: Date = Date()
     @State private var activeSheet: PlanningWeekViewContent.ActiveSheet? = nil
     

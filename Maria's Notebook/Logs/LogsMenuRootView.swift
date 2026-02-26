@@ -31,7 +31,7 @@ struct LogsMenuRootView: View {
         }
     }
 
-    @AppStorage("LogsMenuRootView.mode") private var modeRaw: String = Mode.presentations.rawValue
+    @AppStorage(UserDefaultsKeys.logsMenuRootViewMode) private var modeRaw: String = Mode.presentations.rawValue
 
     private var mode: Mode {
         get { Mode(rawValue: modeRaw) ?? .presentations }

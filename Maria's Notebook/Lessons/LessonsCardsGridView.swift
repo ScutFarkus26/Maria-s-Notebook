@@ -412,11 +412,14 @@ private struct LessonCardContainer: View {
             statusCount: statusCount,
             lastPresentedDate: lastPresentedDate
         )
-        let withMatchedGeometry = shouldUseMatchedGeometry
-            ? AnyView(card.matchedGeometryEffect(id: lesson.id, in: gridNamespace))
-            : AnyView(card)
 
-        return withMatchedGeometry
+        Group {
+            if shouldUseMatchedGeometry {
+                card.matchedGeometryEffect(id: lesson.id, in: gridNamespace)
+            } else {
+                card
+            }
+        }
             .when(hasAppeared) { view in
                 view.transition(.opacity.combined(with: .scale(scale: 0.98)))
             }

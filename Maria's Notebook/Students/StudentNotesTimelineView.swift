@@ -73,7 +73,7 @@ private struct StudentNotesTimelineList: View {
 
     @State private var selectedFilter: NoteFilter = .all
     @State private var newNoteText: String = ""
-    @State private var noteBeingEdited: Note? = nil
+    @State private var noteBeingEdited: Note?
 
     // Search and tag filtering state
     @State private var searchText: String = ""

@@ -11,7 +11,7 @@ public struct CalendarSyncSettingsView: View {
     @State private var selectedCalendarIdentifiers: Set<String> = []
     @State private var availableCalendars: [CalendarSyncService.CalendarInfo] = []
     @State private var isRefreshing: Bool = false
-    @State private var lastSyncStatus: String? = nil
+    @State private var lastSyncStatus: String?
 
     public init() {
         _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.calendarSync)

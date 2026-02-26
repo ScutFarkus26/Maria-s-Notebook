@@ -71,10 +71,10 @@ struct ObservationsView: View {
     // AI scope picker state
     @State private var showingAIScopeSheet: Bool = false
     @State private var aiScopeDate: Date = Date()
-    @State private var aiScopeContext: String? = nil
+    @State private var aiScopeContext: String?
 #endif
     @State private var hasMore: Bool = true
-    @State private var lastCursorDate: Date? = nil // fetch notes where createdAt < lastCursorDate
+    @State private var lastCursorDate: Date? // fetch notes where createdAt < lastCursorDate
 
     // Filters (applied in-memory) - uses ObservationsFilterService.ScopeFilter
     @State private var selectedFilterTags: Set<String> = []
@@ -84,7 +84,7 @@ struct ObservationsView: View {
     @State private var isSelecting: Bool = false
     @State private var selectedItemIDs: Set<UUID> = []
     
-    @State private var noteBeingEdited: Note? = nil
+    @State private var noteBeingEdited: Note?
 
     // Lookup cache for student names shown on rows
     @State private var studentsByID: [UUID: Student] = [:]

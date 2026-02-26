@@ -29,8 +29,8 @@ struct PracticeSessionSheet: View {
     @State private var searchText: String = ""
 
     // Session quality metrics
-    @State private var practiceQuality: Int? = nil
-    @State private var independenceLevel: Int? = nil
+    @State private var practiceQuality: Int?
+    @State private var independenceLevel: Int?
 
     // Individual notes per student (optional)
     @State private var individualNotes: [UUID: String] = [:]
@@ -40,8 +40,8 @@ struct PracticeSessionSheet: View {
     @State private var showStudentSelector: Bool = false
     
     // Presentation and lesson context
-    @State private var relatedPresentation: Presentation? = nil
-    @State private var relatedLesson: Lesson? = nil
+    @State private var relatedPresentation: Presentation?
+    @State private var relatedLesson: Lesson?
     
     private var repository: PracticeSessionRepository {
         PracticeSessionRepository(modelContext: modelContext)

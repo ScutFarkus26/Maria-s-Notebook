@@ -64,7 +64,7 @@ struct StudentHistoryTab: View {
                 // Past Projects Section
                 if !finishedProjects.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Past Projects", systemImage: "book.closed.fill")
+                        Label("Past Projects", systemImage: SFSymbol.Education.bookClosedFill)
                             .font(.headline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)

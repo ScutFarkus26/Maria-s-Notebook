@@ -9,7 +9,7 @@ struct StudentLessonNotesSectionUnified: View {
     
     @Environment(\.modelContext) private var modelContext
     @State private var showAddNoteSheet: Bool = false
-    @State private var noteBeingEdited: Note? = nil
+    @State private var noteBeingEdited: Note?
     
     // Helper computed values for matching
     private var slID: String {

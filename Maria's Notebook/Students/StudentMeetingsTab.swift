@@ -80,7 +80,7 @@ struct StudentMeetingsTab: View {
     @State private var generatingSummaries: Set<UUID> = []
 
     // Editing sheet state
-    @State private var editingMeeting: StudentMeeting? = nil
+    @State private var editingMeeting: StudentMeeting?
     @State private var editDate: Date = Date()
     @State private var editCompleted: Bool = false
     @State private var editReflection: String = ""
@@ -89,7 +89,7 @@ struct StudentMeetingsTab: View {
     @State private var editGuideNotes: String = ""
     
     // Work detail sheet
-    @State private var selectedWorkID: UUID? = nil
+    @State private var selectedWorkID: UUID?
 
     // Work snapshot settings
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14

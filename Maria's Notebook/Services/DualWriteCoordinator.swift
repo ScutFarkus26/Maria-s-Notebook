@@ -143,8 +143,8 @@ final class DualWriteCoordinator {
     }
 
     /// Marks both a StudentLesson and its matching LessonAssignment as presented
-    /// This delegates to the existing LifecycleService.recordPresentationAndExplodeWork
-    /// which already creates/updates LessonAssignment
+    /// This delegates to LifecycleService.recordPresentation
+    /// which creates/updates LessonAssignment without auto-creating work items
     func markPresented(studentLessonID: UUID, at date: Date) throws {
         // Find StudentLesson
         guard let sl = try context.fetch(FetchDescriptor<StudentLesson>(
@@ -157,9 +157,9 @@ final class DualWriteCoordinator {
         sl.isPresented = true
         sl.givenAt = date
 
-        // LifecycleService.recordPresentationAndExplodeWork handles LessonAssignment creation
-        // This is already implemented and working
-        let _ = try LifecycleService.recordPresentationAndExplodeWork(
+        // LifecycleService.recordPresentation handles LessonAssignment creation
+        // Work items are created explicitly via workflow panel or pie menu
+        let _ = try LifecycleService.recordPresentation(
             from: sl,
             presentedAt: date,
             modelContext: context

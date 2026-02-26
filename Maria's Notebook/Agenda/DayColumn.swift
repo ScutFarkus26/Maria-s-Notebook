@@ -7,13 +7,13 @@ struct DayColumn: View {
     @Environment(\.modelContext) private var modelContext
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use shared week studentLessons and filter for this day in memory
     // This avoids making separate database queries for each day
     let weekStudentLessons: [StudentLesson]
-    @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)]) private var allStudentsRaw: [Student]
+    @Query(sort: Student.sortByLastName) private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var allStudents: [Student] {
@@ -130,8 +130,9 @@ struct DayColumn: View {
         let (start, end) = AppCalendar.dayRange(for: normalizedDay)
         return weekStudentLessons.filter { sl in
             // Match either the denormalized day field or the exact scheduled time
-            (sl.scheduledForDay >= start && sl.scheduledForDay < end) ||
-            (sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end)
+            if sl.scheduledForDay >= start && sl.scheduledForDay < end { return true }
+            if let scheduled = sl.scheduledFor, scheduled >= start && scheduled < end { return true }
+            return false
         }
     }
     
@@ -154,14 +155,7 @@ struct DayColumn: View {
 
     private var unplannedStudents: [Student] {
         let planned = plannedStudentIDs
-        let active: [Student] = allStudents.filter { s in
-            // If the model has an isActive flag, use it; otherwise treat all as active.
-            if let mirror = Mirror(reflecting: s).children.first(where: { $0.label == "isActive" }), let isActive = mirror.value as? Bool {
-                return isActive
-            }
-            return true
-        }
-        return active.filter { !planned.contains($0.id) }
+        return allStudents.filter { !planned.contains($0.id) }
             .sorted { lhs, rhs in
                 let ln = lhs.lastName.lowercased()
                 let rn = rhs.lastName.lowercased()

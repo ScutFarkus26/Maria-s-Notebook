@@ -172,11 +172,11 @@ final class StudentLessonDetailViewModel {
         // 1. Apply local edits to the model
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
 
-        // 2. Engagement Lifecycle (Explode Work)
+        // 2. Engagement Lifecycle (Record Presentation — work is created explicitly via workflow panel or pie menu)
         let nowGiven = isPresented || (givenAt != nil)
         if nowGiven {
             do {
-                let _ = try LifecycleService.recordPresentationAndExplodeWork(
+                let _ = try LifecycleService.recordPresentation(
                     from: studentLesson,
                     presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
                     modelContext: modelContext

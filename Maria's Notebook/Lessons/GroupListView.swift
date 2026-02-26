@@ -52,14 +52,14 @@ struct GroupListView: View {
                     Button {
                         onSelectGroup(group)
                     } label: {
-                        Label("View Lessons", systemImage: "book")
+                        Label("View Lessons", systemImage: SFSymbol.Education.book)
                     }
 
                     if let onRename = onRenameGroup {
                         Button {
                             onRename(group)
                         } label: {
-                            Label("Rename Group", systemImage: "pencil")
+                            Label("Rename Group", systemImage: SFSymbol.Education.pencil)
                         }
                     }
 

@@ -3,15 +3,15 @@ import SwiftData
 
 struct WorksLogView: View {
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
     private var allWorks: [WorkModel]
 
     @Query private var lessons: [Lesson]
     @Query private var lessonAssignments: [LessonAssignment]
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
+    @Query(sort: Student.sortByName)
     private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
@@ -19,10 +19,10 @@ struct WorksLogView: View {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    @State private var selectedWork: WorkModel? = nil
+    @State private var selectedWork: WorkModel?
 
     // Filter state
-    @State private var selectedKind: WorkKind? = nil
+    @State private var selectedKind: WorkKind?
     @State private var selectedStatuses: Set<WorkStatus> = []
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var searchText: String = ""

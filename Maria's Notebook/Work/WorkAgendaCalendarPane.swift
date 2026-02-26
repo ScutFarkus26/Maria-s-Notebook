@@ -12,13 +12,13 @@ struct WorkAgendaCalendarPane: View {
     let daysCount: Int
 
     // Sheet for choosing reason and note when dropping
-    @State private var prompt: PlanPrompt? = nil
+    @State private var prompt: PlanPrompt?
 
     private struct SelectionToken: Identifiable, Equatable { let id: UUID; let contractID: UUID }
-    @State private var selected: SelectionToken? = nil
+    @State private var selected: SelectionToken?
     @State private var selectedGroup: WorkAgendaDayColumn.CheckInGroup? = nil
     
-    @AppStorage("WorkCalendar.showPresentations") private var showPresentations: Bool = true
+    @AppStorage(UserDefaultsKeys.workCalendarShowPresentations) private var showPresentations: Bool = true
 
     struct PlanPrompt: Identifiable {
         let id = UUID()

@@ -42,8 +42,8 @@ struct StudentLessonPill: View {
     @SyncedAppStorage("LessonAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
     @SyncedAppStorage("LessonAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
-    @AppStorage("Planning.recentWindowDays") private var recentWindowDays: Int = 1
-    @AppStorage("LessonsAgenda.missWindow") private var missWindowRaw: String = "all"
+    @AppStorage(UserDefaultsKeys.planningRecentWindowDays) private var recentWindowDays: Int = 1
+    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = "all"
 
     let snapshot: StudentLessonSnapshot
     var day: Date? = nil
@@ -79,7 +79,7 @@ struct StudentLessonPill: View {
     // Cached expensive computations to avoid recalculating during scroll
     @State private var cachedAttendanceStatuses: [UUID: AttendanceStatus] = [:]
     @State private var cachedRecentlyPresentedIDs: Set<UUID> = []
-    @State private var lastCacheDay: Date? = nil
+    @State private var lastCacheDay: Date?
 
     private static let timeOnlyFormatter: DateFormatter = {
         let df = DateFormatter()

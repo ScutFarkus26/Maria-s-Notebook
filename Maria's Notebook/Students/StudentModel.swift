@@ -81,3 +81,19 @@ final class Student: Identifiable {
     }
 }
 
+// MARK: - Sort Descriptors
+
+extension Student {
+    /// First name, then last name (most common sort order across the app)
+    nonisolated static let sortByName: [SortDescriptor<Student>] = [
+        SortDescriptor(\Student.firstName),
+        SortDescriptor(\Student.lastName)
+    ]
+
+    /// Last name, then first name (used in attendance and agenda views)
+    nonisolated static let sortByLastName: [SortDescriptor<Student>] = [
+        SortDescriptor(\Student.lastName),
+        SortDescriptor(\Student.firstName)
+    ]
+}
+

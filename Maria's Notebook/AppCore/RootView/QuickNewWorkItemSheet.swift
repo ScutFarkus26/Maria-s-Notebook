@@ -13,13 +13,13 @@ struct QuickNewWorkItemSheet: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
     private var allLessons: [Lesson]
 
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
+    @Query(sort: Student.sortByName)
     private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
@@ -31,7 +31,7 @@ struct QuickNewWorkItemSheet: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var workTitle: String = ""
     @State private var workKind: WorkKind = .practiceLesson
-    @State private var dueDate: Date? = nil
+    @State private var dueDate: Date?
     @State private var hasDueDate: Bool = false
     @State private var lessonSearchText: String = ""
     @State private var isSaving: Bool = false

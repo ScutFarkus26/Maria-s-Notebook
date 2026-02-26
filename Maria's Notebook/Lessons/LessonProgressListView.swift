@@ -7,9 +7,9 @@ struct LessonProgressListView: View {
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)])
     private var allLessons: [Lesson]
     
-    @State private var selectedLesson: Lesson? = nil
+    @State private var selectedLesson: Lesson?
     @State private var searchText = ""
-    @State private var selectedSubject: String? = nil
+    @State private var selectedSubject: String?
     @State private var lessonStats: [UUID: LessonStats] = [:]
     @State private var isLoadingStats = true
     

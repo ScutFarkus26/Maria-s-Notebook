@@ -145,7 +145,7 @@ struct ProjectSessionDetailView: View {
                             do {
                                 try modelContext.save()
                             } catch {
-                                ProjectSessionDetailView.logger.warning("Failed to save after adding agenda item: \(error)")
+                                print("⚠️ [\(#function)] Failed to save after adding agenda item: \(error)")
                             }
                         } label: {
                             Label("Add Item", systemImage: "plus.circle.fill")
@@ -479,7 +479,6 @@ private struct ProjectLessonPickerSheet: View {
 // MARK: - Add Work Offer Sheet
 
 private struct AddWorkOfferSheet: View {
-    private static let logger = Logger.projects
     let session: ProjectSession
 
     @Environment(\.dismiss) private var dismiss
@@ -543,7 +542,7 @@ private struct AddWorkOfferSheet: View {
             )
             _ = saveCoordinator.save(modelContext, reason: "Add work offer to session")
         } catch {
-            Self.logger.warning("Failed to add work offer: \(error)")
+            print("⚠️ [\(#function)] Failed to add work offer: \(error)")
         }
         dismiss()
     }

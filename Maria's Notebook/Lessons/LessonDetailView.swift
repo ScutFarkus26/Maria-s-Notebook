@@ -32,9 +32,9 @@ struct LessonDetailView: View {
     @State private var showDeleteAlert = false
 
     @State private var showingPagesImporter = false
-    @State private var resolvedPagesURL: URL? = nil
-    @State private var importError: String? = nil
-    @State private var previousManagedURL: URL? = nil
+    @State private var resolvedPagesURL: URL?
+    @State private var importError: String?
+    @State private var previousManagedURL: URL?
 
     var body: some View {
         VStack(spacing: 0) {

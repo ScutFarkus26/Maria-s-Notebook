@@ -32,11 +32,7 @@ struct WorkCardGridContent: View {
     }
 
     private var kindText: String {
-        switch config.work.status {
-        case .active: return "Practice"
-        case .review: return "Follow-Up"
-        case .complete: return "Completed"
-        }
+        (config.work.kind ?? .research).displayName
     }
 
     private var displayTitle: String {

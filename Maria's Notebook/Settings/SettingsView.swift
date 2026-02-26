@@ -372,7 +372,7 @@ struct SettingsView: View {
     #endif
     
     // iCloud Backup Toggle (extracted from DataManagementGrid)
-    @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
+    @AppStorage(UserDefaultsKeys.cloudBackupScheduleEnabled) private var cloudBackupEnabled = false
     
     private var iCloudBackupToggle: some View {
         SettingsToggleRow(

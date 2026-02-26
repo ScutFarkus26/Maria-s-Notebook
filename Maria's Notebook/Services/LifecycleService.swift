@@ -46,15 +46,15 @@ struct LifecycleService {
         }
     }
 
-    /// Record a LessonAssignment (the unified presentation model) and create per-student WorkModel items.
-    /// Idempotent by `migratedFromStudentLessonID` on LessonAssignment and (presentationID, studentID) on WorkModel.
-    ///
-    /// This is the NEW unified method that creates LessonAssignment instead of the old Presentation model.
-    static func recordPresentationAndExplodeWork(
+    /// Record a LessonAssignment (the unified presentation model) and upsert LessonPresentation records,
+    /// but do NOT auto-create WorkModel items. Use this when work creation is handled separately
+    /// (e.g., via the unified workflow panel or explicit user action).
+    /// Idempotent by `migratedFromStudentLessonID` on LessonAssignment.
+    static func recordPresentation(
         from studentLesson: StudentLesson,
         presentedAt: Date,
         modelContext: ModelContext
-    ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
+    ) throws -> LessonAssignment {
         setModelContext(modelContext)
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
         let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
@@ -62,9 +62,7 @@ struct LifecycleService {
         cleanOrphanedStudentIDs(for: studentLesson, validStudentIDs: validStudentIDs, modelContext: modelContext)
 
         let legacyID = studentLesson.id.uuidString
-        // CloudKit compatibility: lessonID is already String
         let lessonIDStr = studentLesson.lessonID
-        // studentIDs is already [String] for CloudKit compatibility (now cleaned of orphans)
         let studentIDStrs = studentLesson.studentIDs
 
         // 1) Lookup existing LessonAssignment by legacy link (migrated from StudentLesson)
@@ -90,9 +88,8 @@ struct LifecycleService {
                             modelContext: modelContext
                         )
                         lessonAssignment.trackID = track.id.uuidString
-                        // Find the TrackStep for this lesson
                         if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), context: "recordPresentationAndExplodeWork")
+                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), context: "recordPresentation")
                             if let step = allSteps.first(where: {
                                 $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                             }) {
@@ -109,7 +106,6 @@ struct LifecycleService {
             let title = studentLesson.lesson?.name
             let subtitle = studentLesson.lesson?.subheading
 
-            // Link to Track if lesson belongs to a track
             var trackID: String? = nil
             var trackStepID: String? = nil
             if let lesson = studentLesson.lesson {
@@ -124,9 +120,8 @@ struct LifecycleService {
                             modelContext: modelContext
                         )
                         trackID = track.id.uuidString
-                        // Find the TrackStep for this lesson
                         if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), context: "recordPresentationAndExplodeWork")
+                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), context: "recordPresentation")
                             if let step = allSteps.first(where: {
                                 $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                             }) {
@@ -139,7 +134,6 @@ struct LifecycleService {
                 }
             }
 
-            // Convert student IDs from strings to UUIDs
             let studentUUIDs = studentIDStrs.compactMap { UUID(uuidString: $0) }
             guard !studentUUIDs.isEmpty else {
                 throw LifecycleError.invalidStudentID("No valid student IDs in StudentLesson \(studentLesson.id)")
@@ -167,7 +161,41 @@ struct LifecycleService {
             logger.debug("LessonAssignment created: migratedFromStudentLessonID=\(lessonAssignment.migratedFromStudentLessonID ?? "nil", privacy: .public)")
         }
 
-        // 2) Ensure WorkModels exist per student
+        // 2) Upsert LessonPresentation records per student (for individual progress tracking)
+        let assignmentIDStr = lessonAssignment.id.uuidString
+        for sid in studentIDStrs {
+            try upsertLessonPresentation(
+                presentationID: assignmentIDStr,
+                studentID: sid,
+                lessonID: lessonIDStr,
+                presentedAt: presentedAt,
+                context: modelContext
+            )
+        }
+
+        return lessonAssignment
+    }
+
+    /// Record a LessonAssignment (the unified presentation model) and create per-student WorkModel items.
+    /// Idempotent by `migratedFromStudentLessonID` on LessonAssignment and (presentationID, studentID) on WorkModel.
+    ///
+    /// Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice,
+    /// or the syncAllStudentProgress migration path).
+    static func recordPresentationAndExplodeWork(
+        from studentLesson: StudentLesson,
+        presentedAt: Date,
+        modelContext: ModelContext
+    ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
+        let lessonAssignment = try recordPresentation(
+            from: studentLesson,
+            presentedAt: presentedAt,
+            modelContext: modelContext
+        )
+
+        let lessonIDStr = studentLesson.lessonID
+        let studentIDStrs = studentLesson.studentIDs
+
+        // Ensure WorkModels exist per student
         var workForPresentation: [WorkModel] = []
         var createdCount = 0
         var skippedCount = 0
@@ -220,20 +248,8 @@ struct LifecycleService {
             }
         }
 
-        // 2.5) Upsert LessonPresentation records per student (for individual progress tracking)
-        let assignmentIDStr = lessonAssignment.id.uuidString
-        for sid in studentIDStrs {
-            try upsertLessonPresentation(
-                presentationID: assignmentIDStr,
-                studentID: sid,
-                lessonID: lessonIDStr,
-                presentedAt: presentedAt,
-                context: modelContext
-            )
-        }
-
-        // 3) Fetch all associated WorkModels for this assignment
-        let allForAssignment = try fetchAllWorkModels(presentationID: assignmentIDStr, context: modelContext)
+        // Fetch all associated WorkModels for this assignment
+        let allForAssignment = try fetchAllWorkModels(presentationID: lessonAssignment.id.uuidString, context: modelContext)
 
         return (lessonAssignment, allForAssignment)
     }

@@ -6,7 +6,7 @@ struct TopicRowView: View {
     let onSelect: () -> Void
     
     @Environment(\.modelContext) private var modelContext
-    @State private var solutionCount: Int? = nil
+    @State private var solutionCount: Int?
 
     var body: some View {
         let isResolved = topic.isResolved

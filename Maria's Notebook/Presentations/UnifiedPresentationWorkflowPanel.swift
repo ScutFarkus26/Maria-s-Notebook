@@ -193,13 +193,13 @@ struct UnifiedPresentationWorkflowPanel: View {
             presentationPanel
                 .tag(PanelFocus.presentation)
                 .tabItem {
-                    Label("Presentation", systemImage: "book.fill")
+                    Label("Presentation", systemImage: SFSymbol.Education.bookFill)
                 }
             
             workCreationPanel
                 .tag(PanelFocus.work)
                 .tabItem {
-                    Label("Work Items", systemImage: "checklist")
+                    Label("Work Items", systemImage: SFSymbol.List.checklist)
                 }
         }
     }
@@ -608,7 +608,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                 Button {
                     addWorkDraft(for: student.id)
                 } label: {
-                    Label("Add Work", systemImage: "plus.circle.fill")
+                    Label("Add Work", systemImage: SFSymbol.Action.plusCircleFill)
                         .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
                 }
                 .buttonStyle(.bordered)

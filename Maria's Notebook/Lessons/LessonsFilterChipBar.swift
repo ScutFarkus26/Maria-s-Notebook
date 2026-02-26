@@ -165,8 +165,8 @@ extension PersonalLessonKind {
 
 #Preview("Filter Bar - Default") {
     struct PreviewWrapper: View {
-        @State private var source: LessonSource? = nil
-        @State private var kind: PersonalLessonKind? = nil
+        @State private var source: LessonSource?
+        @State private var kind: PersonalLessonKind?
         @State private var hasFile = false
         @State private var needsAttention = false
 

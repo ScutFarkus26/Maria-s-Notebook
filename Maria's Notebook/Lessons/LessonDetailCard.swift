@@ -35,9 +35,9 @@ struct LessonDetailCard: View {
     @State private var draftPersonalKind: PersonalLessonKind = .personal
 
     @State private var showingPagesImporter = false
-    @State private var resolvedPagesURL: URL? = nil
-    @State private var importError: String? = nil
-    @State private var previousManagedURL: URL? = nil
+    @State private var resolvedPagesURL: URL?
+    @State private var importError: String?
+    @State private var previousManagedURL: URL?
 
 #if canImport(UniformTypeIdentifiers)
     private var pagesAllowedTypes: [UTType] {

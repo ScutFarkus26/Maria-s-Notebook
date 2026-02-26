@@ -90,6 +90,37 @@ enum UserDefaultsKeys {
     static let lessonPlanningDefaultDepth = "LessonPlanning.defaultDepth"
     static let lessonPlanningTemperature = "LessonPlanning.temperature"
 
+    // MARK: - Presentations
+    static let presentationHistoryNameDisplayStyle = "PresentationHistory.nameDisplayStyle"
+    static let lessonsAgendaStartDate = "LessonsAgenda.startDate"
+    static let lessonsAgendaMissWindow = "LessonsAgenda.missWindow"
+    static let planningRecentWindowDays = "Planning.recentWindowDays"
+    static let presentationsCalendarShowWork = "PresentationsCalendar.showWork"
+
+    // MARK: - Quick Note Button
+    static let quickNoteButtonOffsetX = "QuickNoteButton.offsetX"
+    static let quickNoteButtonOffsetY = "QuickNoteButton.offsetY"
+
+    // MARK: - Lessons
+    static let lessonsSortIndexMigrated = "Lessons.sortIndexMigrated"
+
+    // MARK: - Students
+    static let studentDetailViewActiveTab = "StudentDetailView.activeTab"
+    static let meetingsWorkflowDaysSinceThreshold = "MeetingsWorkflow.daysSinceThreshold"
+    static let studentsRootViewMode = "StudentsRootView.mode"
+    static let studentsViewSortOrder = "StudentsView.sortOrder"
+    static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
+
+    // MARK: - Checklist
+    static let checklistSelectedSubject = "Checklist.selectedSubject"
+
+    // MARK: - Logs
+    static let logsMenuRootViewMode = "LogsMenuRootView.mode"
+
+    // MARK: - Work
+    static let workAgendaHideScheduled = "WorkAgenda.hideScheduled"
+    static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
+
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
 }

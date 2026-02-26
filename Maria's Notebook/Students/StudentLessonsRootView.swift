@@ -28,8 +28,8 @@ struct StudentLessonsRootView: View {
     #endif
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use lightweight query for change detection only
     @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var allStudentLessons: [StudentLesson]
@@ -41,8 +41,8 @@ struct StudentLessonsRootView: View {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    @State private var selectedLessonID: UUID? = nil
-    @State private var quickActionsLessonID: UUID? = nil
+    @State private var selectedLessonID: UUID?
+    @State private var quickActionsLessonID: UUID?
     
     // State for iPhone/Compact filter sheet
     @State private var showFilterSheet: Bool = false
@@ -50,7 +50,7 @@ struct StudentLessonsRootView: View {
     @SceneStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
     @SceneStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
     @SceneStorage("StudentLessons.subject") private var studentLessonsSubjectRaw: String = ""
-    @State private var previousStudentLessonsFilterRaw: String? = nil
+    @State private var previousStudentLessonsFilterRaw: String?
 
     private var filter: CompletionFilter {
         switch studentLessonsFilterRaw {

@@ -187,11 +187,7 @@ struct OpenWorkGrid: View {
 
     private func metadata(for w: WorkModel) -> String {
         var parts: [String] = []
-        switch w.status {
-        case .active: parts.append("Practice")
-        case .review: parts.append("Follow-Up")
-        case .complete: parts.append("Completed")
-        }
+        parts.append((w.kind ?? .research).displayName)
         let age = ageDays(for: w)
         parts.append("\(age)d")
         return parts.joined(separator: " • ")

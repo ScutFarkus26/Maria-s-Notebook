@@ -28,13 +28,13 @@ struct StudentFilesTab: View {
     }
 
     @State private var showFileImporter = false
-    @State private var selectedImportData: ImportDataWrapper? = nil
-    @State private var documentToRename: Document? = nil
+    @State private var selectedImportData: ImportDataWrapper?
+    @State private var documentToRename: Document?
     @State private var showRenameAlert = false
     @State private var renameTitleText = ""
-    @State private var previewURL: URL? = nil
+    @State private var previewURL: URL?
     @State private var sortOption: DocumentSortOption = .dateDesc
-    @State private var filterCategory: String? = nil
+    @State private var filterCategory: String?
     
     private struct ImportDataWrapper: Identifiable {
         let id = UUID()
@@ -90,7 +90,7 @@ struct StudentFilesTab: View {
                                 Button {
                                     filterCategory = nil
                                 } label: {
-                                    Label("All", systemImage: "folder")
+                                    Label("All", systemImage: SFSymbol.Document.folder)
                                     if filterCategory == nil {
                                         Image(systemName: "checkmark")
                                     }
@@ -112,7 +112,7 @@ struct StudentFilesTab: View {
                                 Button {
                                     sortOption = .dateDesc
                                 } label: {
-                                    Label("Date (Newest)", systemImage: "calendar")
+                                    Label("Date (Newest)", systemImage: SFSymbol.Time.calendar)
                                     if sortOption == .dateDesc {
                                         Image(systemName: "checkmark")
                                     }
@@ -121,7 +121,7 @@ struct StudentFilesTab: View {
                                 Button {
                                     sortOption = .dateAsc
                                 } label: {
-                                    Label("Date (Oldest)", systemImage: "calendar")
+                                    Label("Date (Oldest)", systemImage: SFSymbol.Time.calendar)
                                     if sortOption == .dateAsc {
                                         Image(systemName: "checkmark")
                                     }
@@ -130,14 +130,14 @@ struct StudentFilesTab: View {
                                 Button {
                                     sortOption = .title
                                 } label: {
-                                    Label("Title", systemImage: "textformat")
+                                    Label("Title", systemImage: SFSymbol.Text.textformat)
                                     if sortOption == .title {
                                         Image(systemName: "checkmark")
                                     }
                                 }
                             }
                         } label: {
-                            Label("Filter & Sort", systemImage: "line.3.horizontal.decrease.circle")
+                            Label("Filter & Sort", systemImage: SFSymbol.Search.lineHorizontal3DecreaseCircle)
                         }
                         .buttonStyle(.bordered)
                         
@@ -148,7 +148,7 @@ struct StudentFilesTab: View {
                             showFileImporter = true
                             #endif
                         } label: {
-                            Label("Add File", systemImage: "plus.circle.fill")
+                            Label("Add File", systemImage: SFSymbol.Action.plusCircleFill)
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -387,11 +387,11 @@ struct DocumentCard: View {
         }
         .contextMenu {
             Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                Label("Delete", systemImage: SFSymbol.Action.trash)
             }
             
             Button(action: onRename) {
-                Label("Rename", systemImage: "pencil")
+                Label("Rename", systemImage: SFSymbol.Education.pencil)
             }
         }
     }

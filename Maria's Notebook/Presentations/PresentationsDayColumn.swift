@@ -21,7 +21,7 @@ struct PresentationsDayColumn: View {
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
-    @State private var insertionIndex: Int? = nil
+    @State private var insertionIndex: Int?
 
     private var scheduledLessonsForDay: [StudentLesson] {
         allStudentLessons.filter { sl in
@@ -288,6 +288,29 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     @MainActor
     private func applyStudentLessonDrop(id: UUID, locationY: CGFloat) {
         let current = getCurrentItems()
+        
+        // Check if the drop landed on a pill for the same lesson — merge instead of reorder
+        if let source = allStudentLessons.first(where: { $0.id == id }), !source.isGiven {
+            let frames = itemFramesProvider()
+            let scheduledLessons = current.compactMap { item -> StudentLesson? in
+                if case .studentLesson(let sl) = item { return sl }
+                return nil
+            }
+            if let targetSL = scheduledLessons.first(where: { sl in
+                guard sl.id != id, !sl.isGiven,
+                      sl.resolvedLessonID == source.resolvedLessonID,
+                      let frame = frames[sl.id] else { return false }
+                return locationY >= frame.minY && locationY <= frame.maxY
+            }) {
+                StudentLessonMergeService.merge(
+                    sourceID: id,
+                    targetID: targetSL.id,
+                    context: modelContext
+                )
+                return
+            }
+        }
+        
         var ids = current.map { $0.id }
         if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
         let frames = itemFramesProvider()

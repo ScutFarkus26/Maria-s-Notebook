@@ -35,7 +35,7 @@ struct StudentsRootView: View {
     }
 
     // We keep the state here to persist it, but pass it down as a binding
-    @AppStorage("StudentsRootView.mode") private var modeRaw: String = StudentMode.roster.rawValue
+    @AppStorage(UserDefaultsKeys.studentsRootViewMode) private var modeRaw: String = StudentMode.roster.rawValue
     
     private var mode: StudentMode {
         get { StudentMode(rawValue: modeRaw) ?? .roster }

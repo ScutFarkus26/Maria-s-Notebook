@@ -28,14 +28,14 @@ struct SubjectListView: View {
                         Button {
                             onSelectSubject(subject)
                         } label: {
-                            Label("View Lessons", systemImage: "book")
+                            Label("View Lessons", systemImage: SFSymbol.Education.book)
                         }
 
                         if let onRename = onRenameSubject {
                             Button {
                                 onRename(subject)
                             } label: {
-                                Label("Rename Subject", systemImage: "pencil")
+                                Label("Rename Subject", systemImage: SFSymbol.Education.pencil)
                             }
                         }
 

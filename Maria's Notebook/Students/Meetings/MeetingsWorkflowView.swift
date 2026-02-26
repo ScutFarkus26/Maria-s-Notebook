@@ -9,7 +9,7 @@ struct MeetingsWorkflowView: View {
 
     // MARK: - Queries
 
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
+    @Query(sort: Student.sortByName)
     private var studentsRaw: [Student]
 
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
@@ -28,8 +28,8 @@ struct MeetingsWorkflowView: View {
     private var meetingTemplates: [MeetingTemplate]
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var students: [Student] {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
@@ -37,14 +37,14 @@ struct MeetingsWorkflowView: View {
 
     // MARK: - State
 
-    @State private var selectedStudentID: UUID? = nil
+    @State private var selectedStudentID: UUID?
     @State private var searchText: String = ""
     @State private var showCompletedThisWeek: Bool = false
     @State private var orderedStudentIDs: [UUID] = []
     @State private var selectedAgeRanges: Set<AgeRange> = []
 
     // Meeting frequency threshold (persisted)
-    @AppStorage("MeetingsWorkflow.daysSinceThreshold") private var daysSinceThreshold: Int = 7
+    @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var daysSinceThreshold: Int = 7
 
     // Work age threshold for overdue
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14

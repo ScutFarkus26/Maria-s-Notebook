@@ -48,15 +48,15 @@ struct StudentsView<WorkloadContent: View>: View {
     @State private var viewModel = StudentsViewModel()
 
     // MARK: - App Storage for Roster Mode
-    @AppStorage("StudentsView.sortOrder") private var studentsSortOrderRaw: String = "alphabetical"
-    @AppStorage("StudentsView.selectedFilter") private var studentsFilterRaw: String = "all"
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.studentsViewSortOrder) private var studentsSortOrderRaw: String = "alphabetical"
+    @AppStorage(UserDefaultsKeys.studentsViewSelectedFilter) private var studentsFilterRaw: String = "all"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // MARK: - State for Roster Mode
     @State private var showingAddStudent = false
-    @State private var selectedStudentID: UUID? = nil
-    @State private var selectedStudentForSheet: Student? = nil
+    @State private var selectedStudentID: UUID?
+    @State private var selectedStudentForSheet: Student?
     @State private var isShowingSaveError: Bool = false
     @State private var saveErrorMessage: String = ""
     
@@ -65,7 +65,7 @@ struct StudentsView<WorkloadContent: View>: View {
     @State private var importAlert: StudentsCSVImportHandler.ImportAlert? = nil
     @State private var mappingHeaders: [String] = []
     @State private var pendingMapping: StudentCSVImporter.Mapping? = nil
-    @State private var pendingFileURL: URL? = nil
+    @State private var pendingFileURL: URL?
     @State private var pendingParsedImport: StudentCSVImporter.Parsed? = nil
     @State private var showingMappingSheet: Bool = false
     @State private var isParsing: Bool = false

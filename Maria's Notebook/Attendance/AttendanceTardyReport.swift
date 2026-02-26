@@ -8,7 +8,7 @@ struct AttendanceTardyReport: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
+    @Query(sort: Student.sortByLastName)
     private var allStudentsRaw: [Student]
     private var students: [Student] { allStudentsRaw.uniqueByID }
 
@@ -107,7 +107,7 @@ struct AttendanceTardyReport: View {
                         .labelsHidden()
                 }
 
-                Image(systemName: "arrow.right")
+                Image(systemName: SFSymbol.Arrow.right)
                     .foregroundStyle(.secondary)
                     .font(.caption)
 

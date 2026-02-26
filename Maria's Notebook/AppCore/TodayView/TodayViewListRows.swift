@@ -45,7 +45,7 @@ struct ReminderListRow: View {
             .background(Circle().fill(fillColor))
             .overlay {
                 if reminder.isCompleted {
-                    Image(systemName: "checkmark")
+                    Image(systemName: SFSymbol.Action.checkmark)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Color.accentColor)
                 }
@@ -245,7 +245,7 @@ struct CompletionListRow: View {
             }
             Spacer()
             if hasNotes {
-                Image(systemName: "text.alignleft")
+                Image(systemName: SFSymbol.Text.textAlignLeft)
                     .font(.caption)
                     .foregroundStyle(.quaternary)
                     .accessibilityHidden(true)
@@ -308,7 +308,7 @@ struct GroupedScheduledWorkListRow: View {
                     }
                     Spacer()
                     if isFlexible {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        Image(systemName: isExpanded ? SFSymbol.Navigation.chevronUp : SFSymbol.Navigation.chevronDown)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -331,7 +331,7 @@ struct GroupedScheduledWorkListRow: View {
                             onTap(item.work.id)
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: "person.fill")
+                                Image(systemName: SFSymbol.People.personFill)
                                     .font(.system(size: 10))
                                     .foregroundStyle(.secondary)
                                 Text(name)
@@ -405,7 +405,7 @@ struct GroupedFollowUpWorkListRow: View {
                     }
                     Spacer()
                     if isFlexible {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        Image(systemName: isExpanded ? SFSymbol.Navigation.chevronUp : SFSymbol.Navigation.chevronDown)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -425,7 +425,7 @@ struct GroupedFollowUpWorkListRow: View {
                             onTap(item.work.id)
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: "person.fill")
+                                Image(systemName: SFSymbol.People.personFill)
                                     .font(.system(size: 10))
                                     .foregroundStyle(.secondary)
                                 Text(name)
@@ -502,7 +502,7 @@ struct TodoTodayRow: View {
             .background(Circle().fill(fillColor))
             .overlay {
                 if todo.isCompleted {
-                    Image(systemName: "checkmark")
+                    Image(systemName: SFSymbol.Action.checkmark)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.green)
                 }
@@ -521,77 +521,79 @@ struct TodoTodayRow: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                Button(action: onToggle) {
-                    checkboxView
-                }
-                .buttonStyle(.plain)
+        HStack(spacing: 12) {
+            Button(action: onToggle) {
+                checkboxView
+            }
+            .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(todo.title)
-                        .font(AppTheme.ScaledFont.callout)
-                        .foregroundStyle(todo.isCompleted ? .tertiary : .primary)
-                        .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
-                        .lineLimit(2)
+            Button(action: onTap) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(todo.title)
+                            .font(AppTheme.ScaledFont.callout)
+                            .foregroundStyle(todo.isCompleted ? .tertiary : .primary)
+                            .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
+                            .lineLimit(2)
 
-                    HStack(spacing: 8) {
-                        if let dateText = dueDateText {
-                            HStack(spacing: 3) {
-                                Image(systemName: "calendar")
-                                    .font(.system(size: 10))
-                                Text(dateText)
-                                    .font(AppTheme.ScaledFont.caption)
+                        HStack(spacing: 8) {
+                            if let dateText = dueDateText {
+                                HStack(spacing: 3) {
+                                    Image(systemName: SFSymbol.Time.calendar)
+                                        .font(.system(size: 10))
+                                    Text(dateText)
+                                        .font(AppTheme.ScaledFont.caption)
+                                }
+                                .foregroundStyle(todo.isOverdue ? Color.red : Color.secondary)
                             }
-                            .foregroundStyle(todo.isOverdue ? Color.red : Color.secondary)
-                        }
 
-                        if let progress = todo.subtasksProgressText {
-                            HStack(spacing: 3) {
-                                Image(systemName: "checklist")
-                                    .font(.system(size: 10))
-                                Text(progress)
-                                    .font(AppTheme.ScaledFont.caption)
+                            if let progress = todo.subtasksProgressText {
+                                HStack(spacing: 3) {
+                                    Image(systemName: SFSymbol.List.checklist)
+                                        .font(.system(size: 10))
+                                    Text(progress)
+                                        .font(AppTheme.ScaledFont.caption)
+                                }
+                                .foregroundStyle(todo.allSubtasksCompleted ? Color.green : Color.secondary)
                             }
-                            .foregroundStyle(todo.allSubtasksCompleted ? Color.green : Color.secondary)
-                        }
 
-                        if todo.recurrence != .none {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.purple.opacity(0.7))
-                        }
-
-                        if !todo.tags.isEmpty {
-                            let firstName = TodoTagHelper.tagName(todo.tags[0])
-                            let firstColor = TodoTagHelper.tagColor(todo.tags[0])
-                            Text(firstName)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(firstColor.color)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(firstColor.lightColor)
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
-                            if todo.tags.count > 1 {
-                                Text("+\(todo.tags.count - 1)")
+                            if todo.recurrence != .none {
+                                Image(systemName: SFSymbol.Action.arrowClockwise)
                                     .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.purple.opacity(0.7))
+                            }
+
+                            if !todo.tags.isEmpty {
+                                let firstName = TodoTagHelper.tagName(todo.tags[0])
+                                let firstColor = TodoTagHelper.tagColor(todo.tags[0])
+                                Text(firstName)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(firstColor.color)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(firstColor.lightColor)
+                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                                if todo.tags.count > 1 {
+                                    Text("+\(todo.tags.count - 1)")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer()
+                    Spacer()
 
-                // Priority indicator
-                if todo.priority != .none && todo.priority != .low {
-                    Circle()
-                        .fill(todo.priority.color)
-                        .frame(width: 7, height: 7)
+                    // Priority indicator
+                    if todo.priority != .none && todo.priority != .low {
+                        Circle()
+                            .fill(todo.priority.color)
+                            .frame(width: 7, height: 7)
+                    }
                 }
             }
+            .buttonStyle(.subtleRow)
         }
-        .buttonStyle(.subtleRow)
         .sensoryFeedback(.success, trigger: todo.isCompleted)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint("Double tap to view details, swipe right to complete")

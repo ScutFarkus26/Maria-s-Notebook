@@ -26,7 +26,7 @@ struct ChatInputBar: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Image(systemName: "arrow.up.circle.fill")
+                        Image(systemName: SFSymbol.Arrow.upCircleFill)
                             .font(.title2)
                     }
                 }

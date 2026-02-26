@@ -28,7 +28,7 @@ public struct InboxSheetView: View {
   @State private var itemFrames: [UUID: CGRect] = [:]
   @State private var spaceID = UUID()
   @State private var isTargeted = false
-  @State private var insertionIndex: Int? = nil
+  @State private var insertionIndex: Int?
   @State private var baseFrames: [UUID: CGRect]? = nil
 
   private static let mediumDateFormatter: DateFormatter = {

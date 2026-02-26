@@ -44,7 +44,7 @@ struct LessonsRootView: View {
 
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
-    @State var listSelectedSubject: String? = nil
+    @State var listSelectedSubject: String?
 
     // MARK: - Scene Storage
     @SceneStorage("Lessons.selectedSubject") var selectedSubjectRaw: String = ""
@@ -67,7 +67,7 @@ struct LessonsRootView: View {
     @State var lastPresentedDates: [UUID: Date]? = nil
 
     // MARK: - Migration
-    @AppStorage("Lessons.sortIndexMigrated") var sortIndexMigrated: Bool = false
+    @AppStorage(UserDefaultsKeys.lessonsSortIndexMigrated) var sortIndexMigrated: Bool = false
 
     #if os(iOS)
     @State var editMode: EditMode = .inactive

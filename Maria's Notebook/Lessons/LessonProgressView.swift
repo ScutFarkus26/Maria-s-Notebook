@@ -9,7 +9,7 @@ struct LessonProgressView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
-    @State private var stats: LessonStats? = nil
+    @State private var stats: LessonStats?
     @State private var presentations: [Presentation] = []
     @State private var allWork: [WorkModel] = []
     @State private var practiceSessions: [PracticeSession] = []

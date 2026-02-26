@@ -9,7 +9,7 @@ public struct ReminderSyncSettingsView: View {
     @State private var selectedListIdentifier: String = ""
     @State private var availableLists: [ReminderSyncService.ReminderListInfo] = []
     @State private var isRefreshing: Bool = false
-    @State private var lastSyncStatus: String? = nil
+    @State private var lastSyncStatus: String?
 
     public init() {
         // Use the shared instance

@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// Helper for building toolbar content for StudentsView to reduce duplication
-struct StudentsViewToolbarHelper {
+struct StudentsViewToolbarHelper<ModePicker: View, AddButton: View> {
     let mode: StudentMode
     let effectiveSortOrder: SortOrder
     let sortOrderRaw: Binding<String>
     let filterRaw: Binding<String>
-    let modePickerContent: () -> any View
-    let addStudentButton: () -> any View
+    let modePickerContent: () -> ModePicker
+    let addStudentButton: () -> AddButton
 
     #if os(iOS)
     let horizontalSizeClass: UserInterfaceSizeClass?
@@ -42,7 +42,7 @@ struct StudentsViewToolbarHelper {
 
         if showAddButton {
             ToolbarItem(placement: .primaryAction) {
-                AnyView(addStudentButton())
+                addStudentButton()
             }
         }
     }
@@ -51,13 +51,13 @@ struct StudentsViewToolbarHelper {
     @ToolbarContentBuilder
     func regularToolbarContent() -> some ToolbarContent {
         ToolbarItem(placement: .automatic) {
-            AnyView(modePickerContent())
+            modePickerContent()
                 .controlSize(.regular)
         }
 
         if showAddButton {
             ToolbarItem(placement: .primaryAction) {
-                AnyView(addStudentButton())
+                addStudentButton()
             }
         }
     }

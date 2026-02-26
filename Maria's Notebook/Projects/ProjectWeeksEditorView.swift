@@ -11,7 +11,7 @@ struct ProjectWeeksEditorView: View {
     // Performance: Use filtered query instead of loading all weeks
     @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)]) private var weeks: [ProjectTemplateWeek]
 
-    @State private var editingWeek: ProjectTemplateWeek? = nil
+    @State private var editingWeek: ProjectTemplateWeek?
 
     init(club: Project, showHeader: Bool = true) {
         self.club = club
@@ -98,11 +98,11 @@ struct ProjectWeekEditorView: View, Identifiable {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Performance: Filter students to only club members at query level
-    @Query(sort: [SortDescriptor(\Student.firstName, order: .forward), SortDescriptor(\Student.lastName, order: .forward)]) private var studentsRaw: [Student]
+    @Query(sort: Student.sortByName) private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
@@ -126,7 +126,7 @@ struct ProjectWeekEditorView: View, Identifiable {
     @State private var offeredWorks: [TemplateOfferedWork]
 
     @State private var pickingLessonForWeek: Bool = false
-    @State private var viewingLesson: Lesson? = nil
+    @State private var viewingLesson: Lesson?
 
     init(club: Project, week: ProjectTemplateWeek, onDone: @escaping () -> Void) {
         self.club = club

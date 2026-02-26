@@ -19,7 +19,7 @@ struct StudentProgressTab: View {
     @State private var selectedEnrollment: StudentTrackEnrollment?
     @State private var selectedProject: Project?
     @State private var selectedReport: WorkModel?
-    @State private var filterSheet: FilterSheet? = nil
+    @State private var filterSheet: FilterSheet?
 
     // MARK: - Filter Sheet State
     enum FilterSheet: Identifiable {

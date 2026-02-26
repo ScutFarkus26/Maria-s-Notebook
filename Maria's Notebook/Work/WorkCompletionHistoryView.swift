@@ -14,7 +14,7 @@ struct WorkCompletionHistoryView: View {
 
     @State private var records: [WorkCompletionRecord] = []
     @State private var isLoading: Bool = false
-    @State private var errorMessage: String? = nil
+    @State private var errorMessage: String?
 
     var body: some View {
         Group {

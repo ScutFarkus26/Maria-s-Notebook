@@ -18,7 +18,7 @@ struct AttendanceExpandedView: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @Query(sort: [SortDescriptor(\Student.lastName), SortDescriptor(\Student.firstName)])
+    @Query(sort: Student.sortByLastName)
     private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var allStudents: [Student] { allStudentsRaw.uniqueByID }
@@ -29,7 +29,7 @@ struct AttendanceExpandedView: View {
     @SyncedAppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
     @State private var showMailSheet = false
     @State private var showingTardyReport = false
-    @State private var toastMessage: String? = nil
+    @State private var toastMessage: String?
     @State private var isEditing: Bool = true
     @State private var localSortKey: AttendanceViewModel.SortKey = .lastName
 
@@ -108,7 +108,7 @@ struct AttendanceExpandedView: View {
                 saveCoordinator.save(modelContext, reason: "Reset day")
                 onChange()
             } label: {
-                Image(systemName: "arrow.counterclockwise")
+                Image(systemName: SFSymbol.Action.arrowCounterclockwise)
             }
             .buttonStyle(.bordered)
             .disabled(isNonSchoolDay || !isEditing)
@@ -128,7 +128,7 @@ struct AttendanceExpandedView: View {
                 Button {
                     prepareAttendanceEmail()
                 } label: {
-                    Label("Email", systemImage: "envelope")
+                    Label("Email", systemImage: SFSymbol.Communication.envelope)
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.bordered)
@@ -140,7 +140,7 @@ struct AttendanceExpandedView: View {
 
     private var nonSchoolDayWarning: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+            Image(systemName: SFSymbol.Status.exclamationmarkTriangleFill).foregroundStyle(.yellow)
             Text("Non-school day. Attendance optional.")
                 .font(.caption)
                 .foregroundStyle(.secondary)

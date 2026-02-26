@@ -9,8 +9,8 @@ struct StudentLessonDetailView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Live Queries
     @Query private var lessons: [Lesson]
@@ -294,15 +294,12 @@ struct StudentLessonDetailContentView: View {
     
     // MARK: - Three Panel Layout (Planning + Presentation + Work)
 
+    @ViewBuilder
     private var threePanelLayout: some View {
-        guard let presentationVM = vm.presentationViewModel else {
-            return AnyView(EmptyView())
-        }
+        if let presentationVM = vm.presentationViewModel {
+            let lessonTitle = currentLessonName
+            let lessonID = currentLessonID
 
-        let lessonTitle = currentLessonName
-        let lessonID = currentLessonID
-        
-        return AnyView(
             VStack(spacing: 0) {
                 // Header toolbar
                 workflowHeaderBar(
@@ -381,7 +378,7 @@ struct StudentLessonDetailContentView: View {
             } message: {
                 Text("You have unsaved changes in the workflow. Are you sure you want to go back?")
             }
-        )
+        }
     }
     
     // Helper for keyboard shortcut

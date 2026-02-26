@@ -28,6 +28,10 @@ enum ObservationsDataLoader {
             )
             let notes: [Note] = try context.fetch(noteFetch)
             for note in notes {
+                // Skip notes with empty body and no image (e.g., leftover from check-in migrations)
+                if note.body.trimmed().isEmpty && (note.imagePath ?? "").isEmpty {
+                    continue
+                }
                 let studentIDs = studentIDsFromScope(note.scope)
                 let contextText = contextTextProvider(note)
                 allItems.append(UnifiedObservationItem(

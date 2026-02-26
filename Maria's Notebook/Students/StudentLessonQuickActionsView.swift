@@ -11,8 +11,8 @@ struct StudentLessonQuickActionsView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: \Lesson.name, animation: .default)
     private var lessons: [Lesson]
@@ -240,7 +240,7 @@ struct StudentLessonQuickActionsView: View {
                 // CRITICAL: Set givenAt on StudentLesson for dual-write consistency
                 // This ensures DaysSinceLastLessonView can correctly calculate days since presentation
                 studentLesson.givenAt = presentedDate
-                _ = try LifecycleService.recordPresentationAndExplodeWork(
+                _ = try LifecycleService.recordPresentation(
                     from: studentLesson,
                     presentedAt: presentedDate,
                     modelContext: modelContext

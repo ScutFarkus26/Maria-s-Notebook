@@ -32,9 +32,9 @@ struct StudentDetailView: View {
     @State private var draftStartDate = Date()
     @State private var showDeleteAlert = false
 
-    @AppStorage("StudentDetailView.activeTab") private var selectedTab: StudentDetailTab = .overview
+    @AppStorage(UserDefaultsKeys.studentDetailViewActiveTab) private var selectedTab: StudentDetailTab = .overview
 
-    @State private var selectedWorkID: UUID? = nil
+    @State private var selectedWorkID: UUID?
     @State private var workCache: [WorkModel] = []
     @State private var showAIPlanning = false
 

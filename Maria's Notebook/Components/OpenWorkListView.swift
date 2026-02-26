@@ -13,7 +13,7 @@ struct OpenWorkListView: View {
     @Query private var lessons: [Lesson]
     @Query private var lessonAssignments: [LessonAssignment]
 
-    @State private var selectedWork: WorkModel? = nil
+    @State private var selectedWork: WorkModel?
 
     // Pagination state
     @State private var pagination = PaginationState(pageSize: 50)

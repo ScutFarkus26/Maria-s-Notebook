@@ -40,19 +40,19 @@ struct TodayView: View {
     @State var viewModel: TodayViewModel
 
     // MARK: - Navigation State
-    @State var selectedWorkID: UUID? = nil
-    @State var selectedStudentLesson: StudentLesson? = nil
+    @State var selectedWorkID: UUID?
+    @State var selectedStudentLesson: StudentLesson?
     @State var isShowingQuickNote = false
-    @State var noteBeingEdited: Note? = nil
+    @State var noteBeingEdited: Note?
 
     // MARK: - Attendance State
     @State var isAttendanceExpanded = false
 
     // MARK: - Toast State
-    @State var toastMessage: String? = nil
+    @State var toastMessage: String?
 
     // MARK: - Todo State
-    @State var selectedTodoItem: TodoItem? = nil
+    @State var selectedTodoItem: TodoItem?
     @State var isShowingNewTodo = false
     @Query(filter: #Predicate<TodoItem> { !$0.isCompleted }, sort: \TodoItem.createdAt, order: .reverse) var todayTodoItems: [TodoItem]
 

@@ -5,16 +5,14 @@ import OSLog
 struct ObservationHeatmapView: View {
     private static let logger = Logger.students
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: [
-        SortDescriptor(\Student.firstName),
-        SortDescriptor(\Student.lastName)
-    ]) private var allStudentsRaw: [Student]
+    @Query(sort: Student.sortByName)
+    private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var allStudents: [Student] { allStudentsRaw.uniqueByID }
     
     @State private var studentObservations: [StudentObservation] = []
     @State private var showingQuickNote: Bool = false
-    @State private var selectedStudentID: UUID? = nil
+    @State private var selectedStudentID: UUID?
     
     var body: some View {
         ScrollView {

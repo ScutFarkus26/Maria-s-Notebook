@@ -65,10 +65,8 @@ struct UnifiedNoteEditor: View {
     let onCancel: () -> Void
 
     // MARK: - Query
-    @Query(sort: [
-        SortDescriptor(\Student.firstName),
-        SortDescriptor(\Student.lastName)
-    ]) var students: [Student]
+    @Query(sort: Student.sortByName)
+    var students: [Student]
 
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []
@@ -79,28 +77,28 @@ struct UnifiedNoteEditor: View {
     @State var needsFollowUp: Bool = false
     @State var showingTagPicker: Bool = false
     @State var showingStudentPicker: Bool = false
-    @State var selectedPhoto: PhotosPickerItem? = nil
+    @State var selectedPhoto: PhotosPickerItem?
 
     #if os(iOS)
     @State var showingCamera: Bool = false
     #endif
 
     #if os(macOS)
-    @State var selectedImage: NSImage? = nil
+    @State var selectedImage: NSImage?
     #else
-    @State var selectedImage: UIImage? = nil
+    @State var selectedImage: UIImage?
     #endif
 
-    @State var imagePath: String? = nil
+    @State var imagePath: String?
     /// Tracks the original image path when editing an existing note, for cleanup when image changes
-    @State var originalImagePath: String? = nil
+    @State var originalImagePath: String?
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @State var isSuggesting: Bool = false
     @State var showingSuggestionSheet: Bool = false
     @State var proposedTags: [String] = []
     @State var proposedStudentIDs: [UUID] = []
-    @State var suggestionError: String? = nil
+    @State var suggestionError: String?
     #endif
 
     @State var aiTriggerCounter: Int = 0

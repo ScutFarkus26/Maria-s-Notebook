@@ -116,7 +116,7 @@ struct WorkDetailView: View {
         }
     }
     
-    @State private var selectedPracticeSession: PracticeSession? = nil
+    @State private var selectedPracticeSession: PracticeSession?
     
     @ViewBuilder
     private func mainContent(work: WorkModel) -> some View {

@@ -7,7 +7,7 @@ struct ScheduledCheckInsListSection: View {
     let onSetStatus: (UUID, WorkCheckInStatus) -> Void
     let onDelete: (WorkCheckIn) -> Void
     
-    @State private var selectedCheckInForNote: WorkCheckIn? = nil
+    @State private var selectedCheckInForNote: WorkCheckIn?
     
     private var sortedCheckIns: [WorkCheckIn] {
         checkIns.sorted(by: { $0.date < $1.date })

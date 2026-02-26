@@ -15,9 +15,9 @@ struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ClassSubjectChecklistViewModel()
 
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-    @AppStorage("Checklist.selectedSubject") private var persistedSubject: String = ""
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.checklistSelectedSubject) private var persistedSubject: String = ""
 
     // Grid Configuration
     private let studentColumnWidth: CGFloat = 120

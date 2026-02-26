@@ -16,8 +16,8 @@ struct LessonAssignmentHistoryView: View {
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // PAGINATION: Load assignments in batches instead of all at once
     private static let initialLoadCount = 50
@@ -50,7 +50,7 @@ struct LessonAssignmentHistoryView: View {
            sort: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)])
     private var allAssignmentsForChangeDetection: [LessonAssignment]
 
-    @State private var selectedAssignment: LessonAssignment? = nil
+    @State private var selectedAssignment: LessonAssignment?
     @State private var notesCountCache: [String: Int] = [:]
     @State private var studentNameCache: [UUID: String] = [:]
     @State private var lessonTitleCache: [UUID: String] = [:]
@@ -67,7 +67,7 @@ struct LessonAssignmentHistoryView: View {
     @State private var selectedSubjects: Set<String> = []
     @State private var searchText: String = ""
 
-    @AppStorage("PresentationHistory.nameDisplayStyle") private var nameDisplayStyleRaw: String = "firstLastInitial"
+    @AppStorage(UserDefaultsKeys.presentationHistoryNameDisplayStyle) private var nameDisplayStyleRaw: String = "firstLastInitial"
     private enum NameDisplayStyle: String, Sendable { case initials, firstLastInitial }
     private var nameDisplayStyle: NameDisplayStyle { NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial }
 
@@ -553,7 +553,7 @@ struct LessonAssignmentHistoryView: View {
                 Button {
                     openLessonInNewWindow(lessonID)
                 } label: {
-                    Label("View Lesson", systemImage: "book")
+                    Label("View Lesson", systemImage: SFSymbol.Education.book)
                 }
                 #endif
             }
@@ -563,7 +563,7 @@ struct LessonAssignmentHistoryView: View {
             Button(role: .destructive) {
                 deleteAssignment(la)
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("Delete", systemImage: SFSymbol.Action.trash)
             }
         }
     }

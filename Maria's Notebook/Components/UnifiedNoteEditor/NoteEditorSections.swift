@@ -508,7 +508,7 @@ private struct TemplatePickerView: View {
     let onSelect: (NoteTemplate) -> Void
 
     @State private var isExpanded: Bool = false
-    @State private var selectedFilterTag: String? = nil
+    @State private var selectedFilterTag: String?
 
     /// All unique tags used across templates
     private var allTemplateTags: [String] {

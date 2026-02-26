@@ -21,9 +21,9 @@ struct BackupRestoreSettingsView: View {
     let openDefaultFolder: () -> Void
     let clearDefaultFolder: () -> Void
 
-    @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
-    @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
-    @AppStorage("CloudBackup.scheduleEnabled") private var cloudBackupEnabled = false
+    @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true
+    @AppStorage(UserDefaultsKeys.autoBackupRetentionCount) private var autoBackupRetention = 10
+    @AppStorage(UserDefaultsKeys.cloudBackupScheduleEnabled) private var cloudBackupEnabled = false
 
     private let columns = [
         GridItem(.flexible(), spacing: SettingsStyle.groupSpacing),
@@ -119,7 +119,7 @@ struct BackupRestoreSettingsView: View {
     private var restoreCard: some View {
         CompactCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small + 2) {
-                Label("Restore", systemImage: "arrow.counterclockwise")
+                Label("Restore", systemImage: SFSymbol.Action.arrowCounterclockwise)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.orange)
 
@@ -150,7 +150,7 @@ struct BackupRestoreSettingsView: View {
         CompactCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 HStack {
-                    Label("Storage", systemImage: "folder.fill")
+                    Label("Storage", systemImage: SFSymbol.Document.folderFill)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.pink)
                     Spacer()
@@ -174,7 +174,7 @@ struct BackupRestoreSettingsView: View {
     private var folderMenu: some View {
         Menu {
             Button { chooseDefaultFolder() } label: {
-                Label("Choose Folder...", systemImage: "folder.badge.plus")
+                Label("Choose Folder...", systemImage: SFSymbol.Document.folderBadgePlus)
             }
             if !defaultFolderName.isEmpty {
                 Button { openDefaultFolder() } label: {
@@ -182,7 +182,7 @@ struct BackupRestoreSettingsView: View {
                 }
                 Divider()
                 Button(role: .destructive) { clearDefaultFolder() } label: {
-                    Label("Clear", systemImage: "xmark.circle")
+                    Label("Clear", systemImage: SFSymbol.Action.xmarkCircle)
                 }
             }
         } label: {
@@ -228,7 +228,7 @@ struct BackupRestoreSettingsView: View {
 
     private var iCloudRow: some View {
         HStack(spacing: AppTheme.Spacing.small + 2) {
-            Image(systemName: "icloud.fill")
+            Image(systemName: SFSymbol.Data.icloudFill)
                 .foregroundStyle(.cyan)
             Text("iCloud Backup")
                 .font(.subheadline)
@@ -274,14 +274,14 @@ struct BackupRestoreSettingsView: View {
 
     private func resultBanner(_ summary: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
-            Image(systemName: "checkmark.circle.fill")
+            Image(systemName: SFSymbol.Action.checkmarkCircleFill)
                 .foregroundStyle(.green)
             Text(summary)
                 .font(.caption)
                 .lineLimit(1)
             Spacer()
             Button { resultSummary = nil } label: {
-                Image(systemName: "xmark")
+                Image(systemName: SFSymbol.Action.xmark)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

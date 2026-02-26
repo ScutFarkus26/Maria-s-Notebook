@@ -125,11 +125,11 @@ struct PresentationsView: View {
     
     // NOTE: WorkModel fetching is now handled by ViewModel
 
-    @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
-    @AppStorage("LessonsAgenda.startDate") private var startDateRaw: Double = 0
+    @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
+    @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) private var startDateRaw: Double = 0
 
-    @AppStorage("LessonsAgenda.missWindow") private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
-    @AppStorage("Planning.recentWindowDays") private var recentWindowDays: Int = 1
+    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
+    @AppStorage(UserDefaultsKeys.planningRecentWindowDays) private var recentWindowDays: Int = 1
 
     private var missWindow: PresentationsMissWindow { PresentationsMissWindow(rawValue: missWindowRaw) ?? .all }
 
@@ -142,8 +142,8 @@ struct PresentationsView: View {
         }
     }
 
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @State private var startDate: Date = Date()
     @State private var mobileViewSelection: MobileViewMode = .inbox

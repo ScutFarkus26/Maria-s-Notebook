@@ -19,7 +19,7 @@ struct AttendanceStandaloneView: View {
     // MARK: - State
     @State private var date: Date = AppCalendar.startOfDay(Date())
     @State private var schoolDayCache = SchoolDayCache()
-    @State private var toastMessage: String? = nil
+    @State private var toastMessage: String?
     @State private var showingTardyReport = false
 
     // MARK: - Body

@@ -1436,9 +1436,9 @@ struct TodoRowCard: View {
 struct NewTodoForm: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudentsRaw: [Student]
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
@@ -1446,8 +1446,8 @@ struct NewTodoForm: View {
 
     @State private var title = ""
     @State private var notes = ""
-    @State private var dueDate: Date? = nil
-    @State private var scheduledDate: Date? = nil
+    @State private var dueDate: Date?
+    @State private var scheduledDate: Date?
     @State private var isSomeday = false
     @State private var priority: TodoPriority = .none
     @State private var recurrence: RecurrencePattern = .none
@@ -1704,9 +1704,9 @@ struct NewTodoForm: View {
 struct TodoDetailView: View {
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var allStudentsRaw: [Student]
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
@@ -2202,7 +2202,7 @@ struct TagBadge: View {
 struct TagPicker: View {
     @Binding var selectedTags: [String]
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var students: [Student]
+    @Query(sort: Student.sortByName) private var students: [Student]
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
     @State private var isShowingCustomTagSheet = false
     @State private var searchText = ""

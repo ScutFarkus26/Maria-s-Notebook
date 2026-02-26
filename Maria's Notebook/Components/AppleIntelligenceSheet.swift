@@ -11,8 +11,8 @@ struct AppleIntelligenceSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
@@ -32,10 +32,10 @@ struct AppleIntelligenceSheet: View {
     
     // AI State
     @State private var isGenerating: Bool = false
-    @State private var generationError: String? = nil
-    
+    @State private var generationError: String?
+
     // UI State
-    @State private var currentTemplate: PromptTemplate? = nil
+    @State private var currentTemplate: PromptTemplate?
     
     init(notes: [Note]) {
         self.notes = notes

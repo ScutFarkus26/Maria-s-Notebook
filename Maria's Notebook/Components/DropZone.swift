@@ -12,7 +12,7 @@ struct DropZone: View {
     @State private var isTargeted: Bool = false
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
-    @State private var insertionIndex: Int? = nil
+    @State private var insertionIndex: Int?
 
     // Inputs
     let day: Date
@@ -172,7 +172,8 @@ struct DropZone: View {
             snapshot: sl.snapshot(),
             day: day,
             sourceStudentLessonID: sl.id,
-            targetStudentLessonID: sl.id
+            targetStudentLessonID: sl.id,
+            enableMergeDrop: true
         )
         .draggable(sl.id.uuidString) {
             // Custom drag preview
@@ -334,6 +335,26 @@ struct BoardDropDelegate: DropDelegate {
         }
         
         let current = getCurrent()
+        
+        // Check if the drop landed on a pill for the same lesson — merge instead of reorder
+        if let source = allStudentLessons.first(where: { $0.id == id }), !source.isGiven {
+            let frames = itemFramesProvider()
+            let dropY = location.y
+            if let targetSL = current.first(where: { sl in
+                guard sl.id != id, !sl.isGiven,
+                      sl.resolvedLessonID == source.resolvedLessonID,
+                      let frame = frames[sl.id] else { return false }
+                return dropY >= frame.minY && dropY <= frame.maxY
+            }) {
+                StudentLessonMergeService.merge(
+                    sourceID: id,
+                    targetID: targetSL.id,
+                    context: modelContext
+                )
+                return
+            }
+        }
+        
         var ids = current.map { $0.id }
         if let existing = ids.firstIndex(of: id) {
             ids.remove(at: existing)

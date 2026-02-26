@@ -126,7 +126,7 @@ struct StudentInsightsView: View {
             
             // Overall Progress
             VStack(alignment: .leading, spacing: 8) {
-                Label("Overall Progress", systemImage: "chart.line.uptrend.xyaxis")
+                Label("Overall Progress", systemImage: SFSymbol.Chart.chartLine)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 
@@ -309,7 +309,7 @@ struct StudentInsightsView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             } else {
-                Label("Generate New Analysis", systemImage: "wand.and.stars")
+                Label("Generate New Analysis", systemImage: SFSymbol.Tool.wand)
                     .frame(maxWidth: .infinity)
                     .padding()
             }
@@ -322,7 +322,7 @@ struct StudentInsightsView: View {
     
     private func errorCard(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Error", systemImage: "exclamationmark.triangle.fill")
+            Label("Error", systemImage: SFSymbol.Status.exclamationmarkTriangleFill)
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.red)
@@ -334,7 +334,7 @@ struct StudentInsightsView: View {
             // Show settings button if API key is missing
             if message.contains("API key") {
                 Button(action: { showingAPIKeySettings = true }) {
-                    Label("Configure API Key", systemImage: "gear")
+                    Label("Configure API Key", systemImage: SFSymbol.Settings.gear)
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)

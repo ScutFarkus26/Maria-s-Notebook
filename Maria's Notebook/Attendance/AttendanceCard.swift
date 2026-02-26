@@ -19,7 +19,7 @@ struct AttendanceCard: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showingNoteEditor = false
-    @State private var noteToEdit: Note? = nil
+    @State private var noteToEdit: Note?
 
     private var status: AttendanceStatus { record?.status ?? .unmarked }
     private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }

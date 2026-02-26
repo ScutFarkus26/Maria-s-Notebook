@@ -21,8 +21,8 @@ struct DataManagementGrid: View {
     }
 
     @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
-    @AppStorage("AutoBackup.enabled") private var autoBackupEnabled = true
-    @AppStorage("AutoBackup.retentionCount") private var autoBackupRetention = 10
+    @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true
+    @AppStorage(UserDefaultsKeys.autoBackupRetentionCount) private var autoBackupRetention = 10
 
     @State private var showingImporter = false
     @State private var showingExporter = false
@@ -195,7 +195,7 @@ struct DataManagementGrid: View {
     private var restoreCard: some View {
         CompactGridCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                Label("Restore", systemImage: "arrow.counterclockwise")
+                Label("Restore", systemImage: SFSymbol.Action.arrowCounterclockwise)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.orange)
 
@@ -230,7 +230,7 @@ struct DataManagementGrid: View {
         CompactGridCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                 HStack {
-                    Label("Storage", systemImage: "folder.fill")
+                    Label("Storage", systemImage: SFSymbol.Document.folderFill)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.purple)
                     Spacer()
@@ -254,7 +254,7 @@ struct DataManagementGrid: View {
     private var folderMenu: some View {
         Menu {
             Button { showingFolderImporter = true } label: {
-                Label("Choose Folder…", systemImage: "folder.badge.plus")
+                Label("Choose Folder…", systemImage: SFSymbol.Document.folderBadgePlus)
             }
             if !viewModel.defaultFolderName.isEmpty {
                 Button { openFolder() } label: {
@@ -262,7 +262,7 @@ struct DataManagementGrid: View {
                 }
                 Divider()
                 Button(role: .destructive) { clearFolder() } label: {
-                    Label("Clear", systemImage: "xmark.circle")
+                    Label("Clear", systemImage: SFSymbol.Action.xmarkCircle)
                 }
             }
         } label: {
@@ -310,14 +310,14 @@ struct DataManagementGrid: View {
 
     private func resultBanner(_ message: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
-            Image(systemName: "checkmark.circle.fill")
+            Image(systemName: SFSymbol.Action.checkmarkCircleFill)
                 .foregroundStyle(.green)
             Text(message)
                 .font(.caption)
                 .lineLimit(1)
             Spacer()
             Button { resultMessage = nil } label: {
-                Image(systemName: "xmark")
+                Image(systemName: SFSymbol.Action.xmark)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

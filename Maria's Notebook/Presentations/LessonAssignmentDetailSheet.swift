@@ -21,8 +21,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     @Environment(\.modelContext) private var modelContext
 
     // Test student filtering
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
@@ -33,11 +33,11 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    @State private var assignment: LessonAssignment? = nil
+    @State private var assignment: LessonAssignment?
     @State private var unifiedNotes: [Note] = []
     @State private var isLoading: Bool = true
     @State private var showAddNoteSheet: Bool = false
-    @State private var noteBeingEdited: Note? = nil
+    @State private var noteBeingEdited: Note?
     @State private var showingEditSheet = false
 
     init(assignmentID: UUID, onDone: (() -> Void)? = nil) {
@@ -103,7 +103,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 .font(.system(size: AppTheme.FontSize.titleMedium, weight: .heavy, design: .rounded))
                             if let presentedAt = la.presentedAt {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "calendar")
+                                    Image(systemName: SFSymbol.Time.calendar)
                                         .foregroundStyle(.secondary)
                                     Text(Self.dateFormatter.string(from: presentedAt))
                                         .foregroundStyle(.secondary)
@@ -168,7 +168,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 }
 
                                 if la.needsAnotherPresentation {
-                                    Label("Needs Another Presentation", systemImage: "arrow.counterclockwise")
+                                    Label("Needs Another Presentation", systemImage: SFSymbol.Action.arrowCounterclockwise)
                                         .font(.subheadline)
                                         .foregroundStyle(.orange)
                                 }
@@ -469,7 +469,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             Button {
                 noteBeingEdited = note
             } label: {
-                Label("Edit Note", systemImage: "pencil")
+                Label("Edit Note", systemImage: SFSymbol.Education.pencil)
             }
         }
     }
@@ -500,23 +500,12 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         }
     }
     
+    @ViewBuilder
     private var editPresentationSheet: some View {
-        guard let la = assignment else {
-            return AnyView(EmptyView())
-        }
-        
-        let studentList = studentList(for: la)
-        let lessonName = title(for: la)
-        
-        // Get the lessonID from the assignment
-        guard let lessonIDString = la.lessonIDUUID else {
-            return AnyView(EmptyView())
-        }
-        
-        return AnyView(
+        if let la = assignment, let lessonIDString = la.lessonIDUUID {
             UnifiedPresentationWorkflowSheet(
-                students: studentList,
-                lessonName: lessonName,
+                students: studentList(for: la),
+                lessonName: title(for: la),
                 lessonID: lessonIDString,
                 onComplete: {
                     // Work items are created by the workflow sheet
@@ -527,7 +516,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     showingEditSheet = false
                 }
             )
-        )
+        }
     }
     
     @MainActor

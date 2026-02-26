@@ -9,11 +9,11 @@ struct CommunityMeetingsView: View {
     private var topics: [CommunityTopic]
 
     @State private var showingAdd = false
-    @State private var selectedTopicID: UUID? = nil
+    @State private var selectedTopicID: UUID?
 
     enum DateFilter { case today, thisWeek, thisMonth, last30, thisYear }
-    @State private var filterDate: DateFilter? = nil
-    @State private var selectedTag: String? = nil
+    @State private var filterDate: DateFilter?
+    @State private var selectedTag: String?
     @State private var searchText: String = ""
 
     private var openTopics: [CommunityTopic] { topics.filter { !$0.isResolved } }

@@ -14,7 +14,7 @@ struct NewProjectSessionSheet: View {
     @State private var chapterOrPages: String = ""
 
     @State private var useTemplateWeek: Bool = false
-    @State private var selectedTemplateWeekID: UUID? = nil
+    @State private var selectedTemplateWeekID: UUID?
 
     // Assignment mode state
     @State private var assignmentMode: SessionAssignmentMode = .uniform

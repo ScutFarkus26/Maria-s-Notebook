@@ -42,9 +42,9 @@ struct WorksAgendaView: View {
     @State private var lessonsByIDCache: [UUID: Lesson] = [:]
     @State private var studentsByIDCache: [UUID: Student] = [:]
 
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-    @AppStorage("WorkAgenda.hideScheduled") private var hideScheduled: Bool = false
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) private var hideScheduled: Bool = false
 
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
@@ -53,10 +53,10 @@ struct WorksAgendaView: View {
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
     @State private var isCalendarMinimized: Bool = false
 
-    @State private var selectedWorkID: UUID? = nil
+    @State private var selectedWorkID: UUID?
 
     private struct SelectionToken: Identifiable, Equatable { let id: UUID; let workID: UUID }
-    @State private var selected: SelectionToken? = nil
+    @State private var selected: SelectionToken?
 
     // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
     private var lessonsByID: [UUID: Lesson] { lessonsByIDCache }

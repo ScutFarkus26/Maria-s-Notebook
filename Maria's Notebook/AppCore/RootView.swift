@@ -176,7 +176,7 @@ struct RootView: View {
     @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
     @State private var isShowingQuickNote = false
-    @State private var newPresentationDraftID: UUID? = nil
+    @State private var newPresentationDraftID: UUID?
     @State private var isShowingNewWorkItem = false
     @State private var isShowingNewTodo = false
     @State private var workDetailIDToOpen: UUID?
@@ -185,10 +185,10 @@ struct RootView: View {
     #endif
     
     // Preferences for presentations preloading
-    @AppStorage("PlanningInbox.order") private var inboxOrderRaw: String = ""
-    @AppStorage("LessonsAgenda.missWindow") private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
-    @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
+    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     
     private var missWindow: PresentationsMissWindow {
         PresentationsMissWindow(rawValue: missWindowRaw) ?? .all

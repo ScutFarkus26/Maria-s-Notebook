@@ -27,8 +27,8 @@ struct QuickPracticeSessionSheet: View {
     @State private var showPartnerSelector: Bool = false
 
     // Quality metrics (quick tap)
-    @State private var practiceQuality: Int? = nil
-    @State private var independenceLevel: Int? = nil
+    @State private var practiceQuality: Int?
+    @State private var independenceLevel: Int?
 
     // Observable behaviors (checkboxes)
     @State private var askedForHelp: Bool = false

@@ -9,7 +9,7 @@ struct PracticeSessionsListView: View {
     
     @State private var searchText: String = ""
     @State private var selectedFilter: FilterType = .all
-    @State private var selectedStudent: UUID? = nil
+    @State private var selectedStudent: UUID?
     @State private var showingDateRange: Bool = false
     @State private var dateRangeStart: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var dateRangeEnd: Date = Date()

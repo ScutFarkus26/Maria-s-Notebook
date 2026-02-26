@@ -17,8 +17,8 @@ struct ImportTrackFromLessonsSheet: View {
     
     // MARK: - State
     @State private var allLessons: [Lesson] = []
-    @State private var selectedSubject: String? = nil
-    @State private var selectedGroup: String? = nil
+    @State private var selectedSubject: String?
+    @State private var selectedGroup: String?
     @State private var trackTitle: String = ""
     @State private var lastDefaultTitle: String = ""
     @State private var isLoading = true

@@ -27,7 +27,7 @@ struct ChatView: View {
                         Button {
                             viewModel.resetSession()
                         } label: {
-                            Label("New Chat", systemImage: "arrow.counterclockwise")
+                            Label("New Chat", systemImage: SFSymbol.Action.arrowCounterclockwise)
                         }
                     }
                 }
@@ -178,7 +178,7 @@ struct ChatView: View {
 
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: SFSymbol.Status.exclamationmarkTriangleFill)
                 .foregroundStyle(.orange)
             Text(message)
                 .font(AppTheme.ScaledFont.caption)
@@ -187,7 +187,7 @@ struct ChatView: View {
             Button {
                 viewModel.errorMessage = nil
             } label: {
-                Image(systemName: "xmark")
+                Image(systemName: SFSymbol.Action.xmark)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

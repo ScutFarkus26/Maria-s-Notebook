@@ -18,13 +18,13 @@ final class AutoBackupManager {
     // MARK: - Settings
 
     @ObservationIgnored
-    @AppStorage("AutoBackup.enabled") private var isEnabled = true
+    @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var isEnabled = true
     @ObservationIgnored
-    @AppStorage("AutoBackup.retentionCount") private var retentionCount = 10
+    @AppStorage(UserDefaultsKeys.autoBackupRetentionCount) private var retentionCount = 10
     @ObservationIgnored
-    @AppStorage("AutoBackup.scheduledEnabled") private var scheduledEnabled = false
+    @AppStorage(UserDefaultsKeys.autoBackupScheduledEnabled) private var scheduledEnabled = false
     @ObservationIgnored
-    @AppStorage("AutoBackup.intervalHours") private var intervalHours = 4
+    @AppStorage(UserDefaultsKeys.autoBackupIntervalHours) private var intervalHours = 4
 
     // MARK: - State
 

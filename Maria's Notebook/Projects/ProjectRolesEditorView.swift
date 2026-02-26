@@ -13,7 +13,7 @@ struct ProjectRolesEditorView: View {
     private var roles: [ProjectRole]
 
     @State private var showEditor: Bool = false
-    @State private var editingRole: ProjectRole? = nil
+    @State private var editingRole: ProjectRole?
 
     init(club: Project) {
         self.club = club

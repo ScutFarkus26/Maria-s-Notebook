@@ -114,6 +114,12 @@ enum LegacyNotesMigrationService {
             // Check if notes relationship is empty - skip if already migrated
             guard (checkIn.notes ?? []).isEmpty else { continue }
 
+            // Skip whitespace-only strings that pass the #Predicate isEmpty check
+            guard !checkIn.note.trimmed().isEmpty else {
+                checkIn.note = ""
+                continue
+            }
+
             // Determine scope from associated work's students if available
             var scope: NoteScope = .all
             if let work = checkIn.work {

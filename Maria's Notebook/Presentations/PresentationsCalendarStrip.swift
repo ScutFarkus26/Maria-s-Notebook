@@ -18,7 +18,7 @@ struct PresentationsCalendarStrip: View {
     
     @Query private var studentLessons: [StudentLesson]
     
-    @AppStorage("PresentationsCalendar.showWork") private var showWork: Bool = true
+    @AppStorage(UserDefaultsKeys.presentationsCalendarShowWork) private var showWork: Bool = true
     
     // OPTIMIZATION: Pre-fetch all WorkCheckIn items for the date range once instead of per-column
     // This reduces ~33 database queries to 1, significantly improving performance

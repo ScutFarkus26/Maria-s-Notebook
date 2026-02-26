@@ -22,11 +22,11 @@ struct RootSidebar: View {
         List(selection: $selection) {
             Section("Daily") {
                 NavigationLink(value: RootView.NavigationItem.today) {
-                    Label("Today", systemImage: "sun.max")
+                    Label("Today", systemImage: SFSymbol.Weather.sun)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.students) {
-                    Label("Students", systemImage: "person.3")
+                    Label("Students", systemImage: SFSymbol.People.person3)
                 }
                 .contextMenu {
                     Button {
@@ -43,7 +43,7 @@ struct RootSidebar: View {
                 }
 
                 NavigationLink(value: RootView.NavigationItem.meetings) {
-                    Label("Meetings", systemImage: "person.2")
+                    Label("Meetings", systemImage: SFSymbol.People.person2)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.community) {
@@ -53,17 +53,17 @@ struct RootSidebar: View {
 
             Section("Planning") {
                 NavigationLink(value: RootView.NavigationItem.todos) {
-                    Label("Todos", systemImage: "checkmark.circle")
+                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.lessons) {
-                    Label("Lessons", systemImage: "book")
+                    Label("Lessons", systemImage: SFSymbol.Education.book)
                 }
                 .contextMenu {
                     Button {
                         appRouter.requestNewLesson()
                     } label: {
-                        Label("New Lesson", systemImage: "plus.circle")
+                        Label("New Lesson", systemImage: SFSymbol.Action.plusCircle)
                     }
 
                     Button {
@@ -78,7 +78,7 @@ struct RootSidebar: View {
                 }
 
                 NavigationLink(value: RootView.NavigationItem.planningAgenda) {
-                    Label("Presentations", systemImage: "calendar")
+                    Label("Presentations", systemImage: SFSymbol.Time.calendar)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.planningWork) {
@@ -88,12 +88,12 @@ struct RootSidebar: View {
                     Button {
                         appRouter.requestNewWork()
                     } label: {
-                        Label("New Work…", systemImage: "plus.circle")
+                        Label("New Work…", systemImage: SFSymbol.Action.plusCircle)
                     }
                 }
 
                 NavigationLink(value: RootView.NavigationItem.planningProjects) {
-                    Label("Projects", systemImage: "folder")
+                    Label("Projects", systemImage: SFSymbol.Document.folder)
                 }
             }
 
@@ -103,7 +103,7 @@ struct RootSidebar: View {
                 }
 
                 NavigationLink(value: RootView.NavigationItem.procedures) {
-                    Label("Procedures", systemImage: "doc.text")
+                    Label("Procedures", systemImage: SFSymbol.Document.docText)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.schedules) {
@@ -123,10 +123,10 @@ struct RootSidebar: View {
 
             Section("System") {
                 NavigationLink(value: RootView.NavigationItem.logs) {
-                    Label("Logs", systemImage: "list.bullet")
+                    Label("Logs", systemImage: SFSymbol.List.list)
                 }
                 NavigationLink(value: RootView.NavigationItem.settings) {
-                    Label("Settings", systemImage: "gear")
+                    Label("Settings", systemImage: SFSymbol.Settings.gear)
                 }
             }
         }
@@ -138,19 +138,19 @@ struct RootSidebar: View {
         List {
             Section("Daily") {
                 Button { selection = .today } label: {
-                    Label("Today", systemImage: "sun.max")
+                    Label("Today", systemImage: SFSymbol.Weather.sun)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View today's schedule, reminders, and tasks")
 
                 Button { selection = .students } label: {
-                    Label("Students", systemImage: "person.3")
+                    Label("Students", systemImage: SFSymbol.People.person3)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student profiles and records")
 
                 Button { selection = .meetings } label: {
-                    Label("Meetings", systemImage: "person.2")
+                    Label("Meetings", systemImage: SFSymbol.People.person2)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Conduct weekly student meetings")
@@ -164,13 +164,13 @@ struct RootSidebar: View {
 
             Section("Planning") {
                 Button { selection = .todos } label: {
-                    Label("Todos", systemImage: "checkmark.circle")
+                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage your personal todos and tasks")
 
                 Button { selection = .lessons } label: {
-                    Label("Lessons", systemImage: "book")
+                    Label("Lessons", systemImage: SFSymbol.Education.book)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Browse and manage lesson plans")
@@ -182,7 +182,7 @@ struct RootSidebar: View {
                 .accessibilityHint("View class subject checklist")
 
                 Button { selection = .planningAgenda } label: {
-                    Label("Presentations", systemImage: "calendar")
+                    Label("Presentations", systemImage: SFSymbol.Time.calendar)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage lesson presentations agenda")
@@ -194,7 +194,7 @@ struct RootSidebar: View {
                 .accessibilityHint("View and manage student work")
 
                 Button { selection = .planningProjects } label: {
-                    Label("Projects", systemImage: "folder")
+                    Label("Projects", systemImage: SFSymbol.Document.folder)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student projects")
@@ -208,7 +208,7 @@ struct RootSidebar: View {
                 .accessibilityHint("Track classroom supplies and inventory")
 
                 Button { selection = .procedures } label: {
-                    Label("Procedures", systemImage: "doc.text")
+                    Label("Procedures", systemImage: SFSymbol.Document.docText)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View classroom procedures and routines")
@@ -236,13 +236,13 @@ struct RootSidebar: View {
 
             Section("System") {
                 Button { selection = .logs } label: {
-                    Label("Logs", systemImage: "list.bullet")
+                    Label("Logs", systemImage: SFSymbol.List.list)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View activity and observation logs")
 
                 Button { selection = .settings } label: {
-                    Label("Settings", systemImage: "gear")
+                    Label("Settings", systemImage: SFSymbol.Settings.gear)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Configure app preferences and sync options")

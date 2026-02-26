@@ -121,7 +121,7 @@ struct MeetingContextPane: View {
     let lessonsByID: [UUID: Lesson]
     var isCompact: Bool = false
 
-    @State private var selectedWorkID: UUID? = nil
+    @State private var selectedWorkID: UUID?
     @State private var isContextCollapsed: Bool = false
     @State private var showAllOpenWork: Bool = false
 
