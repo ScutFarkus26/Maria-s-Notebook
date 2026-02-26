@@ -313,32 +313,33 @@ struct LessonAttachmentsSection: View {
         }
         
         // Load the file URL asynchronously - don't block!
+        let logger = Self.logger
         provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
             if let error = error {
-                Self.logger.error("Drop error: \(error)")
+                logger.error("Drop error: \(error)")
                 return
             }
 
-            Self.logger.debug("Received item type: \(String(describing: type(of: item)))")
+            logger.debug("Received item type: \(String(describing: type(of: item)))")
 
             var url: URL?
 
             // Handle different data types
             if let urlItem = item as? URL {
                 url = urlItem
-                Self.logger.info("Got URL directly: \(urlItem.path)")
+                logger.info("Got URL directly: \(urlItem.path)")
             } else if let data = item as? Data {
                 url = URL(dataRepresentation: data, relativeTo: nil)
-                Self.logger.info("Got URL from Data: \(url?.path ?? "nil")")
+                logger.info("Got URL from Data: \(url?.path ?? "nil")")
             } else if let string = item as? String {
                 url = URL(string: string)
-                Self.logger.info("Got URL from String: \(url?.path ?? "nil")")
+                logger.info("Got URL from String: \(url?.path ?? "nil")")
             } else {
-                Self.logger.error("Unknown item type: \(String(describing: type(of: item)))")
+                logger.error("Unknown item type: \(String(describing: type(of: item)))")
             }
 
             guard let fileURL = url else {
-                Self.logger.error("Failed to get URL from dropped item")
+                logger.error("Failed to get URL from dropped item")
                 return
             }
             

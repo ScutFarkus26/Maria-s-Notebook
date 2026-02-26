@@ -205,15 +205,6 @@ struct CurriculumDataAssembler {
             w.lessonID == lessonIDStr && w.studentID == studentID
         }
         
-        // Check for mastery signals from completed work
-        let completedWork = presentations.flatMap { _ -> [WorkModel] in
-            // Also check all work (including completed) for this lesson
-            let allWorkDescriptor = work.filter { w in
-                w.lessonID == lessonIDStr && w.studentID == studentID
-            }
-            return allWorkDescriptor
-        }
-        
         // Deduplicate
         let allRelevantWork = Array(Set(relevantWork.map { $0.id }).compactMap { id in
             relevantWork.first { $0.id == id }

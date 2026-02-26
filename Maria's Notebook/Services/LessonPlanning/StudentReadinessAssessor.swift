@@ -146,7 +146,6 @@ struct StudentReadinessAssessor {
         presentations: [LessonAssignment],
         work: [WorkModel]
     ) -> [SubjectReadiness] {
-        let studentIDStr = student.id.uuidString
         let lessonsBySubjectGroup = Dictionary(grouping: allLessons) {
             SubjectGroupKey(subject: $0.subject.trimmed(), group: $0.group.trimmed())
         }

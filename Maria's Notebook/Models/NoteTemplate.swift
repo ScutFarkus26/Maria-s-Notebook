@@ -67,7 +67,7 @@ final class NoteTemplate: Identifiable {
 
     // MARK: - Built-in Templates
 
-    nonisolated(unsafe) static let builtInTemplates: [(title: String, body: String, tags: [String])] = [
+    static let builtInTemplates: [(title: String, body: String, tags: [String])] = [
         // Academic
         ("Completed independently", "Completed work independently with confidence.", [TagHelper.tagFromNoteCategory("academic")]),
         ("Showed mastery", "Demonstrated strong mastery of the material.", [TagHelper.tagFromNoteCategory("academic")]),
