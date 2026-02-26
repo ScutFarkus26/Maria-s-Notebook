@@ -128,7 +128,8 @@ struct LessonsViewModel {
         personalKindFilter: PersonalLessonKind?,
         searchText: String,
         selectedSubject: String?,
-        selectedGroup: String?
+        selectedGroup: String?,
+        allLessons: [Lesson]? = nil
     ) -> [Lesson] {
         let query = searchText.trimmed()
         
@@ -180,15 +181,32 @@ struct LessonsViewModel {
             }
         }
         
-        let scopedPredicate = buildSourceAndKindPredicate(
-            sourceFilter: sourceFilter,
-            personalKindFilter: personalKindFilter
-        )
-        var scopedDescriptor = FetchDescriptor<Lesson>()
-        if let scopedPredicate = scopedPredicate {
-            scopedDescriptor.predicate = scopedPredicate
+        // Derive the scoped lesson set for subject/group ordering.
+        // When allLessons is provided (from the @Query in the view), use in-memory
+        // filtering to avoid a second database fetch.
+        let scoped: [Lesson]
+        if let allLessons = allLessons {
+            if sourceFilter != nil || personalKindFilter != nil {
+                scoped = allLessons.filter { lesson in
+                    if let sf = sourceFilter, lesson.source != sf { return false }
+                    if let pkf = personalKindFilter, lesson.personalKind != pkf { return false }
+                    return true
+                }
+            } else {
+                scoped = allLessons
+            }
+        } else {
+            // Fallback: original second fetch for backward compatibility
+            let scopedPredicate = buildSourceAndKindPredicate(
+                sourceFilter: sourceFilter,
+                personalKindFilter: personalKindFilter
+            )
+            var scopedDescriptor = FetchDescriptor<Lesson>()
+            if let scopedPredicate = scopedPredicate {
+                scopedDescriptor.predicate = scopedPredicate
+            }
+            scoped = modelContext.safeFetch(scopedDescriptor)
         }
-        let scoped = modelContext.safeFetch(scopedDescriptor)
         
         // PERFORMANCE: Pre-compute sort indices for all lessons to avoid repeated lookups during comparison
         let subjectIndex = subjectIndexMap(from: scoped)
@@ -339,7 +357,8 @@ struct LessonsViewModel {
         lesson: Lesson,
         studentLessons: [StudentLesson],
         workModels: [WorkModel],
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        schoolDayCache: SchoolDayLookupCache? = nil
     ) -> LessonStatusInfo {
         let lessonIDString = lesson.id.uuidString
         let slsForLesson = studentLessons.filter { $0.lessonID == lessonIDString }
@@ -381,7 +400,14 @@ struct LessonsViewModel {
         else if isPresented { status = .presented }
         else { status = .ready }
         
-        let ageString = formatAgeString(from: lastActivity, modelContext: modelContext)
+        let resolvedCache: SchoolDayLookupCache
+        if let schoolDayCache = schoolDayCache {
+            resolvedCache = schoolDayCache
+        } else {
+            resolvedCache = SchoolDayLookupCache()
+            resolvedCache.preload(using: modelContext)
+        }
+        let ageString = formatAgeString(from: lastActivity, schoolDayCache: resolvedCache)
         
         return LessonStatusInfo(
             status: status,
@@ -392,51 +418,18 @@ struct LessonsViewModel {
         )
     }
     
-    private static func formatAgeString(from date: Date?, modelContext: ModelContext) -> String {
+    private static func formatAgeString(from date: Date?, schoolDayCache: SchoolDayLookupCache) -> String {
         guard let date = date else { return "" }
         let today = AppCalendar.startOfDay(Date())
         let startDate = AppCalendar.startOfDay(date)
-        
-        var days = 0
-        var cursor = startDate
-        while cursor < today {
-            if !isNonSchoolDaySync(cursor, using: modelContext) { days += 1 }
-            cursor = AppCalendar.addingDays(1, to: cursor)
-            if days > 365 { break }
-        }
-        
+        guard startDate < today else { return "" }
+
+        let days = schoolDayCache.schoolDaysBetween(start: startDate, end: today)
+
         if days == 0 { return "" }
         if days < 7 { return "\(days)d" }
         if days < 30 { return "\(days / 7)w" }
         return "\(days / 30)m"
-    }
-    
-    private static func isNonSchoolDaySync(_ date: Date, using context: ModelContext) -> Bool {
-        let cal = AppCalendar.shared
-        let day = AppCalendar.startOfDay(date)
-        do {
-            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
-            nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            logger.warning("Failed to fetch NonSchoolDay: \(error)")
-        }
-        
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-        
-        do {
-            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
-            ovDescriptor.fetchLimit = 1
-            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            logger.warning("Failed to fetch SchoolDayOverride: \(error)")
-        }
-        
-        return true
     }
 
     // MARK: - Status Counts
@@ -452,8 +445,12 @@ struct LessonsViewModel {
         var result: [UUID: Int] = [:]
         let lessonIDStrings = Set(lessonIDs.uuidStrings)
 
-        // Fetch all StudentLesson records for these lessons
-        let descriptor = FetchDescriptor<StudentLesson>()
+        // Fetch only un-presented, un-given StudentLesson records.
+        // Leverages the [\.isPresented] index for a much smaller result set
+        // compared to fetching all records and filtering in memory.
+        let descriptor = FetchDescriptor<StudentLesson>(
+            predicate: #Predicate<StudentLesson> { $0.isPresented == false && $0.givenAt == nil }
+        )
         let studentLessons: [StudentLesson]
         do {
             studentLessons = try context.fetch(descriptor)
@@ -462,16 +459,11 @@ struct LessonsViewModel {
             return [:]
         }
 
-        // Filter to our lessons and count students who haven't been presented
+        // Filter to our lessons — predicate already guarantees un-presented status
         for sl in studentLessons {
             guard lessonIDStrings.contains(sl.lessonID) else { continue }
             guard let uuid = UUID(uuidString: sl.lessonID) else { continue }
-
-            // Student needs this lesson if not presented and not given
-            let needsLesson = !sl.isPresented && sl.givenAt == nil
-            if needsLesson {
-                result[uuid, default: 0] += 1
-            }
+            result[uuid, default: 0] += 1
         }
 
         return result

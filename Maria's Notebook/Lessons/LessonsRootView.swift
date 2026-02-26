@@ -111,7 +111,8 @@ struct LessonsRootView: View {
             personalKindFilter: filterState.personalKindFilter,
             searchText: filterState.debouncedSearchText,
             selectedSubject: hasSearchText ? nil : filterState.selectedSubject,
-            selectedGroup: nil
+            selectedGroup: nil,
+            allLessons: lessons
         ).uniqueByID
     }
 
