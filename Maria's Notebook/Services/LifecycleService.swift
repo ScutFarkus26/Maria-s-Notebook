@@ -14,19 +14,13 @@ struct LifecycleService {
 
     // MARK: - Helper Methods
 
-    private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> [T] {
+    private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, using context: ModelContext, caller: String = #function) -> [T] {
         do {
-            return try modelContext.fetch(descriptor)
+            return try context.fetch(descriptor)
         } catch {
             logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
             return []
         }
-    }
-
-    private static var modelContext: ModelContext!
-
-    private static func setModelContext(_ context: ModelContext) {
-        modelContext = context
     }
     /// Cleans orphaned student IDs from a StudentLesson by removing IDs that no longer exist in the database.
     /// This ensures referential integrity when using manual ID management instead of SwiftData relationships.
@@ -55,7 +49,6 @@ struct LifecycleService {
         presentedAt: Date,
         modelContext: ModelContext
     ) throws -> LessonAssignment {
-        setModelContext(modelContext)
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
         let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
@@ -89,7 +82,7 @@ struct LifecycleService {
                         )
                         lessonAssignment.trackID = track.id.uuidString
                         if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), context: "recordPresentation")
+                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), using: modelContext, caller: "recordPresentation")
                             if let step = allSteps.first(where: {
                                 $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                             }) {
@@ -121,7 +114,7 @@ struct LifecycleService {
                         )
                         trackID = track.id.uuidString
                         if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), context: "recordPresentation")
+                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), using: modelContext, caller: "recordPresentation")
                             if let step = allSteps.first(where: {
                                 $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                             }) {
@@ -369,7 +362,6 @@ struct LifecycleService {
     ///   - context: The ModelContext to operate on
     /// - Returns: A tuple with counts of (presentations created/updated, presentations marked as mastered)
     static func syncAllStudentProgress(context: ModelContext) throws -> (presentationsUpdated: Int, mastered: Int) {
-        setModelContext(context)
         var presentationsUpdated = 0
         var mastered = 0
         
@@ -522,7 +514,7 @@ struct LifecycleService {
 
                     // Update trackID on LessonPresentation records for this lesson+student combo
                     let trackID = "\(lesson.subject.trimmed())|\(lesson.group.trimmed())"
-                    let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>(), context: "syncAllStudentProgress")
+                    let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>(), using: context, caller: "syncAllStudentProgress")
                     for studentIDStr in studentLesson.studentIDs {
                         if let lp = allLessonPresentations.first(where: {
                             $0.lessonID == studentLesson.lessonID &&

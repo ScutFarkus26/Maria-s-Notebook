@@ -55,17 +55,7 @@ final class AppDependencies {
     }
     
     // MARK: - Core Services
-    
-    private var _lifecycleService: LifecycleService?
-    var lifecycleService: LifecycleService {
-        if let service = _lifecycleService {
-            return service
-        }
-        let service = LifecycleService()
-        _lifecycleService = service
-        return service
-    }
-    
+
     private var _memoryPressureMonitor: MemoryPressureMonitor?
     var memoryPressureMonitor: MemoryPressureMonitor {
         if let monitor = _memoryPressureMonitor {
