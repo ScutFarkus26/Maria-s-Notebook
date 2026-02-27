@@ -1,23 +1,15 @@
 import Foundation
 
-extension StudentLesson {
-    /// Prefer the relationship's ID; fall back to snapshot for compatibility during transition.
-    var resolvedLessonID: UUID {
-        lesson?.id ?? (UUID(uuidString: lessonID) ?? UUID())
-    }
+// MARK: - DenormalizedSchedulable Conformance
 
-    /// Prefer the relationship; fall back to snapshot for compatibility during transition.
+extension StudentLesson: DenormalizedSchedulable {
+    /// Prefer the relationship; fall back to stored IDs for compatibility during transition.
     var resolvedStudentIDs: [UUID] {
         if !students.isEmpty { return students.map { $0.id } }
-        // Convert string IDs back to UUIDs for CloudKit compatibility
         return studentIDs.compactMap { UUID(uuidString: $0) }
     }
 
-    /// Order-insensitive key for quick equality/group checks.
-    var studentGroupKey: String {
-        if !studentGroupKeyPersisted.isEmpty { return studentGroupKeyPersisted }
-        let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        return ids.map { $0.uuidString }.joined(separator: ",")
-    }
+    // Bridge properties for protocol default implementations
+    var lessonRelationshipID: UUID? { lesson?.id }
+    var studentRelationshipIDStrings: [String] { students.map { $0.id.uuidString } }
 }
-

@@ -171,18 +171,12 @@ import OSLog
         self.unifiedNotes = []
     }
 
-    func syncSnapshotsFromRelationships() {
-        // CloudKit compatibility: Store UUID as string
-        self.lessonID = self.lesson?.id.uuidString ?? self.lessonID
-        // Convert UUIDs to strings for CloudKit compatibility
-        let stringIDs = self.students.map { $0.id.uuidString }
-        self.studentIDs = stringIDs // This will encode to _studentIDsData
-        self.updateDenormalizedKeys()
-    }
+    // syncSnapshotsFromRelationships(), updateDenormalizedKeys(), normalizeDenormalizedFields(),
+    // resolvedLessonID, and studentGroupKey are provided by DenormalizedSchedulable protocol.
 
     var isScheduled: Bool { scheduledFor != nil }
     var isGiven: Bool { isPresented || givenAt != nil }
-    
+
     func snapshot() -> StudentLessonSnapshot {
         // Convert string IDs to UUIDs for CloudKit compatibility
         let studentUUIDs = studentIDs.compactMap { UUID(uuidString: $0) }
@@ -219,20 +213,6 @@ import OSLog
         )
     }
 
-    func updateDenormalizedKeys() {
-        let ids = self.resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        self.studentGroupKeyPersisted = ids.map { $0.uuidString }.joined(separator: ",")
-    }
-    
-    func normalizeDenormalizedFields() {
-        if let s = scheduledFor {
-            // Use AppCalendar for consistent date normalization across the app
-            scheduledForDay = AppCalendar.startOfDay(s)
-        } else {
-            scheduledForDay = Date.distantPast
-        }
-    }
-    
     /// Sets `scheduledFor` and updates `scheduledForDay` using the provided calendar.
     func setScheduledFor(_ date: Date?, using calendar: Calendar) {
         if let date {

@@ -7,25 +7,23 @@
 
 import Foundation
 
-extension Presentation {
-    /// Prefer the relationship's ID; fall back to stored ID for compatibility.
-    var resolvedLessonID: UUID {
-        lesson?.id ?? (UUID(uuidString: lessonID) ?? UUID())
-    }
+// MARK: - DenormalizedSchedulable Conformance
 
+extension Presentation: DenormalizedSchedulable {
     /// Prefer the relationship; fall back to stored IDs for compatibility.
     var resolvedStudentIDs: [UUID] {
         if !students.isEmpty { return students.map { $0.id } }
         return studentUUIDs
     }
 
-    /// Order-insensitive key for quick equality/group checks.
-    var studentGroupKey: String {
-        if !studentGroupKeyPersisted.isEmpty { return studentGroupKeyPersisted }
-        let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        return ids.uuidStrings.joined(separator: ",")
-    }
+    // Bridge properties for protocol default implementations
+    var lessonRelationshipID: UUID? { lesson?.id }
+    var studentRelationshipIDStrings: [String] { students.uuidStrings }
+}
 
+// MARK: - Display Helpers
+
+extension Presentation {
     /// Display title - prefer snapshot for historical accuracy, fall back to lesson relationship.
     var displayTitle: String {
         lessonTitleSnapshot ?? lesson?.name ?? "Unknown Lesson"

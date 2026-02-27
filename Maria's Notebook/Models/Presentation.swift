@@ -276,31 +276,9 @@ final class LessonAssignment: Identifiable {
         }
     }
 
-    // MARK: - Helpers
+    // syncSnapshotsFromRelationships(), updateDenormalizedKeys(), normalizeDenormalizedFields(),
+    // resolvedLessonID, and studentGroupKey are provided by DenormalizedSchedulable protocol.
 
-    /// Updates denormalized keys for efficient querying.
-    func updateDenormalizedKeys() {
-        let ids = studentUUIDs.sorted { $0.uuidString < $1.uuidString }
-        self.studentGroupKeyPersisted = ids.uuidStrings.joined(separator: ",")
-    }
-
-    /// Syncs transient relationships from stored IDs.
-    func syncSnapshotsFromRelationships() {
-        self.lessonID = self.lesson?.id.uuidString ?? self.lessonID
-        let stringIDs = self.students.uuidStrings
-        self.studentIDs = stringIDs
-        updateDenormalizedKeys()
-    }
-
-    /// Normalizes denormalized date fields.
-    func normalizeDenormalizedFields() {
-        if let s = scheduledFor {
-            scheduledForDay = AppCalendar.startOfDay(s)
-        } else {
-            scheduledForDay = Date.distantPast
-        }
-    }
-    
     /// Creates an immutable snapshot of this presentation for use in value types.
     func snapshot() -> LessonAssignmentSnapshot {
         LessonAssignmentSnapshot(
