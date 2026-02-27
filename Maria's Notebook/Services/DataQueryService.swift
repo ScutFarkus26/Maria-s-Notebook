@@ -69,9 +69,10 @@ final class DataQueryService {
             return cache[id]
         }
 
-        let descriptor = FetchDescriptor<Student>(
+        var descriptor = FetchDescriptor<Student>(
             predicate: #Predicate { $0.id == id }
         )
+        descriptor.fetchLimit = 1
         return context.safeFetch(descriptor).first
     }
 
@@ -127,9 +128,10 @@ final class DataQueryService {
             return cache[id]
         }
 
-        let descriptor = FetchDescriptor<Lesson>(
+        var descriptor = FetchDescriptor<Lesson>(
             predicate: #Predicate { $0.id == id }
         )
+        descriptor.fetchLimit = 1
         return context.safeFetch(descriptor).first
     }
 

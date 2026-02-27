@@ -133,9 +133,10 @@ enum ProcedureService {
     /// Fetches a procedure by ID
     @MainActor
     static func fetchProcedure(byID id: UUID, in context: ModelContext) -> Procedure? {
-        let descriptor = FetchDescriptor<Procedure>(
+        var descriptor = FetchDescriptor<Procedure>(
             predicate: #Predicate { $0.id == id }
         )
+        descriptor.fetchLimit = 1
         return context.safeFetch(descriptor).first
     }
 
