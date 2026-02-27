@@ -137,7 +137,7 @@ struct QuickNoteSheet: View {
                     .controlSize(.small)
                     
                     Toggle(isOn: $viewModel.includeInReport) {
-                        Label("Flag for Report", systemImage: "doc.text")
+                        Label("Flag for Report", systemImage: SFSymbol.Document.docText)
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)
