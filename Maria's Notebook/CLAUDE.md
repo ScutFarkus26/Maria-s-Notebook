@@ -105,10 +105,11 @@ Maria's Notebook/
 | `AttendanceRecord` | Daily attendance tracking |
 
 **CloudKit Compatibility Patterns:**
-- UUID keys stored with `@Attribute(.unique)`
+- UUID primary keys with default values (no `@Attribute(.unique)` — incompatible with CloudKit)
 - Enums stored as raw `String` (e.g., `statusRaw`, `categoryRaw`)
 - Foreign keys as `String` not `UUID`
 - `modifiedAt` for conflict resolution
+- Manual deduplication via `deduplicateAllModels` for CloudKit merge conflicts
 
 ## Key Services
 
