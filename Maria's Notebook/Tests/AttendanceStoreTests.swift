@@ -434,8 +434,7 @@ struct AttendanceStoreTests {
             studentID: student.id,
             date: normalizedDate,
             status: .absent,
-            absenceReason: .sick,
-            note: nil
+            absenceReason: .sick
         )
         context.insert(existing)
         _ = existing.setLegacyNoteText("Called in sick", in: context)
@@ -445,7 +444,7 @@ struct AttendanceStoreTests {
 
         #expect(records.count == 1)
         #expect(records[0].status == .unmarked)
-        #expect(records[0].note == nil)
+        #expect(records[0].latestUnifiedNoteText.isEmpty)
         #expect(records[0].absenceReason == .none)
     }
 
@@ -491,7 +490,7 @@ struct AttendanceStoreTests {
         }
         #expect(aliceFinal?.status == .absent)
         #expect(aliceFinal?.absenceReason == .sick)
-        #expect(aliceFinal?.note == "Called in sick this morning")
+        #expect(aliceFinal?.latestUnifiedNoteText == "Called in sick this morning")
 
         let othersPresent = final.records.filter { $0.status == .present }
         #expect(othersPresent.count == 2)

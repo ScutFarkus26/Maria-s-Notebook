@@ -322,15 +322,13 @@ public struct AttendanceRecordDTO: Codable, Sendable {
     public var date: Date
     public var status: String
     public var absenceReason: String?
-    public var note: String?
-    
-    public init(id: UUID, studentID: UUID, date: Date, status: String, absenceReason: String? = nil, note: String? = nil) {
+
+    public init(id: UUID, studentID: UUID, date: Date, status: String, absenceReason: String? = nil) {
         self.id = id
         self.studentID = studentID
         self.date = date
         self.status = status
         self.absenceReason = absenceReason
-        self.note = note
     }
 }
 

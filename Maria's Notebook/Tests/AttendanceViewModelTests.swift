@@ -481,7 +481,7 @@ struct AttendanceViewModelActionsTests {
 
         vm.updateNote(for: student, note: "Doctor appointment", modelContext: context)
 
-        #expect(vm.recordsByStudentID[student.cloudKitKey]?.note == "Doctor appointment")
+        #expect(vm.recordsByStudentID[student.cloudKitKey]?.latestUnifiedNoteText == "Doctor appointment")
     }
 
     @Test("updateNote trims whitespace")
@@ -496,7 +496,7 @@ struct AttendanceViewModelActionsTests {
 
         vm.updateNote(for: student, note: "  Trimmed note  ", modelContext: context)
 
-        #expect(vm.recordsByStudentID[student.cloudKitKey]?.note == "Trimmed note")
+        #expect(vm.recordsByStudentID[student.cloudKitKey]?.latestUnifiedNoteText == "Trimmed note")
     }
 
     @Test("updateNote sets nil for empty string")
@@ -510,10 +510,10 @@ struct AttendanceViewModelActionsTests {
         vm.load(for: date, students: [student], modelContext: context)
 
         vm.updateNote(for: student, note: "Some note", modelContext: context)
-        #expect(vm.recordsByStudentID[student.cloudKitKey]?.note != nil)
+        #expect(!vm.recordsByStudentID[student.cloudKitKey]!.latestUnifiedNoteText.isEmpty)
 
         vm.updateNote(for: student, note: "   ", modelContext: context)
-        #expect(vm.recordsByStudentID[student.cloudKitKey]?.note == nil)
+        #expect(vm.recordsByStudentID[student.cloudKitKey]!.latestUnifiedNoteText.isEmpty)
     }
 
     @Test("updateAbsenceReason only works when absent")

@@ -104,8 +104,7 @@ enum BackupServiceHelpers {
                 studentID: studentIDUUID,
                 date: a.date,
                 status: a.status.rawValue,
-                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
-                note: a.note
+                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue
             )
         }
     }

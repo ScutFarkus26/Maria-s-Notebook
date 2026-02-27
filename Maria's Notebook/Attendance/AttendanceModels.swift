@@ -81,7 +81,6 @@ final class AttendanceRecord: Identifiable {
     var date: Date = Date()          // normalized to start-of-day (local calendar)
     private var statusRaw: String = "unmarked"
     private var absenceReasonRaw: String = "none"
-    var note: String? = nil
 
     // Computed enum mapping for convenient UI usage
     var status: AttendanceStatus {
@@ -115,8 +114,7 @@ final class AttendanceRecord: Identifiable {
         studentID: UUID,
         date: Date,
         status: AttendanceStatus = .unmarked,
-        absenceReason: AbsenceReason = .none,
-        note: String? = nil
+        absenceReason: AbsenceReason = .none
     ) {
         self.id = id
         // CloudKit compatibility: Store UUID as string
@@ -124,7 +122,6 @@ final class AttendanceRecord: Identifiable {
         self.date = date
         self.statusRaw = status.rawValue
         self.absenceReasonRaw = absenceReason.rawValue
-        self.note = note
     }
 }
 
@@ -173,7 +170,7 @@ struct AttendanceStore {
         var didInsert = false
         for student in students {
             if existingByStudent[student.cloudKitKey] == nil {
-                let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, absenceReason: .none, note: nil)
+                let rec = AttendanceRecord(studentID: student.id, date: day, status: .unmarked, absenceReason: .none)
                 context.insert(rec)
                 existing.append(rec)
                 existingByStudent.insertIfAbsent(rec, forKey: student.cloudKitKey)

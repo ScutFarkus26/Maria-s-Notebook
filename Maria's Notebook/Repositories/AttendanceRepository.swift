@@ -88,8 +88,7 @@ struct AttendanceRepository: SavingRepository {
             studentID: studentID,
             date: date.normalizedDay(),
             status: status,
-            absenceReason: absenceReason,
-            note: nil
+            absenceReason: absenceReason
         )
         context.insert(record)
         if let note {

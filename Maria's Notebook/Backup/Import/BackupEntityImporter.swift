@@ -444,7 +444,7 @@ enum BackupEntityImporter {
     static func importAttendanceRecords(_ dtos: [AttendanceRecordDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<AttendanceRecord>) rethrows {
         try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let absenceReason = dto.absenceReason.flatMap { AbsenceReason(rawValue: $0) } ?? .none
-            return AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, absenceReason: absenceReason, note: dto.note)
+            return AttendanceRecord(id: dto.id, studentID: dto.studentID, date: dto.date, status: AttendanceStatus(rawValue: dto.status) ?? .unmarked, absenceReason: absenceReason)
         }
     }
 

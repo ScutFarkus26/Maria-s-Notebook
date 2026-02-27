@@ -201,8 +201,7 @@ enum BackupDTOTransformers {
             studentID: studentIDUUID,
             date: record.date,
             status: record.status.rawValue,
-            absenceReason: record.absenceReason.rawValue == "none" ? nil : record.absenceReason.rawValue,
-            note: record.note
+            absenceReason: record.absenceReason.rawValue == "none" ? nil : record.absenceReason.rawValue
         )
     }
 

@@ -127,16 +127,14 @@ func makeTestAttendanceRecord(
     studentID: UUID,
     date: Date = TestCalendar.date(year: 2025, month: 1, day: 15),
     status: AttendanceStatus = .unmarked,
-    absenceReason: AbsenceReason = .none,
-    note: String? = nil
+    absenceReason: AbsenceReason = .none
 ) -> AttendanceRecord {
     return AttendanceRecord(
         id: id,
         studentID: studentID,
         date: date.normalizedDay(),
         status: status,
-        absenceReason: absenceReason,
-        note: note
+        absenceReason: absenceReason
     )
 }
 

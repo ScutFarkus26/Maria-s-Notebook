@@ -281,7 +281,7 @@ struct AttendanceRepositoryUpdateTests {
         let context = ModelContext(container)
 
         let studentID = UUID()
-        let record = makeTestAttendanceRecord(studentID: studentID, note: nil)
+        let record = makeTestAttendanceRecord(studentID: studentID)
         context.insert(record)
         try context.save()
 
@@ -298,7 +298,7 @@ struct AttendanceRepositoryUpdateTests {
         let context = ModelContext(container)
 
         let studentID = UUID()
-        let record = makeTestAttendanceRecord(studentID: studentID, note: nil)
+        let record = makeTestAttendanceRecord(studentID: studentID)
         context.insert(record)
         _ = record.setLegacyNoteText("Some note", in: context)
         try context.save()
