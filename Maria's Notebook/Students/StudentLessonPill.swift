@@ -220,9 +220,7 @@ struct StudentLessonPill: View {
     private func fetchPresentedStudentLessons(from start: Date, to endExclusive: Date) -> [StudentLesson] {
         let predicate = #Predicate<StudentLesson> {
             $0.isPresented == true &&
-            $0.givenAt != nil &&
-            $0.givenAt! >= start &&
-            $0.givenAt! < endExclusive
+            $0.givenAt.flatMap { $0 >= start && $0 < endExclusive } == true
         }
         do {
             return try modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))

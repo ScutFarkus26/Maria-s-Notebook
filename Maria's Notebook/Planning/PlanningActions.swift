@@ -80,7 +80,7 @@ enum PlanningActions {
         // Fetch scheduled, un-given lessons within range
         let descriptor = FetchDescriptor<StudentLesson>(
             predicate: #Predicate { sl in
-                sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end
+                sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor.flatMap { $0 >= start && $0 < end } == true
             }
         )
         let scheduled: [StudentLesson] = context.safeFetch(descriptor)
@@ -138,7 +138,7 @@ enum PlanningActions {
         let end = calendar.startOfDay(for: endDate)
         let descriptor = FetchDescriptor<StudentLesson>(
             predicate: #Predicate { sl in
-                sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor != nil && sl.scheduledFor! >= start && sl.scheduledFor! < end
+                sl.isPresented == false && sl.givenAt == nil && sl.scheduledFor.flatMap { $0 >= start && $0 < end } == true
             }
         )
         let scheduled: [StudentLesson] = context.safeFetch(descriptor)

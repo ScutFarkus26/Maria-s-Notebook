@@ -204,7 +204,7 @@ struct PlanningWeekViewContent: View {
                 // Match if scheduledForDay is within week range (most efficient)
                 (sl.scheduledForDay >= weekStart && sl.scheduledForDay < weekEnd) ||
                 // Or if scheduledFor is within week range (fallback for edge cases)
-                (sl.scheduledFor != nil && sl.scheduledFor! >= weekStart && sl.scheduledFor! < weekEnd)
+                (sl.scheduledFor.flatMap { $0 >= weekStart && $0 < weekEnd } == true)
             },
             sortBy: [
                 SortDescriptor(\.scheduledFor, order: .forward),
