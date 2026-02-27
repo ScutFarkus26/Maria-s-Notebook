@@ -124,22 +124,9 @@ final class Issue: Identifiable {
     
     @Transient
     var studentIDs: [String] {
-        get {
-            guard let data = _studentIDsData else { return [] }
-            do {
-                return try JSONDecoder().decode([String].self, from: data)
-            } catch {
-                Self.logger.warning("Failed to decode student IDs: \(error.localizedDescription)")
-                return []
-            }
-        }
+        get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
         set {
-            do {
-                _studentIDsData = try JSONEncoder().encode(newValue)
-            } catch {
-                Self.logger.warning("Failed to encode student IDs: \(error.localizedDescription)")
-                _studentIDsData = nil
-            }
+            _studentIDsData = CloudKitStringArrayStorage.encode(newValue)
             updatedAt = Date()
         }
     }
@@ -210,22 +197,9 @@ final class IssueAction: Identifiable {
     
     @Transient
     var participantStudentIDs: [String] {
-        get {
-            guard let data = _participantIDsData else { return [] }
-            do {
-                return try JSONDecoder().decode([String].self, from: data)
-            } catch {
-                Self.logger.warning("Failed to decode participant IDs: \(error.localizedDescription)")
-                return []
-            }
-        }
+        get { CloudKitStringArrayStorage.decode(from: _participantIDsData) }
         set {
-            do {
-                _participantIDsData = try JSONEncoder().encode(newValue)
-            } catch {
-                Self.logger.warning("Failed to encode participant IDs: \(error.localizedDescription)")
-                _participantIDsData = nil
-            }
+            _participantIDsData = CloudKitStringArrayStorage.encode(newValue)
             updatedAt = Date()
         }
     }

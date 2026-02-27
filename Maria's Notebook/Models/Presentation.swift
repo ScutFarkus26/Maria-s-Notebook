@@ -96,25 +96,11 @@ final class LessonAssignment: Identifiable {
     /// Student UUIDs stored as JSON-encoded data for CloudKit compatibility.
     @Attribute(.externalStorage) private var _studentIDsData: Data?
 
-    /// Student IDs as string array. Uses JSON encoding for safe storage.
+    /// Student IDs as string array. Uses JSON encoding via CloudKitStringArrayStorage.
     @Transient
     var studentIDs: [String] {
-        get {
-            guard let data = _studentIDsData else { return [] }
-            do {
-                return try JSONDecoder().decode([String].self, from: data)
-            } catch {
-                Self.logger.warning("Failed to decode studentIDs: \(error.localizedDescription)")
-                return []
-            }
-        }
-        set {
-            do {
-                _studentIDsData = try JSONEncoder().encode(newValue)
-            } catch {
-                Self.logger.warning("Failed to encode studentIDs: \(error.localizedDescription)")
-            }
-        }
+        get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
+        set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
     }
 
     /// Denormalized key for grouping by student set. Automatically updated.
@@ -201,11 +187,7 @@ final class LessonAssignment: Identifiable {
         self.scheduledForDay = scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
         self.presentedAt = presentedAt
         self.lessonID = lessonID.uuidString
-        do {
-            self._studentIDsData = try JSONEncoder().encode(studentIDs.uuidStrings)
-        } catch {
-            Self.logger.warning("Failed to encode studentIDs: \(error.localizedDescription)")
-        }
+        self._studentIDsData = CloudKitStringArrayStorage.encode(studentIDs)
         self.lesson = lesson
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
@@ -236,11 +218,7 @@ final class LessonAssignment: Identifiable {
         self.lesson = lesson
         self.lessonID = lesson.id.uuidString
         self.students = students
-        do {
-            self._studentIDsData = try JSONEncoder().encode(students.uuidStrings)
-        } catch {
-            Self.logger.warning("Failed to encode studentIDs: \(error.localizedDescription)")
-        }
+        self._studentIDsData = CloudKitStringArrayStorage.encode(students.map(\.id))
         self.unifiedNotes = []
 
         updateDenormalizedKeys()

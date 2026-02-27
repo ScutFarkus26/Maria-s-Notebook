@@ -24,35 +24,12 @@ import OSLog
     // We now store as JSON-encoded Data to avoid SwiftData type conflicts.
     @Attribute(.externalStorage) private var _studentIDsData: Data? = nil
 
-    /// Student IDs stored as UUID strings. Uses JSON encoding to safely handle corrupted data.
+    /// Student IDs stored as UUID strings. Uses JSON encoding via CloudKitStringArrayStorage.
     /// Marked as @Transient so SwiftData doesn't try to read the old stored property.
     @Transient
     var studentIDs: [String] {
-        get {
-            // Handle nil data (normal case for new records)
-            guard let data = _studentIDsData else {
-                return []
-            }
-
-            // Attempt to decode, logging errors if decoding fails
-            do {
-                return try JSONDecoder().decode([String].self, from: data)
-            } catch {
-                // Log the error so we can diagnose data corruption issues
-                Self.logger.error("Failed to decode studentIDs for StudentLesson \(self.id): \(error.localizedDescription). Data size: \(data.count) bytes.")
-                return []
-            }
-        }
-        set {
-            // Encode to JSON for storage
-            do {
-                let data = try JSONEncoder().encode(newValue)
-                _studentIDsData = data
-            } catch {
-                Self.logger.warning("studentIDs setter failed to encode: \(error)")
-                _studentIDsData = nil
-            }
-        }
+        get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
+        set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
     }
     var createdAt: Date = Date()
     // Indexed for inbox queries (used with isPresented and givenAt)
@@ -109,13 +86,7 @@ import OSLog
         // CloudKit compatibility: Store UUID as string
         self.lessonID = lessonID.uuidString
         // Convert UUIDs to strings for CloudKit compatibility and encode to Data
-        let stringIDs = studentIDs.map { $0.uuidString }
-        do {
-            self._studentIDsData = try JSONEncoder().encode(stringIDs)
-        } catch {
-            Self.logger.warning("init failed to encode studentIDs: \(error)")
-            self._studentIDsData = nil
-        }
+        self._studentIDsData = CloudKitStringArrayStorage.encode(studentIDs)
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt
@@ -150,13 +121,7 @@ import OSLog
         self.lessonID = lesson?.id.uuidString ?? UUID().uuidString
         self.students = students
         // Convert UUIDs to strings for CloudKit compatibility and encode to Data
-        let stringIDs = students.map { $0.id.uuidString }
-        do {
-            self._studentIDsData = try JSONEncoder().encode(stringIDs)
-        } catch {
-            Self.logger.warning("init (with students) failed to encode studentIDs: \(error)")
-            self._studentIDsData = nil
-        }
+        self._studentIDsData = CloudKitStringArrayStorage.encode(students.map(\.id))
         self.createdAt = createdAt
         self.scheduledFor = scheduledFor
         self.givenAt = givenAt

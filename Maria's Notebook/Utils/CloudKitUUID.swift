@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// Property wrapper that provides type-safe UUID access while storing as String for CloudKit compatibility.
@@ -105,61 +106,50 @@ extension Array where Element == UUID {
     }
 }
 
-// MARK: - Example Usage
+// MARK: - JSON-Encoded String Array Storage
 
-/*
- Example usage in a SwiftData model:
- 
- @Model
- final class WorkModel {
-     // Before:
-     // var studentID: String = ""
-     // var lessonID: String = ""
-     // var presentationID: String? = nil
-     
-     // After - Type-safe with CloudKit compatibility:
-     @CloudKitUUID var studentID: UUID = UUID()
-     @CloudKitUUID var lessonID: UUID = UUID()
-     var presentationID: String? = nil  // Keep optional IDs as regular properties
-     
-     // SwiftData stores as String, code uses UUID
-     
-     // Access the UUID directly:
-     func doWork() {
-         let id = studentID  // UUID type
-         print(id.uuidString)
-     }
-     
-     // Access the String via projected value if needed:
-     func cloudKitSync() {
-         let stringID = $studentID  // String type for CloudKit
-     }
- }
- 
- // For arrays of UUIDs:
- @Model
- final class StudentLesson {
-     // Store as Data but access as [UUID]
-     @Attribute(.externalStorage) private var _studentIDsData: Data
-     
-     var studentIDs: [UUID] {
-         get {
-             do {
-                 let strings = try JSONDecoder().decode([String].self, from: _studentIDsData)
-                 return Array(cloudKitStrings: strings)
-             } catch {
-                 print("⚠️ [\(#function)] Failed to decode studentIDs: \(error)")
-                 return []
-             }
-         }
-         set {
-             do {
-                 _studentIDsData = try JSONEncoder().encode(newValue.cloudKitStrings)
-             } catch {
-                 print("⚠️ [\(#function)] Failed to encode studentIDs: \(error)")
-                 _studentIDsData = Data()
-             }
-         }
-     }
- }
- */
+/// Provides encode/decode helpers for storing `[String]` arrays as JSON `Data`.
+///
+/// Used by SwiftData models that store UUID string arrays in `@Attribute(.externalStorage)` Data properties.
+/// Standardizes error handling and eliminates duplicate encode/decode boilerplate across models.
+///
+/// **Usage in models:**
+/// ```swift
+/// @Attribute(.externalStorage) private var _studentIDsData: Data?
+///
+/// @Transient
+/// var studentIDs: [String] {
+///     get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
+///     set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
+/// }
+/// ```
+enum CloudKitStringArrayStorage {
+
+    /// Decodes a JSON-encoded `Data` blob into a `[String]` array.
+    /// Returns an empty array for `nil` data or decode failures.
+    static func decode(from data: Data?) -> [String] {
+        guard let data else { return [] }
+        do {
+            return try JSONDecoder().decode([String].self, from: data)
+        } catch {
+            Logger.database.warning("CloudKitStringArrayStorage: Failed to decode [String] from \(data.count) bytes: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    /// Encodes a `[String]` array into JSON `Data` for storage.
+    /// Returns `nil` on encode failure.
+    static func encode(_ value: [String]) -> Data? {
+        do {
+            return try JSONEncoder().encode(value)
+        } catch {
+            Logger.database.warning("CloudKitStringArrayStorage: Failed to encode \(value.count) strings: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Convenience: Encodes a `[UUID]` array as `[String]` JSON `Data`.
+    static func encode(_ uuids: [UUID]) -> Data? {
+        encode(uuids.map(\.uuidString))
+    }
+}

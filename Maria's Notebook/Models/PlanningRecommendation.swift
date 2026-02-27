@@ -69,13 +69,8 @@ final class PlanningRecommendation {
     // MARK: - Computed Properties
     
     var studentIDs: [String] {
-        get {
-            guard let data = _studentIDsData else { return [] }
-            return (try? JSONDecoder().decode([String].self, from: data)) ?? []
-        }
-        set {
-            _studentIDsData = try? JSONEncoder().encode(newValue)
-        }
+        get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
+        set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
     }
     
     var decision: TeacherDecision? {
