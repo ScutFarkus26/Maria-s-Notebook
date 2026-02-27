@@ -11,7 +11,6 @@ import OSLog
 /// Migration services:
 /// - `SchemaMigrationService`: Schema-level migrations (UUID to String, format changes)
 /// - `RelationshipBackfillService`: Relationship backfilling between entities
-/// - `LegacyNotesMigrationService`: Legacy string notes to Note objects
 /// - `DataCleanupService`: Orphaned data cleanup and deduplication
 enum DataMigrations {
     private static let logger = Logger.migration
@@ -117,53 +116,6 @@ enum DataMigrations {
     /// Backfill scheduledForDay field from scheduledFor.
     static func backfillScheduledForDayIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillScheduledForDayIfNeeded(using: context)
-    }
-
-    // MARK: - Legacy Notes Migrations (delegated to LegacyNotesMigrationService)
-
-    /// Migrate legacy string notes on WorkModels into Note objects.
-    static func migrateLegacyWorkNotesToNoteObjects(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateWorkNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on StudentLesson into Note objects.
-    static func migrateLegacyStudentLessonNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateStudentLessonNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on WorkCheckIn into Note objects.
-    static func migrateLegacyWorkCheckInNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateWorkCheckInNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on WorkCompletionRecord into Note objects.
-    static func migrateLegacyWorkCompletionRecordNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateWorkCompletionRecordNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on AttendanceRecord into Note objects.
-    static func migrateLegacyAttendanceNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateAttendanceNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on ProjectSession into Note objects.
-    static func migrateLegacyProjectSessionNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateProjectSessionNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on StudentTrackEnrollment into Note objects.
-    static func migrateLegacyStudentTrackEnrollmentNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateStudentTrackEnrollmentNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on SchoolDayOverride into Note objects.
-    static func migrateLegacySchoolDayOverrideNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateSchoolDayOverrideNotes(using: context)
-    }
-
-    /// Migrate legacy string notes on Reminder into Note objects.
-    static func migrateLegacyReminderNotes(using context: ModelContext) {
-        LegacyNotesMigrationService.migrateReminderNotes(using: context)
     }
 
     // MARK: - LessonAssignment Migration (consolidation of StudentLesson + Presentation)

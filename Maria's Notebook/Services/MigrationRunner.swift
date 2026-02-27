@@ -13,23 +13,10 @@ enum MigrationRunner {
             logger.info("Removed \(count, privacy: .public) duplicate \(modelType, privacy: .public) record(s)")
         }
 
-        // Migrate legacy string notes on WorkModels to Note objects
-        DataMigrations.migrateLegacyWorkNotesToNoteObjects(using: context)
-
         // Clean orphaned student IDs from WorkModel records
         await DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
 
-        // Migrate all legacy string notes to unified Note objects sequentially
-        DataMigrations.migrateLegacyStudentLessonNotes(using: context)
-        DataMigrations.migrateLegacyWorkCheckInNotes(using: context)
-        DataMigrations.migrateLegacyWorkCompletionRecordNotes(using: context)
-        DataMigrations.migrateLegacyAttendanceNotes(using: context)
-        DataMigrations.migrateLegacyProjectSessionNotes(using: context)
-        DataMigrations.migrateLegacyStudentTrackEnrollmentNotes(using: context)
-        DataMigrations.migrateLegacySchoolDayOverrideNotes(using: context)
-        DataMigrations.migrateLegacyReminderNotes(using: context)
-
-        // Clean up any orphaned note images after migrations
+        // Clean up any orphaned note images
         DataMigrations.cleanupOrphanedNoteImages(using: context)
 
         // Create NoteStudentLink records for efficient multi-student scope queries

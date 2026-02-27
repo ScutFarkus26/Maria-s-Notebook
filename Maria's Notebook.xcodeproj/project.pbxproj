@@ -81,7 +81,6 @@
 				Tests/GroupTrackServiceTests.swift,
 				Tests/InboxDataLoaderTests.swift,
 				Tests/InboxSheetViewModelTests.swift,
-				Tests/LegacyNotesMigrationServiceTests.swift,
 				Tests/LessonLifecycleTests.swift,
 				Tests/LessonPickerViewModelTests.swift,
 				Tests/LessonRepositoryTests.swift,
