@@ -163,15 +163,16 @@ final class StudentAnalysisService {
         let allPracticeSessions = try modelContext.fetch(practiceDescriptor)
         let practiceSessions = allPracticeSessions.filter { $0.includes(studentID: student.id) }
         
-        // Fetch work completions
+        // Fetch work completions — filter by studentID in the predicate so SQLite
+        // only returns records for this student instead of loading all completions.
+        let studentIDString = student.id.uuidString
         let completionDescriptor = FetchDescriptor<WorkCompletionRecord>(
             predicate: #Predicate<WorkCompletionRecord> { record in
-                record.completedAt >= sinceDate
+                record.completedAt >= sinceDate && record.studentID == studentIDString
             },
             sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
         )
-        let allCompletions = try modelContext.fetch(completionDescriptor)
-        let workCompletions = allCompletions.filter { $0.studentID == student.id.uuidString }
+        let workCompletions = try modelContext.fetch(completionDescriptor)
         
         // Calculate metrics
         let practiceQualities = practiceSessions.compactMap { $0.practiceQuality }
