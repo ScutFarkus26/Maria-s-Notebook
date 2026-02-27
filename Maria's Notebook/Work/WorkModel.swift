@@ -22,7 +22,6 @@ import SwiftUI
     // New code should use kindRaw. After migration completes, workType reads from kind.
     private(set) var workTypeRaw: String = "Research"
     var studentLessonID: UUID? = nil
-    var notes: String = ""
     var createdAt: Date = Date()
     var completedAt: Date? = nil
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
@@ -74,7 +73,6 @@ import SwiftUI
         title: String = "",
         kind: WorkKind = .research,
         studentLessonID: UUID? = nil,
-        notes: String = "",
         createdAt: Date = Date(),
         completedAt: Date? = nil,
         participants: [WorkParticipantEntity] = [],
@@ -100,7 +98,6 @@ import SwiftUI
         self.title = title
         self.workTypeRaw = Self.legacyWorkTypeRaw(for: kind)
         self.studentLessonID = studentLessonID
-        self.notes = notes
         // Use AppCalendar.shared for consistent date normalization across the app
         self.createdAt = AppCalendar.startOfDay(createdAt)
         self.completedAt = completedAt.map { AppCalendar.startOfDay($0) }

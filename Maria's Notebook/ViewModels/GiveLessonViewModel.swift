@@ -373,8 +373,8 @@ final class LessonPickerViewModel {
                             presentationID: nil,
                             scheduledDate: nil
                         )
-                        // Store follow-up text in notes
-                        workModel.notes = trimmedFollowUp
+                        // Store follow-up text in unified notes
+                        workModel.setLegacyNoteText(trimmedFollowUp, in: context)
                     } catch {
                         Self.logger.warning("Failed to create follow-up work for student \(sid, privacy: .public): \(error)")
                     }

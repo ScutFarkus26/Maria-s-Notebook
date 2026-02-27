@@ -26,7 +26,6 @@ struct SessionWorkAssignmentService {
             id: UUID(),
             title: title,
             kind: .followUpAssignment,
-            notes: instructions,
             createdAt: Date(),
             status: .active,
             assignedAt: Date(),
@@ -44,6 +43,9 @@ struct SessionWorkAssignmentService {
         }
 
         context.insert(work)
+        if !instructions.trimmed().isEmpty {
+            work.setLegacyNoteText(instructions, in: context)
+        }
         return work
     }
 
@@ -63,7 +65,6 @@ struct SessionWorkAssignmentService {
             id: UUID(),
             title: title,
             kind: .followUpAssignment,
-            notes: instructions,
             createdAt: Date(),
             status: .active,
             assignedAt: Date(),
@@ -78,6 +79,9 @@ struct SessionWorkAssignmentService {
         work.participants = []
 
         context.insert(work)
+        if !instructions.trimmed().isEmpty {
+            work.setLegacyNoteText(instructions, in: context)
+        }
         return work
     }
 

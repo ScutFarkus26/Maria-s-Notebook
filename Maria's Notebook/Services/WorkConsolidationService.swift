@@ -115,19 +115,20 @@ struct WorkConsolidationService {
             }
             
             // Merge notes: prefer non-empty notes if canonical is empty
-            if canonical.notes.trimmed().isEmpty {
+            let canonicalNoteText = canonical.latestUnifiedNoteText.trimmed()
+            if canonicalNoteText.isEmpty {
                 for duplicate in duplicates {
-                    let dupNotes = duplicate.notes.trimmed()
+                    let dupNotes = duplicate.latestUnifiedNoteText.trimmed()
                     if !dupNotes.isEmpty {
-                        canonical.notes = dupNotes
+                        canonical.setLegacyNoteText(dupNotes, in: context)
                         break
                     }
                 }
             } else {
                 // If canonical has notes, append non-empty notes from duplicates
-                var combinedNotes = canonical.notes
+                var combinedNotes = canonicalNoteText
                 for duplicate in duplicates {
-                    let dupNotes = duplicate.notes.trimmed()
+                    let dupNotes = duplicate.latestUnifiedNoteText.trimmed()
                     if !dupNotes.isEmpty && !combinedNotes.contains(dupNotes) {
                         if !combinedNotes.isEmpty {
                             combinedNotes += "\n\n"
@@ -135,8 +136,8 @@ struct WorkConsolidationService {
                         combinedNotes += dupNotes
                     }
                 }
-                if combinedNotes != canonical.notes {
-                    canonical.notes = combinedNotes
+                if combinedNotes != canonicalNoteText {
+                    canonical.setLegacyNoteText(combinedNotes, in: context)
                 }
             }
             

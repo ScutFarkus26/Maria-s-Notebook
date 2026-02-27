@@ -523,11 +523,12 @@ struct WorkPersistenceTests {
 
         let work = WorkModel(
             id: workID, title: "Complex Work", kind: .followUpAssignment,
-            studentLessonID: studentLessonID, notes: "Important notes",
+            studentLessonID: studentLessonID,
             status: .review, assignedAt: assignedAt, dueAt: dueAt,
             studentID: studentID.uuidString, lessonID: lessonID.uuidString
         )
         tc.context.insert(work)
+        work.setLegacyNoteText("Important notes", in: tc.context)
         try tc.context.save()
 
         let descriptor = FetchDescriptor<WorkModel>()
@@ -536,7 +537,7 @@ struct WorkPersistenceTests {
         #expect(fetched?.title == "Complex Work")
         #expect(fetched?.kind == .followUpAssignment)
         #expect(fetched?.studentLessonID == studentLessonID)
-        #expect(fetched?.notes == "Important notes")
+        #expect(fetched?.latestUnifiedNoteText == "Important notes")
         #expect(fetched?.status == .review)
         #expect(fetched?.studentID == studentID.uuidString)
         #expect(fetched?.lessonID == lessonID.uuidString)

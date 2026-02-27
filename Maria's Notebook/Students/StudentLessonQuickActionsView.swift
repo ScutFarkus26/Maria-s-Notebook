@@ -211,7 +211,7 @@ struct StudentLessonQuickActionsView: View {
                                             presentationID: nil,
                                             scheduledDate: nil
                                         )
-                                        workModel.notes = trimmed
+                                        workModel.setLegacyNoteText(trimmed, in: modelContext)
                                     } catch {
                                         logger.warning("Failed to create follow-up work: \(error)")
                                     }

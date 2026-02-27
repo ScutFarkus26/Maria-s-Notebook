@@ -388,7 +388,9 @@ enum DataCleanupService {
 
     @discardableResult
     static func deduplicateWorkModelsStrong(using context: ModelContext) -> Int {
-        deduplicate(WorkModel.self, using: context, merge: mergeWorkModel)
+        deduplicate(WorkModel.self, using: context) { canonical, duplicate in
+            mergeWorkModel(canonical: canonical, duplicate: duplicate, context: context)
+        }
     }
 
     @discardableResult
@@ -441,9 +443,12 @@ enum DataCleanupService {
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
     }
 
-    private static func mergeWorkModel(canonical: WorkModel, duplicate: WorkModel) {
+    private static func mergeWorkModel(canonical: WorkModel, duplicate: WorkModel, context: ModelContext) {
         if canonical.title.isEmpty { canonical.title = duplicate.title }
-        if canonical.notes.isEmpty { canonical.notes = duplicate.notes }
+        let dupNoteText = duplicate.latestUnifiedNoteText.trimmed()
+        if canonical.latestUnifiedNoteText.trimmed().isEmpty && !dupNoteText.isEmpty {
+            canonical.setLegacyNoteText(dupNoteText, in: context)
+        }
         if canonical.completedAt == nil { canonical.completedAt = duplicate.completedAt }
         if canonical.lastTouchedAt == nil { canonical.lastTouchedAt = duplicate.lastTouchedAt }
         if canonical.dueAt == nil { canonical.dueAt = duplicate.dueAt }

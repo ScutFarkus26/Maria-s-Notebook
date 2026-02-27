@@ -180,7 +180,7 @@ struct WorkConsolidationServiceConsolidationLogicTests {
         let studentLessonID = UUID()
 
         for i in 1...5 {
-            let work = WorkModel(title: "Duplicate Work", kind: .practiceLesson, studentLessonID: studentLessonID, notes: "Work \(i)")
+            let work = WorkModel(title: "Duplicate Work", kind: .practiceLesson, studentLessonID: studentLessonID)
             context.insert(work)
         }
 
@@ -279,11 +279,12 @@ struct WorkConsolidationServiceMergeBehaviorTests {
 
         let studentLessonID = UUID()
 
-        let work1 = WorkModel(title: "Practice", kind: .practiceLesson, studentLessonID: studentLessonID, notes: "")
-        let work2 = WorkModel(title: "Practice", kind: .practiceLesson, studentLessonID: studentLessonID, notes: "Important note from duplicate")
+        let work1 = WorkModel(title: "Practice", kind: .practiceLesson, studentLessonID: studentLessonID)
+        let work2 = WorkModel(title: "Practice", kind: .practiceLesson, studentLessonID: studentLessonID)
         work2.createdAt = TestCalendar.date(year: 2025, month: 2, day: 1)  // Make work1 canonical (earlier)
         context.insert(work1)
         context.insert(work2)
+        work2.setLegacyNoteText("Important note from duplicate", in: context)
 
         let service = WorkConsolidationService(context: context)
         _ = service.consolidateDuplicates()
@@ -292,7 +293,7 @@ struct WorkConsolidationServiceMergeBehaviorTests {
         let remaining = try context.fetch(descriptor)
 
         #expect(remaining.count == 1)
-        #expect(remaining[0].notes.contains("Important note from duplicate"))
+        #expect(remaining[0].latestUnifiedNoteText.contains("Important note from duplicate"))
     }
 
     @Test("preserves completion status if any duplicate is completed")

@@ -309,7 +309,6 @@ struct LessonProgressSection: View {
                 title: "Practice: \(lesson?.name ?? "Lesson")",
                 kind: .practiceLesson,
                 studentLessonID: studentLessonID,
-                notes: "",
                 createdAt: Date()
             )
             // Set identity fields

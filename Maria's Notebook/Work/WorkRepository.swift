@@ -129,7 +129,6 @@ struct WorkRepository {
             title: title ?? "",
             kind: workKind,
             studentLessonID: studentLessonID,
-            notes: "",
             createdAt: Date(),
             completedAt: nil,
             participants: [],

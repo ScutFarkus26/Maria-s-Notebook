@@ -311,7 +311,6 @@ public struct WorkDTO: Codable, Sendable {
     public var studentIDs: [UUID]
     public var workType: String
     public var studentLessonID: UUID?
-    public var notes: String
     public var createdAt: Date
     public var completedAt: Date?
     public var participants: [WorkParticipantDTO]

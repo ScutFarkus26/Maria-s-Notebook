@@ -367,8 +367,8 @@ struct DataCleanupServiceDedupMergeTests {
         let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.allModels)
 
         let sharedID = UUID()
-        let workA = WorkModel(id: sharedID, title: "Work A", notes: "")
-        let workB = WorkModel(id: sharedID, title: "", notes: "Details")
+        let workA = WorkModel(id: sharedID, title: "Work A")
+        let workB = WorkModel(id: sharedID, title: "")
 
         let participant = WorkParticipantEntity(studentID: UUID(), work: workB)
         let checkIn = WorkCheckIn(workID: workB.id, date: Date(), status: .scheduled, work: workB)
