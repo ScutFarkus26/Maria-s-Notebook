@@ -116,33 +116,6 @@ enum DataCleanupService {
         }
     }
 
-    // MARK: - Deduplication (Deprecated - use generic deduplicate() instead)
-
-    @discardableResult
-    static func deduplicateStudents(using context: ModelContext) -> Int {
-        deduplicate(Student.self, using: context)
-    }
-
-    @discardableResult
-    static func deduplicateProjects(using context: ModelContext) -> Int {
-        deduplicate(Project.self, using: context)
-    }
-
-    @discardableResult
-    static func deduplicateProjectRoles(using context: ModelContext) -> Int {
-        deduplicate(ProjectRole.self, using: context)
-    }
-
-    @discardableResult
-    static func deduplicateLessons(using context: ModelContext) -> Int {
-        deduplicate(Lesson.self, using: context)
-    }
-
-    @discardableResult
-    static func deduplicateAttendanceRecords(using context: ModelContext) -> Int {
-        deduplicate(AttendanceRecord.self, using: context)
-    }
-
     /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
@@ -327,7 +300,7 @@ enum DataCleanupService {
     /// Keeps the first instance encountered and deletes duplicates.
     /// Returns the number of duplicates removed.
     @discardableResult
-    private static func deduplicate<T: PersistentModel & Identifiable>(
+    static func deduplicate<T: PersistentModel & Identifiable>(
         _ type: T.Type,
         using context: ModelContext,
         merge: ((T, T) -> Void)? = nil

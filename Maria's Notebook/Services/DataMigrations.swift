@@ -49,27 +49,6 @@ enum DataMigrations {
         DataCleanupService.deduplicateAllModels(using: context)
     }
 
-    /// Remove duplicate Student records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    @discardableResult
-    static func deduplicateStudents(using context: ModelContext) -> Int {
-        DataCleanupService.deduplicateStudents(using: context)
-    }
-
-    /// Remove duplicate Project records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    @discardableResult
-    static func deduplicateProjects(using context: ModelContext) -> Int {
-        DataCleanupService.deduplicateProjects(using: context)
-    }
-
-    /// Remove duplicate ProjectRole records that have the same UUID.
-    /// This can happen when CloudKit sync creates duplicates during merge conflicts.
-    @discardableResult
-    static func deduplicateProjectRoles(using context: ModelContext) -> Int {
-        DataCleanupService.deduplicateProjectRoles(using: context)
-    }
-
     /// Deduplicate unscheduled, unpresented StudentLesson records.
     static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
         DataCleanupService.deduplicateUnpresentedStudentLessons(using: context)

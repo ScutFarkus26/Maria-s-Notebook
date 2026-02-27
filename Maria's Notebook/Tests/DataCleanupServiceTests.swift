@@ -169,7 +169,7 @@ struct DataCleanupServiceDeduplicationTests {
         Project.self, ProjectSession.self, ProjectRole.self, Note.self
     ]
 
-    @Test("deduplicateStudents removes duplicate students with same ID")
+    @Test("deduplicate removes duplicate students with same ID")
     func deduplicateStudentsRemovesDuplicates() throws {
         let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.studentModels)
 
@@ -189,14 +189,14 @@ struct DataCleanupServiceDeduplicationTests {
                 ctx.insert(student2)
                 try ctx.save()
             },
-            deduplicateAction: { ctx in DataCleanupService.deduplicateStudents(using: ctx) },
+            deduplicateAction: { ctx in DataCleanupService.deduplicate(Student.self, using: ctx) },
             verifyDeletedCount: 1,
             verifyRemainingCount: 1,
             context: context
         )
     }
 
-    @Test("deduplicateStudents preserves unique students")
+    @Test("deduplicate preserves unique students")
     func deduplicateStudentsPreservesUnique() throws {
         let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.studentModels)
         let builder = TestEntityBuilder(context: context)
@@ -204,14 +204,14 @@ struct DataCleanupServiceDeduplicationTests {
         _ = try builder.buildStudent(firstName: "Alice", lastName: "Smith")
         _ = try builder.buildStudent(firstName: "Bob", lastName: "Jones")
 
-        let deletedCount = DataCleanupService.deduplicateStudents(using: context)
+        let deletedCount = DataCleanupService.deduplicate(Student.self, using: context)
 
         #expect(deletedCount == 0)
         let remaining = context.safeFetch(FetchDescriptor<Student>())
         TestPatterns.expectCount(remaining, equals: 2)
     }
 
-    @Test("deduplicateProjects removes duplicate projects with same ID")
+    @Test("deduplicate removes duplicate projects with same ID")
     func deduplicateProjectsRemovesDuplicates() throws {
         let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.projectModels)
 
@@ -221,12 +221,12 @@ struct DataCleanupServiceDeduplicationTests {
         context.insert(project2)
         try context.save()
 
-        let deletedCount = DataCleanupService.deduplicateProjects(using: context)
+        let deletedCount = DataCleanupService.deduplicate(Project.self, using: context)
 
         #expect(deletedCount == 0)
     }
 
-    @Test("deduplicateProjectRoles removes duplicate roles")
+    @Test("deduplicate removes duplicate roles")
     func deduplicateProjectRolesRemovesDuplicates() throws {
         let (_, context) = try TestContainerFactory.makeContainerWithContext(for: Self.projectModels)
 
@@ -236,7 +236,7 @@ struct DataCleanupServiceDeduplicationTests {
         context.insert(role2)
         try context.save()
 
-        let deletedCount = DataCleanupService.deduplicateProjectRoles(using: context)
+        let deletedCount = DataCleanupService.deduplicate(ProjectRole.self, using: context)
 
         #expect(deletedCount == 0)
     }

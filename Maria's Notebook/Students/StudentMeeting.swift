@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class StudentMeeting: Identifiable {
+    #Index<StudentMeeting>([\.studentID], [\.completed])
+
     var id: UUID = UUID()
     // CloudKit compatibility: Store UUID as string
     var studentID: String = ""

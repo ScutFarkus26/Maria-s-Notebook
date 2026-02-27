@@ -5,6 +5,8 @@ import SwiftData
 /// Reminders are displayed in the Today view and can be synced from a specific Reminders list.
 @Model
 final class Reminder: Identifiable {
+    #Index<Reminder>([\.isCompleted], [\.eventKitReminderID])
+
     /// Unique identifier for this reminder
     var id: UUID = UUID()
     

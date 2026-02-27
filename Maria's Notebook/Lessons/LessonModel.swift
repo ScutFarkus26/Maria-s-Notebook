@@ -4,6 +4,8 @@ import SwiftData
 /// Core lesson model for Lessons screens persisted with SwiftData.
 @Model
 final class Lesson: Identifiable {
+    #Index<Lesson>([\.subject, \.sortIndex], [\.name])
+
     /// Stable identifier
     var id: UUID = UUID()
     /// Lesson Name
