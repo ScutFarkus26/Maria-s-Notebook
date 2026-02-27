@@ -213,11 +213,14 @@ final class WorkDetailViewModel {
             workID: work.id,
             date: newPlanDate,
             status: .scheduled,
-            purpose: newPlanPurpose,
-            note: newPlanNote
+            purpose: newPlanPurpose
         )
-        
+
         modelContext.insert(checkIn)
+        let trimmedNote = newPlanNote.trimmed()
+        if !trimmedNote.isEmpty {
+            _ = checkIn.setLegacyNoteText(trimmedNote, in: modelContext)
+        }
         showPlannedBanner = true
     }
     

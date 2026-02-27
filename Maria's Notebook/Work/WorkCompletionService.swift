@@ -53,8 +53,7 @@ enum WorkCompletionService {
         let record = WorkCompletionRecord(
             workID: workID,
             studentID: studentID,
-            completedAt: date,
-            note: ""
+            completedAt: date
         )
         context.insert(record)
         if !note.trimmed().isEmpty {

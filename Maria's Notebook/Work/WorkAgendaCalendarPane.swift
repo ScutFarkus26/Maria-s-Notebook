@@ -197,10 +197,12 @@ struct WorkAgendaCalendarPane: View {
             workID: workID,
             date: normalized,
             status: .scheduled,
-            purpose: reason ?? "progressCheck",
-            note: noteOrNil ?? ""
+            purpose: reason ?? "progressCheck"
         )
         modelContext.insert(checkIn)
+        if let noteText = noteOrNil, !noteText.trimmed().isEmpty {
+            _ = checkIn.setLegacyNoteText(noteText, in: modelContext)
+        }
         
         if let work = fetchWork(id: workID) {
             work.dueAt = normalized

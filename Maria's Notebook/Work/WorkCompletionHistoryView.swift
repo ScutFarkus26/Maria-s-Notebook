@@ -158,9 +158,9 @@ struct WorkCompletionHistoryView: View {
                         // Seed some sample records in memory
                         let now = Date()
                         let items: [WorkCompletionRecord] = [
-                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-3600), note: ""),
-                            WorkCompletionRecord(workID: workID, studentID: studentB, completedAt: now.addingTimeInterval(-1800), note: ""),
-                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-600), note: "")
+                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-3600)),
+                            WorkCompletionRecord(workID: workID, studentID: studentB, completedAt: now.addingTimeInterval(-1800)),
+                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-600))
                         ]
                         let noteTexts = ["First try", "Assisted", "Independent"]
                         for (record, text) in zip(items, noteTexts) {

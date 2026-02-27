@@ -120,7 +120,6 @@ enum StudentLessonAssignmentService {
                 date: normalized,
                 status: .scheduled,
                 purpose: purpose,
-                note: "",
                 work: work
             )
             modelContext.insert(checkIn)

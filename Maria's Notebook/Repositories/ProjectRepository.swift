@@ -148,8 +148,7 @@ struct ProjectRepository: SavingRepository {
         let session = ProjectSession(
             projectID: projectID,
             meetingDate: meetingDate,
-            chapterOrPages: chapterOrPages,
-            notes: nil
+            chapterOrPages: chapterOrPages
         )
         session.agendaItems = agendaItems
         context.insert(session)

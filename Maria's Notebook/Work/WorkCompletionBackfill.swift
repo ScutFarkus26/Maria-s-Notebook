@@ -32,7 +32,7 @@ enum WorkCompletionBackfill {
         if let existing = try context.fetch(descriptor).first {
             return existing
         }
-        let record = WorkCompletionRecord(workID: workID, studentID: studentID, completedAt: completedAt, note: "")
+        let record = WorkCompletionRecord(workID: workID, studentID: studentID, completedAt: completedAt)
         context.insert(record)
         if !note.trimmed().isEmpty {
             _ = record.setLegacyNoteText(note, in: context)

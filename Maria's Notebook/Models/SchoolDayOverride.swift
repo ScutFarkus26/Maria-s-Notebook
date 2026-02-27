@@ -7,14 +7,12 @@ import SwiftData
     var id: UUID = UUID()
     /// Stored as start-of-day for the selected date - indexed for calendar queries
     var date: Date = Date()
-    var note: String?
-    
+
     // Inverse relationship for Note.schoolDayOverride
     @Relationship(deleteRule: .cascade, inverse: \Note.schoolDayOverride) var notes: [Note]? = []
 
-    init(id: UUID = UUID(), date: Date, note: String? = nil) {
+    init(id: UUID = UUID(), date: Date) {
         self.id = id
         self.date = Calendar.current.startOfDay(for: date)
-        self.note = note
     }
 }

@@ -1044,11 +1044,13 @@ struct WorkDetailView: View {
             workID: work.id,
             date: viewModel.newPlanDate,
             status: .scheduled,
-            purpose: viewModel.newPlanPurpose,
-            note: note ?? ""
+            purpose: viewModel.newPlanPurpose
         )
         modelContext.insert(checkIn)
-        
+        if let note {
+            _ = checkIn.setLegacyNoteText(note, in: modelContext)
+        }
+
         saveCoordinator.save(modelContext, reason: "Adding check-in")
         
         // Reset form fields

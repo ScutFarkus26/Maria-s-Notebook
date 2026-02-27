@@ -226,7 +226,7 @@ struct WorkAgingPolicyTests {
 
         // Add a school day override for Saturday
         let saturday = TestCalendar.startOfDay(year: 2025, month: 1, day: 18) // Saturday
-        let override = SchoolDayOverride(date: saturday, note: "Make-up day")
+        let override = SchoolDayOverride(date: saturday)
         context.insert(override)
         try context.save()
 

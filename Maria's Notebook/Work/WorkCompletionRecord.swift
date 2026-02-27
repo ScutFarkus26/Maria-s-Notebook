@@ -21,9 +21,6 @@ import SwiftData
     /// The timestamp when the completion occurred.
     var completedAt: Date = Date()
 
-    /// Optional free-form note or context captured at completion time.
-    var note: String = ""
-
     // MARK: - Computed Properties for Backward Compatibility
     var workIDUUID: UUID? {
         get { UUID(uuidString: workID) }
@@ -43,8 +40,7 @@ import SwiftData
         id: UUID = UUID(),
         workID: UUID,
         studentID: UUID,
-        completedAt: Date = .init(),
-        note: String = ""
+        completedAt: Date = .init()
     ) {
         self.id = id
         // CloudKit compatibility: Store UUIDs as strings
@@ -52,7 +48,6 @@ import SwiftData
         self.studentID = studentID.uuidString
         let cal = AppCalendar.shared
         self.completedAt = cal.startOfDay(for: completedAt)
-        self.note = note
     }
 }
 

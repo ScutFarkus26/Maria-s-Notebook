@@ -388,13 +388,13 @@ struct WorksAgendaView: View {
             if let first = try modelContext.fetch(fetch).first {
                 first.date = today
             } else {
-                let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck", note: "")
+                let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck")
                 modelContext.insert(item)
             }
         } catch {
             Self.logger.warning("Failed to fetch WorkCheckIn: \(error)")
             // Create new check-in as fallback
-            let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck", note: "")
+            let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck")
             modelContext.insert(item)
         }
         w.dueAt = today

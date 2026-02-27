@@ -104,7 +104,7 @@ enum BackupDTOTransformers {
     // MARK: - SchoolDayOverride
 
     static func toDTO(_ override: SchoolDayOverride) -> SchoolDayOverrideDTO {
-        SchoolDayOverrideDTO(id: override.id, date: override.date, note: override.note)
+        SchoolDayOverrideDTO(id: override.id, date: override.date)
     }
 
     // MARK: - StudentMeeting
@@ -215,8 +215,7 @@ enum BackupDTOTransformers {
             id: record.id,
             workID: workIDUUID,
             studentID: studentIDUUID,
-            completedAt: record.completedAt,
-            note: record.note
+            completedAt: record.completedAt
         )
     }
 
@@ -258,7 +257,6 @@ enum BackupDTOTransformers {
             projectID: projectIDUUID,
             meetingDate: session.meetingDate,
             chapterOrPages: session.chapterOrPages,
-            notes: session.notes,
             agendaItemsJSON: session.agendaItemsJSON,
             templateWeekID: templateWeekIDUUID
         )
@@ -316,7 +314,6 @@ enum BackupDTOTransformers {
             workID: checkIn.workID,
             date: checkIn.date,
             statusRaw: checkIn.statusRaw,
-            note: checkIn.note,
             purpose: checkIn.purpose
         )
     }
@@ -497,8 +494,7 @@ enum BackupDTOTransformers {
             studentID: e.studentID,
             trackID: e.trackID,
             startedAt: e.startedAt,
-            isActive: e.isActive,
-            notes: e.notes
+            isActive: e.isActive
         )
     }
 

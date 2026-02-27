@@ -380,7 +380,6 @@ struct NewProjectSessionSheet: View {
                 date: scheduledDate,
                 status: .scheduled,
                 purpose: "Due Date",
-                note: "",
                 work: workModel
             )
             modelContext.insert(checkIn)

@@ -340,7 +340,6 @@ public struct WorkCompletionRecordDTO: Codable, Sendable {
     public var workID: UUID
     public var studentID: UUID
     public var completedAt: Date
-    public var note: String
 }
 
 
@@ -367,7 +366,6 @@ public struct NonSchoolDayDTO: Codable, Sendable {
 public struct SchoolDayOverrideDTO: Codable, Sendable {
     public var id: UUID
     public var date: Date
-    public var note: String?
 }
 
 public struct StudentMeetingDTO: Codable, Sendable {
@@ -500,7 +498,6 @@ public struct ProjectSessionDTO: Codable, Sendable {
     public var projectID: UUID
     public var meetingDate: Date
     public var chapterOrPages: String?
-    public var notes: String?
     public var agendaItemsJSON: String
     public var templateWeekID: UUID?
 }
@@ -540,7 +537,6 @@ public struct WorkCheckInDTO: Codable, Sendable {
     public var workID: String
     public var date: Date
     public var statusRaw: String
-    public var note: String
     public var purpose: String
 }
 
@@ -689,7 +685,6 @@ public struct StudentTrackEnrollmentDTO: Codable, Sendable {
     public var trackID: String
     public var startedAt: Date?
     public var isActive: Bool
-    public var notes: String?
 }
 
 public struct GroupTrackDTO: Codable, Sendable {

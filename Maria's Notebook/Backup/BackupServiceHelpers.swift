@@ -119,8 +119,7 @@ enum BackupServiceHelpers {
                 id: r.id,
                 workID: workIDUUID,
                 studentID: studentIDUUID,
-                completedAt: r.completedAt,
-                note: r.note
+                completedAt: r.completedAt
             )
         }
     }
@@ -165,7 +164,6 @@ enum BackupServiceHelpers {
                 projectID: projectIDUUID,
                 meetingDate: s.meetingDate,
                 chapterOrPages: s.chapterOrPages,
-                notes: s.notes,
                 agendaItemsJSON: s.agendaItemsJSON,
                 templateWeekID: templateWeekIDUUID
             )
@@ -300,7 +298,7 @@ enum BackupServiceHelpers {
     }
 
     static func toDTOs(_ schoolDayOverrides: [SchoolDayOverride]) -> [SchoolDayOverrideDTO] {
-        schoolDayOverrides.map { SchoolDayOverrideDTO(id: $0.id, date: $0.date, note: $0.note) }
+        schoolDayOverrides.map { SchoolDayOverrideDTO(id: $0.id, date: $0.date) }
     }
 
     static func toDTOs(_ studentMeetings: [StudentMeeting]) -> [StudentMeetingDTO] {

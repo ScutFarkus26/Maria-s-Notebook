@@ -72,13 +72,6 @@ struct WorkPlanItemRow: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 PurposeLabel(purpose: item.purpose)
-                
-                if !item.note.isEmpty {
-                    Text(item.note)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
             }
             
             Spacer()

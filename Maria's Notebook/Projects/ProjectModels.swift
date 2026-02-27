@@ -151,7 +151,6 @@ final class ProjectSession: Identifiable {
 
     var meetingDate: Date = Date()
     var chapterOrPages: String? = nil
-    var notes: String? = nil
 
     // Agenda from template or edited per-session (JSON encoded)
     var agendaItemsJSON: String = ""
@@ -191,7 +190,6 @@ final class ProjectSession: Identifiable {
     }
 
     // Inverse relationship for Note.projectSession
-    // Note: 'notes' is a String field, so we use 'noteItems' for the relationship array
     @Relationship(deleteRule: .cascade, inverse: \Note.projectSession) var noteItems: [Note]? = []
 
     init(
@@ -200,7 +198,6 @@ final class ProjectSession: Identifiable {
         projectID: UUID = UUID(),
         meetingDate: Date = Date(),
         chapterOrPages: String? = nil,
-        notes: String? = nil,
         agendaItemsJSON: String = "",
         templateWeekID: UUID? = nil,
         assignmentMode: SessionAssignmentMode = .uniform,
@@ -213,7 +210,6 @@ final class ProjectSession: Identifiable {
         self.projectID = projectID.uuidString
         self.meetingDate = meetingDate
         self.chapterOrPages = chapterOrPages
-        self.notes = notes
         self.agendaItemsJSON = agendaItemsJSON
         self.templateWeekID = templateWeekID?.uuidString
         self.assignmentModeRaw = assignmentMode.rawValue

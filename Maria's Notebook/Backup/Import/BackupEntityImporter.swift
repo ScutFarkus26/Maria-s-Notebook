@@ -253,7 +253,6 @@ enum BackupEntityImporter {
     static func importSchoolDayOverrides(_ dtos: [SchoolDayOverrideDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<SchoolDayOverride>) rethrows {
         try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let override = SchoolDayOverride(id: dto.id, date: dto.date)
-            override.note = dto.note
             return override
         }
     }
@@ -454,7 +453,7 @@ enum BackupEntityImporter {
     /// Imports work completion records from DTOs.
     static func importWorkCompletionRecords(_ dtos: [WorkCompletionRecordDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<WorkCompletionRecord>) rethrows {
         try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
-            WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt, note: dto.note)
+            WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt)
         }
     }
 
@@ -543,7 +542,7 @@ enum BackupEntityImporter {
     /// Imports project sessions from DTOs.
     static func importProjectSessions(_ dtos: [ProjectSessionDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<ProjectSession>) rethrows {
         try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
-            ProjectSession(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, notes: dto.notes, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
+            ProjectSession(id: dto.id, createdAt: dto.createdAt, projectID: dto.projectID, meetingDate: dto.meetingDate, chapterOrPages: dto.chapterOrPages, agendaItemsJSON: dto.agendaItemsJSON, templateWeekID: dto.templateWeekID)
         }
     }
 
@@ -563,8 +562,7 @@ enum BackupEntityImporter {
                 workID: workUUID,
                 date: dto.date,
                 status: WorkCheckInStatus(rawValue: dto.statusRaw) ?? .scheduled,
-                purpose: dto.purpose,
-                note: dto.note
+                purpose: dto.purpose
             )
             // Link to work if exists
             do {
@@ -846,7 +844,6 @@ enum BackupEntityImporter {
             e.trackID = dto.trackID
             e.startedAt = dto.startedAt
             e.isActive = dto.isActive
-            e.notes = dto.notes
             return e
         }
     }

@@ -163,7 +163,7 @@ final class MockWorkCheckInService: WorkCheckInServiceProtocol {
                        purpose: String = "",
                        note: String = "") throws -> WorkCheckIn {
         let trimmedNote = note.trimmed()
-        let checkIn = WorkCheckIn(workID: work.id, date: date, status: status, purpose: purpose, note: "", work: work)
+        let checkIn = WorkCheckIn(workID: work.id, date: date, status: status, purpose: purpose, work: work)
         if !trimmedNote.isEmpty {
             _ = checkIn.setLegacyNoteText(trimmedNote, in: context)
         }

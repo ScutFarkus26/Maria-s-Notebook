@@ -23,9 +23,6 @@ final class StudentTrackEnrollment: Identifiable {
     /// Whether this enrollment is currently active
     var isActive: Bool = true
     
-    /// Optional notes about this enrollment
-    var notes: String? = nil
-    
     @Relationship(deleteRule: .cascade, inverse: \Note.studentTrackEnrollment) var richNotes: [Note]? = []
     
     init(
@@ -34,8 +31,7 @@ final class StudentTrackEnrollment: Identifiable {
         studentID: String = "",
         trackID: String = "",
         startedAt: Date? = nil,
-        isActive: Bool = true,
-        notes: String? = nil
+        isActive: Bool = true
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -43,7 +39,6 @@ final class StudentTrackEnrollment: Identifiable {
         self.trackID = trackID
         self.startedAt = startedAt
         self.isActive = isActive
-        self.notes = notes
         self.richNotes = []
     }
 }

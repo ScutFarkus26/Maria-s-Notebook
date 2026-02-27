@@ -31,7 +31,6 @@ struct WorkCheckInService {
                              date: date,
                              status: status,
                              purpose: trimmedPurpose,
-                             note: "",
                              work: work)
         context.insert(ci)
         if work.checkIns == nil { work.checkIns = [] }

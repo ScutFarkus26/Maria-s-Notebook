@@ -470,8 +470,7 @@ struct QuickNewWorkItemSheet: View {
                         workID: work.id,
                         date: normalized,
                         status: .scheduled,
-                        purpose: CheckInMigrationService.mapReasonToPurpose(checkInReason),
-                        note: ""
+                        purpose: CheckInMigrationService.mapReasonToPurpose(checkInReason)
                     )
                     modelContext.insert(checkIn)
                 }
