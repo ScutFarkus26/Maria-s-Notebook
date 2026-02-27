@@ -164,7 +164,9 @@ struct GroupProgressionView: View {
                 )) {
                     EmptyView()
                 }
+                #if os(macOS)
                 .toggleStyle(.checkbox)
+                #endif
                 .labelsHidden()
 
                 NavigationLink(value: StudentProgressionRoute(studentID: student.id, subject: subject, group: group)) {

@@ -108,7 +108,7 @@ struct ProgressionLessonRow: View {
                 .foregroundStyle(.secondary)
 
             // Status
-            Text(item.status.rawValue)
+            Text(item.status.displayName)
                 .font(.caption2)
                 .foregroundStyle(item.status.color)
 
