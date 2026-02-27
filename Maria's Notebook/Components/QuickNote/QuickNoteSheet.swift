@@ -287,84 +287,8 @@ struct QuickNoteSheet: View {
                 }
                 
                 Divider()
-                
-                // Accessory Bar
-                HStack(spacing: 16) {
-                    // Date
-                    ZStack {
-                        DatePicker("", selection: $viewModel.noteDate, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .colorMultiply(.clear)
-                            .background(
-                                Image(systemName: "calendar")
-                                    .foregroundStyle(Calendar.current.isDateInToday(viewModel.noteDate) ? .primary : Color.red)
-                            )
-                            .frame(width: 24, height: 24)
-                            .fixedSize()
-                    }
-                    
-                    // Tags
-                    Button { viewModel.showingTagPicker = true } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "tag")
-                            if !viewModel.tags.isEmpty {
-                                Text("\(viewModel.tags.count)")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                            }
-                        }
-                        .foregroundStyle(viewModel.tags.isEmpty ? .primary : .blue)
-                        .font(.system(size: 20))
-                    }
-                    
-                    // Divider
-                    Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 1, height: 16)
-                    
-                    // Media & AI
-                    PhotosPicker(selection: $viewModel.selectedPhotoItem, matching: .images) {
-                        Image(systemName: "photo").font(.system(size: 20))
-                    }
-                    .foregroundStyle(.primary)
-                    
-                    Button { viewModel.isShowingCamera = true } label: {
-                        Image(systemName: "camera").font(.system(size: 20))
-                    }
-                    .foregroundStyle(.primary)
-                    
-                    if viewModel.attachedImage != nil {
-                        Image(systemName: "paperclip").foregroundStyle(.blue).font(.caption)
-                    }
 
-                    Spacer()
-                    
-                    // AI Sparkle
-                    aiMenuButton(students: students)
-                        .foregroundStyle(.purple)
-                    
-                    // Follow-up flag
-                    Button { viewModel.needsFollowUp.toggle() } label: {
-                        Image(systemName: viewModel.needsFollowUp ? "flag.fill" : "flag")
-                            .foregroundStyle(viewModel.needsFollowUp ? .red : .secondary)
-                            .font(.system(size: 20))
-                    }
-                    
-                    // Report flag
-                    Button { viewModel.includeInReport.toggle() } label: {
-                        Image(systemName: viewModel.includeInReport ? "doc.text.fill" : "doc.text")
-                            .foregroundStyle(viewModel.includeInReport ? .orange : .secondary)
-                            .font(.system(size: 20))
-                    }
-                    
-                    // Add Student
-                    Button { viewModel.isShowingStudentPicker = true } label: {
-                        Image(systemName: "person.badge.plus")
-                            .foregroundStyle(Color.accentColor)
-                            .font(.system(size: 20))
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(Color(uiColor: .systemBackground))
+                iOSAccessoryBar(students: students)
             }
             .navigationTitle("Quick Note")
             .navigationBarTitleDisplayMode(.inline)
@@ -414,10 +338,90 @@ struct QuickNoteSheet: View {
         }
         .onChange(of: viewModel.selectedPhotoItem) { _, newItem in viewModel.loadPhoto(newItem) }
     }
+
+    /// Extracted accessory bar to reduce type-checker complexity in iOSLayout.
+    private func iOSAccessoryBar(students: [Student]) -> some View {
+        HStack(spacing: 16) {
+            // Date
+            ZStack {
+                DatePicker("", selection: $viewModel.noteDate, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .colorMultiply(.clear)
+                    .background(
+                        Image(systemName: "calendar")
+                            .foregroundStyle(Calendar.current.isDateInToday(viewModel.noteDate) ? .primary : Color.red)
+                    )
+                    .frame(width: 24, height: 24)
+                    .fixedSize()
+            }
+
+            // Tags
+            Button { viewModel.showingTagPicker = true } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "tag")
+                    if !viewModel.tags.isEmpty {
+                        Text("\(viewModel.tags.count)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                    }
+                }
+                .foregroundStyle(viewModel.tags.isEmpty ? Color.primary : Color.blue)
+                .font(.system(size: 20))
+            }
+
+            // Divider
+            Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 1, height: 16)
+
+            // Media & AI
+            PhotosPicker(selection: $viewModel.selectedPhotoItem, matching: .images) {
+                Image(systemName: "photo").font(.system(size: 20))
+            }
+            .foregroundStyle(.primary)
+
+            Button { viewModel.isShowingCamera = true } label: {
+                Image(systemName: "camera").font(.system(size: 20))
+            }
+            .foregroundStyle(.primary)
+
+            if viewModel.attachedImage != nil {
+                Image(systemName: "paperclip").foregroundStyle(.blue).font(.caption)
+            }
+
+            Spacer()
+
+            // AI Sparkle
+            aiMenuButton(students: students)
+                .foregroundStyle(.purple)
+
+            // Follow-up flag
+            Button { viewModel.needsFollowUp.toggle() } label: {
+                Image(systemName: viewModel.needsFollowUp ? "flag.fill" : "flag")
+                    .foregroundStyle(viewModel.needsFollowUp ? .red : .secondary)
+                    .font(.system(size: 20))
+            }
+
+            // Report flag
+            Button { viewModel.includeInReport.toggle() } label: {
+                Image(systemName: viewModel.includeInReport ? "doc.text.fill" : "doc.text")
+                    .foregroundStyle(viewModel.includeInReport ? .orange : .secondary)
+                    .font(.system(size: 20))
+            }
+
+            // Add Student
+            Button { viewModel.isShowingStudentPicker = true } label: {
+                Image(systemName: "person.badge.plus")
+                    .foregroundStyle(Color.accentColor)
+                    .font(.system(size: 20))
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(Color(uiColor: .systemBackground))
+    }
     #endif
-    
+
     // MARK: - Helper Views
-    
+
     @ViewBuilder
     private func aiMenuButton(students: [Student]) -> some View {
         #if ENABLE_FOUNDATION_MODELS
