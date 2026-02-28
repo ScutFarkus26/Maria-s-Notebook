@@ -110,16 +110,16 @@ enum BackupEntityImporter {
     /// Imports student lessons from DTOs.
     ///
     /// - Parameters:
-    ///   - dtos: The student lesson DTOs to import
+    ///   - dtos: The legacy presentation DTOs to import
     ///   - modelContext: The model context for database operations
-    /// Imports old StudentLessonDTO records as LessonAssignment records.
+    /// Imports old LegacyPresentationDTO records as LessonAssignment records.
     /// This provides backward compatibility when restoring backups created before
-    /// the StudentLesson model was removed.
+    /// the LegacyPresentation model was removed.
     ///   - existingCheck: Function to check if a LessonAssignment already exists with this ID
     ///   - lessonCheck: Function to check if the referenced lesson exists
     ///   - studentCheck: Function to look up a student by ID
-    static func importStudentLessonsAsLessonAssignments(
-        _ dtos: [StudentLessonDTO],
+    static func importLegacyPresentations(
+        _ dtos: [LegacyPresentationDTO],
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<LessonAssignment>,
         lessonCheck: EntityExistsCheck<Lesson>,
@@ -141,7 +141,7 @@ enum BackupEntityImporter {
                 continue
             }
 
-            // Determine state from old StudentLesson fields
+            // Determine state from old LegacyPresentation fields
             let state: LessonAssignmentState
             let presentedAt: Date?
             if dto.givenAt != nil {

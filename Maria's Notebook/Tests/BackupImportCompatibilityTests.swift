@@ -6,10 +6,10 @@ import SwiftData
 
 // MARK: - Backup Import Compatibility Tests
 
-@Suite("Legacy StudentLessonDTO Import")
+@Suite("LegacyPresentationDTO Import")
 struct BackupImportCompatibilityTests {
 
-    /// Helper to create a StudentLessonDTO matching the old backup format
+    /// Helper to create a LegacyPresentationDTO matching the old backup format
     private func makeLegacyDTO(
         id: UUID = UUID(),
         lessonID: UUID,
@@ -18,8 +18,8 @@ struct BackupImportCompatibilityTests {
         givenAt: Date? = nil,
         notes: String = "",
         needsPractice: Bool = false
-    ) -> StudentLessonDTO {
-        StudentLessonDTO(
+    ) -> LegacyPresentationDTO {
+        LegacyPresentationDTO(
             id: id,
             lessonID: lessonID,
             studentIDs: studentIDs,
@@ -49,7 +49,7 @@ struct BackupImportCompatibilityTests {
             studentIDs: [student.id]
         )
 
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
+        try BackupEntityImporter.importLegacyPresentations(
             [dto],
             into: context,
             existingCheck: { id in try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first },
@@ -80,7 +80,7 @@ struct BackupImportCompatibilityTests {
             scheduledFor: scheduleDate
         )
 
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
+        try BackupEntityImporter.importLegacyPresentations(
             [dto],
             into: context,
             existingCheck: { id in try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first },
@@ -112,7 +112,7 @@ struct BackupImportCompatibilityTests {
             notes: "Went well"
         )
 
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
+        try BackupEntityImporter.importLegacyPresentations(
             [dto],
             into: context,
             existingCheck: { id in try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first },
@@ -138,7 +138,7 @@ struct BackupImportCompatibilityTests {
             studentIDs: [UUID()]
         )
 
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
+        try BackupEntityImporter.importLegacyPresentations(
             [dto],
             into: context,
             existingCheck: { id in try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first },
@@ -172,7 +172,7 @@ struct BackupImportCompatibilityTests {
             studentIDs: [student.id]
         )
 
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
+        try BackupEntityImporter.importLegacyPresentations(
             [dto],
             into: context,
             existingCheck: { id in try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first },
@@ -201,7 +201,7 @@ struct BackupImportCompatibilityTests {
             needsPractice: true
         )
 
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
+        try BackupEntityImporter.importLegacyPresentations(
             [dto],
             into: context,
             existingCheck: { id in try context.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first },

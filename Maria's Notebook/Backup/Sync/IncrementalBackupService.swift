@@ -214,7 +214,7 @@ public final class IncrementalBackupService {
         // Track merged entity counts
         var mergedStudents: [UUID: StudentDTO] = [:]
         var mergedLessons: [UUID: LessonDTO] = [:]
-        var mergedStudentLessons: [UUID: StudentLessonDTO] = [:]
+        var mergedLegacyPresentations: [UUID: LegacyPresentationDTO] = [:]
         var mergedLessonAssignments: [UUID: LessonAssignmentDTO] = [:]
         // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
         var mergedNotes: [UUID: NoteDTO] = [:]
@@ -250,7 +250,7 @@ public final class IncrementalBackupService {
             // Merge entities (newer backups overwrite older)
             for dto in payload.students { mergedStudents[dto.id] = dto }
             for dto in payload.lessons { mergedLessons[dto.id] = dto }
-            for dto in payload.studentLessons { mergedStudentLessons[dto.id] = dto }
+            for dto in payload.legacyPresentations { mergedLegacyPresentations[dto.id] = dto }
             for dto in payload.lessonAssignments { mergedLessonAssignments[dto.id] = dto }
             // Phase 6: WorkPlanItem removed from schema - skip merging
             for dto in payload.notes { mergedNotes[dto.id] = dto }
@@ -280,7 +280,7 @@ public final class IncrementalBackupService {
             items: [],
             students: Array(mergedStudents.values),
             lessons: Array(mergedLessons.values),
-            studentLessons: Array(mergedStudentLessons.values),
+            legacyPresentations: Array(mergedLegacyPresentations.values),
             lessonAssignments: Array(mergedLessonAssignments.values),
             notes: Array(mergedNotes.values),
             nonSchoolDays: Array(mergedNonSchoolDays.values),
@@ -324,7 +324,7 @@ public final class IncrementalBackupService {
         let counts: [String: Int] = [
             "Student": mergedStudents.count,
             "Lesson": mergedLessons.count,
-            "StudentLesson": mergedStudentLessons.count,
+            "LegacyPresentation": mergedLegacyPresentations.count,
             "LessonAssignment": mergedLessonAssignments.count,
             "Note": mergedNotes.count,
             "NonSchoolDay": mergedNonSchoolDays.count,
@@ -459,8 +459,8 @@ public final class IncrementalBackupService {
         progress(0.2, "Collecting lessons…")
         let lessons: [Lesson] = fetchFiltered(Lesson.self)
 
-        // StudentLesson removed — no longer exported in incremental backups
-        let studentLessons: [LessonAssignment] = []
+        // LegacyPresentation removed — no longer exported in incremental backups
+        let legacyPresentations: [LessonAssignment] = []
 
         progress(0.35, "Collecting lesson assignments…")
         let lessonAssignments: [LessonAssignment] = fetchFiltered(LessonAssignment.self)
@@ -512,7 +512,7 @@ public final class IncrementalBackupService {
         // Convert to DTOs using shared helpers
         let studentDTOs = BackupServiceHelpers.toDTOs(students)
         let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
-        let studentLessonDTOs: [StudentLessonDTO] = [] // StudentLesson removed
+        let legacyPresentationDTOs: [LegacyPresentationDTO] = [] // LegacyPresentation removed
         let noteDTOs = BackupServiceHelpers.toDTOs(notes)
         let nonSchoolDTOs = BackupServiceHelpers.toDTOs(nonSchoolDays)
         let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(schoolDayOverrides)
@@ -558,7 +558,7 @@ public final class IncrementalBackupService {
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
-            studentLessons: studentLessonDTOs,
+            legacyPresentations: legacyPresentationDTOs,
             lessonAssignments: lessonAssignmentDTOs,
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,

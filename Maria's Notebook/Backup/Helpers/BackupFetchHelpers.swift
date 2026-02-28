@@ -124,7 +124,7 @@ enum BackupFetchHelpers {
             let arr = try context.fetch(descriptor)
             return arr.first as? T
         }
-        // StudentLesson removed — fully migrated to LessonAssignment
+        // LegacyPresentation removed — fully migrated to LessonAssignment
         if type == WorkModel.self {
             var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
             descriptor.fetchLimit = 1

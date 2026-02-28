@@ -52,7 +52,7 @@ public final class SelectiveExportService {
     public enum EntityType: String, CaseIterable, Identifiable, Sendable {
         case students = "Students"
         case lessons = "Lessons"
-        case studentLessons = "Student Lessons"
+        case legacyPresentations = "Legacy Presentations"
         case presentations = "Presentations"
         case notes = "Notes"
         case calendar = "Calendar"
@@ -68,7 +68,7 @@ public final class SelectiveExportService {
             switch self {
             case .students: return "Student records and profiles"
             case .lessons: return "Lesson definitions and materials"
-            case .studentLessons: return "Lesson assignments and scheduling"
+            case .legacyPresentations: return "Legacy lesson assignments and scheduling"
             case .presentations: return "Lesson presentation records"
             case .notes: return "Notes attached to various entities"
             case .calendar: return "Non-school days and overrides"
@@ -214,7 +214,7 @@ public final class SelectiveExportService {
         // Count all entities
         let allStudents = safeFetch(FetchDescriptor<Student>(), context: modelContext)
         let allLessons = safeFetch(FetchDescriptor<Lesson>(), context: modelContext)
-        // StudentLesson removed — fully migrated to LessonAssignment
+        // LegacyPresentation removed — fully migrated to LessonAssignment
         let allNotes = safeFetch(FetchDescriptor<Note>(), context: modelContext)
         let allProjects = safeFetch(FetchDescriptor<Project>(), context: modelContext)
 
@@ -238,9 +238,9 @@ public final class SelectiveExportService {
         includedCounts["Lesson"] = includedLessons.count
         excludedCounts["Lesson"] = allLessons.count - includedLessons.count
 
-        // StudentLesson export removed — model fully migrated to LessonAssignment
-        includedCounts["StudentLesson"] = 0
-        excludedCounts["StudentLesson"] = 0
+        // LegacyPresentation export removed — model fully migrated to LessonAssignment
+        includedCounts["LegacyPresentation"] = 0
+        excludedCounts["LegacyPresentation"] = 0
 
         // Filter notes
         let includedNotes: [Note]
@@ -314,7 +314,7 @@ public final class SelectiveExportService {
     ) async throws -> BackupOperationSummary {
         var entityTypes: Set<EntityType> = [.students]
         if includeHistory {
-            entityTypes.insert(.studentLessons)
+            entityTypes.insert(.legacyPresentations)
             entityTypes.insert(.presentations)
             entityTypes.insert(.attendance)
             entityTypes.insert(.workCompletions)
@@ -357,9 +357,9 @@ public final class SelectiveExportService {
         let lessonDTOs: [LessonDTO] = shouldInclude(.lessons) ? collectLessons(modelContext: modelContext) : []
         counts["Lesson"] = lessonDTOs.count
 
-        progress(0.3, "Collecting student lessons…")
-        let studentLessonDTOs: [StudentLessonDTO] = shouldInclude(.studentLessons) ? collectStudentLessons(modelContext: modelContext, filter: filter) : []
-        counts["StudentLesson"] = studentLessonDTOs.count
+        progress(0.3, "Collecting legacy presentations…")
+        let legacyPresentationDTOs: [LegacyPresentationDTO] = shouldInclude(.legacyPresentations) ? collectLegacyPresentations(modelContext: modelContext, filter: filter) : []
+        counts["LegacyPresentation"] = legacyPresentationDTOs.count
 
         progress(0.5, "Collecting other entities…")
         let noteDTOs: [NoteDTO] = shouldInclude(.notes) ? collectNotes(modelContext: modelContext, filter: filter) : []
@@ -403,7 +403,7 @@ public final class SelectiveExportService {
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
-            studentLessons: studentLessonDTOs,
+            legacyPresentations: legacyPresentationDTOs,
             lessonAssignments: [],
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,
@@ -437,8 +437,8 @@ public final class SelectiveExportService {
         return BackupServiceHelpers.toDTOs(allLessons)
     }
 
-    private func collectStudentLessons(modelContext: ModelContext, filter: ExportFilter) -> [StudentLessonDTO] {
-        // StudentLesson model removed — no longer exported in new backups
+    private func collectLegacyPresentations(modelContext: ModelContext, filter: ExportFilter) -> [LegacyPresentationDTO] {
+        // LegacyPresentation model removed — no longer exported in new backups
         return []
     }
 

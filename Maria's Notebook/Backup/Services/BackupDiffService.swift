@@ -125,9 +125,9 @@ public final class BackupDiffService {
             modelContext: modelContext
         )
 
-        progress(0.5, "Analyzing student lessons…")
-        let studentLessonDiff = analyzeStudentLessonDiff(
-            backupStudentLessons: backupPayload.studentLessons,
+        progress(0.5, "Analyzing legacy presentations…")
+        let legacyPresentationDiff = analyzeLegacyPresentationDiff(
+            backupLegacyPresentations: backupPayload.legacyPresentations,
             modelContext: modelContext
         )
 
@@ -161,7 +161,7 @@ public final class BackupDiffService {
         let entityDiffs = [
             studentDiff,
             lessonDiff,
-            studentLessonDiff,
+            legacyPresentationDiff,
             noteDiff,
             calendarDiff,
             projectDiff,
@@ -387,11 +387,11 @@ public final class BackupDiffService {
         return EntityDiff(entityType: "Lesson", added: added, removed: removed, modified: modified)
     }
 
-    private func analyzeStudentLessonDiff(
-        backupStudentLessons: [StudentLessonDTO],
+    private func analyzeLegacyPresentationDiff(
+        backupLegacyPresentations: [LegacyPresentationDTO],
         modelContext: ModelContext
     ) -> EntityDiff {
-        // StudentLesson model removed — compare against LessonAssignment
+        // LegacyPresentation model removed — compare against LessonAssignment
         let current: [LessonAssignment]
         do {
             current = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
@@ -400,19 +400,19 @@ public final class BackupDiffService {
             current = []
         }
         let currentIDs = Set(current.map { $0.id })
-        let backupIDs = Set(backupStudentLessons.map { $0.id })
+        let backupIDs = Set(backupLegacyPresentations.map { $0.id })
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Student Lesson", timestamp: $0.createdAt) }
+            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Legacy Presentation", timestamp: $0.createdAt) }
 
         let removedIDs = backupIDs.subtracting(currentIDs)
-        let removed = backupStudentLessons
+        let removed = backupLegacyPresentations
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Student Lesson", timestamp: $0.createdAt) }
+            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Legacy Presentation", timestamp: $0.createdAt) }
 
-        return EntityDiff(entityType: "StudentLesson", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "LegacyPresentation", added: added, removed: removed, modified: [])
     }
 
     private func analyzeNoteDiff(

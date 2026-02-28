@@ -59,8 +59,8 @@ public final class BackupService {
         let studentDTOs = fetchAndTransformInBatches(Student.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
         let lessonDTOs = fetchAndTransformInBatches(Lesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        // StudentLesson removed — no longer exported in new backups
-        let studentLessonDTOs: [StudentLessonDTO] = []
+        // LegacyPresentation removed — no longer exported in new backups
+        let legacyPresentationDTOs: [LegacyPresentationDTO] = []
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments…")
         let lessonAssignmentDTOs = fetchAndTransformInBatches(LessonAssignment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
@@ -124,7 +124,7 @@ public final class BackupService {
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
-            studentLessons: studentLessonDTOs,
+            legacyPresentations: legacyPresentationDTOs,
             lessonAssignments: lessonAssignmentDTOs,
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,
@@ -199,7 +199,7 @@ public final class BackupService {
         var counts: [String: Int] = [
             "Student": studentDTOs.count,
             "Lesson": lessonDTOs.count,
-            "StudentLesson": studentLessonDTOs.count,
+            "LegacyPresentation": legacyPresentationDTOs.count,
             "LessonAssignment": lessonAssignmentDTOs.count,
             "Note": noteDTOs.count,
             "NonSchoolDay": nonSchoolDTOs.count,
@@ -398,9 +398,9 @@ public final class BackupService {
             existingCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
         )
 
-        // Import old StudentLessonDTOs as LessonAssignment records
-        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
-            payload.studentLessons,
+        // Import old LegacyPresentationDTOs as LessonAssignment records
+        try BackupEntityImporter.importLegacyPresentations(
+            payload.legacyPresentations,
             into: modelContext,
             existingCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
             lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) },

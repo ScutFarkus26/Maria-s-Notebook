@@ -12,7 +12,7 @@ enum SchemaMigrationService {
 
     // MARK: - Date Normalization
 
-    /// StudentLesson model removed — migration complete. Marks flag if not already set.
+    /// LegacyPresentation model removed — migration complete. Marks flag if not already set.
     static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) async {
         let flagKey = "Migration.givenAtDateOnly.v1"
         if !MigrationFlag.isComplete(key: flagKey) {
@@ -71,10 +71,10 @@ enum SchemaMigrationService {
         }
     }
 
-    // MARK: - Legacy StudentLesson Sync (no-op)
+    // MARK: - Legacy Presentation Sync (no-op)
 
-    /// StudentLesson model removed — migration complete. Marks flag if not already set.
-    static func syncStudentLessonIDsFromRelationshipsIfNeeded(using context: ModelContext) async {
+    /// LegacyPresentation model removed — migration complete. Marks flag if not already set.
+    static func syncLegacyPresentationIDsIfNeeded(using context: ModelContext) async {
         let flagKey = "Migration.studentLessonIDSync.v1"
         if !MigrationFlag.isComplete(key: flagKey) {
             MigrationFlag.markComplete(key: flagKey)
@@ -83,10 +83,10 @@ enum SchemaMigrationService {
 
     // MARK: - WorkModel Migration
 
-    /// StudentLesson model removed — WorkModel ID backfill from StudentLesson is no longer possible.
+    /// LegacyPresentation model removed — WorkModel ID backfill from LegacyPresentation is no longer possible.
     /// Any WorkModels that needed backfill should have been handled before the model was removed.
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
-        // No-op: StudentLesson model removed. Migration complete.
+        // No-op: LegacyPresentation model removed. Migration complete.
     }
 
     // MARK: - Note Category to Tags Migration
@@ -139,7 +139,7 @@ enum SchemaMigrationService {
         await normalizeGivenAtToDateOnlyIfNeeded(using: context)
         migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
         migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
-        await syncStudentLessonIDsFromRelationshipsIfNeeded(using: context)
+        await syncLegacyPresentationIDsIfNeeded(using: context)
         await migrateWorkContractsToWorkModelsIfNeeded(using: context)
         await migrateNoteCategoryToTagsIfNeeded(using: context)
     }

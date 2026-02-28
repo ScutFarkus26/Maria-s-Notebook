@@ -346,9 +346,9 @@ struct CurriculumMap: Codable {
         let lessonID: UUID
         let lessonName: String
         let orderInGroup: Int
-        var studentStatuses: [StudentLessonStatus]
+        var studentStatuses: [PresentationStatus]
         
-        init(lessonID: UUID, lessonName: String, orderInGroup: Int, studentStatuses: [StudentLessonStatus]) {
+        init(lessonID: UUID, lessonName: String, orderInGroup: Int, studentStatuses: [PresentationStatus]) {
             self.id = UUID()
             self.lessonID = lessonID
             self.lessonName = lessonName
@@ -357,7 +357,7 @@ struct CurriculumMap: Codable {
         }
     }
     
-    struct StudentLessonStatus: Codable {
+    struct PresentationStatus: Codable {
         let studentID: UUID
         let studentName: String
         let mastery: MasterySignal

@@ -12,7 +12,7 @@ enum BackupSizeEstimator {
     static let averageBytesPerEntity: [String: Int] = [
         "Student": 600,
         "Lesson": 2500,
-        "StudentLesson": 300,
+        "LegacyPresentation": 300,
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         "Note": 300,
         "NonSchoolDay": 200,
@@ -59,7 +59,7 @@ enum BackupSizeEstimator {
 
         counts["Student"] = safeFetchCount(Student.self, using: modelContext)
         counts["Lesson"] = safeFetchCount(Lesson.self, using: modelContext)
-        // StudentLesson removed — fully migrated to LessonAssignment
+        // LegacyPresentation removed — fully migrated to LessonAssignment
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         counts["Note"] = safeFetchCount(Note.self, using: modelContext)
         counts["NonSchoolDay"] = safeFetchCount(NonSchoolDay.self, using: modelContext)

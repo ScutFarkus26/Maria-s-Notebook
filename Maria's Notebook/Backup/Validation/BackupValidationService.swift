@@ -174,24 +174,24 @@ public final class BackupValidationService {
         let roleIDs = Set(payload.projectRoles.map { $0.id })
         let weekIDs = Set(payload.projectTemplateWeeks.map { $0.id })
         
-        // Validate StudentLesson references
-        for sl in payload.studentLessons {
+        // Validate LegacyPresentation references
+        for sl in payload.legacyPresentations {
             // Check lesson reference
             if !lessonIDs.contains(sl.lessonID) {
                 errors.append(ValidationError(
-                    entityType: "StudentLesson",
+                    entityType: "LegacyPresentation",
                     entityID: sl.id,
                     field: "lessonID",
                     message: "References non-existent lesson: \(sl.lessonID)",
                     severity: .critical
                 ))
             }
-            
+
             // Check student references
             for studentID in sl.studentIDs {
                 if !studentIDs.contains(studentID) {
                     errors.append(ValidationError(
-                        entityType: "StudentLesson",
+                        entityType: "LegacyPresentation",
                         entityID: sl.id,
                         field: "studentIDs",
                         message: "References non-existent student: \(studentID)",
@@ -366,11 +366,11 @@ public final class BackupValidationService {
         var errors: [ValidationError] = []
         
         // Validate date constraints
-        for sl in payload.studentLessons {
+        for sl in payload.legacyPresentations {
             if let scheduled = sl.scheduledFor, let given = sl.givenAt {
                 if given < scheduled {
                     errors.append(ValidationError(
-                        entityType: "StudentLesson",
+                        entityType: "LegacyPresentation",
                         entityID: sl.id,
                         field: "givenAt",
                         message: "Given date (\(given)) is before scheduled date (\(scheduled))",
@@ -456,7 +456,7 @@ public final class BackupValidationService {
         
         allIDs.append(contentsOf: payload.students.map { $0.id })
         allIDs.append(contentsOf: payload.lessons.map { $0.id })
-        allIDs.append(contentsOf: payload.studentLessons.map { $0.id })
+        allIDs.append(contentsOf: payload.legacyPresentations.map { $0.id })
         allIDs.append(contentsOf: payload.lessonAssignments.map { $0.id })
         allIDs.append(contentsOf: payload.notes.map { $0.id })
         allIDs.append(contentsOf: payload.nonSchoolDays.map { $0.id })
@@ -524,7 +524,7 @@ public final class BackupValidationService {
         var entityCounts: [(String, Int)] = []
         entityCounts.append(("Student", payload.students.count))
         entityCounts.append(("Lesson", payload.lessons.count))
-        entityCounts.append(("StudentLesson", payload.studentLessons.count))
+        entityCounts.append(("LegacyPresentation", payload.legacyPresentations.count))
         entityCounts.append(("LessonAssignment", payload.lessonAssignments.count))
         entityCounts.append(("Note", payload.notes.count))
         entityCounts.append(("NonSchoolDay", payload.nonSchoolDays.count))

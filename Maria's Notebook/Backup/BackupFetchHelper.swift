@@ -19,7 +19,7 @@ struct BackupFetchHelper {
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        // StudentLesson removed — fully migrated to LessonAssignment
+        // LegacyPresentation removed — fully migrated to LessonAssignment
         if type == LessonAssignment.self {
             var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
             descriptor.fetchLimit = 1

@@ -170,11 +170,36 @@ public enum PreferenceValueDTO: Codable, Sendable, Equatable {
 
 // MARK: - BackupPayload
 public struct BackupPayload: Codable, Sendable {
+
+    // Preserve the original JSON key "studentLessons" for backward compatibility with older backups
+    enum CodingKeys: String, CodingKey {
+        case items, students, lessons
+        case legacyPresentations = "studentLessons"
+        case lessonAssignments, notes, nonSchoolDays, schoolDayOverrides
+        case studentMeetings, communityTopics, proposedSolutions, communityAttachments
+        case attendance, workCompletions
+        case projects, projectAssignmentTemplates, projectSessions, projectRoles
+        case projectTemplateWeeks, projectWeekRoleAssignments
+        case workCheckIns, workSteps, workParticipants, practiceSessions
+        case lessonAttachments, lessonPresentations
+        case noteTemplates, meetingTemplates
+        case reminders, calendarEvents
+        case tracks, trackSteps, studentTrackEnrollments, groupTracks
+        case documents
+        case supplies, supplyTransactions, procedures
+        case schedules, scheduleSlots
+        case issues, issueActions
+        case developmentSnapshots
+        case todoItems, todoSubtasks, todoTemplates
+        case todayAgendaOrders
+        case preferences
+    }
+
     // Arrays for each entity type as DTOs (IDs only for relationships; exclude file bytes)
     public var items: [ItemDTO]
     public var students: [StudentDTO]
     public var lessons: [LessonDTO]
-    public var studentLessons: [StudentLessonDTO]
+    public var legacyPresentations: [LegacyPresentationDTO]
     public var lessonAssignments: [LessonAssignmentDTO]
     public var notes: [NoteDTO]
     public var nonSchoolDays: [NonSchoolDayDTO]
@@ -285,7 +310,7 @@ public struct LessonDTO: Codable, Sendable {
     public var pagesFileRelativePath: String?
 }
 
-public struct StudentLessonDTO: Codable, Sendable {
+public struct LegacyPresentationDTO: Codable, Sendable {
     public var id: UUID
     public var lessonID: UUID
     public var studentIDs: [UUID]
@@ -378,7 +403,7 @@ public struct StudentMeetingDTO: Codable, Sendable {
 
 // MARK: - LessonAssignment DTO
 /// DTO for the unified LessonAssignment model.
-/// This model replaces StudentLesson + Presentation in the new architecture.
+/// This model replaces LegacyPresentation + Presentation in the new architecture.
 public struct LessonAssignmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date

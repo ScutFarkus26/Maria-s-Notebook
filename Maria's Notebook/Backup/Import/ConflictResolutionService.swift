@@ -109,9 +109,9 @@ public final class ConflictResolutionService {
             modelContext: modelContext
         ))
 
-        // Analyze StudentLessons
-        conflicts.append(contentsOf: analyzeStudentLessonConflicts(
-            payload.studentLessons,
+        // Analyze LegacyPresentations
+        conflicts.append(contentsOf: analyzeLegacyPresentationConflicts(
+            payload.legacyPresentations,
             modelContext: modelContext
         ))
 
@@ -180,9 +180,9 @@ public final class ConflictResolutionService {
                     try updateLesson(dto, in: modelContext)
                     updatedCount += 1
                 }
-            case "StudentLesson":
-                if let dto = payload.studentLessons.first(where: { $0.id == conflict.entityID }) {
-                    try updateStudentLesson(dto, in: modelContext)
+            case "LegacyPresentation":
+                if let dto = payload.legacyPresentations.first(where: { $0.id == conflict.entityID }) {
+                    try updateLegacyPresentation(dto, in: modelContext)
                     updatedCount += 1
                 }
             case "Note":
@@ -277,13 +277,13 @@ public final class ConflictResolutionService {
         return conflicts
     }
 
-    private func analyzeStudentLessonConflicts(
-        _ dtos: [StudentLessonDTO],
+    private func analyzeLegacyPresentationConflicts(
+        _ dtos: [LegacyPresentationDTO],
         modelContext: ModelContext
     ) -> [Conflict] {
         var conflicts: [Conflict] = []
 
-        // StudentLesson model removed — check for conflicts against LessonAssignment instead
+        // LegacyPresentation model removed — check for conflicts against LessonAssignment instead
         for dto in dtos {
             let dtoID = dto.id
             var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == dtoID })
@@ -292,7 +292,7 @@ public final class ConflictResolutionService {
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                Self.logger.warning("Failed to fetch lesson assignment for legacy student lesson: \(error)")
+                Self.logger.warning("Failed to fetch lesson assignment for legacy presentation: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -302,7 +302,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "StudentLesson",
+                entityType: "LegacyPresentation",
                 entityID: dto.id,
                 localUpdatedAt: nil,
                 backupUpdatedAt: nil,
@@ -434,8 +434,8 @@ public final class ConflictResolutionService {
         }
     }
 
-    private func updateStudentLesson(_ dto: StudentLessonDTO, in modelContext: ModelContext) throws {
-        // StudentLesson model removed — update corresponding LessonAssignment instead
+    private func updateLegacyPresentation(_ dto: LegacyPresentationDTO, in modelContext: ModelContext) throws {
+        // LegacyPresentation model removed — update corresponding LessonAssignment instead
         let dtoID = dto.id
         var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1

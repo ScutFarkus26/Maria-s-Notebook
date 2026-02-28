@@ -48,7 +48,7 @@ public final class ChecksumVerificationService {
         // Generate checksums for each entity type
         entityChecksums["Student"] = try checksumFor(payload.students, encoder: encoder)
         entityChecksums["Lesson"] = try checksumFor(payload.lessons, encoder: encoder)
-        entityChecksums["StudentLesson"] = try checksumFor(payload.studentLessons, encoder: encoder)
+        entityChecksums["LegacyPresentation"] = try checksumFor(payload.legacyPresentations, encoder: encoder)
         entityChecksums["LessonAssignment"] = try checksumFor(payload.lessonAssignments, encoder: encoder)
         entityChecksums["Note"] = try checksumFor(payload.notes, encoder: encoder)
         entityChecksums["NonSchoolDay"] = try checksumFor(payload.nonSchoolDays, encoder: encoder)
@@ -98,7 +98,7 @@ public final class ChecksumVerificationService {
         let entityTypes: [(String, Any)] = [
             ("Student", payload.students),
             ("Lesson", payload.lessons),
-            ("StudentLesson", payload.studentLessons),
+            ("LegacyPresentation", payload.legacyPresentations),
             ("LessonAssignment", payload.lessonAssignments),
             ("Note", payload.notes),
             ("NonSchoolDay", payload.nonSchoolDays),

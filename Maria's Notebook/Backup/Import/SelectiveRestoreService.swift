@@ -15,7 +15,7 @@ public final class SelectiveRestoreService {
     public enum RestorableEntityType: String, CaseIterable, Identifiable, Sendable {
         case students = "Students"
         case lessons = "Lessons"
-        case studentLessons = "Student Lessons"
+        case legacyPresentations = "Legacy Presentations"
         case notes = "Notes"
         case calendar = "Calendar (Non-School Days & Overrides)"
         case meetings = "Student Meetings"
@@ -32,7 +32,7 @@ public final class SelectiveRestoreService {
             switch self {
             case .students: return "person.3"
             case .lessons: return "book"
-            case .studentLessons: return "person.badge.clock"
+            case .legacyPresentations: return "person.badge.clock"
             case .notes: return "note.text"
             case .calendar: return "calendar"
             case .meetings: return "person.2.wave.2"
@@ -46,7 +46,7 @@ public final class SelectiveRestoreService {
         /// Dependencies that must be restored together
         public var dependencies: [RestorableEntityType] {
             switch self {
-            case .studentLessons: return [.students, .lessons]
+            case .legacyPresentations: return [.students, .lessons]
             case .community: return []
             case .notes: return [.lessons]
             case .workCompletions: return []
@@ -148,7 +148,7 @@ public final class SelectiveRestoreService {
 
         counts[.students] = payload.students.count
         counts[.lessons] = payload.lessons.count
-        counts[.studentLessons] = payload.studentLessons.count
+        counts[.legacyPresentations] = payload.legacyPresentations.count
         counts[.notes] = payload.notes.count
         counts[.calendar] = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
         counts[.meetings] = payload.studentMeetings.count
@@ -211,8 +211,8 @@ public final class SelectiveRestoreService {
                 counts[type] = payload.students.count
             case .lessons:
                 counts[type] = payload.lessons.count
-            case .studentLessons:
-                counts[type] = payload.studentLessons.count
+            case .legacyPresentations:
+                counts[type] = payload.legacyPresentations.count
             case .notes:
                 counts[type] = payload.notes.count
             case .calendar:
@@ -283,7 +283,7 @@ public final class SelectiveRestoreService {
 
         // Import entities in dependency order
         let orderedTypes: [RestorableEntityType] = [
-            .students, .lessons, .studentLessons,
+            .students, .lessons, .legacyPresentations,
             .notes, .calendar, .meetings,
             .community, .attendance, .workCompletions, .projects
         ]
@@ -402,10 +402,10 @@ public final class SelectiveRestoreService {
                 print("⚠️ [Backup:\(#function)] Failed to refresh lesson cache: \(error)")
             }
 
-        case .studentLessons:
-            // StudentLesson model removed — import as LessonAssignment
-            try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
-                payload.studentLessons,
+        case .legacyPresentations:
+            // LegacyPresentation model removed — import as LessonAssignment
+            try BackupEntityImporter.importLegacyPresentations(
+                payload.legacyPresentations,
                 into: modelContext,
                 existingCheck: { [self] id in
                     self.getCachedIDs("lessonAssignments").contains(id) ? try modelContext.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first : nil
@@ -413,7 +413,7 @@ public final class SelectiveRestoreService {
                 lessonCheck: { [lessonsByID] id in lessonsByID[id] },
                 studentCheck: { [studentsByID] id in studentsByID[id] }
             )
-            imported = payload.studentLessons.count
+            imported = payload.legacyPresentations.count
 
         case .notes:
             BackupEntityImporter.importNotes(
@@ -614,7 +614,7 @@ public final class SelectiveRestoreService {
         templateWeeksByID = cacheDictionary(ProjectTemplateWeek.self, in: context)
 
         // Build ID sets for simple existence checks
-        // StudentLesson removed — entity IDs cached via LessonAssignment below
+        // LegacyPresentation removed — entity IDs cached via LessonAssignment below
         cacheEntityIDs(Note.self, key: "notes", in: context)
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         cacheEntityIDs(NonSchoolDay.self, key: "nonSchoolDays", in: context)

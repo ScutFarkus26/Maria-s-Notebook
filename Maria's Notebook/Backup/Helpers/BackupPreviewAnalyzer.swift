@@ -84,8 +84,8 @@ enum BackupPreviewAnalyzer {
 
         assign("Student", payload.students.count, 0, count(Student.self))
         assign("Lesson", payload.lessons.count, 0, count(Lesson.self))
-        // StudentLesson removed — old backup data imported as LessonAssignment
-        assign("StudentLesson (legacy)", payload.studentLessons.count, 0, 0)
+        // LegacyPresentation removed — old backup data imported as LessonAssignment
+        assign("LegacyPresentation (legacy)", payload.legacyPresentations.count, 0, 0)
         assign("LessonAssignment", payload.lessonAssignments.count, 0, count(LessonAssignment.self))
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         assign("Note", payload.notes.count, 0, count(Note.self))
@@ -132,7 +132,7 @@ enum BackupPreviewAnalyzer {
         )
         assign("Lesson", lessonCounts.insert, lessonCounts.skip, 0)
 
-        // StudentLessons - special handling for missing lesson references
+        // LegacyPresentations - special handling for missing lesson references
         let lessonsInStore: Set<UUID>
         do {
             lessonsInStore = Set(try modelContext.fetch(FetchDescriptor<Lesson>()).map { $0.id })
@@ -141,10 +141,10 @@ enum BackupPreviewAnalyzer {
             lessonsInStore = Set()
         }
         let lessonsInPayload = Set(payload.lessons.map { $0.id })
-        // StudentLesson model removed — old backup DTOs will be imported as LessonAssignment
-        let studentLessonAnalysis = payload.studentLessons.reduce(
+        // LegacyPresentation model removed — old backup DTOs will be imported as LessonAssignment
+        let legacyPresentationAnalysis = payload.legacyPresentations.reduce(
             into: (ins: 0, sk: 0, missingLesson: 0)
-        ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), sl: StudentLessonDTO) in
+        ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), sl: LegacyPresentationDTO) in
             let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
             if !hasLesson {
                 acc.sk += 1
@@ -155,9 +155,9 @@ enum BackupPreviewAnalyzer {
                 acc.ins += 1
             }
         }
-        assign("StudentLesson (legacy)", studentLessonAnalysis.ins, studentLessonAnalysis.sk, 0)
-        if studentLessonAnalysis.missingLesson > 0 {
-            warnings.append("\(studentLessonAnalysis.missingLesson) legacy StudentLesson records reference missing Lessons and will be skipped.")
+        assign("LegacyPresentation (legacy)", legacyPresentationAnalysis.ins, legacyPresentationAnalysis.sk, 0)
+        if legacyPresentationAnalysis.missingLesson > 0 {
+            warnings.append("\(legacyPresentationAnalysis.missingLesson) legacy LegacyPresentation records reference missing Lessons and will be skipped.")
         }
 
         // LessonAssignments - similar handling for missing lesson references

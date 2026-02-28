@@ -179,7 +179,7 @@ extension BackupMigrationManifest {
         PayloadField(name: "items", introducedIn: 6, description: "Legacy items array (unused)"),
         PayloadField(name: "students", introducedIn: 6, description: "Student records"),
         PayloadField(name: "lessons", introducedIn: 6, description: "Lesson definitions"),
-        PayloadField(name: "studentLessons", introducedIn: 6, description: "Lesson assignments to students"),
+        PayloadField(name: "studentLessons", introducedIn: 6, description: "Legacy lesson assignments to students (mapped to legacyPresentations property)"),
         PayloadField(name: "lessonAssignments", introducedIn: 6, description: "Unified lesson assignments"),
         PayloadField(name: "notes", introducedIn: 6, description: "Notes and observations"),
         PayloadField(name: "nonSchoolDays", introducedIn: 6, description: "Calendar non-school days"),

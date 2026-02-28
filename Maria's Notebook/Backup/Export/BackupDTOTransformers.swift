@@ -44,8 +44,8 @@ enum BackupDTOTransformers {
         )
     }
 
-    // MARK: - StudentLesson (removed — model fully migrated to LessonAssignment)
-    // StudentLessonDTO is kept for import backward compatibility only.
+    // MARK: - LegacyPresentation (removed — model fully migrated to LessonAssignment)
+    // LegacyPresentationDTO is kept for import backward compatibility only.
 
     // MARK: - WorkPlanItem - REMOVED IN PHASE 6
     // WorkPlanItem has been migrated to WorkCheckIn and removed from schema
@@ -739,7 +739,7 @@ enum BackupDTOTransformers {
         lessons.map { toDTO($0) }
     }
 
-    // StudentLesson toDTOs removed — model fully migrated to LessonAssignment
+    // LegacyPresentation toDTOs removed — model fully migrated to LessonAssignment
 
     // WorkPlanItem removed in Phase 6 - no longer backed up
 

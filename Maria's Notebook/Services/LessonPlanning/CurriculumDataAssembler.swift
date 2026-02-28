@@ -44,7 +44,7 @@ struct CurriculumDataAssembler {
                 var completedCount = 0
                 
                 for lesson in sortedLessons {
-                    var studentStatuses: [CurriculumMap.StudentLessonStatus] = []
+                    var studentStatuses: [CurriculumMap.PresentationStatus] = []
                     
                     for studentIDString in studentIDs {
                         let mastery = determineMastery(
