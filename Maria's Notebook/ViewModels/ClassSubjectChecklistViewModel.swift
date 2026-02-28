@@ -207,44 +207,40 @@ class ClassSubjectChecklistViewModel {
         let lessonIDString = lesson.id.uuidString
         let studentIDString = student.id.uuidString
 
-        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
-        if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allSLs) {
+        if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
         } else {
-            addStudentToUnscheduledLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+            addStudentToUnscheduledLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
         }
     }
 
-    private func findUnscheduledLessonContaining(student: String, in lessons: [StudentLesson]) -> StudentLesson? {
-        lessons.first(where: { !$0.isGiven && $0.studentIDs.contains(student) })
+    private func findUnscheduledLessonContaining(student: String, in lessons: [LessonAssignment]) -> LessonAssignment? {
+        lessons.first(where: { !$0.isPresented && $0.studentIDs.contains(student) })
     }
 
-    private func removeStudentFromLesson(student: String, lesson: StudentLesson, context: ModelContext) {
+    private func removeStudentFromLesson(student: String, lesson: LessonAssignment, context: ModelContext) {
         var ids = lesson.studentIDs
         ids.removeAll { $0 == student }
         if ids.isEmpty {
-            ChecklistSyncHelper.syncAfterDeleted(studentLessonID: lesson.id, context: context)
             context.delete(lesson)
         } else {
             lesson.studentIDs = ids
-            ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: lesson, context: context)
         }
     }
 
-    private func addStudentToUnscheduledLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
-        if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
+    private func addStudentToUnscheduledLesson(student: Student, studentIDString: String, lesson: Lesson, in allLAs: [LessonAssignment], context: ModelContext) {
+        if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
-                ChecklistSyncHelper.syncAfterStudentAdded(studentLesson: group, context: context)
             }
         } else {
-            let sl = StudentLessonFactory.insertUnscheduled(
+            PresentationFactory.insertDraft(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
-                into: context
+                context: context
             )
-            ChecklistSyncHelper.syncAfterDraft(studentLesson: sl, context: context)
         }
     }
 
@@ -258,9 +254,9 @@ class ClassSubjectChecklistViewModel {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
-        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
-        if findGivenLessonContaining(student: studentIDString, in: allSLs) == nil {
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        if findGivenLessonContaining(student: studentIDString, in: allLAs) == nil {
+            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
         }
 
         if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
@@ -283,36 +279,34 @@ class ClassSubjectChecklistViewModel {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
-        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
-        if let existing = findGivenLessonContaining(student: studentIDString, in: allSLs) {
+        if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
             deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
         } else {
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
             upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .presented, context: context)
         }
     }
 
-    private func findGivenLessonContaining(student: String, in lessons: [StudentLesson]) -> StudentLesson? {
-        lessons.first(where: { $0.isGiven && $0.studentIDs.contains(student) })
+    private func findGivenLessonContaining(student: String, in lessons: [LessonAssignment]) -> LessonAssignment? {
+        lessons.first(where: { $0.isPresented && $0.studentIDs.contains(student) })
     }
 
-    private func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
+    private func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allLAs: [LessonAssignment], context: ModelContext) {
         let today = Date()
-        if let group = allSLs.first(where: { $0.isGiven && ($0.givenAt ?? Date.distantPast).isSameDay(as: today) }) {
+        if let group = allLAs.first(where: { $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today) }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
-                ChecklistSyncHelper.syncAfterStudentAdded(studentLesson: group, context: context)
                 GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
             }
         } else {
-            let sl = StudentLessonFactory.insertPresented(
+            PresentationFactory.insertPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
-                into: context
+                context: context
             )
-            ChecklistSyncHelper.syncAfterPresented(studentLesson: sl, context: context)
             GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
         }
     }
@@ -328,16 +322,14 @@ class ClassSubjectChecklistViewModel {
         let sidString = student.id.uuidString
         let lidString = lid.uuidString
 
-        let sls = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))
-        for sl in sls where sl.studentIDs.contains(sidString) {
-            var newIDs = sl.studentIDs
+        let las = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString }))
+        for la in las where la.studentIDs.contains(sidString) {
+            var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty {
-                ChecklistSyncHelper.syncAfterDeleted(studentLessonID: sl.id, context: context)
-                context.delete(sl)
+                context.delete(la)
             } else {
-                sl.studentIDs = newIDs
-                ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: sl, context: context)
+                la.studentIDs = newIDs
             }
         }
 
@@ -350,10 +342,7 @@ class ClassSubjectChecklistViewModel {
         let workModelsToDelete = allWorkModels.filter { work in
             let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
             guard hasStudent else { return false }
-            guard let slID = work.studentLessonID,
-                  let sl = sls.first(where: { $0.id == slID }),
-                  UUID(uuidString: sl.lessonID) == lid else { return false }
-            return true
+            return work.lessonID == lidString
         }
         for work in workModelsToDelete {
             context.delete(work)
@@ -365,6 +354,7 @@ class ClassSubjectChecklistViewModel {
     private func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
         let sid = student.id
         let lid = lesson.id
+        let lidString = lid.uuidString
 
         // OPTIMIZATION: Fetch only non-complete work since we're looking for active/review work
         let workDescriptor = FetchDescriptor<WorkModel>(
@@ -375,15 +365,7 @@ class ClassSubjectChecklistViewModel {
         let existingWork = allWorkModels.first { work in
             let hasStudent = (work.participants ?? []).contains { $0.studentID == sid.uuidString }
             guard hasStudent else { return false }
-            guard let slID = work.studentLessonID else { return false }
-            // OPTIMIZATION: Fetch only StudentLessons for this specific lesson
-            let slDescriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate<StudentLesson> { $0.lessonID == lid.uuidString }
-            )
-            let lessonSLs = context.safeFetch(slDescriptor)
-            guard let sl = lessonSLs.first(where: { $0.id == slID }),
-                  UUID(uuidString: sl.lessonID) == lid else { return false }
-            return true
+            return work.lessonID == lidString
         }
 
         if let existing = existingWork {

@@ -12,7 +12,7 @@ enum ChecklistBatchActionExecutor {
 
     // MARK: - Batch Add to Inbox
 
-    /// Adds selected cells to inbox (creates unscheduled StudentLessons).
+    /// Adds selected cells to inbox (creates draft LessonAssignments).
     static func batchAddToInbox(
         selectedCells: Set<CellIdentifier>,
         students: [Student],
@@ -99,34 +99,30 @@ enum ChecklistBatchActionExecutor {
         let lessonIDString = lesson.id.uuidString
         let studentIDString = student.cloudKitKey
 
-        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
         // Check if student is already in an unscheduled lesson
-        if let existing = allSLs.first(where: { !$0.isGiven && $0.studentIDs.contains(studentIDString) }) {
+        if let existing = allLAs.first(where: { !$0.isPresented && $0.studentIDs.contains(studentIDString) }) {
             // Remove student from lesson
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentIDString }
             if ids.isEmpty {
-                ChecklistSyncHelper.syncAfterDeleted(studentLessonID: existing.id, context: context)
                 context.delete(existing)
             } else {
                 existing.studentIDs = ids
-                ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: existing, context: context)
             }
         } else {
             // Add to unscheduled lesson
-            if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
+            if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
                 if !group.studentIDs.contains(studentIDString) {
                     group.studentIDs.append(studentIDString)
-                    ChecklistSyncHelper.syncAfterStudentAdded(studentLesson: group, context: context)
                 }
             } else {
-                let sl = StudentLessonFactory.insertUnscheduled(
+                PresentationFactory.insertDraft(
                     lessonID: lesson.id,
                     studentIDs: [student.id],
-                    into: context
+                    context: context
                 )
-                ChecklistSyncHelper.syncAfterDraft(studentLesson: sl, context: context)
             }
         }
     }
@@ -135,25 +131,23 @@ enum ChecklistBatchActionExecutor {
         let studentIDString = student.cloudKitKey
         let lessonIDString = lesson.id.uuidString
 
-        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
 
-        // Check if student is already in a given lesson
-        if let existing = allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentIDString) }) {
+        // Check if student is already in a presented lesson
+        if let existing = allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) {
             // Remove student from lesson
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentIDString }
             if ids.isEmpty {
-                ChecklistSyncHelper.syncAfterDeleted(studentLessonID: existing.id, context: context)
                 context.delete(existing)
             } else {
                 existing.studentIDs = ids
-                ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: existing, context: context)
             }
             // Remove LessonPresentation
             deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
         } else {
-            // Add to given lesson
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+            // Add to presented lesson
+            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
             // Create LessonPresentation
             upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .presented, context: context)
         }
@@ -164,9 +158,9 @@ enum ChecklistBatchActionExecutor {
         let lessonIDString = lesson.id.uuidString
 
         // First, ensure the lesson is marked as presented
-        let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lessonIDString }))
-        if allSLs.first(where: { $0.isGiven && $0.studentIDs.contains(studentIDString) }) == nil {
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allSLs, context: context)
+        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        if allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) == nil {
+            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
         }
 
         // Optionally create/update WorkModel if one exists
@@ -190,16 +184,14 @@ enum ChecklistBatchActionExecutor {
         let sidString = student.cloudKitKey
         let lidString = lid.uuidString
 
-        let sls = context.safeFetch(FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.lessonID == lidString }))
-        for sl in sls where sl.studentIDs.contains(sidString) {
-            var newIDs = sl.studentIDs
+        let las = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString }))
+        for la in las where la.studentIDs.contains(sidString) {
+            var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty {
-                ChecklistSyncHelper.syncAfterDeleted(studentLessonID: sl.id, context: context)
-                context.delete(sl)
+                context.delete(la)
             } else {
-                sl.studentIDs = newIDs
-                ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: sl, context: context)
+                la.studentIDs = newIDs
             }
         }
 
@@ -208,10 +200,7 @@ enum ChecklistBatchActionExecutor {
         let workModelsToDelete = allWorkModels.filter { work in
             let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
             guard hasStudent else { return false }
-            guard let slID = work.studentLessonID,
-                  let sl = sls.first(where: { $0.id == slID }),
-                  UUID(uuidString: sl.lessonID) == lid else { return false }
-            return true
+            return work.lessonID == lidString
         }
         for work in workModelsToDelete {
             context.delete(work)
@@ -221,21 +210,19 @@ enum ChecklistBatchActionExecutor {
         deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
     }
 
-    private static func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allSLs: [StudentLesson], context: ModelContext) {
+    private static func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allLAs: [LessonAssignment], context: ModelContext) {
         let today = Date()
-        if let group = allSLs.first(where: { $0.isGiven && ($0.givenAt ?? Date.distantPast).isSameDay(as: today) }) {
+        if let group = allLAs.first(where: { $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today) }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
-                ChecklistSyncHelper.syncAfterStudentAdded(studentLesson: group, context: context)
                 GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
             }
         } else {
-            let sl = StudentLessonFactory.insertPresented(
+            PresentationFactory.insertPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
-                into: context
+                context: context
             )
-            ChecklistSyncHelper.syncAfterPresented(studentLesson: sl, context: context)
             GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
         }
     }
@@ -243,16 +230,13 @@ enum ChecklistBatchActionExecutor {
     private static func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
         let sid = student.id
         let lid = lesson.id
+        let lidString = lid.uuidString
         let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
 
         let existingWork = allWorkModels.first { work in
             let hasStudent = (work.participants ?? []).contains { $0.studentID == sid.uuidString }
             guard hasStudent else { return false }
-            guard let slID = work.studentLessonID else { return false }
-            let allSLs = context.safeFetch(FetchDescriptor<StudentLesson>())
-            guard let sl = allSLs.first(where: { $0.id == slID }),
-                  UUID(uuidString: sl.lessonID) == lid else { return false }
-            return true
+            return work.lessonID == lidString
         }
 
         if let existing = existingWork {
