@@ -278,7 +278,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
         switch payload {
         case .studentLesson(let id):
-            applyStudentLessonDrop(id: id, locationY: locationY)
+            applyPresentationDrop(id: id, locationY: locationY)
         case .workCheckIn:
             // Work check-ins are not supported in presentations view
             break
@@ -286,7 +286,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     }
     
     @MainActor
-    private func applyStudentLessonDrop(id: UUID, locationY: CGFloat) {
+    private func applyPresentationDrop(id: UUID, locationY: CGFloat) {
         let current = getCurrentItems()
         
         // Check if the drop landed on a pill for the same lesson — merge instead of reorder

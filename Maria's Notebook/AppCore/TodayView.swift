@@ -58,14 +58,14 @@ struct TodayView: View {
 
     // MARK: - Filtered Query State
     // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
-    @State var filteredStudentLessonIDs: [UUID] = []
+    @State var filteredPresentationIDs: [UUID] = []
     @State var filteredPlanItemIDs: [UUID] = []
 
     // MARK: - School Day Cache
     @State var schoolDayCache = SchoolDayCache()
 
     // MARK: - Computed Properties
-    private var studentLessonIDs: [UUID] { filteredStudentLessonIDs }
+    private var presentationIDs: [UUID] { filteredPresentationIDs }
     private var planItemIDs: [UUID] { filteredPlanItemIDs }
 
     /// Returns true if we're on iPhone compact layout where attendance has its own tab

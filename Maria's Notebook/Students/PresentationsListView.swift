@@ -47,13 +47,13 @@ struct PresentationsListView: View {
     // State for iPhone/Compact filter sheet
     @State private var showFilterSheet: Bool = false
 
-    @SceneStorage("StudentLessons.filter") private var studentLessonsFilterRaw: String = "all"
-    @SceneStorage("StudentLessons.sort") private var studentLessonsSortRaw: String = "default"
-    @SceneStorage("StudentLessons.subject") private var studentLessonsSubjectRaw: String = ""
-    @State private var previousStudentLessonsFilterRaw: String?
+    @SceneStorage("Presentations.filter") private var presentationsFilterRaw: String = "all"
+    @SceneStorage("Presentations.sort") private var presentationsSortRaw: String = "default"
+    @SceneStorage("Presentations.subject") private var presentationsSubjectRaw: String = ""
+    @State private var previousPresentationsFilterRaw: String?
 
     private var filter: CompletionFilter {
-        switch studentLessonsFilterRaw {
+        switch presentationsFilterRaw {
         case "completed": return .completed
         case "notCompleted": return .notCompleted
         case "hidden": return .hiddenUndated
@@ -62,7 +62,7 @@ struct PresentationsListView: View {
     }
 
     private var sort: PresentationsListSort {
-        switch studentLessonsSortRaw {
+        switch presentationsSortRaw {
         case "dateCreated": return .dateCreated
         case "datePresented", "dateGiven": return .datePresented
         default: return .upcomingThenPresented
@@ -70,7 +70,7 @@ struct PresentationsListView: View {
     }
 
     private var selectedSubject: String? {
-        StringFallbacks.valueOrNil(studentLessonsSubjectRaw)
+        StringFallbacks.valueOrNil(presentationsSubjectRaw)
     }
 
     private let lessonsVM = LessonsViewModel()
@@ -326,7 +326,7 @@ struct PresentationsListView: View {
                     isSelected: filter == .all
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        studentLessonsFilterRaw = "all"
+                        presentationsFilterRaw = "all"
                     }
                 }
 
@@ -337,7 +337,7 @@ struct PresentationsListView: View {
                     isSelected: filter == .completed
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        studentLessonsFilterRaw = "completed"
+                        presentationsFilterRaw = "completed"
                     }
                 }
 
@@ -348,7 +348,7 @@ struct PresentationsListView: View {
                     isSelected: filter == .notCompleted
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        studentLessonsFilterRaw = "notCompleted"
+                        presentationsFilterRaw = "notCompleted"
                     }
                 }
 
@@ -366,7 +366,7 @@ struct PresentationsListView: View {
                     isSelected: selectedSubject == nil
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        studentLessonsSubjectRaw = ""
+                        presentationsSubjectRaw = ""
                     }
                 }
 
@@ -378,7 +378,7 @@ struct PresentationsListView: View {
                         isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
                     ) {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                            studentLessonsSubjectRaw = subject
+                            presentationsSubjectRaw = subject
                         }
                     }
                 }
@@ -393,10 +393,10 @@ struct PresentationsListView: View {
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         if filter == .hiddenUndated {
-                            studentLessonsFilterRaw = previousStudentLessonsFilterRaw ?? "all"
+                            presentationsFilterRaw = previousPresentationsFilterRaw ?? "all"
                         } else {
-                            previousStudentLessonsFilterRaw = studentLessonsFilterRaw
-                            studentLessonsFilterRaw = "hidden"
+                            previousPresentationsFilterRaw = presentationsFilterRaw
+                            presentationsFilterRaw = "hidden"
                         }
                     }
                 }

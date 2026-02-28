@@ -1,5 +1,5 @@
 // LessonProgressSection.swift
-// UI section for managing presentation state and quick actions within StudentLesson detail.
+// UI section for managing presentation state and quick actions within Presentation detail.
 // Behavior-preserving cleanup: comments, MARKs, and small helpers docs.
 
 import OSLog
@@ -28,7 +28,7 @@ struct LessonProgressSection: View {
 
     let lesson: Lesson?
     let nextLessonInGroup: Lesson?
-    let studentLessonID: UUID
+    let presentationID: UUID
 
     let studentsAll: [Student]
     let lessonsAll: [Lesson]
@@ -300,7 +300,7 @@ struct LessonProgressSection: View {
             return works.contains { work in
                 // Check using kind
                 let isPractice = (work.kind ?? .research) == .practiceLesson
-                return work.studentLessonID == studentLessonID && isPractice
+                return work.studentLessonID == presentationID && isPractice
             }
         }()
         if !hasPracticeWork {
@@ -308,7 +308,7 @@ struct LessonProgressSection: View {
                 id: UUID(),
                 title: "Practice: \(lesson?.name ?? "Lesson")",
                 kind: .practiceLesson,
-                studentLessonID: studentLessonID,
+                studentLessonID: presentationID,
                 createdAt: Date()
             )
             // Set identity fields
@@ -316,7 +316,7 @@ struct LessonProgressSection: View {
                 practiceWork.lessonID = lessonID.uuidString
             } else {
                 // Try to get lessonID from the LessonAssignment
-                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == studentLessonID })
+                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == presentationID })
                 descriptor.fetchLimit = 1
                 do {
                     if let la = try modelContext.fetch(descriptor).first {
@@ -330,7 +330,7 @@ struct LessonProgressSection: View {
                 practiceWork.studentID = firstStudentID.uuidString
             } else {
                 // Try to get studentID from the LessonAssignment
-                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == studentLessonID })
+                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == presentationID })
                 descriptor.fetchLimit = 1
                 do {
                     if let la = try modelContext.fetch(descriptor).first,
@@ -341,7 +341,7 @@ struct LessonProgressSection: View {
                     Self.logger.warning("Failed to fetch lesson assignment for studentID: \(error)")
                 }
             }
-            practiceWork.legacyStudentLessonID = studentLessonID.uuidString
+            practiceWork.legacyStudentLessonID = presentationID.uuidString
             practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
             modelContext.insert(practiceWork)
             do {

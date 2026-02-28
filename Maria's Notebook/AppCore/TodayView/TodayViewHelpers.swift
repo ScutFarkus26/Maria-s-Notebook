@@ -245,9 +245,9 @@ extension TodayView {
                 sortBy: [SortDescriptor(\LessonAssignment.id)]
             )
             let lessons = try modelContext.fetch(lessonDescriptor)
-            filteredStudentLessonIDs = lessons.map { $0.id }
+            filteredPresentationIDs = lessons.map { $0.id }
         } catch {
-            filteredStudentLessonIDs = []
+            filteredPresentationIDs = []
         }
 
         // Fetch filtered WorkCheckIn IDs (scheduled status only)
