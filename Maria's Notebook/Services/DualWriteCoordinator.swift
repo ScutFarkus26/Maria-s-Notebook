@@ -157,13 +157,18 @@ final class DualWriteCoordinator {
         sl.isPresented = true
         sl.givenAt = date
 
-        // LifecycleService.recordPresentation handles LessonAssignment creation
-        // Work items are created explicitly via workflow panel or pie menu
-        let _ = try LifecycleService.recordPresentation(
-            from: sl,
-            presentedAt: date,
-            modelContext: context
+        // Find or create matching LessonAssignment, then record presentation
+        let slIDString = sl.id.uuidString
+        let laDescriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
         )
+        if let la = try context.fetch(laDescriptor).first {
+            let _ = try LifecycleService.recordPresentation(
+                from: la,
+                presentedAt: date,
+                modelContext: context
+            )
+        }
 
         context.safeSave()
         logger.debug("Marked presented: StudentLesson(\(sl.id)) via LifecycleService")

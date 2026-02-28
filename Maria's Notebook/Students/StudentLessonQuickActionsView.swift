@@ -240,11 +240,18 @@ struct StudentLessonQuickActionsView: View {
                 // CRITICAL: Set givenAt on StudentLesson for dual-write consistency
                 // This ensures DaysSinceLastLessonView can correctly calculate days since presentation
                 studentLesson.givenAt = presentedDate
-                _ = try LifecycleService.recordPresentation(
-                    from: studentLesson,
-                    presentedAt: presentedDate,
-                    modelContext: modelContext
+                // Bridge: look up corresponding LessonAssignment for LifecycleService
+                let slIDString = studentLesson.id.uuidString
+                let laDesc = FetchDescriptor<LessonAssignment>(
+                    predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
                 )
+                if let la = try modelContext.fetch(laDesc).first {
+                    _ = try LifecycleService.recordPresentation(
+                        from: la,
+                        presentedAt: presentedDate,
+                        modelContext: modelContext
+                    )
+                }
             } catch {
                 // ignore
             }

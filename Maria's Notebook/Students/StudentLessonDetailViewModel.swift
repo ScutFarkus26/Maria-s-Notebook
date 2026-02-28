@@ -176,11 +176,18 @@ final class StudentLessonDetailViewModel {
         let nowGiven = isPresented || (givenAt != nil)
         if nowGiven {
             do {
-                let _ = try LifecycleService.recordPresentation(
-                    from: studentLesson,
-                    presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
-                    modelContext: modelContext
+                // Bridge: look up corresponding LessonAssignment for LifecycleService
+                let slIDString = studentLesson.id.uuidString
+                let laDesc = FetchDescriptor<LessonAssignment>(
+                    predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
                 )
+                if let la = try modelContext.fetch(laDesc).first {
+                    let _ = try LifecycleService.recordPresentation(
+                        from: la,
+                        presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
+                        modelContext: modelContext
+                    )
+                }
             } catch {
                 Self.logger.debug("LifecycleService error: \(error)")
             }

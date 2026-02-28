@@ -233,24 +233,6 @@ final class ChatContextAssembler {
                 }
             }
 
-            // Also check legacy StudentLesson records
-            let legacyLessons = queryService.fetchStudentLessons(for: student.id)
-                .filter { $0.isPresented }
-                .sorted { ($0.givenAt ?? $0.createdAt) > ($1.givenAt ?? $1.createdAt) }
-                .prefix(5)
-
-            if !legacyLessons.isEmpty && studentPresentations.isEmpty {
-                lines.append("Presentations (legacy records):")
-                for sl in legacyLessons {
-                    let lesson = lessonsDict[UUID(uuidString: sl.lessonID) ?? UUID()]
-                    let name = lesson?.name ?? "Unknown"
-                    let subject = lesson?.subject ?? ""
-                    let subjectStr = subject.isEmpty ? "" : " (\(subject))"
-                    let date = formattedDate(sl.givenAt ?? sl.createdAt)
-                    lines.append("  • \(name)\(subjectStr) — \(date)")
-                }
-            }
-
             // Active work items (with more detail)
             let allOpenWork = queryService.fetchOpenWorkModels()
             let studentWork = allOpenWork.filter { $0.studentID == studentIDString }

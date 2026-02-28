@@ -268,11 +268,18 @@ final class LessonPickerViewModel {
         if mode == .given && needsPractice {
             let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())
             do {
-                _ = try LifecycleService.recordPresentationAndExplodeWork(
-                    from: studentLesson,
-                    presentedAt: presentedDate,
-                    modelContext: context
+                // Bridge: look up corresponding LessonAssignment for LifecycleService
+                let slIDString = studentLesson.id.uuidString
+                let laDesc = FetchDescriptor<LessonAssignment>(
+                    predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
                 )
+                if let la = try context.fetch(laDesc).first {
+                    _ = try LifecycleService.recordPresentationAndExplodeWork(
+                        from: la,
+                        presentedAt: presentedDate,
+                        modelContext: context
+                    )
+                }
             } catch {
                 // Ignore errors for now; caller handles thrown save errors later
             }

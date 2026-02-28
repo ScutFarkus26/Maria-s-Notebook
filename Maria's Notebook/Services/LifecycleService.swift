@@ -22,139 +22,73 @@ struct LifecycleService {
             return []
         }
     }
-    /// Cleans orphaned student IDs from a StudentLesson by removing IDs that no longer exist in the database.
+    /// Cleans orphaned student IDs from a LessonAssignment by removing IDs that no longer exist in the database.
     /// This ensures referential integrity when using manual ID management instead of SwiftData relationships.
     static func cleanOrphanedStudentIDs(
-        for studentLesson: StudentLesson,
+        for lessonAssignment: LessonAssignment,
         validStudentIDs: Set<String>,
         modelContext: ModelContext
     ) {
-        let originalIDs = studentLesson.studentIDs
+        let originalIDs = lessonAssignment.studentIDs
         let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
         if cleanedIDs.count != originalIDs.count {
-            studentLesson.studentIDs = cleanedIDs
+            lessonAssignment.studentIDs = cleanedIDs
             // Also update the transient relationship array
-            studentLesson.students = studentLesson.students.filter { student in
+            lessonAssignment.students = lessonAssignment.students.filter { student in
                 validStudentIDs.contains(student.cloudKitKey)
             }
         }
     }
 
-    /// Record a LessonAssignment (the unified presentation model) and upsert LessonPresentation records,
+    /// Record a LessonAssignment as presented and upsert LessonPresentation records,
     /// but do NOT auto-create WorkModel items. Use this when work creation is handled separately
     /// (e.g., via the unified workflow panel or explicit user action).
-    /// Idempotent by `migratedFromStudentLessonID` on LessonAssignment.
     static func recordPresentation(
-        from studentLesson: StudentLesson,
+        from lessonAssignment: LessonAssignment,
         presentedAt: Date,
         modelContext: ModelContext
     ) throws -> LessonAssignment {
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
         let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
-        cleanOrphanedStudentIDs(for: studentLesson, validStudentIDs: validStudentIDs, modelContext: modelContext)
+        cleanOrphanedStudentIDs(for: lessonAssignment, validStudentIDs: validStudentIDs, modelContext: modelContext)
 
-        let legacyID = studentLesson.id.uuidString
-        let lessonIDStr = studentLesson.lessonID
-        let studentIDStrs = studentLesson.studentIDs
+        let lessonIDStr = lessonAssignment.lessonID
+        let studentIDStrs = lessonAssignment.studentIDs
 
-        // 1) Lookup existing LessonAssignment by legacy link (migrated from StudentLesson)
-        let existingAssignment: LessonAssignment? = try fetchLessonAssignment(byMigratedStudentLessonID: legacyID, context: modelContext)
-
-        let lessonAssignment: LessonAssignment
-        if let existing = existingAssignment {
-            lessonAssignment = existing
-            // Update to presented state if not already
-            if lessonAssignment.state != .presented {
-                lessonAssignment.markPresented(at: presentedAt)
-            }
-            // Update existing assignment with track info if not already set
-            if lessonAssignment.trackID == nil, let lesson = studentLesson.lesson {
-                let subject = lesson.subject.trimmed()
-                let group = lesson.group.trimmed()
-                if !subject.isEmpty && !group.isEmpty,
-                   GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
-                    do {
-                        let track = try GroupTrackService.getOrCreateTrack(
-                            subject: subject,
-                            group: group,
-                            modelContext: modelContext
-                        )
-                        lessonAssignment.trackID = track.id.uuidString
-                        if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), using: modelContext, caller: "recordPresentation")
-                            if let step = allSteps.first(where: {
-                                $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
-                            }) {
-                                lessonAssignment.trackStepID = step.id.uuidString
-                            }
-                        }
-                    } catch {
-                        logger.warning("Failed to get or create track: \(error.localizedDescription)")
-                    }
-                }
-            }
-        } else {
-            // Create new LessonAssignment in presented state
-            let title = studentLesson.lesson?.name
-            let subtitle = studentLesson.lesson?.subheading
-
-            var trackID: String? = nil
-            var trackStepID: String? = nil
-            if let lesson = studentLesson.lesson {
-                let subject = lesson.subject.trimmed()
-                let group = lesson.group.trimmed()
-                if !subject.isEmpty && !group.isEmpty,
-                   GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
-                    do {
-                        let track = try GroupTrackService.getOrCreateTrack(
-                            subject: subject,
-                            group: group,
-                            modelContext: modelContext
-                        )
-                        trackID = track.id.uuidString
-                        if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                            let allSteps = safeFetch(FetchDescriptor<TrackStep>(), using: modelContext, caller: "recordPresentation")
-                            if let step = allSteps.first(where: {
-                                $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
-                            }) {
-                                trackStepID = step.id.uuidString
-                            }
-                        }
-                    } catch {
-                        logger.warning("Failed to get or create track: \(error.localizedDescription)")
-                    }
-                }
-            }
-
-            let studentUUIDs = studentIDStrs.compactMap { UUID(uuidString: $0) }
-            guard !studentUUIDs.isEmpty else {
-                throw LifecycleError.invalidStudentID("No valid student IDs in StudentLesson \(studentLesson.id)")
-            }
-            guard let lessonUUID = UUID(uuidString: lessonIDStr) else {
-                throw LifecycleError.invalidLessonID(lessonIDStr)
-            }
-
-            lessonAssignment = LessonAssignment(
-                id: UUID(),
-                createdAt: Date(),
-                state: .presented,
-                presentedAt: presentedAt,
-                lessonID: lessonUUID,
-                studentIDs: studentUUIDs,
-                lesson: studentLesson.lesson,
-                trackID: trackID,
-                trackStepID: trackStepID
-            )
-            lessonAssignment.lessonTitleSnapshot = title
-            lessonAssignment.lessonSubheadingSnapshot = subtitle
-            lessonAssignment.migratedFromStudentLessonID = legacyID
-
-            modelContext.insert(lessonAssignment)
-            logger.debug("LessonAssignment created: migratedFromStudentLessonID=\(lessonAssignment.migratedFromStudentLessonID ?? "nil", privacy: .public)")
+        // Update to presented state if not already
+        if lessonAssignment.state != .presented {
+            lessonAssignment.markPresented(at: presentedAt)
         }
 
-        // 2) Upsert LessonPresentation records per student (for individual progress tracking)
+        // Update track info if not already set
+        if lessonAssignment.trackID == nil, let lesson = lessonAssignment.lesson {
+            let subject = lesson.subject.trimmed()
+            let group = lesson.group.trimmed()
+            if !subject.isEmpty && !group.isEmpty,
+               GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                do {
+                    let track = try GroupTrackService.getOrCreateTrack(
+                        subject: subject,
+                        group: group,
+                        modelContext: modelContext
+                    )
+                    lessonAssignment.trackID = track.id.uuidString
+                    if let lessonUUID = UUID(uuidString: lessonIDStr) {
+                        let allSteps = safeFetch(FetchDescriptor<TrackStep>(), using: modelContext, caller: "recordPresentation")
+                        if let step = allSteps.first(where: {
+                            $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
+                        }) {
+                            lessonAssignment.trackStepID = step.id.uuidString
+                        }
+                    }
+                } catch {
+                    logger.warning("Failed to get or create track: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        // Upsert LessonPresentation records per student (for individual progress tracking)
         let assignmentIDStr = lessonAssignment.id.uuidString
         for sid in studentIDStrs {
             try upsertLessonPresentation(
@@ -169,24 +103,24 @@ struct LifecycleService {
         return lessonAssignment
     }
 
-    /// Record a LessonAssignment (the unified presentation model) and create per-student WorkModel items.
-    /// Idempotent by `migratedFromStudentLessonID` on LessonAssignment and (presentationID, studentID) on WorkModel.
+    /// Record a LessonAssignment as presented and create per-student WorkModel items.
+    /// Idempotent by (presentationID, studentID) on WorkModel.
     ///
     /// Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice,
     /// or the syncAllStudentProgress migration path).
     static func recordPresentationAndExplodeWork(
-        from studentLesson: StudentLesson,
+        from lessonAssignment: LessonAssignment,
         presentedAt: Date,
         modelContext: ModelContext
     ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
-        let lessonAssignment = try recordPresentation(
-            from: studentLesson,
+        let la = try recordPresentation(
+            from: lessonAssignment,
             presentedAt: presentedAt,
             modelContext: modelContext
         )
 
-        let lessonIDStr = studentLesson.lessonID
-        let studentIDStrs = studentLesson.studentIDs
+        let lessonIDStr = la.lessonID
+        let studentIDStrs = la.studentIDs
 
         // Ensure WorkModels exist per student
         var workForPresentation: [WorkModel] = []
@@ -194,7 +128,7 @@ struct LifecycleService {
         var skippedCount = 0
         for sid in studentIDStrs {
             // Check for existing WorkModel first
-            if let existing = try fetchWorkModel(presentationID: lessonAssignment.id.uuidString, studentID: sid, context: modelContext) {
+            if let existing = try fetchWorkModel(presentationID: la.id.uuidString, studentID: sid, context: modelContext) {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
@@ -211,12 +145,12 @@ struct LifecycleService {
                         lessonID: lessonUUID,
                         title: nil,
                         kind: .practiceLesson,
-                        presentationID: lessonAssignment.id,
+                        presentationID: la.id,
                         scheduledDate: nil
                     )
 
                     // Link WorkModel to Track if lesson belongs to a track
-                    if let lesson = studentLesson.lesson {
+                    if let lesson = la.lesson {
                         let subject = lesson.subject.trimmed()
                         let group = lesson.group.trimmed()
                         if !subject.isEmpty && !group.isEmpty,
@@ -236,25 +170,18 @@ struct LifecycleService {
                     workForPresentation.append(workModel)
                     createdCount += 1
                 } catch {
-                    logger.warning("Failed to create WorkModel for LessonAssignment \(lessonAssignment.id.uuidString, privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)")
+                    logger.warning("Failed to create WorkModel for LessonAssignment \(la.id.uuidString, privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)")
                 }
             }
         }
 
         // Fetch all associated WorkModels for this assignment
-        let allForAssignment = try fetchAllWorkModels(presentationID: lessonAssignment.id.uuidString, context: modelContext)
+        let allForAssignment = try fetchAllWorkModels(presentationID: la.id.uuidString, context: modelContext)
 
-        return (lessonAssignment, allForAssignment)
+        return (la, allForAssignment)
     }
 
     // MARK: - Fetch Helpers
-
-    /// Fetches a LessonAssignment by the StudentLesson ID it was migrated from
-    private static func fetchLessonAssignment(byMigratedStudentLessonID legacyID: String, context: ModelContext) throws -> LessonAssignment? {
-        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.migratedFromStudentLessonID == legacyID })
-        descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).first
-    }
 
     private static func fetchWorkModel(presentationID: String, studentID: String, context: ModelContext) throws -> WorkModel? {
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
@@ -298,7 +225,7 @@ struct LifecycleService {
         var limitedDescriptor = descriptor
         limitedDescriptor.fetchLimit = 1
         let existing = try context.fetch(limitedDescriptor).first
-        
+
         if let existing = existing {
             // Update lastObservedAt to track when this presentation was last seen
             existing.lastObservedAt = presentedAt
@@ -315,9 +242,9 @@ struct LifecycleService {
             context.insert(lessonPresentation)
         }
     }
-    
+
     /// Upsert LessonPresentation by (lessonID, studentID) when no presentationID exists.
-    /// Used for syncing progress from StudentLesson records that may not have a Presentation yet.
+    /// Used for syncing progress from LessonAssignment records that may not have a Presentation yet.
     static func upsertLessonPresentationByLessonAndStudent(
         lessonID: String,
         studentID: String,
@@ -333,7 +260,7 @@ struct LifecycleService {
         var limitedDescriptor = descriptor
         limitedDescriptor.fetchLimit = 1
         let existing = try context.fetch(limitedDescriptor).first
-        
+
         if let existing = existing {
             // Update lastObservedAt and presentedAt if the new date is earlier (preserve first presentation date)
             if presentedAt < existing.presentedAt {
@@ -353,10 +280,10 @@ struct LifecycleService {
             context.insert(lessonPresentation)
         }
     }
-    
+
     // MARK: - Progress Synchronization
-    
-    /// Synchronizes student progress by updating LessonPresentation records from StudentLesson and WorkModel data.
+
+    /// Synchronizes student progress by updating LessonPresentation records from LessonAssignment and WorkModel data.
     /// This ensures all presented/completed lessons are properly tracked in the progress system.
     /// - Parameters:
     ///   - context: The ModelContext to operate on
@@ -364,20 +291,22 @@ struct LifecycleService {
     static func syncAllStudentProgress(context: ModelContext) throws -> (presentationsUpdated: Int, mastered: Int) {
         var presentationsUpdated = 0
         var mastered = 0
-        
-        // 1. Find all StudentLesson records where lesson is presented (isGiven == true)
-        let allStudentLessons = try context.fetch(FetchDescriptor<StudentLesson>())
-        let presentedStudentLessons = allStudentLessons.filter { $0.isGiven }
-        
+
+        // 1. Find all LessonAssignment records where lesson is presented (isGiven == true)
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+        let allLessonAssignments = try context.fetch(
+            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.stateRaw == presentedRaw })
+        )
+
         // Clean orphaned student IDs
         let allStudents = try context.fetch(FetchDescriptor<Student>())
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
-        
+
         // 2. Fetch all lessons once to avoid repeated fetches
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         let allLessons = try context.fetch(FetchDescriptor<Lesson>())
         let lessonsByID = Dictionary(allLessons.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
-        
+
         // 2.5. Create GroupTrack records for all subject/group combinations found in lessons
         // This ensures all groups are available as tracks in the progress tab
         var uniqueSubjectGroups: Set<String> = []
@@ -385,11 +314,11 @@ struct LifecycleService {
             let subject = lesson.subject.trimmed()
             let group = lesson.group.trimmed()
             guard !subject.isEmpty && !group.isEmpty else { continue }
-            
+
             let key = "\(subject)|\(group)"
             guard !uniqueSubjectGroups.contains(key) else { continue }
             uniqueSubjectGroups.insert(key)
-            
+
             // Check if this group should be a track (defaults to true unless explicitly disabled)
             if GroupTrackService.isTrack(subject: subject, group: group, modelContext: context) {
                 // Create the GroupTrack record if it doesn't exist
@@ -407,55 +336,55 @@ struct LifecycleService {
         }
         // Save tracks created above
         try context.save()
-        
-        // 3. For each presented StudentLesson, ensure LessonAssignment and LessonPresentation records exist
-        for studentLesson in presentedStudentLessons {
+
+        // 3. For each presented LessonAssignment, ensure LessonPresentation records exist
+        for la in allLessonAssignments {
             // Clean orphaned IDs
-            cleanOrphanedStudentIDs(for: studentLesson, validStudentIDs: validStudentIDs, modelContext: context)
+            cleanOrphanedStudentIDs(for: la, validStudentIDs: validStudentIDs, modelContext: context)
 
             // Skip if no valid students or invalid lessonID
-            guard !studentLesson.studentIDs.isEmpty,
-                  !studentLesson.lessonID.isEmpty,
-                  UUID(uuidString: studentLesson.lessonID) != nil else { continue }
+            guard !la.studentIDs.isEmpty,
+                  !la.lessonID.isEmpty,
+                  UUID(uuidString: la.lessonID) != nil else { continue }
 
             // Determine presented date
-            let presentedAt = studentLesson.givenAt ?? studentLesson.createdAt
+            let presentedAt = la.presentedAt ?? la.createdAt
 
             // Get lesson - try relationship first, then lookup
             let lesson: Lesson?
-            if let relationshipLesson = studentLesson.lesson {
+            if let relationshipLesson = la.lesson {
                 lesson = relationshipLesson
             } else {
-                lesson = lessonsByID[studentLesson.lessonID]
+                lesson = lessonsByID[la.lessonID]
             }
-            
+
             // Validate lesson exists before attempting to sync
             guard lesson != nil else {
-                logger.warning("Skipping StudentLesson \(studentLesson.id, privacy: .public): lesson not found for lessonID \(studentLesson.lessonID, privacy: .public)")
+                logger.warning("Skipping LessonAssignment \(la.id, privacy: .public): lesson not found for lessonID \(la.lessonID, privacy: .public)")
                 continue
             }
 
-            // Use the lifecycle service to create LessonAssignment and LessonPresentation records
+            // Use the lifecycle service to create LessonPresentation records and work items
             // This is idempotent, so safe to call multiple times
             do {
-                // Ensure lesson is set on studentLesson if not already set
-                if studentLesson.lesson == nil, let fetchedLesson = lesson {
-                    studentLesson.lesson = fetchedLesson
+                // Ensure lesson is set on LessonAssignment if not already set
+                if la.lesson == nil, let fetchedLesson = lesson {
+                    la.lesson = fetchedLesson
                 }
 
-                let (lessonAssignment, _) = try recordPresentationAndExplodeWork(
-                    from: studentLesson,
+                let (updatedLA, _) = try recordPresentationAndExplodeWork(
+                    from: la,
                     presentedAt: presentedAt,
                     modelContext: context
                 )
-                presentationsUpdated += studentLesson.studentIDs.count
+                presentationsUpdated += la.studentIDs.count
 
                 // Update presentationID on any LessonPresentation records that were created without it
-                let assignmentIDStr = lessonAssignment.id.uuidString
+                let assignmentIDStr = updatedLA.id.uuidString
                 let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
-                for studentIDStr in studentLesson.studentIDs {
+                for studentIDStr in la.studentIDs {
                     if let lp = allLessonPresentations.first(where: {
-                        $0.lessonID == studentLesson.lessonID &&
+                        $0.lessonID == la.lessonID &&
                         $0.studentID == studentIDStr &&
                         $0.presentationID == nil
                     }) {
@@ -465,12 +394,12 @@ struct LifecycleService {
             } catch {
                 // If recordPresentationAndExplodeWork fails (e.g., lesson not found),
                 // still try to create LessonPresentation record directly
-                logger.warning("Failed to create LessonAssignment for StudentLesson \(studentLesson.id, privacy: .public): \(error.localizedDescription)")
+                logger.warning("Failed to process LessonAssignment \(la.id, privacy: .public): \(error.localizedDescription)")
 
                 // Fallback: create LessonPresentation directly
-                for studentIDStr in studentLesson.studentIDs {
+                for studentIDStr in la.studentIDs {
                     try upsertLessonPresentationByLessonAndStudent(
-                        lessonID: studentLesson.lessonID,
+                        lessonID: la.lessonID,
                         studentID: studentIDStr,
                         presentedAt: presentedAt,
                         context: context
@@ -478,7 +407,7 @@ struct LifecycleService {
                     presentationsUpdated += 1
                 }
             }
-            
+
             // Auto-enroll students in track if lesson belongs to a track
             // This is critical for the progress tab to show data
             if let lesson = lesson {
@@ -508,16 +437,16 @@ struct LifecycleService {
                     // Enroll students in the track
                     GroupTrackService.autoEnrollInTrackIfNeeded(
                         lesson: lesson,
-                        studentIDs: studentLesson.studentIDs,
+                        studentIDs: la.studentIDs,
                         modelContext: context
                     )
 
                     // Update trackID on LessonPresentation records for this lesson+student combo
                     let trackID = "\(lesson.subject.trimmed())|\(lesson.group.trimmed())"
                     let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>(), using: context, caller: "syncAllStudentProgress")
-                    for studentIDStr in studentLesson.studentIDs {
+                    for studentIDStr in la.studentIDs {
                         if let lp = allLessonPresentations.first(where: {
-                            $0.lessonID == studentLesson.lessonID &&
+                            $0.lessonID == la.lessonID &&
                             $0.studentID == studentIDStr
                         }) {
                             // Update trackID if not set or different
@@ -529,39 +458,39 @@ struct LifecycleService {
                 }
             }
         }
-        
+
         // 4. Re-fetch LessonPresentation records after creating new ones
         // Save context to ensure new records are available for querying
         try context.save()
-        
+
         // 5. Find all WorkModel records and check for completed work
         let allWorkModels = try context.fetch(FetchDescriptor<WorkModel>())
         let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
-        
+
         for work in allWorkModels {
             // Check if work is completed (either globally or per-student via participants)
             let isWorkCompleted = work.status == .complete || work.completedAt != nil
-            
-            // Get lessonID from studentLessonID
-            guard let studentLessonID = work.studentLessonID else { continue }
-            
-            // Find the StudentLesson to get lessonID and studentIDs
-            guard let studentLesson = allStudentLessons.first(where: { $0.id == studentLessonID }) else {
+
+            // Get lessonID from presentationID — look up the LessonAssignment
+            guard let workPresentationID = work.presentationID else { continue }
+
+            // Find the LessonAssignment to get lessonID and studentIDs
+            guard let la = allLessonAssignments.first(where: { $0.id.uuidString == workPresentationID }) else {
                 continue
             }
-            
-            let lessonIDStr = studentLesson.lessonID
-            
+
+            let lessonIDStr = la.lessonID
+
             // Check participants for per-student completion
             let participants = work.participants ?? []
-            
+
             if participants.isEmpty {
                 // No participants: check global completion status
                 if isWorkCompleted {
                     // Mark all students in the lesson as mastered
-                    for studentIDStr in studentLesson.studentIDs {
-                        if let lp = allLessonPresentations.first(where: { 
-                            $0.lessonID == lessonIDStr && $0.studentID == studentIDStr 
+                    for studentIDStr in la.studentIDs {
+                        if let lp = allLessonPresentations.first(where: {
+                            $0.lessonID == lessonIDStr && $0.studentID == studentIDStr
                         }) {
                             if lp.state != .mastered || lp.masteredAt == nil {
                                 lp.state = .mastered
@@ -576,15 +505,15 @@ struct LifecycleService {
                 for participant in participants {
                     let studentIDStr = participant.studentID
                     guard !studentIDStr.isEmpty else { continue }
-                    
+
                     // Participant is completed if they have a completion date
                     // OR if the work is globally completed (status complete or completedAt set)
                     let isParticipantCompleted = participant.completedAt != nil || isWorkCompleted
-                    
+
                     if isParticipantCompleted {
                         // Find or create LessonPresentation for this student+lesson
-                        if let lp = allLessonPresentations.first(where: { 
-                            $0.lessonID == lessonIDStr && $0.studentID == studentIDStr 
+                        if let lp = allLessonPresentations.first(where: {
+                            $0.lessonID == lessonIDStr && $0.studentID == studentIDStr
                         }) {
                             if lp.state != .mastered || lp.masteredAt == nil {
                                 lp.state = .mastered
@@ -596,10 +525,10 @@ struct LifecycleService {
                 }
             }
         }
-        
+
         // Save all changes
         try context.save()
-        
+
         return (presentationsUpdated, mastered)
     }
 }

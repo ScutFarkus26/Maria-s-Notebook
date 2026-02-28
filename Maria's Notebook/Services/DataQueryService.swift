@@ -148,40 +148,41 @@ final class DataQueryService {
         return dict
     }
 
-    // MARK: - StudentLessons
+    // MARK: - LessonAssignments
 
-    /// Fetch all presented student lessons (isPresented or givenAt != nil).
-    func fetchPresentedStudentLessons() -> [StudentLesson] {
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.isPresented == true }
+    /// Fetch all presented lesson assignments (stateRaw == presented or presentedAt != nil).
+    func fetchPresentedLessonAssignments() -> [LessonAssignment] {
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.stateRaw == presentedRaw }
         )
         var results = context.safeFetch(descriptor)
 
-        // Also fetch those with givenAt but not isPresented
+        // Also fetch those with presentedAt but not in presented state
         let existingIDs = Set(results.map { $0.id })
-        let notPresentedDescriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.isPresented == false }
+        let notPresentedDescriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.stateRaw != presentedRaw }
         )
         let notPresented = context.safeFetch(notPresentedDescriptor)
-        let withGivenAt = notPresented.filter { $0.givenAt != nil && !existingIDs.contains($0.id) }
+        let withPresentedAt = notPresented.filter { $0.presentedAt != nil && !existingIDs.contains($0.id) }
 
-        results.append(contentsOf: withGivenAt)
+        results.append(contentsOf: withPresentedAt)
         return results
     }
 
-    /// Fetch student lessons for a specific student.
+    /// Fetch lesson assignments for a specific student.
     /// Note: studentIDs is stored as JSON and is transient, so we fetch all and filter in memory.
-    func fetchStudentLessons(for studentID: UUID) -> [StudentLesson] {
+    func fetchLessonAssignments(for studentID: UUID) -> [LessonAssignment] {
         let studentIDString = studentID.uuidString
-        let allLessons = context.safeFetch(FetchDescriptor<StudentLesson>())
-        return allLessons.filter { $0.studentIDs.contains(studentIDString) }
+        let allAssignments = context.safeFetch(FetchDescriptor<LessonAssignment>())
+        return allAssignments.filter { $0.studentIDs.contains(studentIDString) }
     }
 
-    /// Fetch student lessons in a date range.
-    func fetchStudentLessons(from startDate: Date, to endDate: Date) -> [StudentLesson] {
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { sl in
-                sl.scheduledForDay >= startDate && sl.scheduledForDay < endDate
+    /// Fetch lesson assignments in a date range.
+    func fetchLessonAssignments(from startDate: Date, to endDate: Date) -> [LessonAssignment] {
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { la in
+                la.scheduledForDay >= startDate && la.scheduledForDay < endDate
             },
             sortBy: [SortDescriptor(\.scheduledForDay)]
         )
