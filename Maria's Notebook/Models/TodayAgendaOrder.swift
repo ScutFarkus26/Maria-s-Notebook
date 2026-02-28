@@ -17,7 +17,7 @@ import SwiftData
     /// The type of item ("lesson", "scheduledWork", "followUp").
     var itemTypeRaw: String = ""
 
-    /// The ID of the referenced item (StudentLesson.id, WorkCheckIn.id, or WorkModel.id).
+    /// The ID of the referenced item (LessonAssignment.id, WorkCheckIn.id, or WorkModel.id).
     var itemID: UUID = UUID()
 
     /// The position in the agenda (0-based).

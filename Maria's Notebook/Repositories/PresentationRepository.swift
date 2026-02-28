@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Repository for LessonAssignment (Presentation) entity CRUD operations.
-//  Mirrors StudentLessonRepository structure for consistency.
+//  Repository for LessonAssignment (Presentation) CRUD operations.
 //
 
 import Foundation

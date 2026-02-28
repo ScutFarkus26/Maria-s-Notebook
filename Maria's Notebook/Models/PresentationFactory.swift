@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Centralizes LessonAssignment creation to eliminate duplicated initialization logic.
-//  Mirrors StudentLessonFactory structure for consistency.
+//  Factory for creating LessonAssignment (Presentation) instances.
 //
 
 import Foundation

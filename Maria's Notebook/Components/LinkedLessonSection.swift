@@ -2,13 +2,13 @@ import SwiftUI
 
 struct LinkedLessonSection: View {
     let lessonsByID: [UUID: Lesson]
-    let studentLessonSnapshotsByID: [UUID: LessonAssignmentSnapshot]
-    @Binding var selectedStudentLessonID: UUID?
+    let presentationSnapshotsByID: [UUID: LessonAssignmentSnapshot]
+    @Binding var selectedPresentationID: UUID?
     let createdDateOnlyFormatter: DateFormatter
     let onOpenLinkedDetails: () -> Void
     let onOpenBaseLesson: () -> Void
     let selectedStudentIDs: Set<UUID>
-    let onCreateNewStudentLesson: () -> Void
+    let onCreateNewPresentation: () -> Void
     @State private var showingLinkPicker = false
     
     var body: some View {
@@ -17,8 +17,8 @@ struct LinkedLessonSection: View {
                 .contentShape(Rectangle())
                 .onTapGesture { showingLinkPicker = true }
             
-            if let selectedID = selectedStudentLessonID,
-               let snapshot = studentLessonSnapshotsByID[selectedID] {
+            if let selectedID = selectedPresentationID,
+               let snapshot = presentationSnapshotsByID[selectedID] {
                 
                 let lesson = lessonsByID[snapshot.lessonID]
                 let lessonName = lesson?.name ?? "Unknown Lesson"
@@ -68,7 +68,7 @@ struct LinkedLessonSection: View {
         .sheet(isPresented: $showingLinkPicker) {
             NavigationStack {
                 List {
-                    let sorted = studentLessonSnapshotsByID.values.sorted(by: { (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
+                    let sorted = presentationSnapshotsByID.values.sorted(by: { (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
                         let ld = lhs.scheduledFor ?? lhs.presentedAt ?? lhs.createdAt
                         let rd = rhs.scheduledFor ?? rhs.presentedAt ?? rhs.createdAt
                         return ld > rd
@@ -78,7 +78,7 @@ struct LinkedLessonSection: View {
                         ContentUnavailableView(
                             "No matching lessons",
                             systemImage: "magnifyingglass",
-                            description: Text("No student lessons include all selected students.")
+                            description: Text("No presentations include all selected students.")
                         )
                     } else {
                         ForEach(filtered, id: \.id) { snap in
@@ -86,7 +86,7 @@ struct LinkedLessonSection: View {
                             let name = lesson?.name ?? "Lesson"
                             let date = createdDateOnlyFormatter.string(from: snap.scheduledFor ?? snap.presentedAt ?? snap.createdAt)
                             Button {
-                                selectedStudentLessonID = snap.id
+                                selectedPresentationID = snap.id
                                 showingLinkPicker = false
                             } label: {
                                 HStack {
@@ -100,9 +100,9 @@ struct LinkedLessonSection: View {
                     Section {
                         Button {
                             showingLinkPicker = false
-                            onCreateNewStudentLesson()
+                            onCreateNewPresentation()
                         } label: {
-                            Label("Create New Student Lesson…", systemImage: "plus")
+                            Label("Create New Presentation…", systemImage: "plus")
                         }
                     }
                 }

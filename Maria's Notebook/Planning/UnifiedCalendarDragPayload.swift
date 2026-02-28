@@ -34,7 +34,7 @@ public enum UnifiedCalendarDragPayload: Equatable {
         } else if trimmed.hasPrefix("WORKCHECKIN:"), let id = UUID(uuidString: String(trimmed.dropFirst(12))) {
             return .workCheckIn(id)
         } else if let id = UUID(uuidString: trimmed) {
-            // Backwards compatibility: plain UUID is treated as StudentLesson
+            // Backwards compatibility: plain UUID is treated as a presentation
             return .studentLesson(id)
         }
         return nil

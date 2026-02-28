@@ -4,7 +4,7 @@
 //
 //  Unified service for planning the next lesson in a group/subject sequence.
 //  Consolidates duplicate logic from PlanningWeekViewContent, PlanningActions,
-//  and StudentLessonDetailActions to ensure consistent behavior.
+//  and PresentationDetailActions to ensure consistent behavior.
 //
 
 import Foundation

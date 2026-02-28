@@ -1,5 +1,5 @@
 // PresentationCard.swift
-// Student lesson card component extracted from StudentLessonsRootView
+// Presentation card component extracted from PresentationsListView
 
 import SwiftUI
 #if os(macOS)
