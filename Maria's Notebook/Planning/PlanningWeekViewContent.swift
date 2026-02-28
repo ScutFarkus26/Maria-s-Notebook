@@ -37,7 +37,7 @@ struct PlanningWeekViewContent: View {
     @State private var weekLessonAssignments: [LessonAssignment] = []
     
     enum ActiveSheet: Identifiable {
-        case studentLessonDetail(UUID)
+        case presentationDetail(UUID)
         case quickActions(UUID)
         case giveLessonDraft(UUID)
         case addLesson
@@ -46,7 +46,7 @@ struct PlanningWeekViewContent: View {
 
         var id: String {
             switch self {
-            case .studentLessonDetail(let id): return "detail_\(id.uuidString)"
+            case .presentationDetail(let id): return "detail_\(id.uuidString)"
             case .quickActions(let id): return "quick_\(id.uuidString)"
             case .giveLessonDraft(let id): return "giveLessonDraft_\(id.uuidString)"
             case .addLesson: return "addLesson"
@@ -59,7 +59,7 @@ struct PlanningWeekViewContent: View {
     @ViewBuilder
     private func sheetContent(for sheet: ActiveSheet) -> some View {
         switch sheet {
-        case .studentLessonDetail(let id):
+        case .presentationDetail(let id):
             if let la = fetchLessonAssignment(by: id) {
                 PresentationDetailView(lessonAssignment: la) { activeSheet = nil }
             } else {
@@ -67,7 +67,7 @@ struct PlanningWeekViewContent: View {
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
                         do { try await Task.sleep(for: .milliseconds(100)) } catch {}
-                        if case .studentLessonDetail(let currentId) = activeSheet, currentId == id {
+                        if case .presentationDetail(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }
                     }
@@ -119,7 +119,7 @@ struct PlanningWeekViewContent: View {
                 lessonAssignments: inboxLessons,
                 orderedUnscheduledLessons: orderedUnscheduledLessons,
                 inboxOrderRaw: $inboxOrderRaw,
-                onOpenDetails: { id in activeSheet = .studentLessonDetail(id) },
+                onOpenDetails: { id in activeSheet = .presentationDetail(id) },
                 onQuickActions: { id in activeSheet = .quickActions(id) },
                 onPlanNext: { la in planNextLesson(for: la) },
                 onUpdateOrder: { newOrderRaw in
@@ -213,7 +213,7 @@ struct PlanningWeekViewContent: View {
                 lessonAssignments: inboxLessons,
                 orderedUnscheduledLessons: orderedUnscheduledLessons,
                 inboxOrderRaw: $inboxOrderRaw,
-                onOpenDetails: { id in activeSheet = .studentLessonDetail(id) },
+                onOpenDetails: { id in activeSheet = .presentationDetail(id) },
                 onQuickActions: { id in activeSheet = .quickActions(id) },
                 onPlanNext: { la in planNextLesson(for: la) },
                 onUpdateOrder: { newOrderRaw in
@@ -253,7 +253,7 @@ struct PlanningWeekViewContent: View {
                             allLessonAssignments: weekLessonAssignments,
                             availableWidth: geometry.size.width - (UIConstants.contentHorizontalPadding * 2),
                             availableHeight: geometry.size.height,
-                            onSelectLesson: { la in activeSheet = .studentLessonDetail(la.id) },
+                            onSelectLesson: { la in activeSheet = .presentationDetail(la.id) },
                             onQuickActions: { la in activeSheet = .quickActions(la.id) },
                             onPlanNext: { la in planNextLesson(for: la) }
                         )

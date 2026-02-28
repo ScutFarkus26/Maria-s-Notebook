@@ -549,7 +549,7 @@ private struct InboxDropDelegate: DropDelegate {
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let str = reading as? String,
                   let payload = UnifiedCalendarDragPayload.parse(str),
-                  case .studentLesson(let id) = payload else { return }
+                  case .presentation(let id) = payload else { return }
 
             Task { @MainActor in
                 if let la = lessonAssignments.first(where: { $0.id == id }) {

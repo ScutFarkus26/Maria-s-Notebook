@@ -155,7 +155,7 @@ struct WorkAgendaCalendarPane: View {
                 Task { @MainActor in
                     let normalizedDay = AppCalendar.startOfDay(day)
                     switch unifiedPayload {
-                    case .studentLesson(let id):
+                    case .presentation(let id):
                         rescheduleLessonAssignment(id: id, to: normalizedDay)
                     case .workCheckIn(let id):
                         rescheduleCheckIn(id: id, to: normalizedDay)

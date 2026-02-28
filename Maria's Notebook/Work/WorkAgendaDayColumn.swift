@@ -219,7 +219,7 @@ struct WorkAgendaDayColumn: View {
                             showAgeIndicator: false
                         )
                         .opacity(0.5)
-                        .draggable(UnifiedCalendarDragPayload.studentLesson(la.id).stringRepresentation) {
+                        .draggable(UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation) {
                             PresentationPill(
                                 snapshot: la.snapshot(),
                                 day: day,

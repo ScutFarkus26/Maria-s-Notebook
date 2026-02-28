@@ -111,7 +111,7 @@ struct PresentationsDayColumn: View {
                                 case .lessonAssignment(let la):
                                     PresentationPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true)
                                         .onTapGesture { onSelect(la) }
-                                        .draggable(UnifiedCalendarDragPayload.studentLesson(la.id).stringRepresentation) {
+                                        .draggable(UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation) {
                                             PresentationPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
                                         }
                                         .contextMenu {
@@ -277,7 +277,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     @MainActor
     private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
         switch payload {
-        case .studentLesson(let id):
+        case .presentation(let id):
             applyPresentationDrop(id: id, locationY: locationY)
         case .workCheckIn:
             // Work check-ins are not supported in presentations view
