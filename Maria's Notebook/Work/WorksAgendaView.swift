@@ -52,6 +52,7 @@ struct WorksAgendaView: View {
     @State private var searchDebounceTask: Task<Void, Never>? = nil
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
     @State private var isCalendarMinimized: Bool = false
+    @State private var calendarStartDate: Date = AppCalendar.startOfDay(Date())
 
     @State private var selectedWorkID: UUID?
 
@@ -159,14 +160,37 @@ struct WorksAgendaView: View {
 
                             // Bottom: Calendar pane
                             VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("Planning Calendar").font(.title3.weight(.semibold))
+                                HStack(spacing: 12) {
+                                    Button {
+                                        moveCalendarStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
+                                    } label: {
+                                        Image(systemName: "chevron.left")
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Text("Planning Calendar")
+                                        .font(.title3.weight(.semibold))
+
+                                    Button {
+                                        moveCalendarStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
+                                    } label: {
+                                        Image(systemName: "chevron.right")
+                                    }
+                                    .buttonStyle(.plain)
+
                                     Spacer()
-                                    Button("Today") { /* optional hook if needed */ }
+
+                                    Button("Today") {
+                                        calendarStartDate = AppCalendar.startOfDay(Date())
+                                    }
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.primary.opacity(0.08), in: Capsule())
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.top, 8)
-                                WorkAgendaCalendarPane(startDate: Date(), daysCount: 10)
+                                WorkAgendaCalendarPane(startDate: calendarStartDate, daysCount: 10)
                                     .frame(maxHeight: .infinity)
                             }
                             .frame(height: geo.size.height * calendarHeightRatio)
@@ -351,6 +375,20 @@ struct WorksAgendaView: View {
             if days >= 10 { return true }
         }
         return LessonAgeHelper.schoolDaysSinceCreation(createdAt: w.createdAt, asOf: Date(), using: modelContext, calendar: calendar) >= 10
+    }
+
+    // MARK: - Calendar Navigation
+
+    private func moveCalendarStart(bySchoolDays delta: Int) {
+        guard delta != 0 else { return }
+        var remaining = abs(delta)
+        var cursor = AppCalendar.startOfDay(calendarStartDate)
+        let step = delta > 0 ? 1 : -1
+        while remaining > 0 {
+            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
+            if !SchoolDayChecker.isNonSchoolDay(cursor, using: modelContext) { remaining -= 1 }
+        }
+        calendarStartDate = cursor
     }
 
     // MARK: - Actions
