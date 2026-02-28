@@ -5,7 +5,7 @@ import SwiftData
 struct MeetingSessionView: View {
     let student: Student
     let allWorkModels: [WorkModel]
-    let allStudentLessons: [StudentLesson]
+    let allLessonAssignments: [LessonAssignment]
     let lessons: [Lesson]
     let meetings: [StudentMeeting]
     let meetingTemplates: [MeetingTemplate]
@@ -33,11 +33,11 @@ struct MeetingSessionView: View {
         )
     }
 
-    private var lessonsSinceLastMeeting: [StudentLesson] {
+    private var lessonsSinceLastMeeting: [LessonAssignment] {
         MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
             for: student.id,
             lastMeetingDate: lastMeetingDate,
-            allStudentLessons: allStudentLessons
+            allLessonAssignments: allLessonAssignments
         )
     }
 
@@ -116,7 +116,7 @@ struct MeetingContextPane: View {
     let openWork: [WorkModel]
     let overdueWork: [WorkModel]
     let recentCompleted: [WorkModel]
-    let lessonsSinceLastMeeting: [StudentLesson]
+    let lessonsSinceLastMeeting: [LessonAssignment]
     let meetings: [StudentMeeting]
     let lessonsByID: [UUID: Lesson]
     var isCompact: Bool = false
@@ -296,8 +296,8 @@ struct MeetingContextPane: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(lessonsSinceLastMeeting.prefix(8)) { studentLesson in
-                    lessonRow(studentLesson)
+                ForEach(lessonsSinceLastMeeting.prefix(8)) { la in
+                    lessonRow(la)
                 }
 
                 if lessonsSinceLastMeeting.count > 8 {
@@ -311,17 +311,17 @@ struct MeetingContextPane: View {
         .background(cardBackground)
     }
 
-    private func lessonRow(_ studentLesson: StudentLesson) -> some View {
+    private func lessonRow(_ la: LessonAssignment) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "book.fill")
                 .font(.system(size: 8))
                 .foregroundStyle(.secondary)
 
-            if let lesson = studentLesson.lesson {
+            if let lesson = la.lesson {
                 Text(lesson.name)
                     .font(.footnote)
                     .foregroundStyle(.primary)
-            } else if let lessonID = UUID(uuidString: studentLesson.lessonID), let lesson = lessonsByID[lessonID] {
+            } else if let lessonID = UUID(uuidString: la.lessonID), let lesson = lessonsByID[lessonID] {
                 Text(lesson.name)
                     .font(.footnote)
                     .foregroundStyle(.primary)
@@ -333,8 +333,8 @@ struct MeetingContextPane: View {
 
             Spacer()
 
-            if let givenAt = studentLesson.givenAt {
-                Text(givenAt.formatted(date: .abbreviated, time: .omitted))
+            if let presentedAt = la.presentedAt {
+                Text(presentedAt.formatted(date: .abbreviated, time: .omitted))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -623,7 +623,7 @@ struct MeetingFormPane: View {
     return MeetingSessionView(
         student: student,
         allWorkModels: [],
-        allStudentLessons: [],
+        allLessonAssignments: [],
         lessons: [],
         meetings: [],
         meetingTemplates: [],

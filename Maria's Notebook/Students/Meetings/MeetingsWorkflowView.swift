@@ -18,8 +18,8 @@ struct MeetingsWorkflowView: View {
     @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
     private var allWorkModels: [WorkModel]
 
-    @Query(sort: [SortDescriptor(\StudentLesson.givenAt, order: .reverse)])
-    private var allStudentLessons: [StudentLesson]
+    @Query(sort: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)])
+    private var allLessonAssignments: [LessonAssignment]
 
     @Query(sort: [SortDescriptor(\Lesson.name)])
     private var lessons: [Lesson]
@@ -172,7 +172,7 @@ struct MeetingsWorkflowView: View {
                 MeetingSessionView(
                     student: student,
                     allWorkModels: allWorkModels,
-                    allStudentLessons: allStudentLessons,
+                    allLessonAssignments: allLessonAssignments,
                     lessons: lessons,
                     meetings: meetingsFor(student),
                     meetingTemplates: meetingTemplates,

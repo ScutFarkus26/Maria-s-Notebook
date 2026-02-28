@@ -27,9 +27,9 @@ struct StudentMeetingsTab: View {
     @Query(sort: [SortDescriptor(\Lesson.name)])
     private var lessons: [Lesson]
 
-    // Query all student lessons
-    @Query(sort: [SortDescriptor(\StudentLesson.givenAt, order: .reverse)])
-    private var allStudentLessons: [StudentLesson]
+    // Query all lesson assignments
+    @Query(sort: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)])
+    private var allLessonAssignments: [LessonAssignment]
 
     // Query all meetings; we'll filter by studentID
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
@@ -125,11 +125,11 @@ struct StudentMeetingsTab: View {
         meetingItems.first?.date
     }
 
-    private var lessonsSinceLastMeetingForStudent: [StudentLesson] {
+    private var lessonsSinceLastMeetingForStudent: [LessonAssignment] {
         MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
             for: student.id,
             lastMeetingDate: lastMeetingDate,
-            allStudentLessons: allStudentLessons
+            allLessonAssignments: allLessonAssignments
         )
     }
 
@@ -329,8 +329,8 @@ struct StudentMeetingsTab: View {
                         .padding(.vertical, 4)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(lessonsSinceLastMeeting) { studentLesson in
-                            lessonRowLine(studentLesson)
+                        ForEach(lessonsSinceLastMeeting) { la in
+                            lessonRowLine(la)
                         }
                     }
                 }
@@ -463,15 +463,15 @@ struct StudentMeetingsTab: View {
         let id: UUID
     }
     
-    private func lessonRowLine(_ studentLesson: StudentLesson) -> some View {
+    private func lessonRowLine(_ la: LessonAssignment) -> some View {
         HStack(spacing: 6) {
-            BulletPointRow(text: lessonDisplayName(studentLesson), icon: "book.fill", iconSize: 8)
-            if let givenAt = studentLesson.givenAt {
+            BulletPointRow(text: lessonDisplayName(la), icon: "book.fill", iconSize: 8)
+            if let presentedAt = la.presentedAt {
                 Text("•").foregroundStyle(.secondary)
-                Text(Self.dateFormatter.string(from: givenAt))
+                Text(Self.dateFormatter.string(from: presentedAt))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-            } else if studentLesson.isPresented {
+            } else if la.isPresented {
                 Text("• Presented")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -479,10 +479,10 @@ struct StudentMeetingsTab: View {
         }
     }
 
-    private func lessonDisplayName(_ studentLesson: StudentLesson) -> String {
-        if let lesson = studentLesson.lesson {
+    private func lessonDisplayName(_ la: LessonAssignment) -> String {
+        if let lesson = la.lesson {
             return lesson.name
-        } else if let lessonID = UUID(uuidString: studentLesson.lessonID), let lesson = lessonsByID[lessonID] {
+        } else if let lessonID = UUID(uuidString: la.lessonID), let lesson = lessonsByID[lessonID] {
             return lesson.name
         } else {
             return "Lesson"

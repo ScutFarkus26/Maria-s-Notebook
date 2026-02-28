@@ -40,27 +40,27 @@ enum MeetingWorkSnapshotHelper {
     /// - Parameters:
     ///   - studentID: Student ID
     ///   - lastMeetingDate: Date of the last meeting (nil if no meetings)
-    ///   - allStudentLessons: All student lessons
-    /// - Returns: Array of StudentLesson given since the last meeting
+    ///   - allLessonAssignments: All lesson assignments
+    /// - Returns: Array of LessonAssignment given since the last meeting
     static func lessonsSinceLastMeeting(
         for studentID: UUID,
         lastMeetingDate: Date?,
-        allStudentLessons: [StudentLesson]
-    ) -> [StudentLesson] {
+        allLessonAssignments: [LessonAssignment]
+    ) -> [LessonAssignment] {
         let studentIDString = studentID.uuidString
         let cutoffDate = lastMeetingDate ?? Date.distantPast
 
-        return allStudentLessons.filter { studentLesson in
+        return allLessonAssignments.filter { la in
             // Check if this student is in the lesson
-            guard studentLesson.studentIDs.contains(studentIDString) else { return false }
+            guard la.studentIDs.contains(studentIDString) else { return false }
 
             // Check if lesson was given after the last meeting
-            if let givenAt = studentLesson.givenAt {
-                return givenAt > cutoffDate
+            if let presentedAt = la.presentedAt {
+                return presentedAt > cutoffDate
             }
             // Also check if it was marked as presented after the last meeting
-            if studentLesson.isPresented {
-                return studentLesson.createdAt > cutoffDate
+            if la.isPresented {
+                return la.createdAt > cutoffDate
             }
 
             return false
