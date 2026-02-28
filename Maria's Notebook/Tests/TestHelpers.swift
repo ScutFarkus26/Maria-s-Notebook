@@ -22,6 +22,7 @@ func makeStandardTestContainer() throws -> ModelContainer {
         Student.self,
         Lesson.self,
         StudentLesson.self,
+        LessonAssignment.self,
         AttendanceRecord.self,
         WorkModel.self,
         WorkParticipantEntity.self,

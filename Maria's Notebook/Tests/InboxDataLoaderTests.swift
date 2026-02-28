@@ -4,81 +4,81 @@ import Foundation
 import SwiftData
 @testable import Maria_s_Notebook
 
-// MARK: - Presented Student Lessons Tests
+// MARK: - Presented Lesson Assignments Tests
 
-@Suite("InboxDataLoader Presented StudentLessons Tests", .serialized)
+@Suite("InboxDataLoader Presented LessonAssignments Tests", .serialized)
 @MainActor
-struct InboxDataLoaderPresentedStudentLessonsTests {
+struct InboxDataLoaderPresentedLessonAssignmentsTests {
 
     private func makeContainer() throws -> ModelContainer {
         return try makeStandardTestContainer()
     }
 
-    @Test("loadPresentedStudentLessons returns lessons with isPresented true")
-    func loadPresentedStudentLessonsReturnsPresented() throws {
+    @Test("loadPresentedLessonAssignments returns assignments with presented state")
+    func loadPresentedLessonAssignmentsReturnsPresented() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let presented = makeTestStudentLesson(isPresented: true)
-        let notPresented = makeTestStudentLesson(isPresented: false)
+        let presented = PresentationFactory.makePresented(lessonID: UUID(), studentIDs: [UUID()])
+        let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [UUID()])
         context.insert(presented)
-        context.insert(notPresented)
+        context.insert(draft)
         try context.save()
 
         let loader = InboxDataLoader(context: context)
-        let lessons = loader.loadPresentedStudentLessons()
+        let assignments = loader.loadPresentedLessonAssignments()
 
-        #expect(lessons.count == 1)
-        #expect(lessons[0].isPresented == true)
+        #expect(assignments.count == 1)
+        #expect(assignments[0].isPresented == true)
     }
 
-    @Test("loadPresentedStudentLessons includes lessons with givenAt")
-    func loadPresentedStudentLessonsIncludesGivenAt() throws {
+    @Test("loadPresentedLessonAssignments includes assignments with presentedAt")
+    func loadPresentedLessonAssignmentsIncludesPresentedAt() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let withGivenAt = makeTestStudentLesson(givenAt: Date(), isPresented: false)
-        let notPresented = makeTestStudentLesson(isPresented: false)
-        context.insert(withGivenAt)
-        context.insert(notPresented)
+        let withPresentedAt = PresentationFactory.makePresented(lessonID: UUID(), studentIDs: [UUID()], presentedAt: Date())
+        let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [UUID()])
+        context.insert(withPresentedAt)
+        context.insert(draft)
         try context.save()
 
         let loader = InboxDataLoader(context: context)
-        let lessons = loader.loadPresentedStudentLessons()
+        let assignments = loader.loadPresentedLessonAssignments()
 
-        #expect(lessons.count == 1)
-        #expect(lessons[0].givenAt != nil)
+        #expect(assignments.count == 1)
+        #expect(assignments[0].presentedAt != nil)
     }
 
-    @Test("loadPresentedStudentLessons combines isPresented and givenAt without duplicates")
-    func loadPresentedStudentLessonsNoDuplicates() throws {
+    @Test("loadPresentedLessonAssignments returns presented state without duplicates")
+    func loadPresentedLessonAssignmentsNoDuplicates() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        // Lesson that has both isPresented=true AND givenAt set
-        let bothSet = makeTestStudentLesson(givenAt: Date(), isPresented: true)
-        context.insert(bothSet)
+        // Assignment that is presented with presentedAt set
+        let presented = PresentationFactory.makePresented(lessonID: UUID(), studentIDs: [UUID()], presentedAt: Date())
+        context.insert(presented)
         try context.save()
 
         let loader = InboxDataLoader(context: context)
-        let lessons = loader.loadPresentedStudentLessons()
+        let assignments = loader.loadPresentedLessonAssignments()
 
-        #expect(lessons.count == 1)
+        #expect(assignments.count == 1)
     }
 
-    @Test("loadPresentedStudentLessons returns empty for no presented lessons")
-    func loadPresentedStudentLessonsReturnsEmpty() throws {
+    @Test("loadPresentedLessonAssignments returns empty for no presented assignments")
+    func loadPresentedLessonAssignmentsReturnsEmpty() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
 
-        let notPresented = makeTestStudentLesson(isPresented: false)
-        context.insert(notPresented)
+        let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [UUID()])
+        context.insert(draft)
         try context.save()
 
         let loader = InboxDataLoader(context: context)
-        let lessons = loader.loadPresentedStudentLessons()
+        let assignments = loader.loadPresentedLessonAssignments()
 
-        #expect(lessons.isEmpty)
+        #expect(assignments.isEmpty)
     }
 }
 
@@ -262,7 +262,7 @@ struct InboxDataLoaderIntegrationTests {
         return try makeTestContainer(for: [
             Student.self,
             Lesson.self,
-            StudentLesson.self,
+            LessonAssignment.self,
             AttendanceRecord.self,
             WorkModel.self,
             WorkParticipantEntity.self,
@@ -284,13 +284,12 @@ struct InboxDataLoaderIntegrationTests {
         let lesson = makeTestLesson(name: "Addition", subject: "Math", group: "Operations")
         context.insert(lesson)
 
-        // Create presented student lesson
-        let studentLesson = makeTestStudentLesson(
+        // Create presented lesson assignment
+        let lessonAssignment = PresentationFactory.makePresented(
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            isPresented: true
+            studentIDs: [student.id]
         )
-        context.insert(studentLesson)
+        context.insert(lessonAssignment)
 
         // Create active work
         let work = makeTestWorkModel(
@@ -309,7 +308,7 @@ struct InboxDataLoaderIntegrationTests {
         let loader = InboxDataLoader(context: context)
         let inboxData = loader.loadInboxData()
 
-        #expect(inboxData.studentLessons.count >= 1)
+        #expect(inboxData.lessonAssignments.count >= 1)
         #expect(!inboxData.students.isEmpty)
         #expect(!inboxData.lessons.isEmpty)
     }
@@ -322,7 +321,7 @@ struct InboxDataLoaderIntegrationTests {
         let loader = InboxDataLoader(context: context)
         let inboxData = loader.loadInboxData()
 
-        #expect(inboxData.studentLessons.isEmpty)
+        #expect(inboxData.lessonAssignments.isEmpty)
         #expect(inboxData.checkIns.isEmpty)
         #expect(inboxData.notes.isEmpty)
         #expect(inboxData.students.isEmpty)

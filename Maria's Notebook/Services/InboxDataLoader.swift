@@ -16,26 +16,26 @@ final class InboxDataLoader {
     /// Loads all data needed for the Follow-Up Inbox view.
     /// Returns filtered data to minimize memory usage and improve performance.
     func loadInboxData() -> InboxData {
-        // Load presented student lessons (for lesson follow-ups)
-        let presentedStudentLessons = loadPresentedStudentLessons()
-        
+        // Load presented lesson assignments (for lesson follow-ups)
+        let presentedLAs = loadPresentedLessonAssignments()
+
         // Load active/review work models (for work check-ins/reviews)
         let workModels = loadActiveWorkModels()
-        
+
         // Load check-ins and notes only for the work models we need
         let workIDs = Set(workModels.map { $0.id })
         let checkIns = loadCheckIns(for: workIDs)
         let notes = loadNotes(for: workIDs)
-        
+
         // Collect referenced student and lesson IDs
         var studentIDs = Set<UUID>()
         var lessonIDs = Set<UUID>()
-        
-        for sl in presentedStudentLessons {
-            studentIDs.formUnion(sl.resolvedStudentIDs)
-            lessonIDs.insert(sl.resolvedLessonID)
+
+        for la in presentedLAs {
+            studentIDs.formUnion(la.resolvedStudentIDs)
+            lessonIDs.insert(la.resolvedLessonID)
         }
-        
+
         for work in workModels {
             if let sid = UUID(uuidString: work.studentID) {
                 studentIDs.insert(sid)
@@ -44,13 +44,13 @@ final class InboxDataLoader {
                 lessonIDs.insert(lid)
             }
         }
-        
+
         // Load only referenced students and lessons
         let students = loadStudents(ids: studentIDs)
         let lessons = loadLessons(ids: lessonIDs)
-        
+
         return InboxData(
-            studentLessons: presentedStudentLessons,
+            lessonAssignments: presentedLAs,
             checkIns: checkIns,
             notes: notes,
             students: students,
@@ -60,34 +60,14 @@ final class InboxDataLoader {
     
     // MARK: - Individual Fetch Methods
     
-    /// Loads student lessons that have been presented (isPresented || givenAt != nil).
+    /// Loads lesson assignments that have been presented.
     /// This is the filtered set needed for lesson follow-up calculations.
-    /// Note: SwiftData predicates don't support OR conditions well, so we fetch by isPresented
-    /// (the most common case) and also check givenAt. In practice, most presented lessons
-    /// have isPresented=true, so this significantly reduces the dataset.
-    func loadPresentedStudentLessons() -> [StudentLesson] {
-        // PERFORMANCE: Fetch lessons with isPresented == true first (stored property, filtered at DB level)
-        let isPresentedDescriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.isPresented == true }
+    func loadPresentedLessonAssignments() -> [LessonAssignment] {
+        let presentedState = LessonAssignmentState.presented.rawValue
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.stateRaw == presentedState }
         )
-        let byIsPresented = context.safeFetch(isPresentedDescriptor)
-
-        // Build a Set of IDs we already have to avoid duplicates
-        let existingIDs = Set(byIsPresented.map { $0.id })
-
-        // Also need lessons with givenAt != nil but isPresented == false
-        // SwiftData predicates don't handle optional Date comparisons well,
-        // so we fetch non-presented lessons and filter for givenAt != nil
-        let notPresentedDescriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.isPresented == false }
-        )
-        let notPresented = context.safeFetch(notPresentedDescriptor)
-        let withGivenAtOnly = notPresented.filter { sl in
-            sl.givenAt != nil && !existingIDs.contains(sl.id)
-        }
-
-        // Combine (no Set conversion needed since we pre-filtered duplicates)
-        return byIsPresented + withGivenAtOnly
+        return context.safeFetch(descriptor)
     }
     
     /// Loads active and review work models (preferred).
@@ -167,7 +147,7 @@ final class InboxDataLoader {
 
 /// Container for inbox data loaded by InboxDataLoader.
 struct InboxData {
-    let studentLessons: [StudentLesson]
+    let lessonAssignments: [LessonAssignment]
     let checkIns: [WorkCheckIn]
     let notes: [Note]
     let students: [Student]

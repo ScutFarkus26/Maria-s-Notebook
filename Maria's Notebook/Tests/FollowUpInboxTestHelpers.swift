@@ -11,7 +11,7 @@ func makeFollowUpContainer() throws -> ModelContainer {
     return try makeTestContainer(for: [
         Student.self,
         Lesson.self,
-        StudentLesson.self,
+        LessonAssignment.self,
         WorkModel.self,
         WorkCheckIn.self,
         Note.self,

@@ -97,7 +97,7 @@ struct FollowUpInboxEngine {
     static func computeItems(
         lessons: [Lesson],
         students: [Student],
-        studentLessons: [StudentLesson],
+        lessonAssignments: [LessonAssignment],
         modelContext: ModelContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
@@ -105,9 +105,9 @@ struct FollowUpInboxEngine {
         let lessonsByID: [UUID: Lesson] = lessons.toDictionary(by: \.id)
         let studentsByID: [UUID: Student] = students.toDictionary(by: \.id)
 
-        // PERFORMANCE: Build dictionary for O(1) studentLesson lookup instead of repeated O(n) searches
-        let studentLessonsByID: [UUID: StudentLesson] = studentLessons.toDictionary(by: \.id)
-        
+        // Build dictionary for O(1) LessonAssignment lookup
+        let lasByID: [UUID: LessonAssignment] = lessonAssignments.toDictionary(by: \.id)
+
         // Fetch open WorkModel records once per compute (cached per refresh scope)
         let completeRaw = WorkStatus.complete.rawValue
         let descriptor = FetchDescriptor<WorkModel>(
@@ -186,38 +186,33 @@ struct FollowUpInboxEngine {
         
         // Rule 1: Lesson follow-up overdue/upcoming
         do {
-            let presented = studentLessons.filter { $0.isPresented || $0.givenAt != nil }
-            
+            let presented = lessonAssignments.filter { $0.isPresented || $0.presentedAt != nil }
+
             // Build lookup sets from WorkModels to exclude lessons with any follow-up work
-            // Check by studentLessonID
-            let workModelsByStudentLessonID: Set<UUID> = Set(
-                openWorkModels.compactMap { $0.studentLessonID }
+            // Check by presentationID (LessonAssignment link)
+            let workModelsByPresentationID: Set<UUID> = Set(
+                openWorkModels.compactMap { $0.presentationID?.asUUID }
             )
-            
-            // Also check by participant studentID + lessonID (via studentLesson lookup)
-            let workModelsByStudentLessonKey: Set<String> = Set(
-                openWorkModels.compactMap { work in
-                    guard let slID = work.studentLessonID,
-                          let sl = studentLessonsByID[slID] else { return nil }
-                    let studentIDs = work.participants?.compactMap { UUID(uuidString: $0.studentID) } ?? []
-                    return studentIDs.map { sid in
-                        "\(sid.uuidString.lowercased())|\(sl.lessonID.lowercased())"
-                    }.first
+
+            // Also check by studentID + lessonID key
+            let workModelsByLessonKey: Set<String> = Set(
+                openWorkModels.map { work in
+                    "\(work.studentID.lowercased())|\(work.lessonID.lowercased())"
                 }
             )
-            
-            for sl in presented {
-                let presentedDate = sl.givenAt ?? sl.createdAt
+
+            for la in presented {
+                let presentedDate = la.presentedAt ?? la.createdAt
                 let days = schoolDaysSince(presentedDate)
-                
-                // Exclude if there is any follow-up work linked by studentLessonID
-                let hasFollowUpWork = workModelsByStudentLessonID.contains(sl.id) ||
-                    sl.resolvedStudentIDs.map { sid in
-                        "\(sid.uuidString.lowercased())|\(sl.lessonID.lowercased())"
-                    }.contains(where: { workModelsByStudentLessonKey.contains($0) })
-                
+
+                // Exclude if there is any follow-up work linked by presentationID or student+lesson key
+                let hasFollowUpWork = workModelsByPresentationID.contains(la.id) ||
+                    la.resolvedStudentIDs.map { sid in
+                        "\(sid.uuidString.lowercased())|\(la.lessonID.lowercased())"
+                    }.contains(where: { workModelsByLessonKey.contains($0) })
+
                 guard !hasFollowUpWork else { continue }
-                
+
                 let threshold = constants.lessonFollowUpOverdueDays
                 let bucket: FollowUpInboxItem.Bucket
                 if days > threshold { bucket = .overdue }
@@ -226,14 +221,14 @@ struct FollowUpInboxEngine {
                     let until = max(0, threshold - days)
                     if (1...2).contains(until) { bucket = .upcoming } else { continue }
                 }
-                
+
                 let lessonTitle: String = {
-                    if let lessonUUID = UUID(uuidString: sl.lessonID), let l = lessonsByID[lessonUUID] {
+                    if let lessonUUID = UUID(uuidString: la.lessonID), let l = lessonsByID[lessonUUID] {
                         return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                     }
                     return "Lesson"
                 }()
-                let (cid, cname) = childName(for: sl.resolvedStudentIDs)
+                let (cid, cname) = childName(for: la.resolvedStudentIDs)
                 let status: String = {
                     switch bucket {
                     case .overdue: return "Overdue • \(days)d since presented"
@@ -246,8 +241,8 @@ struct FollowUpInboxEngine {
                     }
                 }()
                 let item = FollowUpInboxItem(
-                    id: "lessonFollowUp:\(sl.id.uuidString)",
-                    underlyingID: sl.id,
+                    id: "lessonFollowUp:\(la.id.uuidString)",
+                    underlyingID: la.id,
                     childID: cid,
                     childName: cname,
                     title: lessonTitle,
@@ -297,32 +292,29 @@ struct FollowUpInboxEngine {
             }
             
             // Resolve display fields
-            // Get first participant's student ID (or use studentLesson to find students)
             let participantStudentIDs: [UUID] = (work.participants ?? []).compactMap { UUID(uuidString: $0.studentID) }
             let studentIDs: [UUID] = {
                 if !participantStudentIDs.isEmpty {
                     return participantStudentIDs
                 }
-                // Fallback: try to get from studentLesson
-                if let slID = work.studentLessonID,
-                   let sl = studentLessonsByID[slID] {
-                    return sl.resolvedStudentIDs
+                // Fallback: try to get from LessonAssignment
+                if let laID = work.presentationID?.asUUID,
+                   let la = lasByID[laID] {
+                    return la.resolvedStudentIDs
                 }
                 return []
             }()
-            
+
             let studentName: String = {
                 if let firstID = studentIDs.first, let s = studentsByID[firstID] {
                     return StudentFormatter.displayName(for: s)
                 }
                 return "Student"
             }()
-            
+
             let lessonTitle: String = {
-                // Try to get from studentLesson
-                if let slID = work.studentLessonID,
-                   let sl = studentLessonsByID[slID],
-                   let lessonUUID = UUID(uuidString: sl.lessonID),
+                // Try to get from work's lessonID directly
+                if let lessonUUID = work.lessonID.asUUID,
                    let l = lessonsByID[lessonUUID] {
                     return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                 }
@@ -331,7 +323,7 @@ struct FollowUpInboxEngine {
                 if !trimmed.isEmpty { return trimmed }
                 return "Work"
             }()
-            
+
             let (cid, cname): (UUID?, String) = {
                 if let firstID = studentIDs.first { return (firstID, studentName) }
                 return (nil, studentName)
@@ -386,9 +378,9 @@ struct FollowUpInboxEngine {
                 if !participantStudentIDs.isEmpty {
                     return participantStudentIDs
                 }
-                if let slID = work.studentLessonID,
-                   let sl = studentLessonsByID[slID] {
-                    return sl.resolvedStudentIDs
+                if let laID = work.presentationID?.asUUID,
+                   let la = lasByID[laID] {
+                    return la.resolvedStudentIDs
                 }
                 return []
             }()
@@ -401,9 +393,7 @@ struct FollowUpInboxEngine {
             }()
 
             let lessonTitle: String = {
-                if let slID = work.studentLessonID,
-                   let sl = studentLessonsByID[slID],
-                   let lessonUUID = UUID(uuidString: sl.lessonID),
+                if let lessonUUID = work.lessonID.asUUID,
                    let l = lessonsByID[lessonUUID] {
                     return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
                 }
@@ -411,7 +401,7 @@ struct FollowUpInboxEngine {
                 if !trimmed.isEmpty { return trimmed }
                 return "Work"
             }()
-            
+
             let (cid, cname): (UUID?, String) = {
                 if let firstID = studentIDs.first { return (firstID, studentName) }
                 return (nil, studentName)
@@ -460,7 +450,7 @@ struct FollowUpInboxEngine {
         for studentID: UUID,
         lessons: [Lesson],
         students: [Student],
-        studentLessons: [StudentLesson],
+        lessonAssignments: [LessonAssignment],
         modelContext: ModelContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
@@ -468,11 +458,11 @@ struct FollowUpInboxEngine {
         let allItems = computeItems(
             lessons: lessons,
             students: students,
-            studentLessons: studentLessons,
+            lessonAssignments: lessonAssignments,
             modelContext: modelContext,
             constants: constants
         )
-        
+
         // Filter to items for this student
         return allItems.filter { item in
             item.childID == studentID

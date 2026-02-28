@@ -238,7 +238,7 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let items = FollowUpInboxEngine.computeItems(
             lessons: [],
             students: [],
-            studentLessons: [],
+            lessonAssignments: [],
             modelContext: context
         )
 
@@ -251,12 +251,12 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let context = ModelContext(container)
 
         let student = makeTestStudent()
-        let studentLesson = StudentLesson(lessonID: UUID(), studentIDs: [student.id], isPresented: true)
+        let la = LessonAssignment(state: .presented, presentedAt: Date(), lessonID: UUID(), studentIDs: [student.id])
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [],
             students: [student],
-            studentLessons: [studentLesson],
+            lessonAssignments: [la],
             modelContext: context
         )
 
@@ -269,12 +269,12 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let context = ModelContext(container)
 
         let lesson = makeTestLesson()
-        let studentLesson = StudentLesson(lessonID: lesson.id, studentIDs: [], isPresented: true)
+        let la = LessonAssignment(state: .presented, presentedAt: Date(), lessonID: lesson.id, studentIDs: [])
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [],
-            studentLessons: [studentLesson],
+            lessonAssignments: [la],
             modelContext: context
         )
 
@@ -292,7 +292,7 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [],
+            lessonAssignments: [],
             modelContext: context
         )
 
@@ -312,21 +312,21 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let lessons = (0..<20).map { i in
             makeTestLesson(name: "Lesson \(i)")
         }
-        let studentLessons: [StudentLesson] = (0..<100).map { i in
+        let lessonAssignments: [LessonAssignment] = (0..<100).map { i in
             let student = students[i % students.count]
             let lesson = lessons[i % lessons.count]
-            return StudentLesson(
+            return LessonAssignment(
+                state: .presented,
+                presentedAt: TestCalendar.date(year: 2025, month: 1, day: 1),
                 lessonID: lesson.id,
-                studentIDs: [student.id],
-                givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
-                isPresented: true
+                studentIDs: [student.id]
             )
         }
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: lessons,
             students: students,
-            studentLessons: studentLessons,
+            lessonAssignments: lessonAssignments,
             modelContext: context
         )
 
@@ -344,16 +344,16 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let lesson = makeTestLesson()
 
         // Test at threshold (7 school days = dueToday)
-        let sl1 = StudentLesson(
+        let sl1 = LessonAssignment(
+            state: .presented,
+            presentedAt: schoolDaysAgo(7),
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            givenAt: schoolDaysAgo(7),
-            isPresented: true
+            studentIDs: [student.id]
         )
         let items1 = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [sl1],
+            lessonAssignments: [sl1],
             modelContext: context
         )
         if let item = items1.first {
@@ -361,16 +361,16 @@ struct FollowUpInboxEngineEdgeCasesTests {
         }
 
         // Test past threshold (8 school days = overdue)
-        let sl2 = StudentLesson(
+        let sl2 = LessonAssignment(
+            state: .presented,
+            presentedAt: schoolDaysAgo(8),
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            givenAt: schoolDaysAgo(8),
-            isPresented: true
+            studentIDs: [student.id]
         )
         let items2 = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [sl2],
+            lessonAssignments: [sl2],
             modelContext: context
         )
         if let item = items2.first {
@@ -378,16 +378,16 @@ struct FollowUpInboxEngineEdgeCasesTests {
         }
 
         // Test before threshold (5 days = upcoming)
-        let sl3 = StudentLesson(
+        let sl3 = LessonAssignment(
+            state: .presented,
+            presentedAt: AppCalendar.addingDays(-5, to: Date()),
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            givenAt: AppCalendar.addingDays(-5, to: Date()),
-            isPresented: true
+            studentIDs: [student.id]
         )
         let items3 = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [sl3],
+            lessonAssignments: [sl3],
             modelContext: context
         )
         if let item = items3.first {
@@ -404,11 +404,11 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
         let student = makeTestStudent()
         let lesson = makeTestLesson()
-        let studentLesson = StudentLesson(
+        let la = LessonAssignment(
+            state: .presented,
+            presentedAt: TestCalendar.date(year: 2025, month: 1, day: 1),
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
-            isPresented: true
+            studentIDs: [student.id]
         )
 
         let work = WorkModel(
@@ -417,14 +417,14 @@ struct FollowUpInboxEngineEdgeCasesTests {
             studentID: student.id.uuidString,
             lessonID: lesson.id.uuidString
         )
-        work.studentLessonID = studentLesson.id
+        work.presentationID = la.id.uuidString
         context.insert(work)
         try context.save()
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [studentLesson],
+            lessonAssignments: [la],
             modelContext: context
         )
 
@@ -444,17 +444,17 @@ struct FollowUpInboxEngineEdgeCasesTests {
             makeTestStudent(firstName: "Charlie", lastName: "Chen")
         ]
         let lesson = makeTestLesson(name: "Group Lesson")
-        let studentLesson = StudentLesson(
+        let la = LessonAssignment(
+            state: .presented,
+            presentedAt: TestCalendar.date(year: 2025, month: 1, day: 1),
             lessonID: lesson.id,
-            studentIDs: students.map { $0.id },
-            givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
-            isPresented: true
+            studentIDs: students.map { $0.id }
         )
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: students,
-            studentLessons: [studentLesson],
+            lessonAssignments: [la],
             modelContext: context
         )
 
@@ -475,24 +475,24 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let student2 = makeTestStudent(firstName: "Bob", lastName: "Brown")
         let lesson = makeTestLesson()
 
-        let sl1 = StudentLesson(
+        let sl1 = LessonAssignment(
+            state: .presented,
+            presentedAt: TestCalendar.date(year: 2025, month: 1, day: 1),
             lessonID: lesson.id,
-            studentIDs: [student1.id],
-            givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
-            isPresented: true
+            studentIDs: [student1.id]
         )
-        let sl2 = StudentLesson(
+        let sl2 = LessonAssignment(
+            state: .presented,
+            presentedAt: TestCalendar.date(year: 2025, month: 1, day: 1),
             lessonID: lesson.id,
-            studentIDs: [student2.id],
-            givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
-            isPresented: true
+            studentIDs: [student2.id]
         )
 
         let items = FollowUpInboxEngine.computeItems(
             for: student1.id,
             lessons: [lesson],
             students: [student1, student2],
-            studentLessons: [sl1, sl2],
+            lessonAssignments: [sl1, sl2],
             modelContext: context
         )
 
@@ -506,18 +506,18 @@ struct FollowUpInboxEngineEdgeCasesTests {
 
         let student = makeTestStudent()
         let lesson = makeTestLesson()
-        let studentLesson = StudentLesson(
+        let la = LessonAssignment(
+            state: .presented,
+            presentedAt: TestCalendar.date(year: 2025, month: 1, day: 1),
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            givenAt: TestCalendar.date(year: 2025, month: 1, day: 1),
-            isPresented: true
+            studentIDs: [student.id]
         )
 
         let items = FollowUpInboxEngine.computeItems(
             for: UUID(),
             lessons: [lesson],
             students: [student],
-            studentLessons: [studentLesson],
+            lessonAssignments: [la],
             modelContext: context
         )
 
@@ -535,23 +535,23 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let lesson1 = makeTestLesson(name: "Lesson 1")
         let lesson2 = makeTestLesson(name: "Lesson 2")
 
-        let overdueLesson = StudentLesson(
+        let overdueLesson = LessonAssignment(
+            state: .presented,
+            presentedAt: schoolDaysAgo(10),
             lessonID: lesson1.id,
-            studentIDs: [student.id],
-            givenAt: schoolDaysAgo(10),
-            isPresented: true
+            studentIDs: [student.id]
         )
-        let upcomingLesson = StudentLesson(
+        let upcomingLesson = LessonAssignment(
+            state: .presented,
+            presentedAt: schoolDaysAgo(5),
             lessonID: lesson2.id,
-            studentIDs: [student.id],
-            givenAt: schoolDaysAgo(5),
-            isPresented: true
+            studentIDs: [student.id]
         )
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson1, lesson2],
             students: [student],
-            studentLessons: [overdueLesson, upcomingLesson],
+            lessonAssignments: [overdueLesson, upcomingLesson],
             modelContext: context
         )
 
@@ -569,23 +569,23 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let lesson1 = makeTestLesson(name: "Lesson 1")
         let lesson2 = makeTestLesson(name: "Lesson 2")
 
-        let olderLesson = StudentLesson(
+        let olderLesson = LessonAssignment(
+            state: .presented,
+            presentedAt: AppCalendar.addingDays(-15, to: Date()),
             lessonID: lesson1.id,
-            studentIDs: [student.id],
-            givenAt: AppCalendar.addingDays(-15, to: Date()),
-            isPresented: true
+            studentIDs: [student.id]
         )
-        let newerLesson = StudentLesson(
+        let newerLesson = LessonAssignment(
+            state: .presented,
+            presentedAt: AppCalendar.addingDays(-10, to: Date()),
             lessonID: lesson2.id,
-            studentIDs: [student.id],
-            givenAt: AppCalendar.addingDays(-10, to: Date()),
-            isPresented: true
+            studentIDs: [student.id]
         )
 
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson1, lesson2],
             students: [student],
-            studentLessons: [olderLesson, newerLesson],
+            lessonAssignments: [olderLesson, newerLesson],
             modelContext: context
         )
 
@@ -603,11 +603,11 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let student = makeTestStudent()
         let lesson = makeTestLesson()
 
-        let studentLesson = StudentLesson(
+        let la = LessonAssignment(
+            state: .presented,
+            presentedAt: AppCalendar.addingDays(-10, to: Date()),
             lessonID: lesson.id,
-            studentIDs: [student.id],
-            givenAt: AppCalendar.addingDays(-10, to: Date()),
-            isPresented: true
+            studentIDs: [student.id]
         )
 
         var customConstants = FollowUpInboxEngine.Constants()
@@ -616,7 +616,7 @@ struct FollowUpInboxEngineEdgeCasesTests {
         let items = FollowUpInboxEngine.computeItems(
             lessons: [lesson],
             students: [student],
-            studentLessons: [studentLesson],
+            lessonAssignments: [la],
             modelContext: context,
             constants: customConstants
         )
