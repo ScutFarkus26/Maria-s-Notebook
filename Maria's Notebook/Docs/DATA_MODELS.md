@@ -14,7 +14,7 @@ All models use SwiftData's `@Model` macro and follow CloudKit compatibility patt
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Student   │────▶│StudentLesson│◀────│   Lesson    │
+│   Student   │────▶│LessonAssign.│◀────│   Lesson    │
 └─────────────┘     └─────────────┘     └─────────────┘
        │                   │                   │
        │                   ▼                   │
@@ -106,15 +106,15 @@ Curriculum lessons organized by subject and group.
 
 **Relationships:**
 - `notes: [Note]?` - Attached notes
-- `studentLessons: [StudentLesson]?` - Student lesson instances
+- `lessonAssignments: [LessonAssignment]?` - Lesson assignment instances
 
 ---
 
-### StudentLesson
+### LessonAssignment
 
 Links students to lessons with scheduling and presentation tracking.
 
-**Location:** `Students/StudentLessonModel.swift`
+**Location:** `Models/Presentation.swift`
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -156,7 +156,7 @@ Tracks student work items through their lifecycle.
 | `id` | UUID | Unique identifier |
 | `title` | String | Work title |
 | `workTypeRaw` | String | Work type ("Research", "Follow Up", "Practice", "Report") |
-| `studentLessonID` | UUID? | Optional link to StudentLesson |
+| `lessonAssignmentID` | UUID? | Optional link to LessonAssignment |
 | `notes` | String | Work notes |
 | `createdAt` | Date | Creation date |
 | `completedAt` | Date? | Completion date |
@@ -176,7 +176,7 @@ Tracks student work items through their lifecycle.
 | `sourceContextTypeRaw` | String? | Source context type |
 | `sourceContextID` | String? | Source context ID |
 | `legacyContractID` | UUID? | Legacy migration reference |
-| `legacyStudentLessonID` | String? | Legacy migration reference |
+| `legacyLessonAssignmentID` | String? | Legacy migration reference |
 
 **Computed Properties:**
 - `workType: WorkType` - Work type enum
@@ -224,7 +224,7 @@ Universal note entity that can attach to multiple contexts.
 - `.students([UUID])` - Applies to multiple students
 
 **Relationships (one set per note):**
-- `lesson`, `work`, `studentLesson`, `presentation`
+- `lesson`, `work`, `lessonAssignment`, `presentation`
 - `attendanceRecord`, `workCheckIn`, `workCompletionRecord`
 - `workPlanItem`, `studentMeeting`, `projectSession`
 - `communityTopic`, `reminder`, `schoolDayOverride`
@@ -289,7 +289,7 @@ Use the `Presentation` typealias in code for cleaner semantics.
 | `trackStepID` | String? | Track step ID |
 | `lessonTitleSnapshot` | String? | Frozen title at presentation time |
 | `lessonSubheadingSnapshot` | String? | Frozen subheading |
-| `migratedFromStudentLessonID` | String? | Migration tracking |
+| `migratedFromLessonAssignmentID` | String? | Migration tracking |
 | `migratedFromPresentationID` | String? | Migration tracking |
 
 **Relationships:**

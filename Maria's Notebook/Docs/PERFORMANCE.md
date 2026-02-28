@@ -40,7 +40,7 @@
 
 | Target | Issue | Approach |
 |--------|-------|----------|
-| `StudentLessonsRootView` | Unfiltered `@Query` for student lessons | Move to repository with student-scoped fetch |
+| `PresentationsListView` | Unfiltered `@Query` for lesson assignments | Move to repository with student-scoped fetch |
 | `PlanningWeekView` | Loads all lessons for week computation | Add date range filter to fetch |
 | `PresentationsViewModel` | Complex unfiltered fetches | Repository-based with targeted predicates |
 
@@ -73,7 +73,7 @@
 | WorksAgendaView | WorkModel | HIGH | Done |
 | FollowUpInboxView | WorkModel | HIGH | Done |
 | PresentationHistoryView | Presentation | MED | Done |
-| StudentLessonsRootView | StudentLesson | HIGH | Pending |
+| PresentationsListView | LessonAssignment | HIGH | Pending |
 | PlanningWeekView | Lesson | HIGH | Pending |
 | PresentationsViewModel | Multiple | HIGH | Pending |
 | WorkModelDetailSheet | WorkModel | MED | Pending |

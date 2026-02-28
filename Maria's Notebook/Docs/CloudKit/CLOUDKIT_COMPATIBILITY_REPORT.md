@@ -17,7 +17,7 @@ Your app is **fully CloudKit compatible** and ready for CloudKit sync! All model
 
 All 12 models that previously had UUID foreign keys have been converted to use `String`:
 
-1. ✅ **StudentLesson** (`Students/StudentLessonModel.swift`)
+1. ✅ **LessonAssignment** (`Models/Presentation.swift`)
    - `var lessonID: String` (was UUID)
    - `studentIDs` stored as `[String]` via Data encoding
    - Includes `lessonIDUUID` computed property for backward compatibility

@@ -63,7 +63,7 @@ protocol SavingRepository: Repository {
 **Existing Repositories:** (14 total)
 1. `StudentRepository` - Student CRUD
 2. `LessonRepository` - Lesson CRUD
-3. `StudentLessonRepository` - Presentation/StudentLesson CRUD
+3. `PresentationRepository` - LessonAssignment/Presentation CRUD
 4. `PresentationRepository` - Unified presentation model
 5. `NoteRepository` - Note CRUD
 6. `NoteTemplateRepository` - Note template CRUD
@@ -81,7 +81,7 @@ protocol SavingRepository: Repository {
 **Audit Results:**
 - **163 @Query usages** across **73 files**
 - Most common patterns:
-  - `@Query` for list views (StudentLesson, Lesson, Student, Work)
+  - `@Query` for list views (LessonAssignment, Lesson, Student, Work)
   - `@Query` for dropdown/picker data
   - `@Query` for change detection
   - `@Query` for filtered views (inbox, scheduled items)
@@ -110,7 +110,7 @@ Repositories/
 ├── RepositoryContainer.swift      # Central factory
 ├── StudentRepository.swift        # Student CRUD
 ├── LessonRepository.swift         # Lesson CRUD
-├── StudentLessonRepository.swift  # Presentation CRUD
+├── PresentationRepository.swift   # Presentation CRUD
 └── ... (11 more repositories)
 ```
 
@@ -286,9 +286,9 @@ struct StudentsView: View {
 **Before:**
 ```swift
 struct InboxView: View {
-    @Query(filter: #Predicate<StudentLesson> {
+    @Query(filter: #Predicate<LessonAssignment> {
         $0.scheduledFor == nil && !$0.isPresented
-    }) private var inboxItems: [StudentLesson]
+    }) private var inboxItems: [LessonAssignment]
 
     var body: some View {
         List(inboxItems) { item in
@@ -303,8 +303,8 @@ struct InboxView: View {
 struct InboxView: View {
     @Environment(\\.dependencies) private var dependencies
 
-    private var inboxItems: [StudentLesson] {
-        dependencies.repositories.studentLessons.fetchInboxItems()
+    private var inboxItems: [LessonAssignment] {
+        dependencies.repositories.presentations.fetchInboxItems()
     }
 
     var body: some View {
@@ -353,7 +353,7 @@ final class MyViewModel {
 struct ComplexView: View {
     @Query private var students: [Student]
     @Query private var lessons: [Lesson]
-    @Query private var presentations: [StudentLesson]
+    @Query private var presentations: [LessonAssignment]
 
     var body: some View {
         // Complex layout using all three queries
@@ -369,7 +369,7 @@ struct ComplexView: View {
     // Change detection only
     @Query private var studentsForChange: [Student]
     @Query private var lessonsForChange: [Lesson]
-    @Query private var presentationsForChange: [StudentLesson]
+    @Query private var presentationsForChange: [LessonAssignment]
 
     private var studentIDs: [UUID] { studentsForChange.map(\\.id) }
     private var lessonIDs: [UUID] { lessonsForChange.map(\\.id) }
@@ -379,7 +379,7 @@ struct ComplexView: View {
         // Use repositories for actual data fetching
         let students = dependencies.repositories.students.fetchAll()
         let lessons = dependencies.repositories.lessons.fetchAll()
-        let presentations = dependencies.repositories.studentLessons.fetchAll()
+        let presentations = dependencies.repositories.presentations.fetchAll()
 
         // Complex layout
     }

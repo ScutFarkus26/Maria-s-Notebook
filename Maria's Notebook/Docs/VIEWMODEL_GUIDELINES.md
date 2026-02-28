@@ -64,7 +64,7 @@ A ViewModel is an `@Observable` class that sits between SwiftUI views and the da
 
 - **Medium (10-20 properties):** 7 ViewModels
   - SettingsViewModel
-  - StudentLessonDetailViewModel
+  - PresentationDetailViewModel
   - WorkDetailViewModel
   - AttendanceViewModel
   - LessonsViewModel
@@ -290,7 +290,7 @@ final class MyViewModel {
 
 **Examples:**
 - **TodayViewModel** (340 lines) - Extensive caching with TodayCacheManager
-- **StudentDetailViewModel** - lessonsByID, studentLessonsByID caches
+- **StudentDetailViewModel** - lessonsByID, presentationsByID caches
 - **PresentationsViewModel** - Hash-based change detection
 
 **Key Techniques:**
@@ -796,13 +796,13 @@ final class InboxSheetViewModel {
         }
     }
     
-    func consolidateSelected(lessons: [StudentLesson], modelContext: ModelContext) {
+    func consolidateSelected(lessons: [LessonAssignment], modelContext: ModelContext) {
         guard !selected.isEmpty else { return }
-        
+
         // Business logic
         let selectedLessons = lessons.filter { selected.contains($0.id) }
-        StudentLessonMergeService.merge(
-            studentLessons: selectedLessons,
+        PresentationMergeService.merge(
+            presentations: selectedLessons,
             modelContext: modelContext,
             toastService: toastService
         )
@@ -905,7 +905,7 @@ final class TodayViewModel: Equatable {
     var levelFilter: LevelFilter = .all { didSet { scheduleReload() } }
     
     // MARK: - Outputs
-    var todaysLessons: [StudentLesson] = []
+    var todaysLessons: [LessonAssignment] = []
     var todaysSchedule: [ScheduledWorkItem] = []
     var completedWork: [WorkModel] = []
     var attendanceSummary: AttendanceSummary = AttendanceSummary()

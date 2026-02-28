@@ -68,7 +68,7 @@ Maria's Notebook/
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Student   │────▶│StudentLesson│◀────│   Lesson    │
+│   Student   │────▶│LessonAssign.│◀────│   Lesson    │
 └─────────────┘     └─────────────┘     └─────────────┘
        │                   │                   │
        │                   ▼                   │
@@ -98,7 +98,7 @@ Maria's Notebook/
 |-------|---------|
 | `Student` | Student profiles (firstName, lastName, birthday, level) |
 | `Lesson` | Curriculum lessons (name, subject, group, writeUp) |
-| `StudentLesson` | Links students to lessons with scheduling |
+| `LessonAssignment` | Links students to lessons with scheduling |
 | `WorkModel` | Work items with lifecycle (active→review→complete) |
 | `Note` | Observations with category and optional images |
 | `Reminder` | EventKit-synced reminders |

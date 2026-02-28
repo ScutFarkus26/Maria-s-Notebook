@@ -214,7 +214,7 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 3. ✅ `WorkRepository`
 4. ✅ `AttendanceRepository`
 5. ✅ `NoteRepository`
-6. ✅ `StudentLessonRepository`
+6. ✅ `PresentationRepository`
 7. ✅ `WorkStepRepository`
 8. ✅ `WorkCheckInRepository`
 9. ✅ `ProjectRepository`
@@ -226,7 +226,7 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 
 ### ViewModels Using Repositories
 
-- ✅ `PresentationsViewModel` (uses `StudentLessonRepository`)
+- ✅ `PresentationsViewModel` (uses `PresentationRepository`)
 - ✅ `TodayViewModel` (uses multiple repositories)
 - ⚠️ `AttendanceViewModel` (partial migration)
 - ❌ Many ViewModels still pending
