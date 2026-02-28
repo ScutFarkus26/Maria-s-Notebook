@@ -27,11 +27,17 @@ final class ChatService {
         var session = ChatSession()
         session.classroomSnapshotText = contextAssembler.buildClassroomSnapshot()
         session.snapshotBuiltAt = Date()
+
+        // Populate student names for dynamic suggested questions
+        let queryService = DataQueryService(context: modelContext)
+        let students = queryService.fetchAllStudents(excludeTest: true)
+        session.studentNames = students.map(\.firstName)
+
         Self.logger.debug("Chat session started with classroom snapshot")
         return session
     }
 
-    // MARK: - Send Message
+    // MARK: - Send Message (Non-Streaming)
 
     /// Sends a user message and returns the assistant's response.
     /// Mutates the session in-place with the new messages.
@@ -80,6 +86,63 @@ final class ChatService {
 
         Self.logger.debug("Chat response received (\(responseText.count) chars)")
         return responseText
+    }
+
+    // MARK: - Send Message (Streaming)
+
+    /// Sends a user message with streaming. Calls onDelta for each text chunk.
+    /// Adds a placeholder assistant message immediately and updates it as text arrives.
+    /// Returns the message ID of the streaming assistant message so the caller can track it.
+    func sendMessageStreaming(
+        _ question: String,
+        session: inout ChatSession,
+        onDelta: @escaping (String) -> Void
+    ) async throws -> String {
+        // Refresh snapshot if stale
+        if session.isSnapshotStale {
+            session.classroomSnapshotText = contextAssembler.buildClassroomSnapshot()
+            session.snapshotBuiltAt = Date()
+        }
+
+        // Add user message
+        let userMessage = ChatMessage(role: .user, content: question)
+        session.messages.append(userMessage)
+
+        // Build question-specific context (Tier 2)
+        let (questionContext, updatedMentionedIDs) = contextAssembler.buildQuestionContext(
+            question: question,
+            existingMentionedIDs: session.mentionedStudentIDs
+        )
+        session.mentionedStudentIDs = updatedMentionedIDs
+
+        // Assemble system message
+        let systemMessage = buildSystemMessage(
+            snapshot: session.classroomSnapshotText ?? "",
+            questionContext: questionContext
+        )
+
+        // Build messages array for API (keep within token budget)
+        let apiMessages = buildAPIMessages(from: session.messages)
+
+        // Call the streaming API
+        guard let client = mcpClient as? AnthropicAPIClient else {
+            throw ChatError.serviceNotConfigured
+        }
+
+        let fullResponse = try await client.streamConversation(
+            messages: apiMessages,
+            systemMessage: systemMessage,
+            temperature: 0.7,
+            maxTokens: 2048,
+            onDelta: onDelta
+        )
+
+        // Add the complete assistant response to session
+        let assistantMessage = ChatMessage(role: .assistant, content: fullResponse)
+        session.messages.append(assistantMessage)
+
+        Self.logger.debug("Streaming chat response complete (\(fullResponse.count) chars)")
+        return fullResponse
     }
 
     // MARK: - Private Helpers

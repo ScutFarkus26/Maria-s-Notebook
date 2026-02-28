@@ -45,7 +45,7 @@ struct ChatView: View {
 
     @ViewBuilder
     private var chatContent: some View {
-        if viewModel.messages.isEmpty {
+        if viewModel.messages.isEmpty && !viewModel.isStreaming {
             emptyState
         } else {
             messageList
@@ -74,17 +74,16 @@ struct ChatView: View {
                             .id(message.id)
                     }
 
-                    if viewModel.isLoading {
-                        HStack {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Thinking...")
-                                .font(AppTheme.ScaledFont.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, AppTheme.Spacing.medium)
-                        .id("loading")
+                    // Show streaming content as a live-updating bubble
+                    if let streaming = viewModel.streamingContent {
+                        ChatMessageBubble(
+                            message: ChatMessage(
+                                role: .assistant,
+                                content: streaming.isEmpty ? "..." : streaming
+                            ),
+                            isStreaming: true
+                        )
+                        .id("streaming")
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.medium)
@@ -97,10 +96,10 @@ struct ChatView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.isLoading) {
-                if viewModel.isLoading {
+            .onChange(of: viewModel.streamingContent) {
+                if viewModel.isStreaming {
                     withAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
-                        proxy.scrollTo("loading", anchor: .bottom)
+                        proxy.scrollTo("streaming", anchor: .bottom)
                     }
                 }
             }
@@ -127,7 +126,7 @@ struct ChatView: View {
                         .font(AppTheme.ScaledFont.callout)
                         .foregroundStyle(.secondary)
 
-                    ForEach(suggestedQuestions, id: \.self) { question in
+                    ForEach(viewModel.suggestedQuestions, id: \.self) { question in
                         Button {
                             viewModel.inputText = question
                             viewModel.sendMessage()
@@ -196,17 +195,6 @@ struct ChatView: View {
         .padding(.horizontal, AppTheme.Spacing.medium)
         .padding(.vertical, AppTheme.Spacing.small)
         .background(Color.orange.opacity(UIConstants.OpacityConstants.veryFaint))
-    }
-
-    // MARK: - Suggested Questions
-
-    private var suggestedQuestions: [String] {
-        [
-            "How many students do I have?",
-            "Who was absent this week?",
-            "What lessons have been given this week?",
-            "Which students haven't had a presentation recently?"
-        ]
     }
 }
 

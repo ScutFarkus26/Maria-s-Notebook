@@ -3,7 +3,7 @@ import SwiftData
 import OSLog
 
 /// ViewModel for the Ask AI chat interface.
-/// Manages session state, message sending, and error handling.
+/// Manages session state, streaming, persistence, and dynamic suggestions.
 @Observable
 @MainActor
 final class ChatViewModel {
@@ -14,6 +14,12 @@ final class ChatViewModel {
     var inputText = ""
     var isLoading = false
     var errorMessage: String?
+
+    /// The current streaming assistant message content (updated as chunks arrive).
+    var streamingContent: String?
+
+    /// Whether we're actively receiving streamed text.
+    var isStreaming: Bool { streamingContent != nil }
 
     private(set) var session: ChatSession?
     private var chatService: ChatService?
@@ -32,6 +38,41 @@ final class ChatViewModel {
         AnthropicAPIClient.hasAPIKey()
     }
 
+    /// Student names for dynamic suggested questions.
+    var studentNames: [String] {
+        session?.studentNames ?? []
+    }
+
+    /// Generates suggested questions using real student names when available.
+    var suggestedQuestions: [String] {
+        let names = studentNames
+        if names.count >= 2 {
+            let shuffled = names.shuffled()
+            let name1 = shuffled[0]
+            let name2 = shuffled[1]
+            return [
+                "How many students do I have?",
+                "What lessons has \(name1) had recently?",
+                "Who was absent this week?",
+                "What can \(name1) and \(name2) work on together?",
+            ]
+        } else if let name = names.first {
+            return [
+                "How many students do I have?",
+                "What lessons has \(name) had recently?",
+                "Who was absent this week?",
+                "Which students haven't had a presentation recently?",
+            ]
+        } else {
+            return [
+                "How many students do I have?",
+                "Who was absent this week?",
+                "What lessons have been given this week?",
+                "Which students haven't had a presentation recently?",
+            ]
+        }
+    }
+
     // MARK: - Configuration
 
     /// Configure with dependencies. Called from the view's onAppear.
@@ -39,13 +80,26 @@ final class ChatViewModel {
         guard chatService == nil else { return } // Already configured
         let service = ChatService(modelContext: modelContext, mcpClient: mcpClient)
         self.chatService = service
-        self.session = service.startSession()
+
+        // Try to restore a saved session, otherwise start fresh
+        if let saved = ChatSession.loadSaved() {
+            self.session = saved
+            // Refresh the snapshot since it's likely stale from a previous launch
+            var restoredSession = saved
+            restoredSession.classroomSnapshotText = nil
+            restoredSession.snapshotBuiltAt = nil
+            self.session = restoredSession
+            Self.logger.debug("ChatViewModel restored saved session with \(saved.messages.count) messages")
+        } else {
+            self.session = service.startSession()
+        }
+
         Self.logger.debug("ChatViewModel configured")
     }
 
     // MARK: - Actions
 
-    /// Sends the current input text as a user message.
+    /// Sends the current input text as a user message with streaming.
     func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, var currentSession = session, let service = chatService else { return }
@@ -53,14 +107,23 @@ final class ChatViewModel {
         inputText = ""
         isLoading = true
         errorMessage = nil
+        streamingContent = ""
 
         Task {
             do {
-                _ = try await service.sendMessage(text, session: &currentSession)
+                _ = try await service.sendMessageStreaming(text, session: &currentSession) { [weak self] delta in
+                    Task { @MainActor in
+                        self?.streamingContent = (self?.streamingContent ?? "") + delta
+                    }
+                }
                 self.session = currentSession
+                self.streamingContent = nil
+                // Persist after each message exchange
+                currentSession.save()
             } catch {
                 Self.logger.warning("Chat send failed: \(error)")
                 self.errorMessage = error.localizedDescription
+                self.streamingContent = nil
             }
             self.isLoading = false
         }
@@ -72,5 +135,7 @@ final class ChatViewModel {
         session = service.startSession()
         errorMessage = nil
         inputText = ""
+        streamingContent = nil
+        ChatSession.clearSaved()
     }
 }

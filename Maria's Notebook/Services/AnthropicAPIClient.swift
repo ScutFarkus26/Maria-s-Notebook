@@ -384,6 +384,111 @@ final class AnthropicAPIClient: MCPClientProtocol {
         }
     }
     
+    // MARK: - Streaming Conversation
+
+    /// Send a multi-turn conversation with streaming, calling onDelta for each text chunk.
+    /// Returns the full response text when complete.
+    func streamConversation(
+        messages: [[String: String]],
+        systemMessage: String? = nil,
+        temperature: Double = 0.7,
+        maxTokens: Int = 2048,
+        model: String? = nil,
+        timeout: TimeInterval? = nil,
+        onDelta: @escaping (String) -> Void
+    ) async throws -> String {
+        guard !apiKey.isEmpty else {
+            throw AnthropicAPIError.noAPIKey
+        }
+
+        let resolvedModel = model ?? "claude-sonnet-4-20250514"
+        let resolvedTimeout = timeout ?? 120
+
+        Self.logger.debug("Streaming conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)")
+
+        var request = URLRequest(url: baseURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.timeoutInterval = resolvedTimeout
+
+        var requestBody: [String: Any] = [
+            "model": resolvedModel,
+            "max_tokens": maxTokens,
+            "temperature": temperature,
+            "messages": messages,
+            "stream": true
+        ]
+
+        if let systemMessage, !systemMessage.isEmpty {
+            requestBody["system"] = systemMessage
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (bytes, response) = try await session.bytes(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AnthropicAPIError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            // Collect error body
+            var errorData = Data()
+            for try await byte in bytes {
+                errorData.append(byte)
+            }
+            let responseString = String(data: errorData, encoding: .utf8) ?? "Unable to decode"
+
+            if let errorBody = try? JSONSerialization.jsonObject(with: errorData) as? [String: Any],
+               let error = errorBody["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                let helpfulMessage: String
+                switch httpResponse.statusCode {
+                case 401: helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
+                case 429: helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
+                case 529: helpfulMessage = "Claude API is temporarily overloaded. Please try again in a few moments. \(message)"
+                default: helpfulMessage = message
+                }
+                throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: helpfulMessage)
+            }
+            throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: "Unknown error. Response: \(responseString)")
+        }
+
+        // Parse SSE stream
+        var fullText = ""
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let jsonString = String(line.dropFirst(6))
+
+            if jsonString == "[DONE]" { break }
+
+            guard let jsonData = jsonString.data(using: .utf8),
+                  let event = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+                continue
+            }
+
+            let eventType = event["type"] as? String
+
+            if eventType == "content_block_delta",
+               let delta = event["delta"] as? [String: Any],
+               let text = delta["text"] as? String {
+                fullText += text
+                onDelta(text)
+            }
+
+            // Check for errors in the stream
+            if eventType == "error",
+               let error = event["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                throw AnthropicAPIError.apiError(statusCode: 0, message: message)
+            }
+        }
+
+        return fullText
+    }
+
     // MARK: - API Key Management
     
     private static func loadAPIKey() -> String {
