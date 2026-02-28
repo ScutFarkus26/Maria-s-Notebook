@@ -156,7 +156,7 @@ final class LessonAssignment: Identifiable {
     /// Whether this presentation has been given.
     var isPresented: Bool { state == .presented }
     
-    /// Whether this presentation has been given (for StudentLesson compatibility).
+    /// Whether this presentation has been given.
     var isGiven: Bool { state == .presented }
 
     // MARK: - Initializers
@@ -282,23 +282,6 @@ final class LessonAssignment: Identifiable {
             needsAnotherPresentation: needsAnotherPresentation,
             followUpWork: followUpWork,
             manuallyUnblocked: manuallyUnblocked
-        )
-    }
-    
-    /// Creates a StudentLessonSnapshot for backward compatibility with legacy UI components.
-    func toStudentLessonSnapshot() -> StudentLessonSnapshot {
-        StudentLessonSnapshot(
-            id: id,
-            lessonID: lessonIDUUID ?? UUID(),
-            studentIDs: studentUUIDs,
-            createdAt: createdAt,
-            scheduledFor: scheduledFor,
-            givenAt: presentedAt,
-            isPresented: state == .presented,
-            notes: notes,
-            needsPractice: needsPractice,
-            needsAnotherPresentation: needsAnotherPresentation,
-            followUpWork: followUpWork
         )
     }
 }

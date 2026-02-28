@@ -403,12 +403,12 @@ public final class SelectiveRestoreService {
             }
 
         case .studentLessons:
-            BackupEntityImporter.importStudentLessons(
+            // StudentLesson model removed — import as LessonAssignment
+            try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
                 payload.studentLessons,
                 into: modelContext,
-                studentLessonCheck: { [self] id in
-                    // Return a lightweight instance only to signal existence.
-                    self.getCachedIDs("studentLessons").contains(id) ? StudentLesson(lessonID: id, studentIDs: []) : nil
+                existingCheck: { [self] id in
+                    self.getCachedIDs("lessonAssignments").contains(id) ? try modelContext.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first : nil
                 },
                 lessonCheck: { [lessonsByID] id in lessonsByID[id] },
                 studentCheck: { [studentsByID] id in studentsByID[id] }
@@ -614,7 +614,7 @@ public final class SelectiveRestoreService {
         templateWeeksByID = cacheDictionary(ProjectTemplateWeek.self, in: context)
 
         // Build ID sets for simple existence checks
-        cacheEntityIDs(StudentLesson.self, key: "studentLessons", in: context)
+        // StudentLesson removed — entity IDs cached via LessonAssignment below
         cacheEntityIDs(Note.self, key: "notes", in: context)
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         cacheEntityIDs(NonSchoolDay.self, key: "nonSchoolDays", in: context)

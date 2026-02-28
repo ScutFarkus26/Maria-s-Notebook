@@ -81,10 +81,6 @@ final class Lesson: Identifiable {
     // Relationship with explicit inverse and cascade delete rule
     @Relationship(deleteRule: .cascade, inverse: \Note.lesson) var notes: [Note]? = []
     
-    // Relationship to StudentLesson - inverse specified on this side (the "many" side)
-    @Relationship(inverse: \StudentLesson.lesson)
-    var studentLessons: [StudentLesson]? = []
-
     // Relationship to LessonAssignment - inverse specified on this side (the "many" side)
     @Relationship(inverse: \LessonAssignment.lesson)
     var lessonAssignments: [LessonAssignment]? = []
@@ -126,7 +122,6 @@ final class Lesson: Identifiable {
         self.personalKindRaw = personalKindRaw
         self.defaultWorkKindRaw = defaultWorkKind?.rawValue
         self.notes = []
-        self.studentLessons = []
         self.lessonAssignments = []
     }
 }

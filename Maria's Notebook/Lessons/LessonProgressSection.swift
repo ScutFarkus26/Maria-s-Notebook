@@ -32,7 +32,7 @@ struct LessonProgressSection: View {
 
     let studentsAll: [Student]
     let lessonsAll: [Lesson]
-    let studentLessonsAll: [StudentLesson]
+    let lessonAssignmentsAll: [LessonAssignment]
 
     // Banners
     @Binding var didPlanNext: Bool
@@ -260,8 +260,8 @@ struct LessonProgressSection: View {
                                 .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(didPlanNext || studentLessonsAll.contains { sl in
-                            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == Set(selectedStudentIDs) && sl.givenAt == nil
+                        .disabled(didPlanNext || lessonAssignmentsAll.contains { la in
+                            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == Set(selectedStudentIDs) && !la.isPresented
                         })
                     }
                     .transition(.opacity)
@@ -315,30 +315,30 @@ struct LessonProgressSection: View {
             if let lessonID = lesson?.id {
                 practiceWork.lessonID = lessonID.uuidString
             } else {
-                // Try to get lessonID from studentLessonID
-                var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                // Try to get lessonID from the LessonAssignment
+                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == studentLessonID })
                 descriptor.fetchLimit = 1
                 do {
-                    if let studentLesson = try modelContext.fetch(descriptor).first {
-                        practiceWork.lessonID = studentLesson.lessonID
+                    if let la = try modelContext.fetch(descriptor).first {
+                        practiceWork.lessonID = la.lessonID
                     }
                 } catch {
-                    Self.logger.warning("Failed to fetch student lesson for lessonID: \(error)")
+                    Self.logger.warning("Failed to fetch lesson assignment for lessonID: \(error)")
                 }
             }
             if let firstStudentID = selectedStudentIDs.first {
                 practiceWork.studentID = firstStudentID.uuidString
             } else {
-                // Try to get studentID from studentLessonID
-                var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == studentLessonID })
+                // Try to get studentID from the LessonAssignment
+                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == studentLessonID })
                 descriptor.fetchLimit = 1
                 do {
-                    if let studentLesson = try modelContext.fetch(descriptor).first,
-                       let firstStudentID = studentLesson.resolvedStudentIDs.first {
+                    if let la = try modelContext.fetch(descriptor).first,
+                       let firstStudentID = la.resolvedStudentIDs.first {
                         practiceWork.studentID = firstStudentID.uuidString
                     }
                 } catch {
-                    Self.logger.warning("Failed to fetch student lesson for studentID: \(error)")
+                    Self.logger.warning("Failed to fetch lesson assignment for studentID: \(error)")
                 }
             }
             practiceWork.legacyStudentLessonID = studentLessonID.uuidString
@@ -359,17 +359,15 @@ struct LessonProgressSection: View {
         let startOfDay = calendar.startOfDay(for: date)
         let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
 
-        let newStudentLesson = StudentLessonFactory.makeScheduled(
+        let newLA = PresentationFactory.makeScheduled(
             lessonID: lesson.id,
             studentIDs: Array(selectedStudentIDs),
             scheduledFor: scheduled
         )
-        StudentLessonFactory.attachRelationships(
-            to: newStudentLesson,
-            lesson: lesson,
-            students: studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        )
-        modelContext.insert(newStudentLesson)
+        newLA.lesson = lesson
+        newLA.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        newLA.syncSnapshotsFromRelationships()
+        modelContext.insert(newLA)
 
         do {
             try modelContext.save()
@@ -397,20 +395,18 @@ struct LessonProgressSection: View {
     private func planNextLessonInGroup() {
         guard let next = nextLessonInGroup else { return }
         let sameStudents = Set(selectedStudentIDs)
-        let exists = studentLessonsAll.contains { sl in
-            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+        let exists = lessonAssignmentsAll.contains { la in
+            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
         }
         if !exists {
-            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
+            let newLA = PresentationFactory.makeDraft(
                 lessonID: next.id,
                 studentIDs: Array(selectedStudentIDs)
             )
-            StudentLessonFactory.attachRelationships(
-                to: newStudentLesson,
-                lesson: lessonsAll.first(where: { $0.id == next.id }),
-                students: studentsAll.filter { sameStudents.contains($0.id) }
-            )
-            modelContext.insert(newStudentLesson)
+            newLA.lesson = lessonsAll.first(where: { $0.id == next.id })
+            newLA.students = studentsAll.filter { sameStudents.contains($0.id) }
+            newLA.syncSnapshotsFromRelationships()
+            modelContext.insert(newLA)
             do {
                 try modelContext.save()
             } catch {

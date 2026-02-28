@@ -378,9 +378,7 @@ struct PresentationsView: View {
         .sheet(item: $coordinator.activeSheet) { sheet in
             switch sheet {
             case .lessonAssignmentDetail(let la):
-                // Bridge: look up the legacy StudentLesson for the detail view
-                // (StudentLessonDetailView will be migrated to LessonAssignment in Phase 6d)
-                LessonAssignmentDetailBridge(lessonAssignment: la) {
+                StudentLessonDetailView(lessonAssignment: la) {
                     coordinator.dismissSheet()
                 }
                 #if os(macOS)

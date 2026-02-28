@@ -311,7 +311,7 @@ class ReactiveCache: Caching {
              }
          }
      }
-     private(set) var lessons: [StudentLesson] = []
+     private(set) var lessons: [LessonAssignment] = []
      
      init(cacheCoordinator: CacheCoordinator) {
          self.cacheCoordinator = cacheCoordinator
@@ -331,18 +331,18 @@ class ReactiveCache: Caching {
  
  // Custom cache implementation
  class TodayDataCache: ReactiveCache {
-     private var cachedLessons: [StudentLesson] = []
+     private var cachedLessons: [LessonAssignment] = []
      
      override func onInvalidate() {
          cachedLessons = []
      }
      
-     func getLessons() -> [StudentLesson]? {
+     func getLessons() -> [LessonAssignment]? {
          guard hasData else { return nil }
          return cachedLessons
      }
      
-     func setLessons(_ lessons: [StudentLesson]) {
+     func setLessons(_ lessons: [LessonAssignment]) {
          cachedLessons = lessons
          hasData = true
      }

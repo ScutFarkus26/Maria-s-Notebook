@@ -59,7 +59,7 @@ enum BackupSizeEstimator {
 
         counts["Student"] = safeFetchCount(Student.self, using: modelContext)
         counts["Lesson"] = safeFetchCount(Lesson.self, using: modelContext)
-        counts["StudentLesson"] = safeFetchCount(StudentLesson.self, using: modelContext)
+        // StudentLesson removed — fully migrated to LessonAssignment
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         counts["Note"] = safeFetchCount(Note.self, using: modelContext)
         counts["NonSchoolDay"] = safeFetchCount(NonSchoolDay.self, using: modelContext)

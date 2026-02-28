@@ -59,8 +59,8 @@ public final class BackupService {
         let studentDTOs = fetchAndTransformInBatches(Student.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons…")
         let lessonDTOs = fetchAndTransformInBatches(Lesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.12), "Collecting student lessons…")
-        let studentLessonDTOs = fetchAndTransformInBatches(StudentLesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        // StudentLesson removed — no longer exported in new backups
+        let studentLessonDTOs: [StudentLessonDTO] = []
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments…")
         let lessonAssignmentDTOs = fetchAndTransformInBatches(LessonAssignment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes…")
@@ -398,10 +398,11 @@ public final class BackupService {
             existingCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
         )
 
-        try BackupEntityImporter.importStudentLessons(
+        // Import old StudentLessonDTOs as LessonAssignment records
+        try BackupEntityImporter.importStudentLessonsAsLessonAssignments(
             payload.studentLessons,
             into: modelContext,
-            studentLessonCheck: { try fetchOne(StudentLesson.self, id: $0, using: modelContext) },
+            existingCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
             lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) },
             studentCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
         )
@@ -748,12 +749,12 @@ public final class BackupService {
         try modelContext.save()
         
         progress(0.92, "Repairing denormalized fields…")
-        let studentLessonsForRepair = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+        let assignmentsForRepair = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
         var repairedCount = 0
-        for sl in studentLessonsForRepair {
-            let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
-            if sl.scheduledForDay != correct {
-                sl.scheduledForDay = correct
+        for la in assignmentsForRepair {
+            let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+            if la.scheduledForDay != correct {
+                la.scheduledForDay = correct
                 repairedCount += 1
             }
         }

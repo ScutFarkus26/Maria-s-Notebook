@@ -459,8 +459,8 @@ public final class IncrementalBackupService {
         progress(0.2, "Collecting lessons…")
         let lessons: [Lesson] = fetchFiltered(Lesson.self)
 
-        progress(0.3, "Collecting student lessons…")
-        let studentLessons: [StudentLesson] = fetchFiltered(StudentLesson.self)
+        // StudentLesson removed — no longer exported in incremental backups
+        let studentLessons: [LessonAssignment] = []
 
         progress(0.35, "Collecting lesson assignments…")
         let lessonAssignments: [LessonAssignment] = fetchFiltered(LessonAssignment.self)
@@ -512,7 +512,7 @@ public final class IncrementalBackupService {
         // Convert to DTOs using shared helpers
         let studentDTOs = BackupServiceHelpers.toDTOs(students)
         let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
-        let studentLessonDTOs = BackupServiceHelpers.toDTOs(studentLessons)
+        let studentLessonDTOs: [StudentLessonDTO] = [] // StudentLesson removed
         let noteDTOs = BackupServiceHelpers.toDTOs(notes)
         let nonSchoolDTOs = BackupServiceHelpers.toDTOs(nonSchoolDays)
         let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(schoolDayOverrides)

@@ -8,7 +8,7 @@ struct AppSchema {
         Student.self,
         Lesson.self,
         LessonAttachment.self,
-        StudentLesson.self,
+        // StudentLesson removed — fully migrated to LessonAssignment
         WorkCompletionRecord.self,
         WorkModel.self,
         WorkCheckIn.self,

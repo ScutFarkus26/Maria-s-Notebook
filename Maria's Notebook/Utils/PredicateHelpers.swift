@@ -12,17 +12,17 @@ enum PredicateHelpers {
             work.id == workID
         }
     }
-    
-    /// Creates a predicate for matching a student ID (UUID stored as String in CloudKit).
+
+    /// Creates a predicate for matching a student ID in a LessonAssignment.
     /// - Parameter studentID: The student UUID
     /// - Returns: A predicate that matches the student ID
-    static func studentID(_ studentID: UUID) -> Predicate<StudentLesson> {
+    static func studentID(_ studentID: UUID) -> Predicate<LessonAssignment> {
         let idString = studentID.uuidString
-        return #Predicate<StudentLesson> { lesson in
-            lesson.studentIDs.contains(idString)
+        return #Predicate<LessonAssignment> { la in
+            la.studentIDs.contains(idString)
         }
     }
-    
+
     /// Creates a predicate for matching multiple work IDs.
     /// - Parameter workIDs: Set of work model UUIDs
     /// - Returns: A predicate that matches any of the work IDs
@@ -31,15 +31,14 @@ enum PredicateHelpers {
             workIDs.contains(work.id)
         }
     }
-    
-    /// Creates a predicate for matching a lesson ID (UUID stored as String in CloudKit).
+
+    /// Creates a predicate for matching a lesson ID in a LessonAssignment.
     /// - Parameter lessonID: The lesson UUID
     /// - Returns: A predicate that matches the lesson ID
-    static func lessonID(_ lessonID: UUID) -> Predicate<StudentLesson> {
+    static func lessonID(_ lessonID: UUID) -> Predicate<LessonAssignment> {
         let idString = lessonID.uuidString
-        return #Predicate<StudentLesson> { lesson in
-            lesson.lessonID == idString
+        return #Predicate<LessonAssignment> { la in
+            la.lessonID == idString
         }
     }
 }
-

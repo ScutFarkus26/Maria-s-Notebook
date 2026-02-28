@@ -10,7 +10,7 @@ class SettingsStatsViewModel {
     // MARK: - Teaching
     var studentsCount: Int = 0
     var lessonsCount: Int = 0
-    var studentLessonsCount: Int = 0
+    // studentLessonsCount removed — use presentations instead
     var plannedCount: Int = 0
     var givenCount: Int = 0
     var workModelsCount: Int = 0
@@ -50,7 +50,7 @@ class SettingsStatsViewModel {
 
     /// Total count of all records across all entities
     var totalRecordsCount: Int {
-        studentsCount + lessonsCount + studentLessonsCount + plannedCount + givenCount +
+        studentsCount + lessonsCount + plannedCount + givenCount +
         workModelsCount + presentationsCount + notesCount + meetingsCount + practiceSessionsCount +
         todoItemsCount + remindersCount + tracksCount + trackEnrollmentsCount + calendarEventsCount + projectsCount +
         attendanceRecordsCount + suppliesCount + issuesCount + communityTopicsCount + proceduresCount + nonSchoolDaysCount +
@@ -79,7 +79,6 @@ class SettingsStatsViewModel {
             // Teaching
             let students = loadCount(for: Student.self, context: context)
             let lessons = loadCount(for: Lesson.self, context: context)
-            let studentLessons = loadCount(for: StudentLesson.self, context: context)
             let workModels = loadCount(for: WorkModel.self, context: context)
             let presentations = loadCount(for: LessonAssignment.self, context: context)
             let notes = loadCount(for: Note.self, context: context)
@@ -136,7 +135,6 @@ class SettingsStatsViewModel {
             // Update state - Teaching
             self.studentsCount = students
             self.lessonsCount = lessons
-            self.studentLessonsCount = studentLessons
             self.plannedCount = planned
             self.givenCount = given
             self.workModelsCount = workModels

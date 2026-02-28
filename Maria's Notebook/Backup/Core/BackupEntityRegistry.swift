@@ -11,7 +11,7 @@ struct BackupEntityRegistry {
         Student.self,
         Lesson.self,
         LessonAttachment.self,
-        StudentLesson.self,
+        // StudentLesson removed — fully migrated to LessonAssignment
         LessonAssignment.self,
         LessonPresentation.self,
         Note.self,

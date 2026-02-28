@@ -355,23 +355,22 @@ struct LessonsViewModel {
     
     static func computeLessonStatusInfo(
         lesson: Lesson,
-        studentLessons: [StudentLesson],
+        lessonAssignments: [LessonAssignment],
         workModels: [WorkModel],
         modelContext: ModelContext,
         schoolDayCache: SchoolDayLookupCache? = nil
     ) -> LessonStatusInfo {
         let lessonIDString = lesson.id.uuidString
-        let slsForLesson = studentLessons.filter { $0.lessonID == lessonIDString }
-        let isPresented = slsForLesson.contains { $0.isPresented || $0.givenAt != nil }
-        
-        let slIDs = Set(slsForLesson.map { $0.id })
+        let lasForLesson = lessonAssignments.filter { $0.lessonID == lessonIDString }
+        let isPresented = lasForLesson.contains { $0.isPresented }
+
+        let laIDs = Set(lasForLesson.map { $0.id })
         let workForLesson = workModels.filter { work in
-            guard let workSLID = work.studentLessonID else { return false }
-            return slIDs.contains(workSLID)
+            work.lessonID == lessonIDString || laIDs.contains(work.studentLessonID ?? UUID())
         }
-        
+
         let activeWork = workForLesson.filter { $0.completedAt == nil }
-        
+
         var lastActivity: Date? = nil
         if !activeWork.isEmpty {
             let lastTouches = activeWork.compactMap { work -> Date? in
@@ -381,7 +380,7 @@ struct LessonsViewModel {
             }
             lastActivity = lastTouches.max()
         } else if isPresented {
-            let presentationDates = slsForLesson.compactMap { $0.givenAt ?? ($0.isPresented ? $0.createdAt : nil) }
+            let presentationDates = lasForLesson.compactMap { $0.presentedAt ?? ($0.isPresented ? $0.createdAt : nil) }
             lastActivity = presentationDates.max()
         }
         
@@ -445,24 +444,22 @@ struct LessonsViewModel {
         var result: [UUID: Int] = [:]
         let lessonIDStrings = Set(lessonIDs.uuidStrings)
 
-        // Fetch only un-presented, un-given StudentLesson records.
-        // Leverages the [\.isPresented] index for a much smaller result set
-        // compared to fetching all records and filtering in memory.
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate<StudentLesson> { $0.isPresented == false && $0.givenAt == nil }
+        // Fetch only un-presented LessonAssignment records (drafts and scheduled).
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate<LessonAssignment> { $0.stateRaw != presentedRaw }
         )
-        let studentLessons: [StudentLesson]
+        let assignments: [LessonAssignment]
         do {
-            studentLessons = try context.fetch(descriptor)
+            assignments = try context.fetch(descriptor)
         } catch {
-            Self.logger.warning("Failed to fetch StudentLesson: \(error)")
+            Self.logger.warning("Failed to fetch LessonAssignment: \(error)")
             return [:]
         }
 
-        // Filter to our lessons — predicate already guarantees un-presented status
-        for sl in studentLessons {
-            guard lessonIDStrings.contains(sl.lessonID) else { continue }
-            guard let uuid = UUID(uuidString: sl.lessonID) else { continue }
+        for la in assignments {
+            guard lessonIDStrings.contains(la.lessonID) else { continue }
+            guard let uuid = UUID(uuidString: la.lessonID) else { continue }
             result[uuid, default: 0] += 1
         }
 

@@ -44,27 +44,8 @@ enum BackupDTOTransformers {
         )
     }
 
-    // MARK: - StudentLesson
-
-    static func toDTO(_ studentLesson: StudentLesson) -> StudentLessonDTO? {
-        guard let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) else {
-            return nil
-        }
-        return StudentLessonDTO(
-            id: studentLesson.id,
-            lessonID: lessonIDUUID,
-            studentIDs: studentLesson.resolvedStudentIDs,
-            createdAt: studentLesson.createdAt,
-            scheduledFor: studentLesson.scheduledFor,
-            givenAt: studentLesson.givenAt,
-            isPresented: studentLesson.isPresented,
-            notes: studentLesson.notes,
-            needsPractice: studentLesson.needsPractice,
-            needsAnotherPresentation: studentLesson.needsAnotherPresentation,
-            followUpWork: studentLesson.followUpWork,
-            studentGroupKey: nil
-        )
-    }
+    // MARK: - StudentLesson (removed — model fully migrated to LessonAssignment)
+    // StudentLessonDTO is kept for import backward compatibility only.
 
     // MARK: - WorkPlanItem - REMOVED IN PHASE 6
     // WorkPlanItem has been migrated to WorkCheckIn and removed from schema
@@ -758,9 +739,7 @@ enum BackupDTOTransformers {
         lessons.map { toDTO($0) }
     }
 
-    static func toDTOs(_ studentLessons: [StudentLesson]) -> [StudentLessonDTO] {
-        studentLessons.compactMap { toDTO($0) }
-    }
+    // StudentLesson toDTOs removed — model fully migrated to LessonAssignment
 
     // WorkPlanItem removed in Phase 6 - no longer backed up
 

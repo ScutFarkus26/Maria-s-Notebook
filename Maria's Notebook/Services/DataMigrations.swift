@@ -18,7 +18,7 @@ enum DataMigrations {
 
     // MARK: - Schema Migrations (delegated to SchemaMigrationService)
 
-    /// Normalize all existing StudentLesson.givenAt values to start-of-day (strip time) once.
+    /// Legacy StudentLesson date normalization (no-op — model removed).
     static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) async {
         await SchemaMigrationService.normalizeGivenAtToDateOnlyIfNeeded(using: context)
     }
@@ -33,7 +33,7 @@ enum DataMigrations {
         SchemaMigrationService.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
     }
 
-    /// Backfill WorkModel IDs from StudentLesson where needed.
+    /// Legacy WorkModel ID backfill from StudentLesson (no-op — model removed).
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         await SchemaMigrationService.migrateWorkContractsToWorkModelsIfNeeded(using: context)
     }
@@ -48,9 +48,9 @@ enum DataMigrations {
         DataCleanupService.deduplicateAllModels(using: context)
     }
 
-    /// Deduplicate unscheduled, unpresented StudentLesson records.
-    static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
-        DataCleanupService.deduplicateUnpresentedStudentLessons(using: context)
+    /// Deduplicate draft LessonAssignment records.
+    static func deduplicateDraftLessonAssignments(using context: ModelContext) {
+        DataCleanupService.deduplicateDraftLessonAssignments(using: context)
     }
 
     /// Repairs denormalized scheduledForDay fields to match scheduledFor.
@@ -58,7 +58,7 @@ enum DataMigrations {
         await DataCleanupService.repairDenormalizedScheduledForDay(using: context)
     }
 
-    /// Cleans orphaned student IDs from StudentLesson records.
+    /// Cleans orphaned student IDs from LessonAssignment records.
     static func cleanOrphanedStudentIDs(using context: ModelContext) async {
         await DataCleanupService.cleanOrphanedStudentIDs(using: context)
     }
@@ -85,7 +85,7 @@ enum DataMigrations {
 
     // MARK: - Relationship Backfills (delegated to RelationshipBackfillService)
 
-    /// Backfill StudentLesson relationships from legacy studentIDs and lessonID strings.
+    /// Legacy StudentLesson relationship backfill (no-op — model removed).
     static func backfillRelationshipsIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillRelationshipsIfNeeded(using: context)
     }
@@ -108,21 +108,20 @@ enum DataMigrations {
     /// Legacy check-in model has been deleted and migration is complete.
     /// These methods are no longer available as the underlying model no longer exists.
 
-    /// Backfill isPresented flag from givenAt field.
+    /// Legacy isPresented backfill (no-op — StudentLesson model removed).
     static func backfillIsPresentedIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillIsPresentedIfNeeded(using: context)
     }
 
-    /// Backfill scheduledForDay field from scheduledFor.
+    /// Legacy scheduledForDay backfill (no-op — StudentLesson model removed).
     static func backfillScheduledForDayIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillScheduledForDayIfNeeded(using: context)
     }
 
     // MARK: - LessonAssignment Migration (consolidation of StudentLesson + Presentation)
 
-    /// Migrate StudentLesson and Presentation records to the new unified LessonAssignment model.
-    /// This is part of the model consolidation effort to simplify the data model.
-    /// Safe to run multiple times (idempotent).
+    /// Legacy StudentLesson migration (no-op — model removed).
+    /// Marks migration flags as complete.
     static func migrateLessonAssignmentsIfNeeded(using context: ModelContext) async {
         let service = LessonAssignmentMigrationService(context: context)
         do {

@@ -136,35 +136,35 @@ extension LessonsRootView {
         let students = allStudents.filter { studentIDs.contains($0.id) }
 
         let lessonIDString = lesson.id.uuidString
-        let existingPredicate = #Predicate<StudentLesson> { sl in
-            sl.lessonID == lessonIDString &&
-            sl.scheduledFor == nil &&
-            sl.givenAt == nil
+        let draftRaw = LessonAssignmentState.draft.rawValue
+        let existingPredicate = #Predicate<LessonAssignment> { la in
+            la.lessonID == lessonIDString &&
+            la.stateRaw == draftRaw
         }
-        let existingDescriptor = FetchDescriptor<StudentLesson>(predicate: existingPredicate)
-        let existingLessons: [StudentLesson]
+        let existingDescriptor = FetchDescriptor<LessonAssignment>(predicate: existingPredicate)
+        let existingAssignments: [LessonAssignment]
         do {
-            existingLessons = try modelContext.fetch(existingDescriptor)
+            existingAssignments = try modelContext.fetch(existingDescriptor)
         } catch {
-            logger.warning("Failed to fetch existing student lessons: \(error)")
-            existingLessons = []
+            logger.warning("Failed to fetch existing lesson assignments: \(error)")
+            existingAssignments = []
         }
 
-        if existingLessons.contains(where: { Set($0.resolvedStudentIDs) == studentIDs }) {
+        if existingAssignments.contains(where: { Set($0.resolvedStudentIDs) == studentIDs }) {
             lessonToSchedule = nil
             return
         }
 
-        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
+        let newAssignment = PresentationFactory.makeDraft(
             lessonID: lesson.id,
             studentIDs: Array(studentIDs)
         )
-        StudentLessonFactory.attachRelationships(
-            to: newStudentLesson,
+        PresentationFactory.attachRelationships(
+            to: newAssignment,
             lesson: lesson,
             students: students
         )
-        modelContext.insert(newStudentLesson)
+        modelContext.insert(newAssignment)
         _ = saveCoordinator.save(modelContext, reason: "Plan presentation")
 
         lessonToSchedule = nil

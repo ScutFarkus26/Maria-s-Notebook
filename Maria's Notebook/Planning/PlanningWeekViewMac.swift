@@ -60,7 +60,7 @@ struct PlanningWeekViewMac: View {
             
             // Run migrations once
             await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
-            DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
+            DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
             
             // Calculate initial start date
             await computeInitialStartDate()
@@ -68,7 +68,7 @@ struct PlanningWeekViewMac: View {
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             // Keep inbox and week grid in sync after external changes
-            DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
+            DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
             syncInboxOrderWithCurrentBase()
         }
     }

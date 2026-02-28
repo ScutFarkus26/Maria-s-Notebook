@@ -32,14 +32,14 @@ enum StudentsDataLoader {
         }
     }
 
-    // MARK: - Load Student Lessons
+    // MARK: - Load Lesson Assignments
 
-    /// Loads all student lessons for "days since last lesson" calculation.
+    /// Loads all lesson assignments for "days since last lesson" calculation.
     ///
     /// - Parameter context: Model context for fetching
-    /// - Returns: Array of all student lessons
-    static func loadStudentLessons(context: ModelContext) -> [StudentLesson] {
-        context.safeFetch(FetchDescriptor<StudentLesson>())
+    /// - Returns: Array of all lesson assignments
+    static func loadLessonAssignments(context: ModelContext) -> [LessonAssignment] {
+        context.safeFetch(FetchDescriptor<LessonAssignment>())
     }
 
     // MARK: - Load Lessons

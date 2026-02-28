@@ -343,7 +343,6 @@ struct SmartNoteFormatter {
             let title = (pres.lessonTitleSnapshot ?? "").trimmed()
             return title.isEmpty ? "Presentation" : "Presentation: \(title)"
         }
-        if let sl = note.studentLesson, let l = sl.lesson { return "Presentation: \(l.name)" }
         return "General Observation"
     }
     

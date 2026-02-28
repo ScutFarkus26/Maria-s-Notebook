@@ -83,24 +83,12 @@ extension Presentation {
     }
 }
 
-// MARK: - Comparison with StudentLesson
+// MARK: - Migration Helpers
 
 extension Presentation {
-    /// Check if this presentation was migrated from a specific StudentLesson.
-    func wasMigratedFrom(studentLesson: StudentLesson) -> Bool {
-        migratedFromStudentLessonID == studentLesson.id.uuidString
-    }
-
     /// Check if this presentation was migrated from an old Presentation with the given ID.
     func wasMigratedFromOldPresentation(id: UUID) -> Bool {
         migratedFromPresentationID == id.uuidString
-    }
-
-    /// Check if this presentation matches a StudentLesson's key properties.
-    func matches(studentLesson sl: StudentLesson) -> Bool {
-        // Match by lesson and student set
-        guard lessonID == sl.lessonID else { return false }
-        return studentGroupKey == sl.studentGroupKey
     }
 }
 

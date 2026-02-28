@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Unified drag payload for presentations (StudentLesson) and work check-ins (WorkCheckIn)
+/// Unified drag payload for presentations (LessonAssignment) and work check-ins (WorkCheckIn)
 /// Used in both PresentationsCalendarStrip and WorkAgendaCalendarPane
 public enum UnifiedCalendarDragPayload: Equatable {
     case studentLesson(UUID)

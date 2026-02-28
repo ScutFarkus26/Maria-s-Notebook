@@ -238,7 +238,7 @@ struct RootView: View {
             QuickNoteGlassButton(
                 isShowingSheet: $isShowingQuickNote,
                 onNewPresentation: {
-                    let draft = StudentLesson(lessonID: UUID(), studentIDs: [])
+                    let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [])
                     modelContext.insert(draft)
                     do {
                         try modelContext.save()

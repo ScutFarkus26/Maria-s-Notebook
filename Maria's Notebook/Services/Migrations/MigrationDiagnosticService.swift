@@ -29,63 +29,15 @@ final class MigrationDiagnosticService {
         logger.info("Starting migration diagnostics...")
 
         // 1. Count all records
-        let studentLessons = fetchAll(StudentLesson.self)
         let lessonAssignments = fetchAll(LessonAssignment.self)
         let notes = fetchAll(Note.self)
 
         report.counts = RecordCounts(
-            studentLessons: studentLessons.count,
             lessonAssignments: lessonAssignments.count,
             notes: notes.count
         )
 
-        // 2. Build lookup tables
-        let laByStudentLessonID = buildLookup(lessonAssignments, keyPath: \.migratedFromStudentLessonID)
-
-        // 3. Check for unmigrated StudentLessons
-        for sl in studentLessons {
-            if sl.studentIDs.isEmpty {
-                // Corrupted StudentLesson
-                var issues: [String] = ["Empty studentIDs"]
-                if sl.lessonID.isEmpty {
-                    issues.append("Empty lessonID")
-                }
-                report.corruptedStudentLessons.append(CorruptedStudentLesson(
-                    id: sl.id,
-                    lessonID: sl.lessonID,
-                    lessonName: sl.lesson?.name,
-                    isPresented: sl.isPresented,
-                    createdAt: sl.createdAt,
-                    noteCount: sl.unifiedNotes?.count ?? 0,
-                    issues: issues
-                ))
-            } else if laByStudentLessonID[sl.id.uuidString] == nil {
-                // Not corrupted but unmigrated
-                report.unmatchedStudentLessons.append(UnmatchedStudentLesson(
-                    id: sl.id,
-                    lessonID: sl.lessonID,
-                    studentIDs: sl.studentIDs,
-                    isPresented: sl.isPresented,
-                    givenAt: sl.givenAt,
-                    scheduledFor: sl.scheduledFor,
-                    createdAt: sl.createdAt
-                ))
-            }
-        }
-
-        // 4. Check for Notes attached to old StudentLesson but not LessonAssignment
-        for note in notes {
-            if note.studentLesson != nil && note.lessonAssignment == nil {
-                report.notesOnlyOnLegacyStudentLesson.append(NoteOnLegacyStudentLesson(
-                    noteID: note.id,
-                    studentLessonID: note.studentLesson?.id,
-                    noteBody: String(note.body.prefix(100)),
-                    createdAt: note.createdAt
-                ))
-            }
-        }
-
-        // 5. Check for LessonAssignment records with missing data
+        // 2. Check for LessonAssignment records with missing data
         for la in lessonAssignments {
             var issues: [String] = []
 
@@ -113,7 +65,7 @@ final class MigrationDiagnosticService {
             }
         }
 
-        // 6. Check for duplicate migrations
+        // 3. Check for duplicate migrations
         var seenStudentLessonIDs = Set<String>()
         var seenPresentationIDs = Set<String>()
 
@@ -145,33 +97,10 @@ final class MigrationDiagnosticService {
         return report
     }
 
-    /// Attempts to fix common issues by linking notes to corresponding LessonAssignments.
+    /// Attempts to fix common issues (no-op now that StudentLesson is removed).
     func fixCommonIssues() async -> MigrationFixResult {
-        var result = MigrationFixResult()
-
-        logger.info("Attempting to fix common issues...")
-
-        let lessonAssignments = fetchAll(LessonAssignment.self)
-        let notes = fetchAll(Note.self)
-        let laByStudentLessonID = buildLookup(lessonAssignments, keyPath: \.migratedFromStudentLessonID)
-
-        // Link notes from old StudentLesson to corresponding LessonAssignment
-        for note in notes {
-            if let studentLesson = note.studentLesson, note.lessonAssignment == nil {
-                if let la = laByStudentLessonID[studentLesson.id.uuidString] {
-                    note.lessonAssignment = la
-                    result.notesLinked += 1
-                }
-            }
-        }
-
-        if result.notesLinked > 0 {
-            context.safeSave()
-        }
-
-        logger.info("Fix complete: \(result.summary)")
-
-        return result
+        logger.info("Fix common issues: no legacy StudentLesson data to fix")
+        return MigrationFixResult()
     }
 
     // MARK: - Private Helpers
@@ -184,83 +113,40 @@ final class MigrationDiagnosticService {
             return []
         }
     }
-
-    private func buildLookup<T>(_ items: [T], keyPath: KeyPath<T, String?>) -> [String: T] {
-        var lookup: [String: T] = [:]
-        for item in items {
-            if let key = item[keyPath: keyPath], !key.isEmpty {
-                lookup[key] = item
-            }
-        }
-        return lookup
-    }
 }
 
 // MARK: - Report Types
 
 struct MigrationDiagnosticReport {
     var counts = RecordCounts()
-    var unmatchedStudentLessons: [UnmatchedStudentLesson] = []
-    var notesOnlyOnLegacyStudentLesson: [NoteOnLegacyStudentLesson] = []
     var lessonAssignmentIssues: [LessonAssignmentIssue] = []
     var duplicateMigrations: [DuplicateMigration] = []
-    var corruptedStudentLessons: [CorruptedStudentLesson] = []
 
     var isClean: Bool {
-        unmatchedStudentLessons.isEmpty &&
-        notesOnlyOnLegacyStudentLesson.isEmpty &&
         lessonAssignmentIssues.isEmpty &&
-        duplicateMigrations.isEmpty &&
-        corruptedStudentLessons.isEmpty
+        duplicateMigrations.isEmpty
     }
 
     var summary: String {
         if isClean {
-            return "✅ All data migrated correctly (\(counts.lessonAssignments) LessonAssignments)"
+            return "All data looks correct (\(counts.lessonAssignments) LessonAssignments)"
         }
 
         var parts: [String] = []
-        if !unmatchedStudentLessons.isEmpty {
-            parts.append("\(unmatchedStudentLessons.count) unmigrated StudentLessons")
-        }
-        if !notesOnlyOnLegacyStudentLesson.isEmpty {
-            parts.append("\(notesOnlyOnLegacyStudentLesson.count) notes only on legacy StudentLesson")
-        }
         if !lessonAssignmentIssues.isEmpty {
             parts.append("\(lessonAssignmentIssues.count) LessonAssignment data issues")
         }
         if !duplicateMigrations.isEmpty {
             parts.append("\(duplicateMigrations.count) duplicate migrations")
         }
-        if !corruptedStudentLessons.isEmpty {
-            parts.append("\(corruptedStudentLessons.count) corrupted StudentLessons")
-        }
 
-        return "⚠️ Issues found: " + parts.joined(separator: ", ")
+        return "Issues found: " + parts.joined(separator: ", ")
     }
 }
 
 struct RecordCounts {
-    var studentLessons = 0
     var lessonAssignments = 0
     var notes = 0
-}
-
-struct UnmatchedStudentLesson {
-    let id: UUID
-    let lessonID: String
-    let studentIDs: [String]
-    let isPresented: Bool
-    let givenAt: Date?
-    let scheduledFor: Date?
-    let createdAt: Date
-}
-
-struct NoteOnLegacyStudentLesson {
-    let noteID: UUID
-    let studentLessonID: UUID?
-    let noteBody: String
-    let createdAt: Date
 }
 
 struct LessonAssignmentIssue {
@@ -286,14 +172,4 @@ struct MigrationFixResult {
         }
         return "No fixes needed"
     }
-}
-
-struct CorruptedStudentLesson {
-    let id: UUID
-    let lessonID: String
-    let lessonName: String?
-    let isPresented: Bool
-    let createdAt: Date
-    let noteCount: Int
-    let issues: [String]
 }

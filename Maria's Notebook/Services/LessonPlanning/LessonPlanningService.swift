@@ -262,42 +262,37 @@ final class LessonPlanningService {
     ) throws -> [LessonAssignment] {
         let allLessons = fetchAllLessons()
         let allStudents = fetchAllStudents()
-        let coordinator = DualWriteCoordinator(context: modelContext)
-        
+
         var created: [LessonAssignment] = []
-        
+
         for rec in recommendations {
             guard let lesson = allLessons.first(where: { $0.id == rec.lessonID }) else {
                 Self.logger.warning("Lesson not found for recommendation: \(rec.lessonName)")
                 continue
             }
-            
+
             let studentUUIDs = rec.studentIDs
             let relatedStudents = allStudents.filter { studentUUIDs.contains($0.id) }
-            
-            do {
-                let (_, la) = try coordinator.createDraft(
-                    lessonID: lesson.id,
-                    studentIDs: studentUUIDs
-                )
-                
-                PresentationFactory.attachRelationships(
-                    to: la,
-                    lesson: lesson,
-                    students: relatedStudents
-                )
-                
-                // Schedule if date provided
-                if let date = scheduledDates[rec.id] {
-                    la.schedule(for: date, using: Calendar.current)
-                }
-                
-                created.append(la)
-            } catch {
-                Self.logger.warning("Failed to create draft for \(rec.lessonName): \(error)")
+
+            let la = PresentationFactory.makeDraft(
+                lessonID: lesson.id,
+                studentIDs: studentUUIDs
+            )
+            PresentationFactory.attachRelationships(
+                to: la,
+                lesson: lesson,
+                students: relatedStudents
+            )
+
+            // Schedule if date provided
+            if let date = scheduledDates[rec.id] {
+                la.schedule(for: date, using: Calendar.current)
             }
+
+            modelContext.insert(la)
+            created.append(la)
         }
-        
+
         return created
     }
     

@@ -103,8 +103,8 @@ public final class StreamingBackupWriter {
         // Continue with other entity types (sequential for now to maintain order)
         progress(0.35, "Processing remaining entities…", processedEntities, nil)
         
-        let studentLessons: [StudentLesson] = try await streamFetchRaw(StudentLesson.self, from: modelContext)
-        let studentLessonDTOs = BackupDTOTransformers.toDTOs(studentLessons)
+        // StudentLesson removed — no longer exported in new backups
+        let studentLessonDTOs: [StudentLessonDTO] = []
         
         let lessonAssignments: [LessonAssignment] = try await streamFetchRaw(LessonAssignment.self, from: modelContext)
         let lessonAssignmentDTOs = BackupDTOTransformers.toDTOs(lessonAssignments)
@@ -392,7 +392,7 @@ public final class StreamingBackupWriter {
         // Core entities
         counts["Student"] = try modelContext.fetchCount(FetchDescriptor<Student>())
         counts["Lesson"] = try modelContext.fetchCount(FetchDescriptor<Lesson>())
-        counts["StudentLesson"] = try modelContext.fetchCount(FetchDescriptor<StudentLesson>())
+        // StudentLesson removed — fully migrated to LessonAssignment
         counts["LessonAssignment"] = try modelContext.fetchCount(FetchDescriptor<LessonAssignment>())
         counts["Note"] = try modelContext.fetchCount(FetchDescriptor<Note>())
         counts["NonSchoolDay"] = try modelContext.fetchCount(FetchDescriptor<NonSchoolDay>())
@@ -488,8 +488,7 @@ public final class StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(students)
         case let lessons as [Lesson]:
             return BackupDTOTransformers.toDTOs(lessons)
-        case let studentLessons as [StudentLesson]:
-            return BackupDTOTransformers.toDTOs(studentLessons)
+        // StudentLesson removed — fully migrated to LessonAssignment
         case let assignments as [LessonAssignment]:
             return BackupDTOTransformers.toDTOs(assignments)
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn

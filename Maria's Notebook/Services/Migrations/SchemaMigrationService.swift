@@ -12,26 +12,11 @@ enum SchemaMigrationService {
 
     // MARK: - Date Normalization
 
-    /// Normalize all existing StudentLesson.givenAt values to start-of-day (strip time) once.
-    /// Idempotent: guarded by a UserDefaults flag and only updates rows where time != start of day.
+    /// StudentLesson model removed — migration complete. Marks flag if not already set.
     static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) async {
         let flagKey = "Migration.givenAtDateOnly.v1"
-        await MigrationFlag.runIfNeeded(key: flagKey) {
-            let calendar = AppCalendar.shared
-            let fetch = FetchDescriptor<StudentLesson>()
-            let lessons = context.safeFetch(fetch)
-            var changed = 0
-            for (index, sl) in lessons.enumerated() {
-                if index % 100 == 0 { await Task.yield() }
-                if let dt = sl.givenAt {
-                    let normalized = calendar.startOfDay(for: dt)
-                    if dt != normalized {
-                        sl.givenAt = normalized
-                        changed += 1
-                    }
-                }
-            }
-            if changed > 0 { context.safeSave() }
+        if !MigrationFlag.isComplete(key: flagKey) {
+            MigrationFlag.markComplete(key: flagKey)
         }
     }
 
@@ -86,87 +71,22 @@ enum SchemaMigrationService {
         }
     }
 
-    // MARK: - StudentLesson LessonID Sync
-    
-    /// Sync StudentLesson.lessonID from lesson relationship where missing.
-    /// Fixes records where the lessonID string field is empty but the relationship exists.
-    /// Idempotent: only updates records where lessonID is empty and lesson relationship exists.
+    // MARK: - Legacy StudentLesson Sync (no-op)
+
+    /// StudentLesson model removed — migration complete. Marks flag if not already set.
     static func syncStudentLessonIDsFromRelationshipsIfNeeded(using context: ModelContext) async {
         let flagKey = "Migration.studentLessonIDSync.v1"
-        await MigrationFlag.runIfNeeded(key: flagKey) {
-            let fetch = FetchDescriptor<StudentLesson>()
-            let lessons = context.safeFetch(fetch)
-            var synced = 0
-            
-            for (index, sl) in lessons.enumerated() {
-                if index % 100 == 0 { await Task.yield() }
-                
-                // Only sync if lessonID is empty and lesson relationship exists
-                if sl.lessonID.isEmpty, let lesson = sl.lesson {
-                    sl.lessonID = lesson.id.uuidString
-                    synced += 1
-                }
-            }
-            
-            if synced > 0 {
-                context.safeSave()
-            }
+        if !MigrationFlag.isComplete(key: flagKey) {
+            MigrationFlag.markComplete(key: flagKey)
         }
     }
 
     // MARK: - WorkModel Migration
 
-    /// Backfill WorkModel IDs from StudentLesson where needed.
-    /// Legacy migration from WorkContract is complete - this function now only handles
-    /// WorkModels created via the StudentLesson path that need ID backfill.
+    /// StudentLesson model removed — WorkModel ID backfill from StudentLesson is no longer possible.
+    /// Any WorkModels that needed backfill should have been handled before the model was removed.
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
-        do {
-            let workModels = context.safeFetch(FetchDescriptor<WorkModel>())
-            guard !workModels.isEmpty else { return }
-
-            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-            let studentLessons: [StudentLesson]
-            do {
-                studentLessons = try context.fetch(FetchDescriptor<StudentLesson>()).uniqueByID
-            } catch {
-                logger.warning("Failed to fetch StudentLessons: \(error.localizedDescription)")
-                return
-            }
-            let studentLessonByID: [UUID: StudentLesson] = Dictionary(studentLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-
-            var studentLessonBackfilledCount = 0
-
-            for (index, work) in workModels.enumerated() {
-                if index % 50 == 0 && index > 0 {
-                    await Task.yield()
-                }
-
-                guard (work.studentID.isEmpty || work.lessonID.isEmpty), let slID = work.studentLessonID else { continue }
-                guard let sl = studentLessonByID[slID] else { continue }
-
-                if work.lessonID.isEmpty {
-                    // Priority: Use lesson relationship if available, otherwise use lessonID string
-                    if let lesson = sl.lesson {
-                        work.lessonID = lesson.id.uuidString
-                    } else if !sl.lessonID.isEmpty {
-                        work.lessonID = sl.lessonID
-                    }
-                }
-                if work.studentID.isEmpty {
-                    if let firstStudent = sl.studentIDs.first {
-                        work.studentID = firstStudent
-                    }
-                }
-                if work.legacyStudentLessonID == nil { work.legacyStudentLessonID = slID.uuidString }
-                studentLessonBackfilledCount += 1
-            }
-
-            if studentLessonBackfilledCount > 0 {
-                try context.save()
-            }
-        } catch {
-            // WorkModel ID backfill failed - continue silently
-        }
+        // No-op: StudentLesson model removed. Migration complete.
     }
 
     // MARK: - Note Category to Tags Migration

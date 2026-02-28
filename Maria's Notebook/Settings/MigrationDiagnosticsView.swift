@@ -118,7 +118,6 @@ struct MigrationDiagnosticsView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {
-                statPill("StudentLessons", count: report.counts.studentLessons, color: .blue)
                 statPill("LessonAssignments", count: report.counts.lessonAssignments, color: .green)
                 statPill("Notes", count: report.counts.notes, color: .purple)
             }
@@ -131,17 +130,11 @@ struct MigrationDiagnosticsView: View {
                     .foregroundStyle(.secondary)
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
-                    if !report.unmatchedStudentLessons.isEmpty {
-                        issuePill("Unmigrated SL", count: report.unmatchedStudentLessons.count)
-                    }
-                    if !report.notesOnlyOnLegacyStudentLesson.isEmpty {
-                        issuePill("Notes (SL)", count: report.notesOnlyOnLegacyStudentLesson.count)
-                    }
                     if !report.lessonAssignmentIssues.isEmpty {
                         issuePill("LA Issues", count: report.lessonAssignmentIssues.count)
                     }
-                    if !report.corruptedStudentLessons.isEmpty {
-                        issuePill("Corrupt SL", count: report.corruptedStudentLessons.count, color: .red)
+                    if !report.duplicateMigrations.isEmpty {
+                        issuePill("Duplicates", count: report.duplicateMigrations.count, color: .red)
                     }
                 }
             }

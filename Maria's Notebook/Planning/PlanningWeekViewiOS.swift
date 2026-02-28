@@ -45,7 +45,7 @@ struct PlanningWeekViewiOS: View {
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             // Reload data when external changes occur
             loadData()
-            DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
+            DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
             syncInboxOrderWithCurrentBase()
         }
         .onChange(of: inboxLessons.map { $0.id }) { _, _ in
@@ -115,7 +115,7 @@ struct PlanningWeekViewiOS: View {
         Task {
             await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
         }
-        DataMigrations.deduplicateUnpresentedStudentLessons(using: modelContext)
+        DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
     }
     
     // MARK: - Helpers

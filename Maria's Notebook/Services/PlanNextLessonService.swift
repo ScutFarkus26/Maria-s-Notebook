@@ -139,22 +139,19 @@ struct PlanNextLessonService {
             return .alreadyExists
         }
 
-        // Create the new LessonAssignment using dual-write
-        let coordinator = DualWriteCoordinator(context: context)
+        // Create the new LessonAssignment
         do {
-            let (_, newLessonAssignment) = try coordinator.createDraft(
+            let newLessonAssignment = PresentationFactory.makeDraft(
                 lessonID: nextLesson.id,
                 studentIDs: Array(studentIDs)
             )
-            
-            // Attach relationships
             let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
             PresentationFactory.attachRelationships(
                 to: newLessonAssignment,
                 lesson: nextLesson,
                 students: relatedStudents
             )
-            
+            context.insert(newLessonAssignment)
             return .success(newLessonAssignment)
         } catch {
             // If dual-write fails, treat as a generic error
@@ -191,26 +188,18 @@ struct PlanNextLessonService {
             return .alreadyExists
         }
 
-        // Create the new LessonAssignment using dual-write
-        let coordinator = DualWriteCoordinator(context: context)
-        do {
-            let (_, newLessonAssignment) = try coordinator.createDraft(
-                lessonID: nextLesson.id,
-                studentIDs: Array(studentIDs)
-            )
-            
-            // Attach relationships
-            let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
-            PresentationFactory.attachRelationships(
-                to: newLessonAssignment,
-                lesson: allLessons.first(where: { $0.id == nextLesson.id }),
-                students: relatedStudents
-            )
-            
-            return .success(newLessonAssignment)
-        } catch {
-            // If dual-write fails, treat as a generic error
-            return .noCurrentLesson  // Reusing existing error case
-        }
+        // Create the new LessonAssignment
+        let newLessonAssignment = PresentationFactory.makeDraft(
+            lessonID: nextLesson.id,
+            studentIDs: Array(studentIDs)
+        )
+        let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
+        PresentationFactory.attachRelationships(
+            to: newLessonAssignment,
+            lesson: allLessons.first(where: { $0.id == nextLesson.id }),
+            students: relatedStudents
+        )
+        context.insert(newLessonAssignment)
+        return .success(newLessonAssignment)
     }
 }

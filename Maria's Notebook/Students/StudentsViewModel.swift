@@ -6,13 +6,13 @@ import SwiftData
 final class StudentsViewModel {
     // MARK: - Cache State
     var cachedAttendanceRecords: [AttendanceRecord] = []
-    var cachedStudentLessons: [StudentLesson] = []
+    var cachedLessonAssignments: [LessonAssignment] = []
     var cachedLessons: [UUID: Lesson] = [:]
     var cachedDaysSinceLastLesson: [UUID: Int] = [:]
     
     // MARK: - Change Detection
     private var lastAttendanceIDs: Set<UUID> = []
-    private var lastStudentLessonIDs: Set<UUID> = []
+    private var lastLessonAssignmentIDs: Set<UUID> = []
     private var lastLessonIDs: Set<UUID> = []
     
     // MARK: - Filtering & Sorting
@@ -221,7 +221,7 @@ final class StudentsViewModel {
         
         // Check if data changed
         let dataChanged = attendanceRecordIDs != lastAttendanceIDs ||
-                         studentLessonIDs != lastStudentLessonIDs ||
+                         studentLessonIDs != lastLessonAssignmentIDs ||
                          lessonIDs != lastLessonIDs
         
         guard dataChanged else { return }
@@ -249,7 +249,7 @@ final class StudentsViewModel {
         
         // Update change tracking
         lastAttendanceIDs = attendanceRecordIDs
-        lastStudentLessonIDs = studentLessonIDs
+        lastLessonAssignmentIDs = studentLessonIDs
         lastLessonIDs = lessonIDs
     }
     
@@ -327,31 +327,30 @@ final class StudentsViewModel {
     
     /// Shared data structure containing pre-fetched lesson data for efficient computation.
     private struct LessonQueryContext {
-        let allStudentLessons: [StudentLesson]
+        let allLessonAssignments: [LessonAssignment]
         let excludedLessonIDs: Set<UUID>
         let calendar: Calendar
         let modelContext: ModelContext
-        
+
         init(modelContext: ModelContext, calendar: Calendar) {
             self.calendar = calendar
             self.modelContext = modelContext
-            
+
             // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
             let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
-            
-            // Fetch student lessons from last year, sorted by date descending for efficiency
-            let descriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate { sl in
-                    sl.createdAt >= oneYearAgo
+
+            let descriptor = FetchDescriptor<LessonAssignment>(
+                predicate: #Predicate { la in
+                    la.createdAt >= oneYearAgo
                 },
                 sortBy: [
-                    SortDescriptor(\StudentLesson.givenAt, order: .reverse),
-                    SortDescriptor(\StudentLesson.scheduledFor, order: .reverse),
-                    SortDescriptor(\StudentLesson.createdAt, order: .reverse)
+                    SortDescriptor(\LessonAssignment.presentedAt, order: .reverse),
+                    SortDescriptor(\LessonAssignment.scheduledFor, order: .reverse),
+                    SortDescriptor(\LessonAssignment.createdAt, order: .reverse)
                 ]
             )
-            self.allStudentLessons = modelContext.safeFetch(descriptor)
-            
+            self.allLessonAssignments = modelContext.safeFetch(descriptor)
+
             // Fetch lessons to exclude (parsha lessons) - cache this as Set for O(1) lookup
             let lessonsDescriptor = FetchDescriptor<Lesson>()
             let allLessons = modelContext.safeFetch(lessonsDescriptor)
@@ -363,11 +362,11 @@ final class StudentsViewModel {
             }.map { $0.id }
             self.excludedLessonIDs = Set(ids)
         }
-        
-        /// Returns all given, non-excluded student lessons
-        func givenLessons() -> [StudentLesson] {
-            allStudentLessons.filter { 
-                $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) 
+
+        /// Returns all presented, non-excluded lesson assignments
+        func presentedLessons() -> [LessonAssignment] {
+            allLessonAssignments.filter {
+                $0.isPresented && !excludedLessonIDs.contains($0.resolvedLessonID)
             }
         }
     }
@@ -379,12 +378,12 @@ final class StudentsViewModel {
     ) -> [UUID: Int] {
         // Build shared query context once
         let context = LessonQueryContext(modelContext: modelContext, calendar: calendar)
-        let givenLessons = context.givenLessons()
-        
+        let presented = context.presentedLessons()
+
         // Build a map of student ID to most recent lesson date
         var lastDateByStudent: [UUID: Date] = [:]
-        for sl in givenLessons {
-            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+        for sl in presented {
+            let when = sl.presentedAt ?? sl.scheduledFor ?? sl.createdAt
             for sid in sl.resolvedStudentIDs {
                 // Update if this is the first date or a more recent date
                 if let existing = lastDateByStudent[sid] {

@@ -130,7 +130,6 @@ final class Note: Identifiable {
     // Relationships - All possible contexts (only one should be set per note)
     @Relationship var lesson: Lesson?
     @Relationship var work: WorkModel?
-    @Relationship var studentLesson: StudentLesson?
     @Relationship var lessonAssignment: LessonAssignment?
     @Relationship var attendanceRecord: AttendanceRecord?
     @Relationship var workCheckIn: WorkCheckIn?
@@ -206,7 +205,7 @@ final class Note: Identifiable {
         if lesson != nil { return "lesson" }
         if work != nil { return "work" }
         if lessonAssignment != nil { return "presentation" }
-        if studentLesson != nil { return "studentLesson" }
+        // studentLesson relationship removed — fully migrated to lessonAssignment
         if attendanceRecord != nil { return "attendance" }
         if workCheckIn != nil { return "workCheckIn" }
         if workCompletionRecord != nil { return "workCompletion" }
@@ -235,7 +234,6 @@ final class Note: Identifiable {
         needsFollowUp: Bool = false,
         lesson: Lesson? = nil,
         work: WorkModel? = nil,
-        studentLesson: StudentLesson? = nil,
         lessonAssignment: LessonAssignment? = nil,
         attendanceRecord: AttendanceRecord? = nil,
         workCheckIn: WorkCheckIn? = nil,
@@ -262,7 +260,6 @@ final class Note: Identifiable {
         self.includeInReport = includeInReport
         self.lesson = lesson
         self.work = work
-        self.studentLesson = studentLesson
         self.lessonAssignment = lessonAssignment
         self.attendanceRecord = attendanceRecord
         self.workCheckIn = workCheckIn

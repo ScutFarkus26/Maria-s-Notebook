@@ -137,13 +137,6 @@ struct LessonAgeHelper {
     }
 }
 
-extension StudentLessonSnapshot {
-    /// Convenience wrapper to compute school-day age directly from a snapshot.
-    func schoolDaysSinceCreation(asOf today: Date = Date(), using context: ModelContext, calendar: Calendar = .current) -> Int {
-        return LessonAgeHelper.schoolDaysSinceCreation(createdAt: self.createdAt, asOf: today, using: context, calendar: calendar)
-    }
-}
-
 extension LessonAssignmentSnapshot {
     /// Convenience wrapper to compute school-day age directly from a snapshot.
     func schoolDaysSinceCreation(asOf today: Date = Date(), using context: ModelContext, calendar: Calendar = .current) -> Int {

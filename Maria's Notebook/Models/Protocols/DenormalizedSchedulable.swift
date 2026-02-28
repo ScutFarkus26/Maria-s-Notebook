@@ -2,7 +2,7 @@ import Foundation
 
 /// Protocol for SwiftData models that maintain denormalized scheduling and student grouping fields.
 ///
-/// Both `StudentLesson` and `LessonAssignment` store denormalized copies of scheduling dates
+/// `LessonAssignment` stores denormalized copies of scheduling dates
 /// and student group keys for efficient predicate filtering. This protocol provides shared
 /// default implementations so the synchronization logic lives in one place.
 ///

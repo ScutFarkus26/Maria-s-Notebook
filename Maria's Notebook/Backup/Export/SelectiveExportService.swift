@@ -214,7 +214,7 @@ public final class SelectiveExportService {
         // Count all entities
         let allStudents = safeFetch(FetchDescriptor<Student>(), context: modelContext)
         let allLessons = safeFetch(FetchDescriptor<Lesson>(), context: modelContext)
-        let allStudentLessons = safeFetch(FetchDescriptor<StudentLesson>(), context: modelContext)
+        // StudentLesson removed — fully migrated to LessonAssignment
         let allNotes = safeFetch(FetchDescriptor<Note>(), context: modelContext)
         let allProjects = safeFetch(FetchDescriptor<Project>(), context: modelContext)
 
@@ -238,28 +238,9 @@ public final class SelectiveExportService {
         includedCounts["Lesson"] = includedLessons.count
         excludedCounts["Lesson"] = allLessons.count - includedLessons.count
 
-        // Filter student lessons
-        let includedStudentLessons: [StudentLesson]
-        if filter.entityTypes?.contains(.studentLessons) ?? true {
-            if let studentIDs = filter.studentIDs {
-                includedStudentLessons = allStudentLessons.filter { sl in
-                    sl.resolvedStudentIDs.contains { studentIDs.contains($0) }
-                }
-            } else {
-                includedStudentLessons = allStudentLessons
-            }
-        } else {
-            includedStudentLessons = []
-        }
-        includedCounts["StudentLesson"] = includedStudentLessons.count
-        excludedCounts["StudentLesson"] = allStudentLessons.count - includedStudentLessons.count
-
-        // If includeRelatedEntities is true, add lessons referenced by student lessons
-        if filter.includeRelatedEntities && !includedStudentLessons.isEmpty {
-            let referencedLessonIDs = Set(includedStudentLessons.compactMap { UUID(uuidString: $0.lessonID) })
-            let additionalLessons = allLessons.filter { referencedLessonIDs.contains($0.id) && !includedLessons.contains($0) }
-            relatedEntitiesAdded += additionalLessons.count
-        }
+        // StudentLesson export removed — model fully migrated to LessonAssignment
+        includedCounts["StudentLesson"] = 0
+        excludedCounts["StudentLesson"] = 0
 
         // Filter notes
         let includedNotes: [Note]
@@ -457,17 +438,8 @@ public final class SelectiveExportService {
     }
 
     private func collectStudentLessons(modelContext: ModelContext, filter: ExportFilter) -> [StudentLessonDTO] {
-        let allSL = safeFetch(FetchDescriptor<StudentLesson>(), context: modelContext)
-        let filtered = allSL.filter { sl in
-            if let studentIDs = filter.studentIDs {
-                guard sl.resolvedStudentIDs.contains(where: { studentIDs.contains($0) }) else { return false }
-            }
-            if let range = filter.dateRange {
-                return range.contains(sl.createdAt)
-            }
-            return true
-        }
-        return BackupServiceHelpers.toDTOs(filtered)
+        // StudentLesson model removed — no longer exported in new backups
+        return []
     }
 
     // MARK: - Collection Helpers

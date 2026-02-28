@@ -84,7 +84,8 @@ enum BackupPreviewAnalyzer {
 
         assign("Student", payload.students.count, 0, count(Student.self))
         assign("Lesson", payload.lessons.count, 0, count(Lesson.self))
-        assign("StudentLesson", payload.studentLessons.count, 0, count(StudentLesson.self))
+        // StudentLesson removed — old backup data imported as LessonAssignment
+        assign("StudentLesson (legacy)", payload.studentLessons.count, 0, 0)
         assign("LessonAssignment", payload.lessonAssignments.count, 0, count(LessonAssignment.self))
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         assign("Note", payload.notes.count, 0, count(Note.self))
@@ -140,6 +141,7 @@ enum BackupPreviewAnalyzer {
             lessonsInStore = Set()
         }
         let lessonsInPayload = Set(payload.lessons.map { $0.id })
+        // StudentLesson model removed — old backup DTOs will be imported as LessonAssignment
         let studentLessonAnalysis = payload.studentLessons.reduce(
             into: (ins: 0, sk: 0, missingLesson: 0)
         ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), sl: StudentLessonDTO) in
@@ -147,15 +149,15 @@ enum BackupPreviewAnalyzer {
             if !hasLesson {
                 acc.sk += 1
                 acc.missingLesson += 1
-            } else if entityExists(StudentLesson.self, sl.id) {
+            } else if entityExists(LessonAssignment.self, sl.id) {
                 acc.sk += 1
             } else {
                 acc.ins += 1
             }
         }
-        assign("StudentLesson", studentLessonAnalysis.ins, studentLessonAnalysis.sk, 0)
+        assign("StudentLesson (legacy)", studentLessonAnalysis.ins, studentLessonAnalysis.sk, 0)
         if studentLessonAnalysis.missingLesson > 0 {
-            warnings.append("\(studentLessonAnalysis.missingLesson) StudentLesson records reference missing Lessons and will be skipped.")
+            warnings.append("\(studentLessonAnalysis.missingLesson) legacy StudentLesson records reference missing Lessons and will be skipped.")
         }
 
         // LessonAssignments - similar handling for missing lesson references

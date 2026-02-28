@@ -162,34 +162,6 @@ extension WorkCompletionRecord {
     }
 }
 
-extension StudentLesson {
-    var latestUnifiedNoteText: String {
-        Note.latestBody(in: unifiedNotes)
-    }
-
-    @discardableResult
-    func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
-        let studentUUIDs = studentIDs.compactMap { UUID(uuidString: $0) }
-        let scope: NoteScope
-        if studentUUIDs.count == 1, let only = studentUUIDs.first {
-            scope = .student(only)
-        } else if studentUUIDs.count > 1 {
-            scope = .students(studentUUIDs)
-        } else {
-            scope = .all
-        }
-
-        return Note.upsertLegacyFieldNote(
-            text: text,
-            scope: scope,
-            existingNotes: unifiedNotes,
-            context: context
-        ) { note in
-            note.studentLesson = self
-        }
-    }
-}
-
 extension ProjectSession {
     var latestUnifiedNoteText: String {
         Note.latestBody(in: noteItems)

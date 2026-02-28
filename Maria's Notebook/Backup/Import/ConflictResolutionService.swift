@@ -283,15 +283,16 @@ public final class ConflictResolutionService {
     ) -> [Conflict] {
         var conflicts: [Conflict] = []
 
+        // StudentLesson model removed — check for conflicts against LessonAssignment instead
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dtoID })
+            var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == dtoID })
             descriptor.fetchLimit = 1
-            let existing: StudentLesson?
+            let existing: LessonAssignment?
             do {
                 existing = try modelContext.fetch(descriptor).first
             } catch {
-                Self.logger.warning("Failed to fetch student lesson: \(error)")
+                Self.logger.warning("Failed to fetch lesson assignment for legacy student lesson: \(error)")
                 continue
             }
             guard let existing = existing else { continue }
@@ -434,24 +435,27 @@ public final class ConflictResolutionService {
     }
 
     private func updateStudentLesson(_ dto: StudentLessonDTO, in modelContext: ModelContext) throws {
+        // StudentLesson model removed — update corresponding LessonAssignment instead
         let dtoID = dto.id
-        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == dtoID })
+        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == dtoID })
         descriptor.fetchLimit = 1
-        let sl: StudentLesson?
+        let la: LessonAssignment?
         do {
-            sl = try modelContext.fetch(descriptor).first
+            la = try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch student lesson: \(error)")
+            print("⚠️ [Backup:\(#function)] Failed to fetch lesson assignment: \(error)")
             return
         }
-        guard let sl = sl else { return }
+        guard let la = la else { return }
 
-        sl.scheduledFor = dto.scheduledFor
-        sl.givenAt = dto.givenAt
-        sl.notes = dto.notes
-        sl.needsPractice = dto.needsPractice
-        sl.needsAnotherPresentation = dto.needsAnotherPresentation
-        sl.followUpWork = dto.followUpWork
+        la.scheduledFor = dto.scheduledFor
+        if let givenAt = dto.givenAt {
+            la.markPresented(at: givenAt)
+        }
+        la.notes = dto.notes
+        la.needsPractice = dto.needsPractice
+        la.needsAnotherPresentation = dto.needsAnotherPresentation
+        la.followUpWork = dto.followUpWork
     }
 
     private func updateNote(_ dto: NoteDTO, in modelContext: ModelContext) throws {

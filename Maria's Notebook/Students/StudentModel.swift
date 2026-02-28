@@ -41,9 +41,6 @@ final class Student: Identifiable {
         set { levelRaw = newValue.rawValue }
     }
 
-    // Note: studentLessons relationship removed because StudentLesson.students is @Transient
-    // Use queries filtered by studentIDs instead to find lessons for a student
-
     @Relationship(deleteRule: .cascade, inverse: \Document.student)
     var documents: [Document]? = []
 

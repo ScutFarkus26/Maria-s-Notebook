@@ -391,11 +391,12 @@ public final class BackupDiffService {
         backupStudentLessons: [StudentLessonDTO],
         modelContext: ModelContext
     ) -> EntityDiff {
-        let current: [StudentLesson]
+        // StudentLesson model removed — compare against LessonAssignment
+        let current: [LessonAssignment]
         do {
-            current = try modelContext.fetch(FetchDescriptor<StudentLesson>())
+            current = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch current student lessons: \(error)")
+            print("⚠️ [Backup:\(#function)] Failed to fetch current lesson assignments: \(error)")
             current = []
         }
         let currentIDs = Set(current.map { $0.id })

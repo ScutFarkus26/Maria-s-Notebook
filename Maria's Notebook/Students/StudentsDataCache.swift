@@ -13,8 +13,8 @@ final class StudentsDataCache {
     /// Today's attendance records
     private(set) var attendanceRecords: [AttendanceRecord] = []
 
-    /// Student lessons (currently unused but retained for future use)
-    private(set) var studentLessons: [StudentLesson] = []
+    /// Lesson assignments (currently unused but retained for future use)
+    private(set) var lessonAssignments: [LessonAssignment] = []
 
     /// Lessons by ID (currently unused but retained for future use)
     private(set) var lessons: [UUID: Lesson] = [:]
@@ -63,14 +63,14 @@ final class StudentsDataCache {
         }
 
         // Clear studentLessons cache (no longer needed for lastLesson mode)
-        studentLessons = []
+        lessonAssignments = []
         lessons = [:]
     }
 
     /// Clears all cached data
     func clearCaches() {
         attendanceRecords = []
-        studentLessons = []
+        lessonAssignments = []
         lessons = [:]
         daysSinceLastLesson = [:]
     }

@@ -220,15 +220,9 @@ struct AddLessonToInboxSheet: View {
         guard let lessonID = selectedLessonID else { return }
         isSaving = true
         
-        // Create a StudentLesson with no scheduledFor date (inbox item)
-        let studentLesson = StudentLesson(
-            lessonID: lessonID,
-            studentIDs: [student.id],
-            scheduledFor: nil,
-            isPresented: false
-        )
-        
-        modelContext.insert(studentLesson)
+        // Create a draft LessonAssignment (inbox item)
+        let draft = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [student.id])
+        modelContext.insert(draft)
         saveCoordinator.save(modelContext, reason: "Add Lesson to Inbox from Meeting")
         dismiss()
     }

@@ -11,7 +11,7 @@ enum DataCleanupService {
 
     // MARK: - Orphaned Student ID Cleanup
 
-    /// Cleans orphaned student IDs from StudentLesson records.
+    /// Cleans orphaned student IDs from LessonAssignment records.
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
     /// when using manual ID management instead of SwiftData relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
@@ -19,30 +19,28 @@ enum DataCleanupService {
         // Fetch all students to build valid ID set
         let studentFetch = FetchDescriptor<Student>()
         let allStudents = context.safeFetch(studentFetch)
-        
+
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
         guard !allStudents.isEmpty else {
             logger.warning("cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
             return
         }
-        
+
         let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
 
-        // Fetch all StudentLessons
-        let lessonFetch = FetchDescriptor<StudentLesson>()
-        let allLessons = context.safeFetch(lessonFetch)
+        let laFetch = FetchDescriptor<LessonAssignment>()
+        let allLAs = context.safeFetch(laFetch)
 
         var cleaned = 0
-        for (index, sl) in allLessons.enumerated() {
+        for (index, la) in allLAs.enumerated() {
             if index % 100 == 0 { await Task.yield() }
 
-            let originalIDs = sl.studentIDs
+            let originalIDs = la.studentIDs
             let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
 
             if cleanedIDs.count != originalIDs.count {
-                sl.studentIDs = cleanedIDs
-                // Also update the transient relationship array
-                sl.students = sl.students.filter { student in
+                la.studentIDs = cleanedIDs
+                la.students = la.students.filter { student in
                     validStudentIDs.contains(student.cloudKitKey)
                 }
                 cleaned += 1
@@ -116,24 +114,23 @@ enum DataCleanupService {
         }
     }
 
-    /// Deduplicate unscheduled, unpresented StudentLesson records that refer to the same lesson and identical student set.
+    /// Deduplicate draft LessonAssignment records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
-    static func deduplicateUnpresentedStudentLessons(using context: ModelContext) {
-        // Fetch all candidate lessons (unscheduled and not given)
-        let descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.scheduledFor == nil && $0.givenAt == nil })
+    static func deduplicateDraftLessonAssignments(using context: ModelContext) {
+        let draftRaw = LessonAssignmentState.draft.rawValue
+        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.stateRaw == draftRaw })
         let candidates = context.safeFetch(descriptor)
         guard !candidates.isEmpty else { return }
 
         // Group by (lessonID + sorted studentIDs)
-        let groups = candidates.grouped { sl -> String in
-            let sortedIDs = sl.studentIDs.sorted()
-            return sl.lessonID + "|" + sortedIDs.joined(separator: ",")
+        let groups = candidates.grouped { la -> String in
+            let sortedIDs = la.studentIDs.sorted()
+            return la.lessonID + "|" + sortedIDs.joined(separator: ",")
         }
 
         var changed = false
         for (_, group) in groups {
             guard group.count > 1 else { continue }
-            // Choose canonical: earliest createdAt, with stable tiebreaker by ID
             guard let canonical = group.sorted(by: { lhs, rhs in
                 if lhs.createdAt != rhs.createdAt {
                     return lhs.createdAt < rhs.createdAt
@@ -142,14 +139,12 @@ enum DataCleanupService {
             }).first else { continue }
             let duplicates = group.filter { $0.id != canonical.id }
 
-            // Merge flags conservatively
             if duplicates.contains(where: { $0.needsPractice }) {
                 canonical.needsPractice = true
             }
             if duplicates.contains(where: { $0.needsAnotherPresentation }) {
                 canonical.needsAnotherPresentation = true
             }
-            // Prefer non-empty notes/followUpWork if canonical empty
             if canonical.notes.trimmed().isEmpty {
                 if let firstNote = duplicates.map({ $0.notes }).first(where: { !$0.trimmed().isEmpty }) {
                     canonical.notes = firstNote
@@ -161,7 +156,6 @@ enum DataCleanupService {
                 }
             }
 
-            // Delete duplicates
             for d in duplicates { context.delete(d) }
             changed = true
         }
@@ -275,16 +269,16 @@ enum DataCleanupService {
     /// (e.g., during bulk imports or when didSet doesn't fire during initialization).
     /// Safe to call repeatedly - it's idempotent and only fixes mismatched records.
     static func repairDenormalizedScheduledForDay(using context: ModelContext) async {
-        let fetch = FetchDescriptor<StudentLesson>()
-        let lessons = context.safeFetch(fetch)
+        let fetch = FetchDescriptor<LessonAssignment>()
+        let assignments = context.safeFetch(fetch)
         var repaired = 0
 
-        for (index, sl) in lessons.enumerated() {
+        for (index, la) in assignments.enumerated() {
             if index % 100 == 0 { await Task.yield() }
 
-            let correct = sl.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
-            if sl.scheduledForDay != correct {
-                sl.scheduledForDay = correct
+            let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
+            if la.scheduledForDay != correct {
+                la.scheduledForDay = correct
                 repaired += 1
             }
         }
@@ -428,7 +422,7 @@ enum DataCleanupService {
         if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
 
         mergeRelationship(from: duplicate.notes, to: &canonical.notes, setter: { $0.lesson = canonical })
-        mergeRelationship(from: duplicate.studentLessons, to: &canonical.studentLessons, setter: { $0.lesson = canonical })
+        // studentLessons relationship removed — fully migrated to LessonAssignment
         mergeRelationship(from: duplicate.lessonAssignments, to: &canonical.lessonAssignments, setter: { $0.lesson = canonical })
     }
 
@@ -481,7 +475,7 @@ enum DataCleanupService {
         // Merge relationships (parent entities)
         if canonical.lesson == nil { canonical.lesson = duplicate.lesson }
         if canonical.work == nil { canonical.work = duplicate.work }
-        if canonical.studentLesson == nil { canonical.studentLesson = duplicate.studentLesson }
+        // studentLesson relationship removed — fully migrated to LessonAssignment
         if canonical.lessonAssignment == nil { canonical.lessonAssignment = duplicate.lessonAssignment }
         if canonical.attendanceRecord == nil { canonical.attendanceRecord = duplicate.attendanceRecord }
         if canonical.workCheckIn == nil { canonical.workCheckIn = duplicate.workCheckIn }
@@ -510,7 +504,7 @@ enum DataCleanupService {
         // Core models (most likely to have user-visible duplicates)
         results["Student"] = deduplicateStudentsStrong(using: context)
         results["Lesson"] = deduplicateLessonsStrong(using: context)
-        results["StudentLesson"] = deduplicate(StudentLesson.self, using: context)
+        // StudentLesson removed — fully migrated to LessonAssignment
         results["LessonAssignment"] = deduplicate(LessonAssignment.self, using: context)
         results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context)
 
@@ -571,7 +565,7 @@ enum DataCleanupService {
         _ = deduplicateAllModels(using: context)
         await cleanOrphanedStudentIDs(using: context)
         await cleanOrphanedWorkStudentIDs(using: context)
-        deduplicateUnpresentedStudentLessons(using: context)
+        deduplicateDraftLessonAssignments(using: context)
         await repairScopeForContextualNotes(using: context)
         await repairDenormalizedScheduledForDay(using: context)
     }

@@ -66,15 +66,16 @@ struct WorkRepository {
         }
     }
 
-    /// Resolves the studentLessonID for a work item
-    private func resolveStudentLessonID(studentID: UUID, lessonID: UUID, presentationID: UUID?) -> UUID? {
+    /// Resolves the presentationID for a work item
+    private func resolvePresentationID(studentID: UUID, lessonID: UUID, presentationID: UUID?) -> UUID? {
         if let presentationID = presentationID {
             return presentationID
         }
 
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { sl in
-                sl.lessonID == lessonID.uuidString
+        let lessonIDString = lessonID.uuidString
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { la in
+                la.lessonID == lessonIDString
             }
         )
         return safeFetch(descriptor)
@@ -122,7 +123,7 @@ struct WorkRepository {
     ) throws -> WorkModel {
         // Use WorkKind directly (new system), with smart defaults
         let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
-        let studentLessonID = resolveStudentLessonID(studentID: studentID, lessonID: lessonID, presentationID: presentationID)
+        let studentLessonID = resolvePresentationID(studentID: studentID, lessonID: lessonID, presentationID: presentationID)
 
         let work = WorkModel(
             id: UUID(),

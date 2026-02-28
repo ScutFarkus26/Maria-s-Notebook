@@ -112,13 +112,16 @@ enum BackupEntityImporter {
     /// - Parameters:
     ///   - dtos: The student lesson DTOs to import
     ///   - modelContext: The model context for database operations
-    ///   - studentLessonCheck: Function to check if a student lesson already exists
+    /// Imports old StudentLessonDTO records as LessonAssignment records.
+    /// This provides backward compatibility when restoring backups created before
+    /// the StudentLesson model was removed.
+    ///   - existingCheck: Function to check if a LessonAssignment already exists with this ID
     ///   - lessonCheck: Function to check if the referenced lesson exists
     ///   - studentCheck: Function to look up a student by ID
-    static func importStudentLessons(
+    static func importStudentLessonsAsLessonAssignments(
         _ dtos: [StudentLessonDTO],
         into modelContext: ModelContext,
-        studentLessonCheck: EntityExistsCheck<StudentLesson>,
+        existingCheck: EntityExistsCheck<LessonAssignment>,
         lessonCheck: EntityExistsCheck<Lesson>,
         studentCheck: EntityExistsCheck<Student>
     ) rethrows {
@@ -132,25 +135,40 @@ enum BackupEntityImporter {
             }
             // Skip if already exists
             do {
-                if try studentLessonCheck(dto.id) != nil { continue }
+                if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check existing student lesson: \(error)")
+                print("⚠️ [Backup:\(#function)] Failed to check existing lesson assignment: \(error)")
                 continue
             }
 
-            let studentLesson = StudentLessonFactory.makeFromBackup(
+            // Determine state from old StudentLesson fields
+            let state: LessonAssignmentState
+            let presentedAt: Date?
+            if dto.givenAt != nil {
+                state = .presented
+                presentedAt = dto.givenAt
+            } else if dto.scheduledFor != nil {
+                state = .scheduled
+                presentedAt = nil
+            } else {
+                state = .draft
+                presentedAt = nil
+            }
+
+            let la = LessonAssignment(
                 id: dto.id,
+                createdAt: dto.createdAt,
+                state: state,
+                scheduledFor: dto.scheduledFor,
+                presentedAt: presentedAt,
                 lessonID: dto.lessonID,
                 studentIDs: dto.studentIDs,
-                createdAt: dto.createdAt,
-                scheduledFor: dto.scheduledFor,
-                givenAt: dto.givenAt,
-                isPresented: dto.givenAt != nil,
-                notes: dto.notes,
                 needsPractice: dto.needsPractice,
                 needsAnotherPresentation: dto.needsAnotherPresentation,
-                followUpWork: dto.followUpWork
+                followUpWork: dto.followUpWork,
+                notes: dto.notes
             )
+            la.migratedFromStudentLessonID = dto.id.uuidString
 
             var linkedStudents: [Student] = []
             for studentID in dto.studentIDs {
@@ -164,10 +182,10 @@ enum BackupEntityImporter {
                 }
             }
             if !linkedStudents.isEmpty {
-                studentLesson.students = linkedStudents
+                la.students = linkedStudents
             }
 
-            modelContext.insert(studentLesson)
+            modelContext.insert(la)
         }
     }
 

@@ -39,8 +39,7 @@ struct EntityFetcherRegistry {
             return fetchStudent(id: id, context: context) as? T
         case is Lesson.Type:
             return fetchLesson(id: id, context: context) as? T
-        case is StudentLesson.Type:
-            return fetchStudentLesson(id: id, context: context) as? T
+        // StudentLesson removed — fully migrated to LessonAssignment
         case is WorkModel.Type:
             return fetchWorkModel(id: id, context: context) as? T
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
@@ -112,11 +111,7 @@ struct EntityFetcherRegistry {
         return safeFetchFirst(descriptor, context: context, entityName: "Lesson")
     }
 
-    private func fetchStudentLesson(id: UUID, context: ModelContext) -> StudentLesson? {
-        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return safeFetchFirst(descriptor, context: context, entityName: "StudentLesson")
-    }
+    // fetchStudentLesson removed — model fully migrated to LessonAssignment
 
     private func fetchWorkModel(id: UUID, context: ModelContext) -> WorkModel? {
         var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })

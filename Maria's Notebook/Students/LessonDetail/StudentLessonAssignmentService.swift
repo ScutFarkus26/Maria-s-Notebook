@@ -16,12 +16,10 @@ enum StudentLessonAssignmentService {
     /// - Parameters:
     ///   - assignments: Array of assignment entries from the composer sheet
     ///   - lessonID: The lesson ID to associate with the assignments
-    ///   - studentLessonsAll: All student lessons for lookup
     ///   - modelContext: Model context for database operations
     static func createFollowUpAssignments(
         _ assignments: [PostPresentationAssignmentsSheet.AssignmentEntry],
         lessonID: UUID,
-        studentLessonsAll: [StudentLesson],
         modelContext: ModelContext
     ) {
         let activeRaw = WorkStatus.active.rawValue
@@ -41,17 +39,14 @@ enum StudentLessonAssignmentService {
             }
 
             // Find existing WorkModel for this student/lesson with follow-up kind
+            let lessonIDString = lessonID.uuidString
             let existingWork = allWorkModels.first { work in
                 // Check if student is a participant
                 let hasStudent = (work.participants ?? []).contains { $0.studentID == studentUUID.uuidString }
                 guard hasStudent else { return false }
 
-                // Check if work is for this lesson (via studentLessonID)
-                guard let slID = work.studentLessonID,
-                      let sl = studentLessonsAll.first(where: { $0.id == slID }),
-                      UUID(uuidString: sl.lessonID) == lessonID else {
-                    return false
-                }
+                // Check if work is for this lesson
+                guard work.lessonID == lessonIDString else { return false }
 
                 // Check status and kind
                 return (work.statusRaw == activeRaw || work.statusRaw == reviewRaw) &&

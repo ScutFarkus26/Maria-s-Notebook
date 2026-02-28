@@ -61,7 +61,7 @@ struct PlanningWeekViewContent: View {
         switch sheet {
         case .studentLessonDetail(let id):
             if let la = fetchLessonAssignment(by: id) {
-                LessonAssignmentDetailBridge(lessonAssignment: la) { activeSheet = nil }
+                StudentLessonDetailView(lessonAssignment: la) { activeSheet = nil }
             } else {
                 ProgressView("Loading…")
                     .frame(minWidth: 320, minHeight: 240)
@@ -74,7 +74,7 @@ struct PlanningWeekViewContent: View {
             }
         case .quickActions(let id):
             if let la = fetchLessonAssignment(by: id) {
-                LessonAssignmentQuickActionsBridge(lessonAssignment: la) { activeSheet = nil }
+                StudentLessonQuickActionsView(lessonAssignment: la) { activeSheet = nil }
             } else {
                 ProgressView("Loading…")
                     .frame(minWidth: 320, minHeight: 240)
@@ -87,7 +87,7 @@ struct PlanningWeekViewContent: View {
             }
         case .giveLessonDraft(let id):
             if let la = fetchLessonAssignment(by: id) {
-                LessonAssignmentDetailBridge(lessonAssignment: la) { activeSheet = nil }
+                StudentLessonDetailView(lessonAssignment: la) { activeSheet = nil }
                     .largeSheetSizing()
                     .onDisappear {
                         if let current = fetchLessonAssignment(by: id) {

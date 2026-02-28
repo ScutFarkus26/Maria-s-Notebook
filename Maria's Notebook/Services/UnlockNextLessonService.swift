@@ -73,19 +73,15 @@ struct UnlockNextLessonService {
             return .success(existing)
         }
         
-        // Doesn't exist yet - create it using dual-write coordinator
-        let coordinator = DualWriteCoordinator(context: modelContext)
-        do {
-            let (_, lessonAssignment) = try coordinator.createDraft(
-                lessonID: nextLesson.id,
-                studentIDs: Array(studentIDs)
-            )
-            lessonAssignment.manuallyUnblocked = true
-            safeSave(modelContext: modelContext, context: "unlockNextLesson")
-            return .success(lessonAssignment)
-        } catch {
-            return .error("Failed to create lesson assignment: \(error.localizedDescription)")
-        }
+        // Doesn't exist yet - create it
+        let lessonAssignment = PresentationFactory.makeDraft(
+            lessonID: nextLesson.id,
+            studentIDs: Array(studentIDs)
+        )
+        lessonAssignment.manuallyUnblocked = true
+        modelContext.insert(lessonAssignment)
+        safeSave(modelContext: modelContext, context: "unlockNextLesson")
+        return .success(lessonAssignment)
     }
     
     /// Convenience method to unlock for a single student

@@ -47,26 +47,8 @@ enum BackupServiceHelpers {
         }
     }
 
-    /// Converts an array of StudentLessons to StudentLessonDTOs
-    static func toDTOs(_ studentLessons: [StudentLesson]) -> [StudentLessonDTO] {
-        studentLessons.compactMap { sl in
-            guard let lessonIDUUID = UUID(uuidString: sl.lessonID) else { return nil }
-            return StudentLessonDTO(
-                id: sl.id,
-                lessonID: lessonIDUUID,
-                studentIDs: sl.resolvedStudentIDs,
-                createdAt: sl.createdAt,
-                scheduledFor: sl.scheduledFor,
-                givenAt: sl.givenAt,
-                isPresented: sl.isPresented,
-                notes: sl.notes,
-                needsPractice: sl.needsPractice,
-                needsAnotherPresentation: sl.needsAnotherPresentation,
-                followUpWork: sl.followUpWork,
-                studentGroupKey: nil
-            )
-        }
-    }
+    // StudentLesson toDTOs removed — model fully migrated to LessonAssignment
+    // StudentLessonDTO is kept for import backward compatibility only.
 
     /// Converts an array of Notes to NoteDTOs
     static func toDTOs(_ notes: [Note]) -> [NoteDTO] {
