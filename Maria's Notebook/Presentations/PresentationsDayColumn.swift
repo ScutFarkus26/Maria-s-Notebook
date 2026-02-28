@@ -109,10 +109,10 @@ struct PresentationsDayColumn: View {
                             ForEach(allItemsForDay) { item in
                                 switch item {
                                 case .lessonAssignment(let la):
-                                    StudentLessonPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true)
+                                    PresentationPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true)
                                         .onTapGesture { onSelect(la) }
                                         .draggable(UnifiedCalendarDragPayload.studentLesson(la.id).stringRepresentation) {
-                                            StudentLessonPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
+                                            PresentationPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
                                         }
                                         .contextMenu {
                                             Button("Clear Schedule", systemImage: "xmark.circle") {
@@ -302,7 +302,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
                       let frame = frames[sl.id] else { return false }
                 return locationY >= frame.minY && locationY <= frame.maxY
             }) {
-                StudentLessonMergeService.merge(
+                PresentationMergeService.merge(
                     sourceID: id,
                     targetID: targetSL.id,
                     context: modelContext

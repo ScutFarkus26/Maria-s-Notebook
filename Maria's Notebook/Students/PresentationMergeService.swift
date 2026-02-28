@@ -3,7 +3,7 @@ import OSLog
 import SwiftData
 
 @MainActor
-enum StudentLessonMergeService {
+enum PresentationMergeService {
     private static let logger = Logger.students
 
     @discardableResult

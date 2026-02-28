@@ -7,7 +7,7 @@ import Foundation
 
 private let logger = Logger.students
 
-private enum StudentLessonsSort: String {
+private enum PresentationsListSort: String {
     case upcomingThenPresented = "Default"
     case dateCreated = "Date Created"
     case datePresented = "Date Presented"
@@ -20,7 +20,7 @@ private enum CompletionFilter: String {
     case hiddenUndated = "Hidden"
 }
 
-struct StudentLessonsRootView: View {
+struct PresentationsListView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) private var modelContext
     #if os(iOS)
@@ -61,7 +61,7 @@ struct StudentLessonsRootView: View {
         }
     }
 
-    private var sort: StudentLessonsSort {
+    private var sort: PresentationsListSort {
         switch studentLessonsSortRaw {
         case "dateCreated": return .dateCreated
         case "datePresented", "dateGiven": return .datePresented
@@ -133,7 +133,7 @@ struct StudentLessonsRootView: View {
         defer {
             let duration = Date().timeIntervalSince(startTime)
             PerformanceLogger.log(
-                screenName: "StudentLessonsRootView - Sort",
+                screenName: "PresentationsListView - Sort",
                 itemCount: filteredAssignments.count,
                 duration: duration
             )
@@ -247,7 +247,7 @@ struct StudentLessonsRootView: View {
         }
         .sheet(isPresented: Binding(get: { selectedLessonID != nil }, set: { if !$0 { selectedLessonID = nil } })) {
             if let id = selectedLessonID, let sl = filteredAssignments.first(where: { $0.id == id }) {
-                StudentLessonDetailView(lessonAssignment: sl, onDone: {
+                PresentationDetailView(lessonAssignment: sl, onDone: {
                     selectedLessonID = nil
                 })
             } else {
@@ -269,7 +269,7 @@ struct StudentLessonsRootView: View {
         }
         .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
             if let id = quickActionsLessonID, let sl = filteredAssignments.first(where: { $0.id == id }) {
-                StudentLessonQuickActionsView(lessonAssignment: sl) {
+                PresentationQuickActionsView(lessonAssignment: sl) {
                     quickActionsLessonID = nil
                 }
             } else {
@@ -298,7 +298,7 @@ struct StudentLessonsRootView: View {
         #if DEBUG
         .onAppear {
             PerformanceLogger.logScreenLoad(
-                screenName: "StudentLessonsRootView",
+                screenName: "PresentationsListView",
                 itemCounts: [
                     "lessonAssignments": filteredAssignments.count,
                     "lessons": lessons.count,
@@ -439,7 +439,7 @@ struct StudentLessonsRootView: View {
                                 }
                                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                     ForEach(hiddenUndated, id: \.id) { sl in
-                                        StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                        PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                             .onTapGesture { selectedLessonID = sl.id }
                                             .contextMenu {
                                                 Button {
@@ -484,7 +484,7 @@ struct StudentLessonsRootView: View {
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                             ForEach(up, id: \.id) { sl in
-                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                                     .onTapGesture { selectedLessonID = sl.id }
                                                     .contextMenu {
                                                         Button {
@@ -508,7 +508,7 @@ struct StudentLessonsRootView: View {
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                             ForEach(gv, id: \.id) { sl in
-                                                StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                                     .onTapGesture { selectedLessonID = sl.id }
                                                     .contextMenu {
                                                         Button {
@@ -541,7 +541,7 @@ struct StudentLessonsRootView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                             ForEach(sortedAssignments, id: \.id) { sl in
-                                StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                     .onTapGesture { selectedLessonID = sl.id }
                                     .contextMenu {
                                         Button {
@@ -563,5 +563,5 @@ struct StudentLessonsRootView: View {
 
 
 #Preview {
-    StudentLessonsRootView()
+    PresentationsListView()
 }

@@ -210,7 +210,7 @@ struct WorkAgendaDayColumn: View {
                             }
                         }
                     case .lessonAssignment(let la):
-                        StudentLessonPill(
+                        PresentationPill(
                             snapshot: la.snapshot(),
                             day: day,
                             targetLessonAssignmentID: la.id,
@@ -220,7 +220,7 @@ struct WorkAgendaDayColumn: View {
                         )
                         .opacity(0.5)
                         .draggable(UnifiedCalendarDragPayload.studentLesson(la.id).stringRepresentation) {
-                            StudentLessonPill(
+                            PresentationPill(
                                 snapshot: la.snapshot(),
                                 day: day,
                                 targetLessonAssignmentID: la.id,

@@ -3,7 +3,7 @@ import SwiftData
 
 /// Centralized service for resolving student and lesson names from IDs.
 /// Eliminates duplicate name resolution logic across the codebase.
-enum StudentLessonResolver {
+enum PresentationResolver {
     
     // MARK: - Student Name Resolution
     

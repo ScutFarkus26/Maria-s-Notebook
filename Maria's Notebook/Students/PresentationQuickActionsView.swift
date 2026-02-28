@@ -4,7 +4,7 @@ import SwiftUI
 
 private let logger = Logger.students
 
-struct StudentLessonQuickActionsView: View {
+struct PresentationQuickActionsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dismiss) private var dismiss
@@ -385,7 +385,7 @@ struct StudentLessonQuickActionsView: View {
 }
 
 #Preview {
-    Text("StudentLessonQuickActionsView preview requires real SwiftData context and cannot run here.")
+    Text("PresentationQuickActionsView preview requires real SwiftData context and cannot run here.")
         .frame(minWidth: 360, minHeight: 240)
         .padding()
 }

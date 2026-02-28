@@ -84,7 +84,7 @@ struct StudentDetailView: View {
     @ViewBuilder
     private func lessonGiveSheet(for lesson: Lesson) -> some View {
         let newLA = vm.createDraftLessonAssignment(for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator)
-        StudentLessonDetailView(lessonAssignment: newLA) {
+        PresentationDetailView(lessonAssignment: newLA) {
             vm.selectedLessonForGive = nil
             vm.loadData(modelContext: modelContext)
         }
@@ -203,7 +203,7 @@ struct StudentDetailView: View {
             lessonGiveSheet(for: lesson)
         }
         .sheet(item: $vm.selectedLessonAssignmentForDetail) { la in
-            StudentLessonDetailView(lessonAssignment: la) {
+            PresentationDetailView(lessonAssignment: la) {
                 vm.selectedLessonAssignmentForDetail = nil
             }
             .studentDetailSheetSizing()

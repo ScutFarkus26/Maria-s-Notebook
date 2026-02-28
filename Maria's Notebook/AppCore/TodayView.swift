@@ -118,7 +118,7 @@ struct TodayView: View {
             }
         }
         .sheet(item: $selectedLessonAssignment) { la in
-            StudentLessonDetailView(lessonAssignment: la) {
+            PresentationDetailView(lessonAssignment: la) {
                 selectedLessonAssignment = nil
             }
 #if os(macOS)

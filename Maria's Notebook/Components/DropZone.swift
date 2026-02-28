@@ -163,7 +163,7 @@ struct DropZone: View {
 
     @ViewBuilder
     private func lessonPillView(for la: LessonAssignment) -> some View {
-        StudentLessonPill(
+        PresentationPill(
             snapshot: la.snapshot(),
             day: day,
             sourceLessonAssignmentID: la.id,
@@ -171,7 +171,7 @@ struct DropZone: View {
             enableMergeDrop: true
         )
         .draggable(la.id.uuidString) {
-            StudentLessonPill(
+            PresentationPill(
                 snapshot: la.snapshot(),
                 day: day,
                 sourceLessonAssignmentID: la.id,
@@ -334,7 +334,7 @@ struct BoardDropDelegate: DropDelegate {
                       let frame = frames[la.id] else { return false }
                 return dropY >= frame.minY && dropY <= frame.maxY
             }) {
-                StudentLessonMergeService.merge(
+                PresentationMergeService.merge(
                     sourceID: id,
                     targetID: targetLA.id,
                     context: modelContext

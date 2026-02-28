@@ -4,7 +4,7 @@ import SwiftUI
 
 private let logger = Logger.students
 
-struct StudentLessonDetailView: View {
+struct PresentationDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -33,7 +33,7 @@ struct StudentLessonDetailView: View {
     var onDone: (() -> Void)? = nil
 
     // ViewModel is optional and initialized in onAppear
-    @State private var vm: StudentLessonDetailViewModel?
+    @State private var vm: PresentationDetailViewModel?
 
     // Child ViewModel (LessonPicker)
     // We initialize it with a dummy state; it will be configured in onAppear
@@ -49,7 +49,7 @@ struct StudentLessonDetailView: View {
         Group {
             if let vm = vm {
                 // Pass non-optional VM to the content view to enable Bindings
-                StudentLessonDetailContentView(
+                PresentationDetailContentView(
                     vm: vm,
                     lessonPickerVM: lessonPickerVM,
                     lessons: lessons,
@@ -64,7 +64,7 @@ struct StudentLessonDetailView: View {
         .onAppear {
             if vm == nil {
                 // Initialize Main VM
-                let newVM = StudentLessonDetailViewModel(
+                let newVM = PresentationDetailViewModel(
                     lessonAssignment: lessonAssignment,
                     modelContext: modelContext,
                     saveCoordinator: saveCoordinator,
@@ -164,8 +164,8 @@ struct IndependentWorkflowWindow: View {
 
 // MARK: - Content Subview
 /// Extracts the content so `vm` can be treated as non-optional for Bindings
-struct StudentLessonDetailContentView: View {
-    @Bindable var vm: StudentLessonDetailViewModel
+struct PresentationDetailContentView: View {
+    @Bindable var vm: PresentationDetailViewModel
     @Bindable var lessonPickerVM: LessonPickerViewModel
     
     let lessons: [Lesson]

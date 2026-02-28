@@ -378,7 +378,7 @@ struct PresentationsView: View {
         .sheet(item: $coordinator.activeSheet) { sheet in
             switch sheet {
             case .lessonAssignmentDetail(let la):
-                StudentLessonDetailView(lessonAssignment: la) {
+                PresentationDetailView(lessonAssignment: la) {
                     coordinator.dismissSheet()
                 }
                 #if os(macOS)

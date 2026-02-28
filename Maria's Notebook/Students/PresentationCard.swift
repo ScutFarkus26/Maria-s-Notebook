@@ -1,4 +1,4 @@
-// StudentLessonCard.swift
+// PresentationCard.swift
 // Student lesson card component extracted from StudentLessonsRootView
 
 import SwiftUI
@@ -8,7 +8,7 @@ import AppKit
 import UIKit
 #endif
 
-struct StudentLessonCard: View {
+struct PresentationCard: View {
     let snapshot: LessonAssignmentSnapshot
     let lesson: Lesson?
     let students: [Student]

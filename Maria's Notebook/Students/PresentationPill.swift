@@ -30,7 +30,7 @@ private enum RecentPresentationCache {
     }
 }
 
-struct StudentLessonPill: View {
+struct PresentationPill: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
@@ -660,7 +660,7 @@ struct StudentLessonPill: View {
 
                 if enableMergeDrop, let sourceID = UUID(uuidString: str.trimmed()) {
                     Task { @MainActor in
-                        _ = StudentLessonMergeService.merge(
+                        _ = PresentationMergeService.merge(
                             sourceID: sourceID,
                             targetID: targetID,
                             context: modelContext

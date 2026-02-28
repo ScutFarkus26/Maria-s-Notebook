@@ -257,7 +257,7 @@ struct RootView: View {
             QuickNoteSheet()
         }
         .sheet(item: $newPresentationDraftID) { draftID in
-            StudentLessonDraftSheet(id: draftID) {
+            PresentationDraftSheet(id: draftID) {
                 newPresentationDraftID = nil
             }
             #if os(macOS)

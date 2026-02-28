@@ -277,7 +277,7 @@ struct PresentationsInboxView: View {
     @ViewBuilder
     private func inboxRow(_ la: LessonAssignment, blockingWork: [UUID: WorkModel] = [:]) -> some View {
         HStack(spacing: 0) {
-            StudentLessonPill(
+            PresentationPill(
                 snapshot: filteredSnapshot(la),
                 day: Date(),
                 targetLessonAssignmentID: la.id,

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import OSLog
 
-struct StudentLessonDraftSheet: View {
+struct PresentationDraftSheet: View {
     private static let logger = Logger.students
     @Environment(\.modelContext) private var modelContext
 
@@ -21,7 +21,7 @@ struct StudentLessonDraftSheet: View {
     var body: some View {
         Group {
             if let sl = matches.first {
-                StudentLessonDetailView(lessonAssignment: sl, onDone: onDone, autoFocusLessonPicker: true)
+                PresentationDetailView(lessonAssignment: sl, onDone: onDone, autoFocusLessonPicker: true)
                     .onDisappear {
                         // If the draft is still empty when the sheet closes, remove it
                         if let current = matches.first {

@@ -138,7 +138,7 @@ struct AgendaSlot: View {
 
     @ViewBuilder
     private func lessonPillView(for la: LessonAssignment) -> some View {
-        StudentLessonPill(
+        PresentationPill(
             snapshot: la.snapshot(),
             day: day,
             sourceLessonAssignmentID: la.id,
@@ -147,7 +147,7 @@ struct AgendaSlot: View {
         )
         .draggable(la.id.uuidString) {
             // Custom drag preview
-            StudentLessonPill(
+            PresentationPill(
                 snapshot: la.snapshot(),
                 day: day,
                 sourceLessonAssignmentID: la.id,
@@ -443,7 +443,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
                                   let frame = frames[la.id] else { return false }
                             return dropY >= frame.minY && dropY <= frame.maxY
                         }) {
-                            StudentLessonMergeService.merge(
+                            PresentationMergeService.merge(
                                 sourceID: id,
                                 targetID: targetLA.id,
                                 context: modelContext

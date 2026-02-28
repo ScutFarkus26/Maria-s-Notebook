@@ -5,7 +5,7 @@ import OSLog
 
 @Observable
 @MainActor
-final class StudentLessonDetailViewModel {
+final class PresentationDetailViewModel {
     private static let logger = Logger.students
     // MARK: - Dependencies
     var lessonAssignment: LessonAssignment
