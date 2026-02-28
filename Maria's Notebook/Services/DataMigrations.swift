@@ -132,6 +132,16 @@ enum DataMigrations {
         }
     }
 
+    /// Re-run the LessonAssignment migration to catch records created after the v1 migration.
+    static func migrateLessonAssignmentsV2IfNeeded(using context: ModelContext) async {
+        let service = LessonAssignmentMigrationService(context: context)
+        do {
+            _ = try await service.migrateIfNeededV2()
+        } catch {
+            logger.warning("Failed to run v2 lesson assignment migration: \(error.localizedDescription)")
+        }
+    }
+
     /// Validates that the LessonAssignment migration completed successfully.
     /// Returns the validation result for logging/debugging purposes.
     static func validateLessonAssignmentMigration(using context: ModelContext) async -> LessonAssignmentValidationResult? {

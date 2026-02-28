@@ -132,6 +132,7 @@ final class AppBootstrapper {
         // 3.10. LessonAssignment Migration (StudentLesson + Presentation consolidation)
         let lessonAssignmentStart = Date()
         await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
+        await DataMigrations.migrateLessonAssignmentsV2IfNeeded(using: backgroundContext)
         logger.info("Post-launch migrations: lesson assignment migration completed in \(formatSeconds(Date().timeIntervalSince(lessonAssignmentStart)))s")
 
         await MigrationRunner.runIfNeeded(context: backgroundContext)

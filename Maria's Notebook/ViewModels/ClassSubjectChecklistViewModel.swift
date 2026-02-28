@@ -224,9 +224,11 @@ class ClassSubjectChecklistViewModel {
         var ids = lesson.studentIDs
         ids.removeAll { $0 == student }
         if ids.isEmpty {
+            ChecklistSyncHelper.syncAfterDeleted(studentLessonID: lesson.id, context: context)
             context.delete(lesson)
         } else {
             lesson.studentIDs = ids
+            ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: lesson, context: context)
         }
     }
 
@@ -234,13 +236,15 @@ class ClassSubjectChecklistViewModel {
         if let group = allSLs.first(where: { !$0.isGiven && $0.scheduledFor == nil }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
+                ChecklistSyncHelper.syncAfterStudentAdded(studentLesson: group, context: context)
             }
         } else {
-            _ = StudentLessonFactory.insertUnscheduled(
+            let sl = StudentLessonFactory.insertUnscheduled(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 into: context
             )
+            ChecklistSyncHelper.syncAfterDraft(studentLesson: sl, context: context)
         }
     }
 
@@ -299,14 +303,16 @@ class ClassSubjectChecklistViewModel {
         if let group = allSLs.first(where: { $0.isGiven && ($0.givenAt ?? Date.distantPast).isSameDay(as: today) }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
+                ChecklistSyncHelper.syncAfterStudentAdded(studentLesson: group, context: context)
                 GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
             }
         } else {
-            _ = StudentLessonFactory.insertPresented(
+            let sl = StudentLessonFactory.insertPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 into: context
             )
+            ChecklistSyncHelper.syncAfterPresented(studentLesson: sl, context: context)
             GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
         }
     }
@@ -326,7 +332,13 @@ class ClassSubjectChecklistViewModel {
         for sl in sls where sl.studentIDs.contains(sidString) {
             var newIDs = sl.studentIDs
             newIDs.removeAll { $0 == sidString }
-            if newIDs.isEmpty { context.delete(sl) } else { sl.studentIDs = newIDs }
+            if newIDs.isEmpty {
+                ChecklistSyncHelper.syncAfterDeleted(studentLessonID: sl.id, context: context)
+                context.delete(sl)
+            } else {
+                sl.studentIDs = newIDs
+                ChecklistSyncHelper.syncAfterStudentRemoved(studentLesson: sl, context: context)
+            }
         }
 
         // OPTIMIZATION: Filter WorkModels to only non-complete work

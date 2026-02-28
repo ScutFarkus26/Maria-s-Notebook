@@ -110,6 +110,22 @@ nonisolated final class LessonAssignmentMigrationService {
         return result
     }
 
+    /// Runs a v2 migration to catch StudentLessons created after the initial migration.
+    /// Uses the same idempotent migrateAll() logic — already-migrated records are skipped.
+    func migrateIfNeededV2() async throws -> LessonAssignmentMigrationResult? {
+        let flagKey = "Migration.lessonAssignment.v2"
+
+        guard !MigrationFlag.isComplete(key: flagKey) else {
+            logger.debug("LessonAssignment v2 migration already complete")
+            return nil
+        }
+
+        let result = try await migrateAll()
+        MigrationFlag.markComplete(key: flagKey)
+
+        return result
+    }
+
     // MARK: - Private Migration Logic
 
     /// Migrates a single StudentLesson to LessonAssignment.
