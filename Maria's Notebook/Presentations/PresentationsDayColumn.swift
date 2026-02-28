@@ -11,21 +11,21 @@ struct PresentationsDayColumn: View {
     @Environment(\.calendar) private var calendar
 
     let day: Date
-    let allStudentLessons: [StudentLesson]
+    let allLessonAssignments: [LessonAssignment]
     let showWork: Bool
     // OPTIMIZATION: Accept pre-fetched work items from parent
     let preloadedWorkItems: [WorkCheckIn]
-    let onClear: (StudentLesson) -> Void
-    let onSelect: (StudentLesson) -> Void
+    let onClear: (LessonAssignment) -> Void
+    let onSelect: (LessonAssignment) -> Void
 
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
     @State private var insertionIndex: Int?
 
-    private var scheduledLessonsForDay: [StudentLesson] {
-        allStudentLessons.filter { sl in
-            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return false }
+    private var scheduledLessonsForDay: [LessonAssignment] {
+        allLessonAssignments.filter { la in
+            guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day)
         }
         .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
@@ -41,26 +41,26 @@ struct PresentationsDayColumn: View {
     
     /// Note: Cannot conform to Sendable because SwiftData models are not Sendable
     enum CalendarItem: Identifiable {
-        case studentLesson(StudentLesson)
+        case lessonAssignment(LessonAssignment)
         case workCheckIn(WorkCheckIn) // Phase 6: renamed from workPlanItem
-        
+
         var id: UUID {
             switch self {
-            case .studentLesson(let sl): return sl.id
+            case .lessonAssignment(let la): return la.id
             case .workCheckIn(let wci): return wci.id
             }
         }
-        
+
         var sortDate: Date {
             switch self {
-            case .studentLesson(let sl): return sl.scheduledFor ?? .distantPast
+            case .lessonAssignment(let la): return la.scheduledFor ?? .distantPast
             case .workCheckIn(let wci): return wci.date
             }
         }
     }
     
     private var allItemsForDay: [CalendarItem] {
-        let lessons = scheduledLessonsForDay.map { CalendarItem.studentLesson($0) }
+        let lessons = scheduledLessonsForDay.map { CalendarItem.lessonAssignment($0) }
         let work = showWork ? workItemsForDay.map { CalendarItem.workCheckIn($0) } : []
         return (lessons + work).sorted { $0.sortDate < $1.sortDate }
     }
@@ -108,22 +108,22 @@ struct PresentationsDayColumn: View {
                         } else {
                             ForEach(allItemsForDay) { item in
                                 switch item {
-                                case .studentLesson(let sl):
-                                    StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true)
-                                        .onTapGesture { onSelect(sl) }
-                                        .draggable(UnifiedCalendarDragPayload.studentLesson(sl.id).stringRepresentation) {
-                                            StudentLessonPill(snapshot: sl.snapshot(), day: day, targetStudentLessonID: sl.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
+                                case .lessonAssignment(let la):
+                                    StudentLessonPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true)
+                                        .onTapGesture { onSelect(la) }
+                                        .draggable(UnifiedCalendarDragPayload.studentLesson(la.id).stringRepresentation) {
+                                            StudentLessonPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
                                         }
                                         .contextMenu {
                                             Button("Clear Schedule", systemImage: "xmark.circle") {
-                                                onClear(sl)
+                                                onClear(la)
                                             }
                                         }
                                         .background(
                                             GeometryReader { proxy in
                                                 Color.clear.preference(
                                                     key: PillFramePreference.self,
-                                                    value: [sl.id: proxy.frame(in: .named(zoneSpaceID))]
+                                                    value: [la.id: proxy.frame(in: .named(zoneSpaceID))]
                                                 )
                                             }
                                         )
@@ -184,7 +184,7 @@ struct PresentationsDayColumn: View {
             .onDrop(of: [UTType.text], delegate: PresentationsDayColumnDropDelegate(
                 calendar: calendar,
                 modelContext: modelContext,
-                allStudentLessons: allStudentLessons,
+                allLessonAssignments: allLessonAssignments,
                 day: day,
                 getCurrentItems: { allItemsForDay },
                 itemFramesProvider: { itemFrames },
@@ -215,7 +215,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     private static let logger = Logger.presentations
     let calendar: Calendar
     let modelContext: ModelContext
-    let allStudentLessons: [StudentLesson]
+    let allLessonAssignments: [LessonAssignment]
     let day: Date
     let getCurrentItems: () -> [PresentationsDayColumn.CalendarItem]
     let itemFramesProvider: () -> [UUID: CGRect]
@@ -290,10 +290,10 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         let current = getCurrentItems()
         
         // Check if the drop landed on a pill for the same lesson — merge instead of reorder
-        if let source = allStudentLessons.first(where: { $0.id == id }), !source.isGiven {
+        if let source = allLessonAssignments.first(where: { $0.id == id }), !source.isGiven {
             let frames = itemFramesProvider()
-            let scheduledLessons = current.compactMap { item -> StudentLesson? in
-                if case .studentLesson(let sl) = item { return sl }
+            let scheduledLessons = current.compactMap { item -> LessonAssignment? in
+                if case .lessonAssignment(let la) = item { return la }
                 return nil
             }
             if let targetSL = scheduledLessons.first(where: { sl in
@@ -328,11 +328,8 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
         do {
             for itemID in ids {
-                if let item = allStudentLessons.first(where: { $0.id == itemID }) {
+                if let item = allLessonAssignments.first(where: { $0.id == itemID }) {
                     item.setScheduledFor(timeMap[itemID], using: AppCalendar.shared)
-                    #if DEBUG
-                    item.checkInboxInvariant()
-                    #endif
                 }
             }
             try modelContext.save()

@@ -10,13 +10,13 @@ struct PresentationsCalendarStrip: View {
     let days: [Date]
     @Binding var startDate: Date
     let isNonSchool: (Date) -> Bool
-    let onClear: (StudentLesson) -> Void
-    let onSelect: (StudentLesson) -> Void
+    let onClear: (LessonAssignment) -> Void
+    let onSelect: (LessonAssignment) -> Void
     
     @Environment(\.calendar) private var calendar
     @Environment(\.modelContext) private var modelContext
     
-    @Query private var studentLessons: [StudentLesson]
+    @Query private var lessonAssignments: [LessonAssignment]
     
     @AppStorage(UserDefaultsKeys.presentationsCalendarShowWork) private var showWork: Bool = true
     
@@ -39,8 +39,8 @@ struct PresentationsCalendarStrip: View {
     
     // Find the earliest date with a scheduled lesson (including past dates)
     private var earliestDateWithLesson: Date? {
-        let scheduledDates = studentLessons.compactMap { sl -> Date? in
-            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return nil }
+        let scheduledDates = lessonAssignments.compactMap { la -> Date? in
+            guard let scheduled = la.scheduledFor, !la.isGiven else { return nil }
             return calendar.startOfDay(for: scheduled)
         }
         return scheduledDates.min()
@@ -104,7 +104,7 @@ struct PresentationsCalendarStrip: View {
                         ForEach(days, id: \.self) { day in
                             PresentationsDayColumn(
                                 day: day,
-                                allStudentLessons: studentLessons,
+                                allLessonAssignments: lessonAssignments,
                                 showWork: showWork,
                                 preloadedWorkItems: allWorkItemsForRange,
                                 onClear: onClear,
@@ -169,8 +169,8 @@ struct PresentationsCalendarStrip: View {
     
     private func moveAllScheduledLessonsForward() async {
         // Find all scheduled lessons that haven't been given
-        let scheduledLessons = studentLessons.filter { sl in
-            sl.scheduledFor != nil && !sl.isGiven
+        let scheduledLessons = lessonAssignments.filter { la in
+            la.scheduledFor != nil && !la.isGiven
         }
         
         guard !scheduledLessons.isEmpty else { return }
@@ -180,9 +180,6 @@ struct PresentationsCalendarStrip: View {
             guard let currentDate = lesson.scheduledFor else { continue }
             let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: modelContext)
             lesson.setScheduledFor(nextSchoolDay, using: calendar)
-            #if DEBUG
-            lesson.checkInboxInvariant()
-            #endif
         }
         
         // Save changes

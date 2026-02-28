@@ -4,62 +4,55 @@ import SwiftData
 // MARK: - Blocking Cache Builder
 
 /// Builder for constructing blocking work caches.
-/// Pre-computes blocking relationships between StudentLessons and WorkModels for efficient lookup.
-/// Uses LessonAssignment (unified model).
+/// Pre-computes blocking relationships between LessonAssignments and WorkModels for efficient lookup.
 enum BlockingCacheBuilder {
 
     // MARK: - Types
 
-    /// A cache mapping StudentLesson IDs to their blocking work by student.
+    /// A cache mapping LessonAssignment IDs to their blocking work by student.
     typealias BlockingCache = [UUID: [UUID: WorkModel]]
 
     // MARK: - Build Cache
 
-    /// Build the blocking cache for all StudentLessons.
-    /// Uses LessonAssignment (unified model).
+    /// Build the blocking cache for all LessonAssignments.
     ///
     /// - Parameters:
-    ///   - studentLessons: All StudentLessons
+    ///   - lessonAssignments: All LessonAssignments
     ///   - lessons: All Lessons
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
-    ///   - lessonAssignments: All LessonAssignments (unified model)
-    ///   - lessonAssignmentsByLegacyID: Map of LessonAssignments by migratedFromStudentLessonID
     ///   - openWorkByPresentationID: Map of open WorkModels by presentationID
-    /// - Returns: A BlockingCache mapping StudentLesson IDs to blocking work
+    /// - Returns: A BlockingCache mapping LessonAssignment IDs to blocking work
     static func buildCache(
-        studentLessons: [StudentLesson],
+        lessonAssignments: [LessonAssignment],
         lessons: [Lesson],
         workModels: [WorkModel],
-        lessonAssignments: [LessonAssignment] = [],
-        lessonAssignmentsByLegacyID: [String: LessonAssignment] = [:],
         openWorkByPresentationID: [String: [WorkModel]]
     ) -> BlockingCache {
         var cache: BlockingCache = [:]
 
-        // Build cache for all unscheduled student lessons using prerequisite blocking logic
-        let unscheduled = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
+        // Build cache for all unscheduled lesson assignments using prerequisite blocking logic
+        let unscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
 
-        for sl in unscheduled {
+        for la in unscheduled {
             if let blocking = buildBlockingForUnscheduled(
-                sl: sl,
+                la: la,
                 lessons: lessons,
                 workModels: workModels,
                 lessonAssignments: lessonAssignments
             ), !blocking.isEmpty {
-                cache[sl.id] = blocking
+                cache[la.id] = blocking
             }
         }
 
-        // Also build cache for presented lessons (for Inbox)
-        let presented = studentLessons.filter { $0.isGiven }
+        // Also build cache for presented assignments (for Inbox)
+        let presented = lessonAssignments.filter { $0.isGiven }
 
-        for sl in presented {
+        for la in presented {
             if let blocking = buildBlockingForPresented(
-                sl: sl,
-                lessonAssignmentsByLegacyID: lessonAssignmentsByLegacyID,
+                la: la,
                 openWorkByPresentationID: openWorkByPresentationID
             ), !blocking.isEmpty {
-                cache[sl.id] = blocking
+                cache[la.id] = blocking
             }
         }
 
@@ -68,16 +61,15 @@ enum BlockingCacheBuilder {
 
     // MARK: - Private Helpers
 
-    /// Build blocking dictionary for an unscheduled StudentLesson.
-    /// Uses LessonAssignment (unified model).
+    /// Build blocking dictionary for an unscheduled LessonAssignment.
     private static func buildBlockingForUnscheduled(
-        sl: StudentLesson,
+        la: LessonAssignment,
         lessons: [Lesson],
         workModels: [WorkModel],
-        lessonAssignments: [LessonAssignment] = []
+        lessonAssignments: [LessonAssignment]
     ) -> [UUID: WorkModel]? {
         // Find the current lesson
-        guard let currentLessonID = UUID(uuidString: sl.lessonID),
+        guard let currentLessonID = UUID(uuidString: la.lessonID),
               let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else {
             return nil
         }
@@ -91,9 +83,8 @@ enum BlockingCacheBuilder {
         }
 
         // Find the LessonAssignment for the preceding lesson with the same student group
-        let studentIDs = Set(sl.resolvedStudentIDs.map { $0.uuidString })
+        let studentIDs = Set(la.resolvedStudentIDs.map { $0.uuidString })
 
-        // Find in LessonAssignment (unified model)
         let precedingLessonAssignment = lessonAssignments.first { assignment in
             guard assignment.lessonID == precedingLesson.id.uuidString,
                   assignment.state == .presented else { return false }
@@ -108,29 +99,26 @@ enum BlockingCacheBuilder {
         // Find incomplete prerequisite work linked to the preceding presentation
         let prerequisiteWork = workModels.filter { work in
             work.presentationID == presentationID &&
-            !BlockingAlgorithmEngine.isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs)
+            !BlockingAlgorithmEngine.isWorkComplete(work: work, requiredStudentIDs: la.resolvedStudentIDs)
         }
 
         // Build blocking dictionary: map student IDs to their blocking work
         var blocking: [UUID: WorkModel] = [:]
 
         for work in prerequisiteWork {
-            // For work with participants, map to specific students
             if let participants = work.participants, !participants.isEmpty {
                 for participant in participants {
                     guard let studentID = UUID(uuidString: participant.studentID),
-                          sl.resolvedStudentIDs.contains(studentID),
+                          la.resolvedStudentIDs.contains(studentID),
                           participant.completedAt == nil else {
                         continue
                     }
-                    // Only add if not already added (first incomplete work per student)
                     if blocking[studentID] == nil {
                         blocking[studentID] = work
                     }
                 }
             } else {
-                // No participants: work blocks all students in the group
-                for studentID in sl.resolvedStudentIDs {
+                for studentID in la.resolvedStudentIDs {
                     if blocking[studentID] == nil {
                         blocking[studentID] = work
                     }
@@ -141,27 +129,18 @@ enum BlockingCacheBuilder {
         return blocking.isEmpty ? nil : blocking
     }
 
-    /// Build blocking dictionary for a presented StudentLesson.
-    /// Uses LessonAssignment (unified model).
+    /// Build blocking dictionary for a presented LessonAssignment.
     private static func buildBlockingForPresented(
-        sl: StudentLesson,
-        lessonAssignmentsByLegacyID: [String: LessonAssignment] = [:],
+        la: LessonAssignment,
         openWorkByPresentationID: [String: [WorkModel]]
     ) -> [UUID: WorkModel]? {
-        let legacyID = sl.id.uuidString
-
-        // Find in LessonAssignment (unified model)
-        guard let lessonAssignment = lessonAssignmentsByLegacyID[legacyID] else {
-            return nil
-        }
-
-        let presentationID = lessonAssignment.id.uuidString
+        let presentationID = la.id.uuidString
 
         guard !presentationID.isEmpty else {
             return nil
         }
 
-        // Get open work for this presentation from openWorkByPresentationID
+        // Get open work for this presentation
         guard let openWork = openWorkByPresentationID[presentationID], !openWork.isEmpty else {
             return nil
         }
@@ -169,7 +148,7 @@ enum BlockingCacheBuilder {
         // Build blocking dictionary for all students with unresolved work
         var blocking: [UUID: WorkModel] = [:]
 
-        for studentIDString in sl.studentIDs {
+        for studentIDString in la.studentIDs {
             guard let studentID = UUID(uuidString: studentIDString) else { continue }
 
             if let work = openWork.first(where: { w in

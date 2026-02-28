@@ -10,8 +10,8 @@ enum StudentLessonMergeService {
     static func merge(sourceID: UUID, targetID: UUID, context: ModelContext, toastService: ToastService = ToastService.shared) -> Bool {
         guard sourceID != targetID else { return false }
 
-        guard let source = fetchStudentLesson(id: sourceID, context: context),
-              let target = fetchStudentLesson(id: targetID, context: context) else {
+        guard let source = fetchLessonAssignment(id: sourceID, context: context),
+              let target = fetchLessonAssignment(id: targetID, context: context) else {
             toastService.showInfo("Couldn't find those presentations.")
             return false
         }
@@ -45,13 +45,13 @@ enum StudentLessonMergeService {
         return true
     }
 
-    private static func fetchStudentLesson(id: UUID, context: ModelContext) -> StudentLesson? {
-        var desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+    private static func fetchLessonAssignment(id: UUID, context: ModelContext) -> LessonAssignment? {
+        var desc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
         desc.fetchLimit = 1
         do {
             return try context.fetch(desc).first
         } catch {
-            logger.warning("Failed to fetch StudentLesson: \(error)")
+            logger.warning("Failed to fetch LessonAssignment: \(error)")
             return nil
         }
     }

@@ -8,10 +8,10 @@ import OSLog
 
 struct PresentationsInboxView: View {
     private static let logger = Logger.presentations
-    let readyLessons: [StudentLesson]
-    let blockedLessons: [StudentLesson]
-    let getBlockingWork: (StudentLesson) -> [UUID: WorkModel]
-    let filteredSnapshot: (StudentLesson) -> StudentLessonSnapshot
+    let readyLessons: [LessonAssignment]
+    let blockedLessons: [LessonAssignment]
+    let getBlockingWork: (LessonAssignment) -> [UUID: WorkModel]
+    let filteredSnapshot: (LessonAssignment) -> LessonAssignmentSnapshot
     let missWindow: PresentationsMissWindow
     @Binding var missWindowRaw: String
     
@@ -28,7 +28,7 @@ struct PresentationsInboxView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
-    @Query private var studentLessons: [StudentLesson]
+    @Query private var lessonAssignments: [LessonAssignment]
 
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
@@ -57,13 +57,13 @@ struct PresentationsInboxView: View {
     }
     
     /// Lessons filtered by selected student (if any) - automatically updates
-    private var studentFilteredReadyLessons: [StudentLesson] {
+    private var studentFilteredReadyLessons: [LessonAssignment] {
         guard let studentID = coordinator.selectedStudentFilter else { return readyLessons }
         let studentIDString = studentID.uuidString
         return readyLessons.filter { $0.studentIDs.contains(studentIDString) }
     }
     
-    private var studentFilteredBlockedLessons: [StudentLesson] {
+    private var studentFilteredBlockedLessons: [LessonAssignment] {
         guard let studentID = coordinator.selectedStudentFilter else { return blockedLessons }
         let studentIDString = studentID.uuidString
         return blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
@@ -200,7 +200,7 @@ struct PresentationsInboxView: View {
         }
         .onDrop(of: [.text], delegate: InboxDropDelegate(
             modelContext: modelContext,
-            studentLessons: studentLessons,
+            lessonAssignments: lessonAssignments,
             coordinator: coordinator
         ))
         .onChange(of: cachedLessons) { _, newLessons in
@@ -221,16 +221,16 @@ struct PresentationsInboxView: View {
     
     // MARK: - Filtering and Sorting
 
-    private func lessonTitle(for sl: StudentLesson, using lookupCache: [UUID: Lesson]) -> String {
-        if let lessonID = UUID(uuidString: sl.lessonID), let lesson = lookupCache[lessonID] {
+    private func lessonTitle(for la: LessonAssignment, using lookupCache: [UUID: Lesson]) -> String {
+        if let lessonID = UUID(uuidString: la.lessonID), let lesson = lookupCache[lessonID] {
             let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
-        return "Lesson \(String(sl.lessonID.prefix(6)))"
+        return "Lesson \(String(la.lessonID.prefix(6)))"
     }
 
-    private func studentNames(for sl: StudentLesson, using lookupCache: [UUID: Student]) -> String {
-        let snapshot = filteredSnapshot(sl)
+    private func studentNames(for la: LessonAssignment, using lookupCache: [UUID: Student]) -> String {
+        let snapshot = filteredSnapshot(la)
         let names = snapshot.studentIDs.compactMap { id -> String? in
             guard let student = lookupCache[id] else { return nil }
             return StudentFormatter.displayName(for: student)
@@ -238,17 +238,14 @@ struct PresentationsInboxView: View {
         return names.joined(separator: ", ")
     }
 
-    // MODERN: Pure computed properties - no manual caching needed
-    // SwiftUI's dependency tracking handles updates automatically
-    
-    private func matchesSearch(_ sl: StudentLesson, query: String) -> Bool {
+    private func matchesSearch(_ la: LessonAssignment, query: String) -> Bool {
         guard !query.isEmpty else { return true }
-        let lessonTitleLower = lessonTitle(for: sl, using: lessonsByID).lowercased()
-        let studentNamesLower = studentNames(for: sl, using: studentsByID).lowercased()
+        let lessonTitleLower = lessonTitle(for: la, using: lessonsByID).lowercased()
+        let studentNamesLower = studentNames(for: la, using: studentsByID).lowercased()
         return lessonTitleLower.contains(query) || studentNamesLower.contains(query)
     }
 
-    private func sortedLessons(_ lessons: [StudentLesson], query: String) -> [StudentLesson] {
+    private func sortedLessons(_ lessons: [LessonAssignment], query: String) -> [LessonAssignment] {
         let matched = lessons.filter { matchesSearch($0, query: query) }
 
         switch sortMode {
@@ -266,35 +263,34 @@ struct PresentationsInboxView: View {
     }
 
     /// Filtered and sorted ready lessons - automatically recomputes when dependencies change
-    private var filteredAndSortedReadyLessons: [StudentLesson] {
+    private var filteredAndSortedReadyLessons: [LessonAssignment] {
         let trimmedSearch = debouncedSearchText.trimmed().lowercased()
         return sortedLessons(studentFilteredReadyLessons, query: trimmedSearch)
     }
 
     /// Filtered and sorted blocked lessons - automatically recomputes when dependencies change
-    private var filteredAndSortedBlockedLessons: [StudentLesson] {
+    private var filteredAndSortedBlockedLessons: [LessonAssignment] {
         let trimmedSearch = debouncedSearchText.trimmed().lowercased()
         return sortedLessons(studentFilteredBlockedLessons, query: trimmedSearch)
     }
 
     @ViewBuilder
-    private func inboxRow(_ sl: StudentLesson, blockingWork: [UUID: WorkModel] = [:]) -> some View {
+    private func inboxRow(_ la: LessonAssignment, blockingWork: [UUID: WorkModel] = [:]) -> some View {
         HStack(spacing: 0) {
             StudentLessonPill(
-                snapshot: filteredSnapshot(sl),
+                snapshot: filteredSnapshot(la),
                 day: Date(),
-                targetStudentLessonID: sl.id,
+                targetLessonAssignmentID: la.id,
                 enableMissHighlight: true,
                 enableMergeDrop: true,
                 blockingWork: blockingWork,
                 cachedLessons: cachedLessons,
                 cachedStudents: cachedStudents
             )
-            .onTapGesture { coordinator.showStudentLessonDetail(sl) }
+            .onTapGesture { coordinator.showLessonAssignmentDetail(la) }
             .onDrag {
-                let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
-                // Use computed lessonsByID for fast lookup
-                provider.suggestedName = (UUID(uuidString: sl.lessonID).flatMap { lessonsByID[$0] })?.name ?? "Lesson"
+                let provider = NSItemProvider(object: NSString(string: la.id.uuidString))
+                provider.suggestedName = (UUID(uuidString: la.lessonID).flatMap { lessonsByID[$0] })?.name ?? "Lesson"
                 return provider
             }
         }
@@ -322,8 +318,8 @@ struct PresentationsInboxView: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             LazyHStack(spacing: AppTheme.Spacing.small) {
-                                ForEach(filteredAndSortedBlockedLessons, id: \.id) { sl in
-                                    inboxRow(sl, blockingWork: getBlockingWork(sl))
+                                ForEach(filteredAndSortedBlockedLessons, id: \.id) { la in
+                                    inboxRow(la, blockingWork: getBlockingWork(la))
                                 }
                             }
                             .padding(.horizontal, AppTheme.Spacing.compact)
@@ -350,8 +346,8 @@ struct PresentationsInboxView: View {
                         GridItem(.flexible(), spacing: AppTheme.Spacing.small),
                         GridItem(.flexible(), spacing: AppTheme.Spacing.small)
                     ], alignment: .leading, spacing: AppTheme.Spacing.small) {
-                        ForEach(filteredAndSortedReadyLessons, id: \.id) { sl in
-                            inboxRow(sl)
+                        ForEach(filteredAndSortedReadyLessons, id: \.id) { la in
+                            inboxRow(la)
                         }
                     }
                     .padding(.horizontal, AppTheme.Spacing.compact)
@@ -414,14 +410,14 @@ struct PresentationsInboxView: View {
 
     // MARK: - Students Needing Lessons
 
-    /// Students who don't have any scheduled presentations (no StudentLesson with scheduledFor != nil)
+    /// Students who don't have any scheduled presentations
     /// Sorted by days since last lesson, oldest first (students who haven't had a lesson longest come first)
     private var studentsNeedingLessons: [Student] {
         // Find all student IDs that have a scheduled lesson
         let scheduledStudentIDs: Set<UUID> = {
             var ids = Set<UUID>()
-            for sl in studentLessons where sl.scheduledFor != nil && !sl.isGiven {
-                ids.formUnion(sl.resolvedStudentIDs)
+            for la in lessonAssignments where la.scheduledFor != nil && !la.isGiven {
+                ids.formUnion(la.resolvedStudentIDs)
             }
             return ids
         }()
@@ -530,39 +526,35 @@ struct PresentationsInboxView: View {
 private struct InboxDropDelegate: DropDelegate {
     private static let logger = Logger.presentations
     let modelContext: ModelContext
-    let studentLessons: [StudentLesson]
+    let lessonAssignments: [LessonAssignment]
     let coordinator: PresentationsCoordinator
-    
+
     func dropEntered(info: DropInfo) {
         withAnimation { coordinator.setInboxTargeted(true) }
     }
-    
+
     func dropExited(info: DropInfo) {
         withAnimation { coordinator.setInboxTargeted(false) }
     }
-    
+
     func validateDrop(info: DropInfo) -> Bool {
         info.hasItemsConforming(to: [.text])
     }
-    
+
     func performDrop(info: DropInfo) -> Bool {
         withAnimation { coordinator.setInboxTargeted(false) }
         let providers = info.itemProviders(for: [.text])
         guard let provider = providers.first else { return false }
-        
+
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let str = reading as? String,
                   let payload = UnifiedCalendarDragPayload.parse(str),
                   case .studentLesson(let id) = payload else { return }
-            
+
             Task { @MainActor in
-                if let sl = studentLessons.first(where: { $0.id == id }) {
-                    // Only process if it actually has a schedule to clear
-                    if sl.scheduledFor != nil {
-                        sl.scheduledFor = nil
-                        #if DEBUG
-                        sl.checkInboxInvariant()
-                        #endif
+                if let la = lessonAssignments.first(where: { $0.id == id }) {
+                    if la.scheduledFor != nil {
+                        la.unschedule()
                         do {
                             try modelContext.save()
                         } catch {

@@ -211,9 +211,9 @@ struct WorkAgendaDayColumn: View {
                         }
                     case .studentLesson(let sl):
                         StudentLessonPill(
-                            snapshot: sl.snapshot(),
+                            snapshot: sl.toLessonAssignmentSnapshot(),
                             day: day,
-                            targetStudentLessonID: sl.id,
+                            targetLessonAssignmentID: sl.id,
                             showTimeBadge: false,
                             enableMergeDrop: false,
                             showAgeIndicator: false
@@ -221,9 +221,9 @@ struct WorkAgendaDayColumn: View {
                         .opacity(0.5)
                         .draggable(UnifiedCalendarDragPayload.studentLesson(sl.id).stringRepresentation) {
                             StudentLessonPill(
-                                snapshot: sl.snapshot(),
+                                snapshot: sl.toLessonAssignmentSnapshot(),
                                 day: day,
-                                targetStudentLessonID: sl.id,
+                                targetLessonAssignmentID: sl.id,
                                 showTimeBadge: false,
                                 enableMergeDrop: false,
                                 showAgeIndicator: false

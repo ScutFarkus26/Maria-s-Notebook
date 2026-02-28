@@ -45,10 +45,10 @@ struct StudentLessonPill: View {
     @AppStorage(UserDefaultsKeys.planningRecentWindowDays) private var recentWindowDays: Int = 1
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = "all"
 
-    let snapshot: StudentLessonSnapshot
+    let snapshot: LessonAssignmentSnapshot
     var day: Date? = nil
-    var sourceStudentLessonID: UUID? = nil
-    var targetStudentLessonID: UUID? = nil
+    var sourceLessonAssignmentID: UUID? = nil
+    var targetLessonAssignmentID: UUID? = nil
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
     var enableMergeDrop: Bool = false
@@ -200,7 +200,7 @@ struct StudentLessonPill: View {
               let endExclusive = calendar.date(byAdding: .day, value: 1, to: (days.last ?? start)) else { return [] }
 
         let excludedLessonIDs = getExcludedParshaLessonIDs()
-        let presented = fetchPresentedStudentLessons(from: start, to: endExclusive)
+        let presented = fetchPresentedLessonAssignments(from: start, to: endExclusive)
         let filtered = presented.filter { !excludedLessonIDs.contains($0.resolvedLessonID) }
         return Set(filtered.flatMap { $0.resolvedStudentIDs })
     }
@@ -216,16 +216,17 @@ struct StudentLessonPill: View {
         return Set(parshaLessons.map { $0.id })
     }
 
-    /// Helper to fetch presented StudentLessons within a date range.
-    private func fetchPresentedStudentLessons(from start: Date, to endExclusive: Date) -> [StudentLesson] {
-        let predicate = #Predicate<StudentLesson> {
-            $0.isPresented == true &&
-            $0.givenAt.flatMap { $0 >= start && $0 < endExclusive } == true
+    /// Helper to fetch presented LessonAssignments within a date range.
+    private func fetchPresentedLessonAssignments(from start: Date, to endExclusive: Date) -> [LessonAssignment] {
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+        let predicate = #Predicate<LessonAssignment> {
+            $0.stateRaw == presentedRaw &&
+            $0.presentedAt.flatMap { $0 >= start && $0 < endExclusive } == true
         }
         do {
-            return try modelContext.fetch(FetchDescriptor<StudentLesson>(predicate: predicate))
+            return try modelContext.fetch(FetchDescriptor<LessonAssignment>(predicate: predicate))
         } catch {
-            logger.warning("Failed to fetch presented student lessons: \(error)")
+            logger.warning("Failed to fetch presented lesson assignments: \(error)")
             return []
         }
     }
@@ -489,7 +490,7 @@ struct StudentLessonPill: View {
                 modelContext: modelContext,
                 appRouter: appRouter,
                 targetLessonID: snapshot.lessonID,
-                targetStudentLessonID: targetStudentLessonID,
+                targetLessonAssignmentID: targetLessonAssignmentID,
                 enableMergeDrop: enableMergeDrop,
                 setHighlight: { isValid in isValidDragTarget = isValid },
                 setMergeHighlight: { isValid in isMergeTargeted = isValid },
@@ -523,23 +524,23 @@ struct StudentLessonPill: View {
     }
 
     private func setTime(_ newTime: Date) {
-        guard let id = targetStudentLessonID,
-              let studentLesson = fetchStudentLesson(by: id) else { return }
+        guard let id = targetLessonAssignmentID,
+              let lessonAssignment = fetchLessonAssignment(by: id) else { return }
 
-        let baseDate = studentLesson.scheduledFor ?? snapshot.scheduledFor ?? Date()
+        let baseDate = lessonAssignment.scheduledFor ?? snapshot.scheduledFor ?? Date()
         let combined = mergeDateAndTime(date: baseDate, time: newTime)
-        studentLesson.setScheduledFor(combined, using: calendar)
+        lessonAssignment.setScheduledFor(combined, using: calendar)
         saveCoordinator.save(modelContext, reason: "Update lesson time")
     }
 
-    /// Helper to fetch a StudentLesson by ID.
-    private func fetchStudentLesson(by id: UUID) -> StudentLesson? {
-        var descriptor = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+    /// Helper to fetch a LessonAssignment by ID.
+    private func fetchLessonAssignment(by id: UUID) -> LessonAssignment? {
+        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         do {
             return try modelContext.fetch(descriptor).first
         } catch {
-            logger.warning("Failed to fetch student lesson: \(error)")
+            logger.warning("Failed to fetch lesson assignment: \(error)")
             return nil
         }
     }
@@ -561,7 +562,7 @@ struct StudentLessonPill: View {
         let modelContext: ModelContext
         let appRouter: AppRouter
         let targetLessonID: UUID
-        let targetStudentLessonID: UUID?
+        let targetLessonAssignmentID: UUID?
         let enableMergeDrop: Bool
         let setHighlight: (Bool) -> Void
         let setMergeHighlight: (Bool) -> Void
@@ -586,7 +587,7 @@ struct StudentLessonPill: View {
             setHighlight(false)
             setMergeHighlight(false)
             guard canAccept() else { return false }
-            guard let targetID = targetStudentLessonID else { return false }
+            guard let targetID = targetLessonAssignmentID else { return false }
             let providers = info.itemProviders(for: [UTType.text])
             guard let provider = providers.first else { return false }
             provider.loadObject(ofClass: NSString.self) { reading, _ in
@@ -597,17 +598,17 @@ struct StudentLessonPill: View {
                         let sourceID = decoded.sourceID
                         let lessonID = decoded.lessonID
                         let studentID = decoded.studentID
-                        var srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+                        var srcDesc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == sourceID })
                         srcDesc.fetchLimit = 1
-                        var tgtDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == targetID })
+                        var tgtDesc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == targetID })
                         tgtDesc.fetchLimit = 1
-                        let src: StudentLesson?
-                        let tgt: StudentLesson?
+                        let src: LessonAssignment?
+                        let tgt: LessonAssignment?
                         do {
                             src = try modelContext.fetch(srcDesc).first
                             tgt = try modelContext.fetch(tgtDesc).first
                         } catch {
-                            logger.warning("Failed to fetch StudentLessons on drop: \(error)")
+                            logger.warning("Failed to fetch LessonAssignments on drop: \(error)")
                             return
                         }
                         guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
@@ -671,7 +672,7 @@ struct StudentLessonPill: View {
         }
 
         private func checkHighlight(info: DropInfo) {
-            guard let targetID = targetStudentLessonID else { setHighlight(false); return }
+            guard let targetID = targetLessonAssignmentID else { setHighlight(false); return }
             let providers = info.itemProviders(for: [UTType.text])
             guard let provider = providers.first else { setHighlight(false); return }
             provider.loadObject(ofClass: NSString.self) { reading, _ in
@@ -696,9 +697,9 @@ struct StudentLessonPill: View {
                             setMergeHighlight(false)
                             return
                         }
-                        var srcDesc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == sourceID })
+                        var srcDesc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == sourceID })
                         srcDesc.fetchLimit = 1
-                        let source: StudentLesson?
+                        let source: LessonAssignment?
                         do {
                             source = try modelContext.fetch(srcDesc).first
                         } catch {

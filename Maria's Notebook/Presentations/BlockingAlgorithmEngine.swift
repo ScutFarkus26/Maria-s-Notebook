@@ -9,7 +9,7 @@ enum BlockingAlgorithmEngine {
 
     // MARK: - Types
 
-    /// Result of checking if a StudentLesson is blocked.
+    /// Result of checking if a LessonAssignment is blocked.
     struct BlockingCheckResult: Sendable {
         let isBlocked: Bool
         let prereqOpenCount: Int
@@ -22,7 +22,7 @@ enum BlockingAlgorithmEngine {
         let lessonAssignmentsByKey: [String: LessonAssignment]
         let workByPresentationID: [String: [WorkModel]]
         
-        init(lessons: [Lesson], studentLessons: [StudentLesson], lessonAssignments: [LessonAssignment], workModels: [WorkModel]) {
+        init(lessons: [Lesson], lessonAssignments: [LessonAssignment], workModels: [WorkModel]) {
             // Build lesson lookup
             self.lessonsByID = Dictionary(uniqueKeysWithValues: lessons.map { ($0.id, $0) })
             
@@ -51,120 +51,114 @@ enum BlockingAlgorithmEngine {
 
     // MARK: - Batch Blocking Check
     
-    /// Efficiently check blocking status for multiple StudentLessons at once.
+    /// Efficiently check blocking status for multiple LessonAssignments at once.
     /// This method pre-computes lookup structures to avoid redundant work.
     ///
     /// - Parameters:
-    ///   - studentLessons: Array of StudentLessons to check
+    ///   - lessonAssignments: Array of LessonAssignments to check
     ///   - lessons: All lessons (needed for group structure)
-    ///   - lessonAssignments: All LessonAssignments (unified model)
+    ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
-    /// - Returns: Dictionary mapping StudentLesson ID to BlockingCheckResult
+    /// - Returns: Dictionary mapping LessonAssignment ID to BlockingCheckResult
     static func checkBlocking(
-        forBatch studentLessons: [StudentLesson],
+        forBatch lessonAssignments: [LessonAssignment],
         lessons: [Lesson],
-        lessonAssignments: [LessonAssignment] = [],
+        allLessonAssignments: [LessonAssignment] = [],
         workModels: [WorkModel]
     ) -> [UUID: BlockingCheckResult] {
-        guard !studentLessons.isEmpty else { return [:] }
-        
+        guard !lessonAssignments.isEmpty else { return [:] }
+
         // Build optimized lookup structures once
         let context = BlockingContext(
             lessons: lessons,
-            studentLessons: studentLessons,
-            lessonAssignments: lessonAssignments,
+            lessonAssignments: allLessonAssignments.isEmpty ? lessonAssignments : allLessonAssignments,
             workModels: workModels
         )
-        
-        // Check each student lesson using pre-computed lookups
+
+        // Check each lesson assignment using pre-computed lookups
         var results: [UUID: BlockingCheckResult] = [:]
-        for sl in studentLessons {
-            results[sl.id] = checkBlocking(for: sl, context: context)
+        for la in lessonAssignments {
+            results[la.id] = checkBlocking(for: la, context: context)
         }
         return results
     }
-    
+
     /// Internal batch-optimized blocking check using pre-computed context.
-    private static func checkBlocking(for sl: StudentLesson, context: BlockingContext) -> BlockingCheckResult {
+    private static func checkBlocking(for la: LessonAssignment, context: BlockingContext) -> BlockingCheckResult {
         // Check for manual unlock override
-        if sl.manuallyUnblocked {
+        if la.manuallyUnblocked {
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
-        
+
         // Find the current lesson using pre-computed lookup
-        guard let currentLessonID = UUID(uuidString: sl.lessonID),
+        guard let currentLessonID = UUID(uuidString: la.lessonID),
               let currentLesson = context.lessonsByID[currentLessonID] else {
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
-        
+
         // Find the preceding lesson using pre-computed cache
         guard let precedingLesson = context.precedingLessonCache[currentLesson.id] else {
             // No preceding lesson means no prerequisites to check
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
-        
+
         // Build lookup key for lesson assignment
-        let sortedStudentIDs = sl.resolvedStudentIDs.map { $0.uuidString }.sorted().joined(separator: ",")
+        let sortedStudentIDs = la.resolvedStudentIDs.map { $0.uuidString }.sorted().joined(separator: ",")
         let assignmentKey = "\(precedingLesson.id.uuidString)|\(sortedStudentIDs)"
-        
+
         // Find the LessonAssignment using pre-computed lookup
         guard let precedingLessonAssignment = context.lessonAssignmentsByKey[assignmentKey] else {
             // No presentation for preceding lesson means no prerequisites
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
-        
+
         let presentationID = precedingLessonAssignment.id.uuidString
-        
+
         // Find WorkModel records using pre-computed grouping
         guard let prerequisiteWork = context.workByPresentationID[presentationID] else {
             return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
         }
-        
+
         // Check if ANY prerequisite work is incomplete for any required student
         var prereqOpenCount = 0
         var isBlocked = false
-        
+
         for work in prerequisiteWork {
-            let workIsComplete = isWorkComplete(work: work, requiredStudentIDs: sl.resolvedStudentIDs)
-            
+            let workIsComplete = isWorkComplete(work: work, requiredStudentIDs: la.resolvedStudentIDs)
+
             if !workIsComplete {
                 prereqOpenCount += 1
                 isBlocked = true
             }
         }
-        
+
         return BlockingCheckResult(isBlocked: isBlocked, prereqOpenCount: prereqOpenCount)
     }
 
     // MARK: - Single Item Blocking Check (Convenience)
 
-    /// Check if a StudentLesson is blocked by incomplete prerequisite work from the preceding lesson.
-    /// Uses LessonAssignment (unified model).
+    /// Check if a LessonAssignment is blocked by incomplete prerequisite work from the preceding lesson.
     ///
-    /// Note: For checking multiple StudentLessons, use `checkBlocking(forBatch:)` instead for better performance.
+    /// Note: For checking multiple LessonAssignments, use `checkBlocking(forBatch:)` instead for better performance.
     ///
     /// - Parameters:
-    ///   - sl: The StudentLesson to check
+    ///   - la: The LessonAssignment to check
     ///   - lessons: All lessons (needed for group structure)
-    ///   - studentLessons: All StudentLessons
-    ///   - lessonAssignments: All LessonAssignments (unified model)
+    ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: A BlockingCheckResult indicating if blocked and how many prerequisites are open
     static func checkBlocking(
-        for sl: StudentLesson,
+        for la: LessonAssignment,
         lessons: [Lesson],
-        studentLessons: [StudentLesson],
-        lessonAssignments: [LessonAssignment] = [],
+        allLessonAssignments: [LessonAssignment] = [],
         workModels: [WorkModel]
     ) -> BlockingCheckResult {
-        // For single item checks, build a minimal context with just this student lesson
         let context = BlockingContext(
             lessons: lessons,
-            studentLessons: [sl],
-            lessonAssignments: lessonAssignments,
+            lessonAssignments: allLessonAssignments.isEmpty ? [la] : allLessonAssignments,
             workModels: workModels
         )
-        return checkBlocking(for: sl, context: context)
+        return checkBlocking(for: la, context: context)
     }
 
     // MARK: - Find Preceding Lesson

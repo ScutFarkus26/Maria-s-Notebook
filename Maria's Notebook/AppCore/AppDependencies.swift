@@ -360,8 +360,6 @@ final class AppDependencies {
             return vm
         }
         let vm = PresentationsViewModel()
-        // MODERN: Inject repository for type-safe data access
-        vm.setRepository(repositories.studentLessons)
         _presentationsViewModel = vm
         return vm
     }

@@ -33,31 +33,26 @@ struct PresentationsView: View {
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     // The ViewModel handles all actual data loading with targeted fetches
-    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var studentLessonsForChangeDetection: [StudentLesson]
+    @Query(sort: [SortDescriptor(\LessonAssignment.id)]) private var lessonAssignmentsForChangeDetection: [LessonAssignment]
     @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
     @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
     @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workModelsForChangeDetection: [WorkModel]
-    
-    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
-    private var studentLessonIDs: [UUID] {
-        studentLessonsForChangeDetection.map { $0.id }
-    }
-    
-    private struct StudentLessonChangeKey: Hashable {
+
+    private struct LessonAssignmentChangeKey: Hashable {
         let id: UUID
         let scheduledFor: Double
-        let givenAt: Double
-        let isPresented: Bool
+        let presentedAt: Double
+        let stateRaw: String
     }
-    
-    private var studentLessonChangeKeys: [StudentLessonChangeKey] {
-        studentLessonsForChangeDetection
+
+    private var lessonAssignmentChangeKeys: [LessonAssignmentChangeKey] {
+        lessonAssignmentsForChangeDetection
             .map {
-                StudentLessonChangeKey(
+                LessonAssignmentChangeKey(
                     id: $0.id,
                     scheduledFor: $0.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
-                    givenAt: $0.givenAt?.timeIntervalSinceReferenceDate ?? -1,
-                    isPresented: $0.isPresented
+                    presentedAt: $0.presentedAt?.timeIntervalSinceReferenceDate ?? -1,
+                    stateRaw: $0.stateRaw
                 )
             }
             .sorted { $0.id.uuidString < $1.id.uuidString }
@@ -80,7 +75,7 @@ struct PresentationsView: View {
     // MODERN: Unified dependency tracker for ViewModel updates
     // Consolidates all onChange handlers into a single observation point
     private struct ViewModelDependencies: Equatable {
-        let studentLessonKeys: [StudentLessonChangeKey]
+        let lessonAssignmentKeys: [LessonAssignmentChangeKey]
         let lessonIDs: [UUID]
         let studentIDs: [UUID]
         let activeWorkIDs: [UUID]
@@ -88,10 +83,10 @@ struct PresentationsView: View {
         let showTestStudents: Bool
         let testStudentNamesRaw: String
     }
-    
+
     private var viewModelDependencies: ViewModelDependencies {
         ViewModelDependencies(
-            studentLessonKeys: studentLessonChangeKeys,
+            lessonAssignmentKeys: lessonAssignmentChangeKeys,
             lessonIDs: lessonIDs,
             studentIDs: studentIDs,
             activeWorkIDs: activeWorkIDs,
@@ -164,10 +159,10 @@ struct PresentationsView: View {
     }
     
     // Computed properties that use ViewModel (preserves exact same functionality)
-    private var readyLessons: [StudentLesson] { viewModel.readyLessons }
-    private var blockedLessons: [StudentLesson] { viewModel.blockedLessons }
-    private func getBlockingWork(_ sl: StudentLesson) -> [UUID: WorkModel] {
-        viewModel.getBlockingWork(sl)
+    private var readyLessons: [LessonAssignment] { viewModel.readyLessons }
+    private var blockedLessons: [LessonAssignment] { viewModel.blockedLessons }
+    private func getBlockingWork(_ la: LessonAssignment) -> [UUID: WorkModel] {
+        viewModel.getBlockingWork(la)
     }
 
     private func isNonSchool(_ day: Date) -> Bool {
@@ -253,19 +248,16 @@ struct PresentationsView: View {
                             days: days,
                             startDate: $startDate,
                             isNonSchool: isNonSchool,
-                            onClear: { sl in
-                                sl.scheduledFor = nil
-                                #if DEBUG
-                                sl.checkInboxInvariant()
-                                #endif
+                            onClear: { la in
+                                la.unschedule()
                                 do {
                                     try modelContext.save()
                                 } catch {
                                     Self.logger.warning("Failed to save schedule clear: \(error)")
                                 }
                             },
-                            onSelect: { sl in
-                                coordinator.showStudentLessonDetail(sl)
+                            onSelect: { la in
+                                coordinator.showLessonAssignmentDetail(la)
                             }
                         )
                     }
@@ -302,16 +294,16 @@ struct PresentationsView: View {
                                     days: days,
                                     startDate: $startDate,
                                     isNonSchool: isNonSchool,
-                                    onClear: { sl in
-                                        sl.scheduledFor = nil
+                                    onClear: { la in
+                                        la.unschedule()
                                         do {
                                             try modelContext.save()
                                         } catch {
                                             Self.logger.warning("Failed to save schedule clear: \(error)")
                                         }
                                     },
-                                    onSelect: { sl in
-                                        coordinator.showStudentLessonDetail(sl)
+                                    onSelect: { la in
+                                        coordinator.showLessonAssignmentDetail(la)
                                     }
                                 )
                                 .frame(height: calendarHeight)
@@ -331,9 +323,9 @@ struct PresentationsView: View {
             } else {
                 // Calculate earliest lesson date locally using the @Query data directly
                 // (The ViewModel might not be ready yet for this specific check)
-                let earliestDate = studentLessonsForChangeDetection
-                    .compactMap { $0.scheduledFor } // Get all scheduled dates
-                    .min() // Find the earliest
+                let earliestDate = lessonAssignmentsForChangeDetection
+                    .compactMap { $0.scheduledFor }
+                    .min()
                     .map { calendar.startOfDay(for: $0) }
                 
                 let today = calendar.startOfDay(for: Date())
@@ -369,8 +361,8 @@ struct PresentationsView: View {
         // MODERN: Unified dependency tracker - single onChange replaces 7 separate handlers
         // SwiftUI automatically recomputes viewModelDependencies when any component changes
         .onChange(of: viewModelDependencies) { old, new in
-            // Sync inbox order when student lessons change
-            if old.studentLessonKeys != new.studentLessonKeys {
+            // Sync inbox order when lesson assignments change
+            if old.lessonAssignmentKeys != new.lessonAssignmentKeys {
                 syncInboxOrderWithCurrentBase()
             }
             
@@ -385,8 +377,10 @@ struct PresentationsView: View {
         // MODERN: Sheet presentation managed by coordinator
         .sheet(item: $coordinator.activeSheet) { sheet in
             switch sheet {
-            case .studentLessonDetail(let sl):
-                StudentLessonDetailView(studentLesson: sl) {
+            case .lessonAssignmentDetail(let la):
+                // Bridge: look up the legacy StudentLesson for the detail view
+                // (StudentLessonDetailView will be migrated to LessonAssignment in Phase 6d)
+                LessonAssignmentDetailBridge(lessonAssignment: la) {
                     coordinator.dismissSheet()
                 }
                 #if os(macOS)
@@ -395,16 +389,15 @@ struct PresentationsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 #endif
-            
+
             case .schedulePresentationFor(let lesson):
                 SchedulePresentationSheet(
                     lesson: lesson,
                     onPlan: { _ in coordinator.dismissSheet() },
                     onCancel: { coordinator.dismissSheet() }
                 )
-                
-            case .postPresentation, .unifiedWorkflow, .lessonAssignmentDetail, .lessonAssignmentHistory:
-                // Future implementations
+
+            case .postPresentation, .unifiedWorkflow, .lessonAssignmentHistory:
                 Text("Sheet not yet implemented")
             }
         }
@@ -426,11 +419,12 @@ struct PresentationsView: View {
     }
     
     private func syncInboxOrderWithCurrentBase() {
-        // Fetch only unscheduled, non-given lessons for inbox ordering
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.scheduledFor == nil && $0.isPresented == false && $0.givenAt == nil }
+        // Fetch only unscheduled, non-presented lesson assignments for inbox ordering
+        let draftRaw = LessonAssignmentState.draft.rawValue
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.stateRaw == draftRaw }
         )
-        let base: [StudentLesson]
+        let base: [LessonAssignment]
         do {
             base = try modelContext.fetch(descriptor)
         } catch {
@@ -447,24 +441,25 @@ struct PresentationsView: View {
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }
 
-    private func filteredSnapshot(_ sl: StudentLesson) -> StudentLessonSnapshot {
-        let snap = sl.snapshot()
+    private func filteredSnapshot(_ la: LessonAssignment) -> LessonAssignmentSnapshot {
+        let snap = la.snapshot()
         // Use ViewModel's cached students (avoids redundant fetching)
         let allStudents = viewModel.cachedStudents
         let hiddenIDs = TestStudentsFilter.hiddenIDs(from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw)
         let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
-        return StudentLessonSnapshot(
+        return LessonAssignmentSnapshot(
             id: snap.id,
             lessonID: snap.lessonID,
             studentIDs: visibleIDs,
             createdAt: snap.createdAt,
             scheduledFor: snap.scheduledFor,
-            givenAt: snap.givenAt,
-            isPresented: snap.isPresented,
+            presentedAt: snap.presentedAt,
+            state: snap.state,
             notes: snap.notes,
             needsPractice: snap.needsPractice,
             needsAnotherPresentation: snap.needsAnotherPresentation,
-            followUpWork: snap.followUpWork
+            followUpWork: snap.followUpWork,
+            manuallyUnblocked: snap.manuallyUnblocked
         )
     }
     
@@ -477,6 +472,5 @@ struct PresentationsView: View {
             w.statusRaw != "complete"
         }.count
     }
-
 }
 

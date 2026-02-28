@@ -12,10 +12,6 @@ struct PlanningWeekViewContent: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    private var studentLessonRepository: StudentLessonRepository {
-        StudentLessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
-    }
-    
     private var presentationRepository: PresentationRepository {
         PresentationRepository(context: modelContext, saveCoordinator: saveCoordinator)
     }
@@ -36,10 +32,9 @@ struct PlanningWeekViewContent: View {
     // Callback for when data needs to be reloaded (iOS only)
     var onRefreshNeeded: (() -> Void)?
     
-    // OPTIMIZATION: Load studentLessons for the entire week at once using database-level predicate
+    // OPTIMIZATION: Load lesson assignments for the entire week at once using database-level predicate
     // This avoids 7 separate per-day queries and significantly reduces memory usage
-    // NOTE: Temporarily using StudentLesson for WeekGrid until it's migrated
-    @State private var weekStudentLessons: [StudentLesson] = []
+    @State private var weekLessonAssignments: [LessonAssignment] = []
     
     enum ActiveSheet: Identifiable {
         case studentLessonDetail(UUID)
@@ -65,73 +60,49 @@ struct PlanningWeekViewContent: View {
     private func sheetContent(for sheet: ActiveSheet) -> some View {
         switch sheet {
         case .studentLessonDetail(let id):
-            // Note: Temporarily fetching via StudentLesson since StudentLessonDetailView hasn't been migrated yet
-            if let sl = studentLessonRepository.fetchStudentLesson(id: id) {
-                StudentLessonDetailView(studentLesson: sl) { activeSheet = nil }
+            if let la = fetchLessonAssignment(by: id) {
+                LessonAssignmentDetailBridge(lessonAssignment: la) { activeSheet = nil }
             } else {
-                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
                 ProgressView("Loading…")
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
-                        // Dismiss if the item is no longer available
-                        do {
-                            try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
-                        } catch {
-                            Self.logger.warning("Failed to sleep before dismissing sheet: \(error)")
-                        }
+                        do { try await Task.sleep(for: .milliseconds(100)) } catch {}
                         if case .studentLessonDetail(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }
                     }
             }
         case .quickActions(let id):
-            // Note: Temporarily fetching via StudentLesson since StudentLessonQuickActionsView hasn't been migrated yet
-            if let sl = studentLessonRepository.fetchStudentLesson(id: id) {
-                StudentLessonQuickActionsView(studentLesson: sl) { activeSheet = nil }
+            if let la = fetchLessonAssignment(by: id) {
+                LessonAssignmentQuickActionsBridge(lessonAssignment: la) { activeSheet = nil }
             } else {
-                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
                 ProgressView("Loading…")
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
-                        // Dismiss if the item is no longer available
-                        do {
-                            try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
-                        } catch {
-                            Self.logger.warning("Failed to sleep before dismissing sheet: \(error)")
-                        }
+                        do { try await Task.sleep(for: .milliseconds(100)) } catch {}
                         if case .quickActions(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }
                     }
             }
         case .giveLessonDraft(let id):
-            // Note: Temporarily fetching via StudentLesson since StudentLessonDetailView hasn't been migrated yet
-            if let sl = studentLessonRepository.fetchStudentLesson(id: id) {
-                StudentLessonDetailView(studentLesson: sl, onDone: { activeSheet = nil }, autoFocusLessonPicker: true)
+            if let la = fetchLessonAssignment(by: id) {
+                LessonAssignmentDetailBridge(lessonAssignment: la) { activeSheet = nil }
                     .largeSheetSizing()
                     .onDisappear {
-                        if let current = studentLessonRepository.fetchStudentLesson(id: id) {
+                        if let current = fetchLessonAssignment(by: id) {
                             if current.lesson == nil && current.studentIDs.isEmpty {
-                                do {
-                                    try studentLessonRepository.deleteStudentLesson(id: current.id)
-                                } catch {
-                                    Self.logger.warning("Failed to delete empty student lesson draft: \(error)")
-                                }
+                                modelContext.delete(current)
+                                presentationRepository.save(reason: "Deleting empty draft")
                                 onRefreshNeeded?()
                             }
                         }
                     }
             } else {
-                // Keep the sheet alive instead of returning EmptyView to avoid ViewBridge cancellation
                 ProgressView("Preparing…")
                     .frame(minWidth: 320, minHeight: 240)
                     .task {
-                        // Dismiss if the draft is no longer available
-                        do {
-                            try await Task.sleep(for: .milliseconds(100)) // 0.1 seconds
-                        } catch {
-                            Self.logger.warning("Failed to sleep before dismissing sheet: \(error)")
-                        }
+                        do { try await Task.sleep(for: .milliseconds(100)) } catch {}
                         if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
                             activeSheet = nil
                         }
@@ -183,39 +154,34 @@ struct PlanningWeekViewContent: View {
         return result
     }
     
-    /// OPTIMIZATION: Load studentLessons for the entire week using database-level predicate
+    /// OPTIMIZATION: Load lesson assignments for the entire week using database-level predicate
     /// This fetches all lessons scheduled within the week's date range in a single query
-    /// instead of making 7 separate per-day queries, significantly reducing memory usage
-    /// NOTE: Temporarily using StudentLesson for WeekGrid until it's migrated
-    private func loadWeekStudentLessons() {
+    private func loadWeekLessonAssignments() {
         guard let firstDay = days.first, let lastDay = days.last else {
-            weekStudentLessons = []
+            weekLessonAssignments = []
             return
         }
-        
-        // Calculate week range: from start of first day to end of last day
+
         let weekStart = AppCalendar.startOfDay(firstDay)
         let weekEnd = calendar.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(lastDay)) ?? weekStart
-        
-        // Fetch studentLessons scheduled within the week range using database-level predicate
-        // Use scheduledForDay (denormalized) for efficient querying, with fallback to scheduledFor
-        let descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate<StudentLesson> { sl in
-                // Match if scheduledForDay is within week range (most efficient)
-                (sl.scheduledForDay >= weekStart && sl.scheduledForDay < weekEnd) ||
-                // Or if scheduledFor is within week range (fallback for edge cases)
-                (sl.scheduledFor.flatMap { $0 >= weekStart && $0 < weekEnd } == true)
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate<LessonAssignment> { la in
+                la.stateRaw != presentedRaw &&
+                ((la.scheduledForDay >= weekStart && la.scheduledForDay < weekEnd) ||
+                 (la.scheduledFor.flatMap { $0 >= weekStart && $0 < weekEnd } == true))
             },
             sortBy: [
-                SortDescriptor(\.scheduledFor, order: .forward),
+                SortDescriptor(\.scheduledForDay, order: .forward),
                 SortDescriptor(\.createdAt, order: .forward)
             ]
         )
         do {
-            weekStudentLessons = try modelContext.fetch(descriptor)
+            weekLessonAssignments = try modelContext.fetch(descriptor)
         } catch {
-            Self.logger.warning("Failed to fetch week student lessons: \(error, privacy: .public)")
-            weekStudentLessons = []
+            Self.logger.warning("Failed to fetch week lesson assignments: \(error, privacy: .public)")
+            weekLessonAssignments = []
         }
     }
     
@@ -284,26 +250,12 @@ struct PlanningWeekViewContent: View {
                     ScrollView([.horizontal, .vertical]) {
                         WeekGrid(
                             days: days,
-                            weekStudentLessons: weekStudentLessons,
+                            allLessonAssignments: weekLessonAssignments,
                             availableWidth: geometry.size.width - (UIConstants.contentHorizontalPadding * 2),
                             availableHeight: geometry.size.height,
-                            onSelectLesson: { sl in activeSheet = .studentLessonDetail(sl.id) },
-                            onQuickActions: { sl in activeSheet = .quickActions(sl.id) },
-                            onPlanNext: { sl in
-                                // Convert StudentLesson to LessonAssignment for planNextLesson
-                                // Find matching LessonAssignment via dual-write link
-                                let slIDString = sl.id.uuidString
-                                let laDescriptor = FetchDescriptor<LessonAssignment>(
-                                    predicate: #Predicate { la in la.migratedFromStudentLessonID == slIDString }
-                                )
-                                do {
-                                    if let la = try modelContext.fetch(laDescriptor).first {
-                                        planNextLesson(for: la)
-                                    }
-                                } catch {
-                                    Self.logger.warning("Failed to fetch lesson assignment for planning: \(error, privacy: .public)")
-                                }
-                            }
+                            onSelectLesson: { la in activeSheet = .studentLessonDetail(la.id) },
+                            onQuickActions: { la in activeSheet = .quickActions(la.id) },
+                            onPlanNext: { la in planNextLesson(for: la) }
                         )
                         .padding(.horizontal, UIConstants.contentHorizontalPadding)
                         .padding(.vertical, UIConstants.contentVerticalPadding)
@@ -338,11 +290,11 @@ struct PlanningWeekViewContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            loadWeekStudentLessons()
+            loadWeekLessonAssignments()
         }
         .onChange(of: startDate) { _, _ in
             Task { @MainActor in
-                loadWeekStudentLessons()
+                loadWeekLessonAssignments()
             }
         }
         .onChange(of: inboxLessonIDs) { _, _ in
@@ -350,7 +302,7 @@ struct PlanningWeekViewContent: View {
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             // Reload week data when external changes occur (e.g., lessons scheduled/unscheduled)
-            loadWeekStudentLessons()
+            loadWeekLessonAssignments()
         }
     }
 
@@ -414,17 +366,16 @@ struct PlanningWeekViewContent: View {
         startDate = cursor
     }
 
-    // One-time fetch to find the start date
     private func computeInitialStartDate() {
         let today = calendar.startOfDay(for: Date())
-        
-        // Fetch only future scheduled lessons to find the next one
-        var descriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate { $0.scheduledFor != nil && $0.isGiven == false },
-            sortBy: [SortDescriptor(\.scheduledFor)]
+        let scheduledRaw = LessonAssignmentState.scheduled.rawValue
+
+        var descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.stateRaw == scheduledRaw },
+            sortBy: [SortDescriptor(\.scheduledForDay)]
         )
-        descriptor.fetchLimit = 1 // We only need the very first one
-        
+        descriptor.fetchLimit = 1
+
         if let nextUp = modelContext.safeFetchFirst(descriptor),
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
@@ -433,8 +384,7 @@ struct PlanningWeekViewContent: View {
                 return
             }
         }
-        
-        // Fallback
+
         self.startDate = firstSchoolDay(onOrAfter: today)
     }
 
@@ -471,17 +421,10 @@ struct PlanningWeekViewContent: View {
     }
     
     private func handleAddNew() {
-        let coordinator = DualWriteCoordinator(context: modelContext)
-        do {
-            let (newSL, _) = try coordinator.createDraft(
-                lessonID: UUID(),
-                studentIDs: []
-            )
-            saveCoordinator.save(modelContext, reason: "Creating new presentation")
-            activeSheet = .giveLessonDraft(newSL.id)
-            onRefreshNeeded?()
-        } catch {
-            Self.logger.error("Failed to create draft: \(error, privacy: .public)")
-        }
+        let newLA = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [])
+        modelContext.insert(newLA)
+        presentationRepository.save(reason: "Creating new presentation")
+        activeSheet = .giveLessonDraft(newLA.id)
+        onRefreshNeeded?()
     }
 }

@@ -10,11 +10,11 @@ import SwiftUI
 @MainActor
 final class PresentationsViewModel {
     // MARK: - State
-    var readyLessons: [StudentLesson] = []
-    var blockedLessons: [StudentLesson] = []
+    var readyLessons: [LessonAssignment] = []
+    var blockedLessons: [LessonAssignment] = []
     var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
-    
+
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
     var cachedStudents: [Student] {
         self.cachedStudentsStorage
@@ -24,66 +24,51 @@ final class PresentationsViewModel {
     var lessons: [Lesson] {
         self.cachedLessons
     }
-    
+
     // MARK: - Dependencies
-    // MODERN: Inject repository instead of raw ModelContext for better separation of concerns
-    private var studentLessonRepository: StudentLessonRepository?
-    private var modelContext: ModelContext? // Keep for backward compatibility during transition
+    private var modelContext: ModelContext?
     private var calendar: Calendar = .current
-    
+
     // MARK: - Cache State
     private var lastUpdateDate: Date?
     private var cachedLessons: [Lesson] = []
     private var cachedWorkModels: [WorkModel] = []
     private var cachedLessonAssignments: [LessonAssignment] = []
-    private var cachedStudentLessons: [StudentLesson] = []
     private var cachedStudentsStorage: [Student] = []
-    
+
     // PERFORMANCE: Track loading state to prevent redundant concurrent updates
     private var isLoading = false
     private var pendingUpdateTask: Task<Void, Never>?
-    
-    // PERFORMANCE: Use hash-based change detection instead of Set comparison
-    // Hash computation is O(n) time, O(1) memory vs Set comparison O(n) time, O(n) memory
-    // For 1000+ lessons: ~40-60ms faster, ~80KB less memory per update check
-    private var lastStudentLessonChangeHash: Int?
+
+    // PERFORMANCE: Use hash-based change detection
+    private var lastLessonAssignmentChangeHash: Int?
     private var lastLessonsHash: Int?
     private var lastWorkModelHash: Int?
     private var lastStudentsHash: Int?
-    private var lastLessonAssignmentHash: Int?
-    
+
     // MARK: - Initialization
-    init() {
-        // Dependencies will be set via setRepository or update method
-    }
-    
-    // MODERN: Set repository for dependency injection (preferred over raw ModelContext)
-    func setRepository(_ repository: StudentLessonRepository) {
-        self.studentLessonRepository = repository
-        self.modelContext = repository.context
-    }
-    
+    init() {}
+
     // MARK: - Change Detection Helpers
-    
-    /// Computes a hash for StudentLesson change detection
-    /// Includes all meaningful fields to ensure UI updates when any data changes
-    private func computeStudentLessonHash(_ lessons: [StudentLesson]) -> Int {
+
+    /// Computes a hash for LessonAssignment change detection
+    private func computeLessonAssignmentHash(_ assignments: [LessonAssignment]) -> Int {
         var hasher = Hasher()
-        for lesson in lessons {
-            hasher.combine(lesson.id)
-            hasher.combine(lesson.scheduledFor?.timeIntervalSinceReferenceDate ?? -1)
-            hasher.combine(lesson.givenAt?.timeIntervalSinceReferenceDate ?? -1)
-            hasher.combine(lesson.isPresented)
-            hasher.combine(lesson.notes)
-            hasher.combine(lesson.followUpWork)
-            hasher.combine(lesson.studentIDs.joined(separator: ","))
-            hasher.combine(lesson.needsPractice)
-            hasher.combine(lesson.needsAnotherPresentation)
-            hasher.combine(lesson.lessonID)
+        for la in assignments {
+            hasher.combine(la.id)
+            hasher.combine(la.scheduledFor?.timeIntervalSinceReferenceDate ?? -1)
+            hasher.combine(la.presentedAt?.timeIntervalSinceReferenceDate ?? -1)
+            hasher.combine(la.stateRaw)
+            hasher.combine(la.notes)
+            hasher.combine(la.followUpWork)
+            hasher.combine(la.studentIDs.joined(separator: ","))
+            hasher.combine(la.needsPractice)
+            hasher.combine(la.needsAnotherPresentation)
+            hasher.combine(la.lessonID)
         }
         return hasher.finalize()
     }
-    
+
     /// Computes a hash for array of Identifiable items
     private func computeIDHash<T: Identifiable>(_ items: [T]) -> Int where T.ID == UUID {
         var hasher = Hasher()
@@ -92,11 +77,10 @@ final class PresentationsViewModel {
         }
         return hasher.finalize()
     }
-    
+
     // MARK: - Public API
-    
-    /// Fetch data and update the view model. This replaces passing arrays from the view.
-    /// The ViewModel now does targeted fetching internally instead of loading all data via @Query.
+
+    /// Fetch data and update the view model.
     /// PERFORMANCE: Runs asynchronously in background to avoid blocking the main thread
     func update(
         modelContext: ModelContext,
@@ -108,7 +92,7 @@ final class PresentationsViewModel {
     ) {
         // Cancel any pending update task
         pendingUpdateTask?.cancel()
-        
+
         // Launch async update in background
         pendingUpdateTask = Task { @MainActor in
             await updateAsync(
@@ -121,9 +105,8 @@ final class PresentationsViewModel {
             )
         }
     }
-    
+
     /// Internal async implementation of update logic
-    /// PERFORMANCE: Runs data fetching in background, only UI updates happen on main thread
     private func updateAsync(
         modelContext: ModelContext,
         calendar: Calendar,
@@ -136,60 +119,27 @@ final class PresentationsViewModel {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        
+
         self.modelContext = modelContext
         self.calendar = calendar
-        
-        // MODERN: Create repository if not already set
-        if self.studentLessonRepository == nil {
-            self.studentLessonRepository = StudentLessonRepository(context: modelContext)
-        }
-        
-        // PERFORMANCE: Fetch data in background to avoid blocking UI
-        // Use Task.detached to ensure fetches don't block the main actor
-        // SwiftData ModelContext is @MainActor-isolated, but fetches can yield to allow UI updates
-        
-        // Fetch data using targeted queries (only what we need)
-        // 
-        // ALGORITHMIC REQUIREMENT: The blocking logic and days-since-last-lesson calculations
-        // require ALL records because:
-        // 1. Blocking logic: To determine if a lesson is blocked, we need to build the complete
-        //    lesson group structure (subject/group) and find the previous lesson in sequence.
-        //    This requires all lessons to correctly identify the sequence order.
-        // 2. Days since last lesson: To calculate days since the last lesson for each student,
-        //    we need to examine ALL studentLessons to find the most recent one for each student.
-        //    This cannot be optimized without changing the algorithm semantics.
-        //
-        // MODERN: Use repository for data fetching
-        // Falls back to direct modelContext calls if repository not available
-        
-        // 1. Fetch all StudentLessons (needed for blocking logic and days-since calculations)
-        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-        // PERFORMANCE: Await between fetches to yield to main thread and allow UI updates
-        let studentLessons: [StudentLesson]
+
+        // 1. Fetch all LessonAssignments
+        let lessonAssignments: [LessonAssignment]
         #if DEBUG
-        studentLessons = PerformanceLogger.measure(
-            screenName: "PresentationsViewModel - Fetch StudentLessons",
+        lessonAssignments = PerformanceLogger.measure(
+            screenName: "PresentationsViewModel - Fetch LessonAssignments",
             operation: {
-                if let repo = studentLessonRepository {
-                    return repo.fetchStudentLessons()
-                }
-                return modelContext.safeFetch(FetchDescriptor<StudentLesson>())
+                modelContext.safeFetch(FetchDescriptor<LessonAssignment>())
             }
         )
         #else
-        if let repo = studentLessonRepository {
-            studentLessons = repo.fetchStudentLessons()
-        } else {
-            studentLessons = modelContext.safeFetch(FetchDescriptor<StudentLesson>())
-        }
+        lessonAssignments = modelContext.safeFetch(FetchDescriptor<LessonAssignment>())
         #endif
 
-        // PERFORMANCE: Yield to allow UI updates after fetch
         await Task.yield()
         if Task.isCancelled { return }
 
-        // 2. Fetch all Lessons (needed for grouping and blocking logic - requires full group structure)
+        // 2. Fetch all Lessons
         let lessons: [Lesson]
         #if DEBUG
         lessons = PerformanceLogger.measure(
@@ -205,7 +155,7 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
-        // 3. Fetch all Students (needed for filtering and calculations)
+        // 3. Fetch all Students
         let students: [Student]
         #if DEBUG
         students = PerformanceLogger.measure(
@@ -217,26 +167,24 @@ final class PresentationsViewModel {
         #else
         students = modelContext.safeFetch(FetchDescriptor<Student>())
         #endif
-        
+
         await Task.yield()
         if Task.isCancelled { return }
-        
-        // PERFORMANCE: Use hash-based change detection for faster comparison
-        // Compute hashes for each data type
-        let studentLessonHash = computeStudentLessonHash(studentLessons)
+
+        // PERFORMANCE: Hash-based change detection
+        let lessonAssignmentHash = computeLessonAssignmentHash(lessonAssignments)
         let lessonsHash = computeIDHash(lessons)
         let studentsHash = computeIDHash(students)
 
-        // Early return if no changes to avoid redundant fetches and processing
-        let coreDataChanged = studentLessonHash != lastStudentLessonChangeHash ||
+        let coreDataChanged = lessonAssignmentHash != lastLessonAssignmentChangeHash ||
                              lessonsHash != lastLessonsHash ||
                              studentsHash != lastStudentsHash
 
         if !coreDataChanged && lastUpdateDate != nil {
-            return // No need to recalculate
+            return
         }
 
-        // 4. Fetch non-complete WorkModels (filter at database layer for efficiency)
+        // 4. Fetch non-complete WorkModels
         let workModels: [WorkModel] = {
             let descriptor = FetchDescriptor<WorkModel>(
                 predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
@@ -247,200 +195,148 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
-        // 5. Fetch all LessonAssignments (unified model - replaces Presentation)
-        let lessonAssignments: [LessonAssignment] = modelContext.safeFetch(FetchDescriptor<LessonAssignment>())
-        
-        await Task.yield()
-        if Task.isCancelled { return }
-
-        // Compute hashes for WorkModels and LessonAssignments
         let workModelHash = computeIDHash(workModels)
-        let lessonAssignmentHash = computeIDHash(lessonAssignments)
 
-        // Update change tracking state with hashes
-        lastStudentLessonChangeHash = studentLessonHash
+        // Update change tracking
+        lastLessonAssignmentChangeHash = lessonAssignmentHash
         lastLessonsHash = lessonsHash
         lastWorkModelHash = workModelHash
         lastStudentsHash = studentsHash
-        lastLessonAssignmentHash = lessonAssignmentHash
 
         #if DEBUG
-        // Only log when we're actually processing changes
         PerformanceLogger.logScreenLoad(
             screenName: "PresentationsViewModel",
             itemCounts: [
-                "studentLessons": studentLessons.count,
+                "lessonAssignments": lessonAssignments.count,
                 "lessons": lessons.count,
                 "students": students.count,
-                "workModels": workModels.count,
-                "lessonAssignments": lessonAssignments.count
+                "workModels": workModels.count
             ]
         )
         #endif
 
-        cachedStudentLessons = studentLessons
         cachedLessons = lessons
         cachedWorkModels = workModels
         cachedLessonAssignments = lessonAssignments
         lastUpdateDate = Date()
 
-        // Filter visible students (exclude test students when setting is disabled)
+        // Filter visible students
         let visibleStudents = TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
         cachedStudentsStorage = visibleStudents
-        
-        // Build openWorkByPresentationID dictionary for fast lookup
-        // Group open WorkModels by presentationID (where presentationID != nil)
+
+        // Build openWorkByPresentationID dictionary
         let openWorkByPresentationID: [String: [WorkModel]] = workModels
             .filter { $0.presentationID != nil }
             .grouped { $0.presentationID ?? "" }
 
-        // Build a map of LessonAssignments by migratedFromStudentLessonID for efficient lookup
-        var lessonAssignmentsByLegacyID: [String: LessonAssignment] = [:]
-        for assignment in lessonAssignments {
-            if let legacyID = assignment.migratedFromStudentLessonID {
-                lessonAssignmentsByLegacyID[legacyID] = assignment
-            }
-        }
-
-        // Build blocking work cache once (still needed for getBlockingWork)
+        // Build blocking work cache
         rebuildBlockingCache(
-            workModels: workModels,
             lessonAssignments: lessonAssignments,
-            lessonAssignmentsByLegacyID: lessonAssignmentsByLegacyID,
+            workModels: workModels,
             openWorkByPresentationID: openWorkByPresentationID
         )
-        
-        // PERFORMANCE: Yield to allow UI updates after cache building
+
         await Task.yield()
         if Task.isCancelled { return }
-        
+
         // Calculate days since last lesson
         calculateDaysSinceLastLesson(
-            studentLessons: studentLessons,
+            lessonAssignments: lessonAssignments,
             lessons: lessons,
             students: visibleStudents
         )
-        
-        // PERFORMANCE: Yield to allow UI updates after expensive calculations
+
         await Task.yield()
         if Task.isCancelled { return }
-        
-        // Filter unscheduled lessons
-        let allUnscheduled = studentLessons.filter { $0.scheduledFor == nil && !$0.isGiven }
-        
-        // Separate blocked and ready lessons using prerequisite blocking logic
-        var ready: [StudentLesson] = []
-        var blocked: [StudentLesson] = []
 
-        // Debug logging disabled for production use
-        // Set debugCategorization to true and rebuild to see presentation categorization
+        // Filter unscheduled, non-presented assignments (inbox items)
+        let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
 
-        // OPTIMIZATION: Use batch blocking check to build BlockingContext once instead of rebuilding for each lesson
-        // This reduces O(n) context builds to O(1), significantly improving performance for large datasets
+        // Separate blocked and ready using prerequisite blocking logic
+        var ready: [LessonAssignment] = []
+        var blocked: [LessonAssignment] = []
+
         let blockingResults = BlockingAlgorithmEngine.checkBlocking(
             forBatch: allUnscheduled,
             lessons: lessons,
-            lessonAssignments: lessonAssignments,
+            allLessonAssignments: lessonAssignments,
             workModels: workModels
         )
 
-        for sl in allUnscheduled {
-            let result = blockingResults[sl.id] ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+        for la in allUnscheduled {
+            let result = blockingResults[la.id] ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
             if result.isBlocked {
-                blocked.append(sl)
+                blocked.append(la)
             } else {
-                ready.append(sl)
+                ready.append(la)
             }
         }
-        
-        // Filter presented items for Inbox: presented (givenAt != nil or isPresented == true) AND has open work
-        let presentedLessons = studentLessons.filter { $0.isGiven }
-        var inboxItems: [StudentLesson] = []
-        
-        for sl in presentedLessons {
-            let legacyID = sl.id.uuidString
 
-            // Check for LessonAssignment (unified model)
-            var presentationIDString: String?
-            if let lessonAssignment = lessonAssignmentsByLegacyID[legacyID] {
-                presentationIDString = lessonAssignment.id.uuidString
-            }
-
-            // Inbox: presented AND has open work
-            if let pid = presentationIDString, let openWork = openWorkByPresentationID[pid], !openWork.isEmpty {
-                inboxItems.append(sl)
-            }
-        }
-        
-        // Apply inbox ordering to ready lessons
+        // Apply inbox ordering
         ready = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)
-        
+
         // Filter by miss window
-        ready = ready.filter { sl in
+        ready = ready.filter { la in
             guard let threshold = missWindow.threshold else { return true }
-            for sid in sl.resolvedStudentIDs {
+            for sid in la.resolvedStudentIDs {
                 let days = daysSinceLastLessonByStudent[sid] ?? Int.max
                 if days >= threshold { return true }
             }
             return false
         }
-        
-        // Sort blocked lessons
+
+        // Sort blocked
         blocked.sort { $0.createdAt < $1.createdAt }
-        
+
         self.readyLessons = ready
         self.blockedLessons = blocked
     }
-    
-    /// Get blocking work for a specific StudentLesson (from cache)
-    func getBlockingWork(_ sl: StudentLesson) -> [UUID: WorkModel] {
-        return blockingWorkCache[sl.id] ?? [:]
+
+    /// Get blocking work for a specific LessonAssignment (from cache)
+    func getBlockingWork(_ la: LessonAssignment) -> [UUID: WorkModel] {
+        return blockingWorkCache[la.id] ?? [:]
     }
 
     /// Check if a lesson is blocked (from cache)
-    func isBlocked(_ sl: StudentLesson) -> Bool {
-        return !getBlockingWork(sl).isEmpty
+    func isBlocked(_ la: LessonAssignment) -> Bool {
+        return !getBlockingWork(la).isEmpty
     }
-    
+
     /// Get the earliest date with a scheduled lesson (computed from cached data)
     func earliestDateWithLesson(calendar: Calendar) -> Date? {
-        let scheduledDates = cachedStudentLessons.compactMap { sl -> Date? in
-            guard let scheduled = sl.scheduledFor, !sl.isGiven else { return nil }
+        let scheduledDates = cachedLessonAssignments.compactMap { la -> Date? in
+            guard let scheduled = la.scheduledFor, !la.isGiven else { return nil }
             return calendar.startOfDay(for: scheduled)
         }
         return scheduledDates.min()
     }
-    
-    // MARK: - Private Helpers (delegated to BlockingAlgorithmEngine and BlockingCacheBuilder)
+
+    // MARK: - Private Helpers
 
     private func rebuildBlockingCache(
-        workModels: [WorkModel],
         lessonAssignments: [LessonAssignment],
-        lessonAssignmentsByLegacyID: [String: LessonAssignment],
+        workModels: [WorkModel],
         openWorkByPresentationID: [String: [WorkModel]]
     ) {
-        // Use BlockingCacheBuilder to construct the cache
         blockingWorkCache = BlockingCacheBuilder.buildCache(
-            studentLessons: cachedStudentLessons,
+            lessonAssignments: lessonAssignments,
             lessons: cachedLessons,
             workModels: workModels,
-            lessonAssignments: lessonAssignments,
-            lessonAssignmentsByLegacyID: lessonAssignmentsByLegacyID,
             openWorkByPresentationID: openWorkByPresentationID
         )
     }
-    
+
     private func calculateDaysSinceLastLesson(
-        studentLessons: [StudentLesson],
+        lessonAssignments: [LessonAssignment],
         lessons: [Lesson],
         students: [Student]
     ) {
         var result: [UUID: Int] = [:]
-        
+
         func norm(_ s: String) -> String {
             s.trimmed().lowercased()
         }
-        
+
         let excludedLessonIDs: Set<UUID> = {
             let ids = lessons.filter { l in
                 let s = norm(l.subject)
@@ -449,15 +345,15 @@ final class PresentationsViewModel {
             }.map { $0.id }
             return Set(ids)
         }()
-        
-        let given = studentLessons.filter { 
-            $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID) 
+
+        let given = lessonAssignments.filter {
+            $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID)
         }
-        
+
         var lastDateByStudent: [UUID: Date] = [:]
-        for sl in given {
-            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
-            for sid in sl.resolvedStudentIDs {
+        for la in given {
+            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
+            for sid in la.resolvedStudentIDs {
                 if let existing = lastDateByStudent[sid] {
                     if when > existing { lastDateByStudent[sid] = when }
                 } else {
@@ -465,7 +361,7 @@ final class PresentationsViewModel {
                 }
             }
         }
-        
+
         for s in students {
             if let last = lastDateByStudent[s.id] {
                 guard let modelContext = modelContext else { continue }
@@ -480,8 +376,7 @@ final class PresentationsViewModel {
                 result[s.id] = Int.max
             }
         }
-        
+
         self.daysSinceLastLessonByStudent = result
     }
 }
-

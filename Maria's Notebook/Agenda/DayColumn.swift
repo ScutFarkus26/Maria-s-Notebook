@@ -10,9 +10,9 @@ struct DayColumn: View {
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    // OPTIMIZATION: Use shared week studentLessons and filter for this day in memory
+    // OPTIMIZATION: Use shared week lesson assignments and filter for this day in memory
     // This avoids making separate database queries for each day
-    let weekStudentLessons: [StudentLesson]
+    let weekLessonAssignments: [LessonAssignment]
     @Query(sort: Student.sortByLastName) private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
@@ -22,13 +22,13 @@ struct DayColumn: View {
 
     let day: Date
     let availableHeight: CGFloat
-    let onSelectLesson: (StudentLesson) -> Void
-    let onQuickActions: (StudentLesson) -> Void
-    let onPlanNext: (StudentLesson) -> Void
+    let onSelectLesson: (LessonAssignment) -> Void
+    let onQuickActions: (LessonAssignment) -> Void
+    let onPlanNext: (LessonAssignment) -> Void
 
-    init(day: Date, weekStudentLessons: [StudentLesson], availableHeight: CGFloat, onSelectLesson: @escaping (StudentLesson) -> Void, onQuickActions: @escaping (StudentLesson) -> Void, onPlanNext: @escaping (StudentLesson) -> Void) {
+    init(day: Date, weekLessonAssignments: [LessonAssignment], availableHeight: CGFloat, onSelectLesson: @escaping (LessonAssignment) -> Void, onQuickActions: @escaping (LessonAssignment) -> Void, onPlanNext: @escaping (LessonAssignment) -> Void) {
         self.day = day
-        self.weekStudentLessons = weekStudentLessons
+        self.weekLessonAssignments = weekLessonAssignments
         self.availableHeight = availableHeight
         self.onSelectLesson = onSelectLesson
         self.onQuickActions = onQuickActions
@@ -74,7 +74,7 @@ struct DayColumn: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                 Text(dayNumber)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                
+
                 if isNonSchoolDaySync(day) {
                     Text("No School")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -90,14 +90,14 @@ struct DayColumn: View {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 0) {
                         periodChip(title: "Morning", tint: .blue)
-                        DropZone(allStudentLessons: dayStudentLessons, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                        DropZone(allLessonAssignments: dayLessonAssignments, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                             .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     periodChip(title: "Afternoon", tint: .orange)
                         .padding(.top, UIConstants.dayColumnSpacing)
-                    DropZone(allStudentLessons: dayStudentLessons, day: day, period: PlanningDayPeriod.afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                    DropZone(allLessonAssignments: dayLessonAssignments, day: day, period: PlanningDayPeriod.afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
                         .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -121,33 +121,33 @@ struct DayColumn: View {
 
     private var dayName: String { Formatters.dayName.string(from: day) }
     private var dayNumber: String { Formatters.dayNumber.string(from: day) }
-    
+
     private var normalizedDay: Date { AppCalendar.startOfDay(day) }
-    
-    /// OPTIMIZATION: Filter week studentLessons for this specific day in memory
+
+    /// OPTIMIZATION: Filter week lesson assignments for this specific day in memory
     /// The week data is already loaded with a database-level predicate, so we just filter here
-    private var dayStudentLessons: [StudentLesson] {
+    private var dayLessonAssignments: [LessonAssignment] {
         let (start, end) = AppCalendar.dayRange(for: normalizedDay)
-        return weekStudentLessons.filter { sl in
+        return weekLessonAssignments.filter { la in
             // Match either the denormalized day field or the exact scheduled time
-            if sl.scheduledForDay >= start && sl.scheduledForDay < end { return true }
-            if let scheduled = sl.scheduledFor, scheduled >= start && scheduled < end { return true }
+            if la.scheduledForDay >= start && la.scheduledForDay < end { return true }
+            if let scheduled = la.scheduledFor, scheduled >= start && scheduled < end { return true }
             return false
         }
     }
-    
+
     private var plannedStudentIDs: Set<UUID> {
         let (start, end) = AppCalendar.dayRange(for: normalizedDay)
         var acc: [UUID] = []
-        for sl in dayStudentLessons {
-            guard !sl.isGiven else { continue }
+        for la in dayLessonAssignments {
+            guard !la.isGiven else { continue }
             // Prefer denormalized day if available; fall back to exact scheduled time.
-            if sl.scheduledForDay >= start && sl.scheduledForDay < end {
-                acc.append(contentsOf: sl.resolvedStudentIDs)
+            if la.scheduledForDay >= start && la.scheduledForDay < end {
+                acc.append(contentsOf: la.resolvedStudentIDs)
                 continue
             }
-            if let scheduled = sl.scheduledFor, scheduled >= start && scheduled < end {
-                acc.append(contentsOf: sl.resolvedStudentIDs)
+            if let scheduled = la.scheduledFor, scheduled >= start && scheduled < end {
+                acc.append(contentsOf: la.resolvedStudentIDs)
             }
         }
         return Set(acc)
@@ -163,7 +163,7 @@ struct DayColumn: View {
                 return ln < rn
             }
     }
-    
+
     private func periodChip(title: String, tint: Color) -> some View {
         Text(title)
             .font(.system(size: 11, weight: .semibold, design: .rounded))

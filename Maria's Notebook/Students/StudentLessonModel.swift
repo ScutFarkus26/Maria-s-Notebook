@@ -178,6 +178,26 @@ import OSLog
         )
     }
 
+    /// Bridge: Convert to LessonAssignmentSnapshot for views that have been migrated.
+    /// This will be removed once all callers use LessonAssignment directly.
+    func toLessonAssignmentSnapshot() -> LessonAssignmentSnapshot {
+        let snap = snapshot()
+        return LessonAssignmentSnapshot(
+            id: snap.id,
+            lessonID: snap.lessonID,
+            studentIDs: snap.studentIDs,
+            createdAt: snap.createdAt,
+            scheduledFor: snap.scheduledFor,
+            presentedAt: snap.givenAt,
+            state: snap.isPresented ? .presented : (snap.scheduledFor != nil ? .scheduled : .draft),
+            notes: snap.notes,
+            needsPractice: snap.needsPractice,
+            needsAnotherPresentation: snap.needsAnotherPresentation,
+            followUpWork: snap.followUpWork,
+            manuallyUnblocked: false
+        )
+    }
+
     /// Sets `scheduledFor` and updates `scheduledForDay` using the provided calendar.
     func setScheduledFor(_ date: Date?, using calendar: Calendar) {
         if let date {

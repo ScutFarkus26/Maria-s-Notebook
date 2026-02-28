@@ -242,6 +242,16 @@ final class LessonAssignment: Identifiable {
         self.modifiedAt = Date()
     }
 
+    /// Sets `scheduledFor` and updates `scheduledForDay` using the provided calendar.
+    /// Convenience wrapper that calls `schedule(for:using:)` or `unschedule()`.
+    func setScheduledFor(_ date: Date?, using calendar: Calendar) {
+        if let date {
+            schedule(for: date, using: calendar)
+        } else {
+            unschedule()
+        }
+    }
+
     /// Marks this presentation as given.
     func markPresented(at date: Date = Date(), snapshotLesson: Bool = true) {
         self.presentedAt = date

@@ -303,7 +303,7 @@ fileprivate struct InboxRow: View {
       }
       .buttonStyle(.plain)
 
-      StudentLessonPill(snapshot: sl.toStudentLessonSnapshot(), day: Date(), targetStudentLessonID: sl.id)
+      StudentLessonPill(snapshot: sl.snapshot(), day: Date(), targetLessonAssignmentID: sl.id)
         .onTapGesture {
           if isSelectionMode {
             onToggleSelected()
