@@ -168,7 +168,7 @@ enum BackupEntityImporter {
                 followUpWork: dto.followUpWork,
                 notes: dto.notes
             )
-            la.migratedFromLegacyID = dto.id.uuidString
+            la.migratedFromStudentLessonID = dto.id.uuidString
 
             var linkedStudents: [Student] = []
             for studentID in dto.studentIDs {
@@ -347,7 +347,7 @@ enum BackupEntityImporter {
             assignment.lessonSubheadingSnapshot = dto.lessonSubheadingSnapshot
 
             // Set migration tracking
-            assignment.migratedFromLegacyID = dto.migratedFromLegacyID
+            assignment.migratedFromStudentLessonID = dto.migratedFromLegacyID
             assignment.migratedFromPresentationID = dto.migratedFromPresentationID
 
             // Link to lesson if exists

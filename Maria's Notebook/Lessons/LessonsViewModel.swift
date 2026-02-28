@@ -366,7 +366,7 @@ struct LessonsViewModel {
 
         let laIDs = Set(lasForLesson.map { $0.id })
         let workForLesson = workModels.filter { work in
-            work.lessonID == lessonIDString || laIDs.contains(work.assignmentUUID ?? UUID())
+            work.lessonID == lessonIDString || laIDs.contains(work.studentLessonID ?? UUID())
         }
 
         let activeWork = workForLesson.filter { $0.completedAt == nil }

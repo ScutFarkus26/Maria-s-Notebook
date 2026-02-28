@@ -300,7 +300,7 @@ struct LessonProgressSection: View {
             return works.contains { work in
                 // Check using kind
                 let isPractice = (work.kind ?? .research) == .practiceLesson
-                return work.assignmentUUID == presentationID && isPractice
+                return work.studentLessonID == presentationID && isPractice
             }
         }()
         if !hasPracticeWork {
@@ -308,7 +308,7 @@ struct LessonProgressSection: View {
                 id: UUID(),
                 title: "Practice: \(lesson?.name ?? "Lesson")",
                 kind: .practiceLesson,
-                assignmentUUID: presentationID,
+                studentLessonID: presentationID,
                 createdAt: Date()
             )
             // Set identity fields
@@ -341,7 +341,7 @@ struct LessonProgressSection: View {
                     Self.logger.warning("Failed to fetch lesson assignment for studentID: \(error)")
                 }
             }
-            practiceWork.legacyAssignmentID = presentationID.uuidString
+            practiceWork.legacyStudentLessonID = presentationID.uuidString
             practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
             modelContext.insert(practiceWork)
             do {

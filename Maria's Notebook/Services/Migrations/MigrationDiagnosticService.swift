@@ -59,7 +59,7 @@ final class MigrationDiagnosticService {
                     id: la.id,
                     state: la.state.rawValue,
                     issues: issues,
-                    migratedFromLegacyID: la.migratedFromLegacyID,
+                    migratedFromStudentLessonID: la.migratedFromStudentLessonID,
                     migratedFromPresentationID: la.migratedFromPresentationID
                 ))
             }
@@ -70,7 +70,7 @@ final class MigrationDiagnosticService {
         var seenPresentationIDs = Set<String>()
 
         for la in lessonAssignments {
-            if let slID = la.migratedFromLegacyID {
+            if let slID = la.migratedFromStudentLessonID {
                 if seenLegacyIDs.contains(slID) {
                     report.duplicateMigrations.append(DuplicateMigration(
                         sourceType: "LegacyAssignment",
@@ -153,7 +153,7 @@ struct LessonAssignmentIssue {
     let id: UUID
     let state: String
     let issues: [String]
-    let migratedFromLegacyID: String?
+    let migratedFromStudentLessonID: String?
     let migratedFromPresentationID: String?
 }
 

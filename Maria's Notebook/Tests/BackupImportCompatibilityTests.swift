@@ -61,7 +61,7 @@ struct BackupImportCompatibilityTests {
         let assignments = try context.fetch(FetchDescriptor<LessonAssignment>())
         #expect(assignments.count == 1)
         #expect(assignments.first?.state == .draft)
-        #expect(assignments.first?.migratedFromLegacyID == dto.id.uuidString)
+        #expect(assignments.first?.migratedFromStudentLessonID == dto.id.uuidString)
     }
 
     @Test("Scheduled DTO imports as scheduled LessonAssignment")

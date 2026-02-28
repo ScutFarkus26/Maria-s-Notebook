@@ -117,8 +117,7 @@ final class LessonAssignment: Identifiable {
     // MARK: - Migration Tracking
 
     /// ID of the legacy record this was migrated from (nil for new records).
-    @Attribute(originalName: "migratedFromStudentLessonID")
-    var migratedFromLegacyID: String?
+    var migratedFromStudentLessonID: String?
 
     /// ID of the old Presentation model this was migrated from (nil for new records).
     var migratedFromPresentationID: String?
