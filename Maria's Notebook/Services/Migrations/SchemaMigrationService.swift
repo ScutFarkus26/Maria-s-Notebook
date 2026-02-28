@@ -83,7 +83,7 @@ enum SchemaMigrationService {
 
     // MARK: - WorkModel Migration
 
-    /// LegacyPresentation model removed — WorkModel ID backfill from LegacyPresentation is no longer possible.
+    /// Legacy model removed — WorkModel ID backfill is no longer possible.
     /// Any WorkModels that needed backfill should have been handled before the model was removed.
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         // No-op: LegacyPresentation model removed. Migration complete.

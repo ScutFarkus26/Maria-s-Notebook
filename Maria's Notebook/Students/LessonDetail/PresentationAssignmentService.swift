@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import OSLog
 
-// MARK: - Student Lesson Assignment Service
+// MARK: - Presentation Assignment Service
 
 /// Service for creating follow-up assignments after lesson presentations.
 @MainActor

@@ -94,8 +94,8 @@ final class PresentationDetailActions {
 
         #if DEBUG
         switch result {
-        case .success(let studentLesson):
-            Self.logger.info("Successfully created next lesson (ID: \(studentLesson.id, privacy: .public))")
+        case .success(let presentation):
+            Self.logger.info("Successfully created next lesson (ID: \(presentation.id, privacy: .public))")
         case .alreadyExists:
             Self.logger.warning("Next lesson already exists in inbox")
         case .noNextLesson:

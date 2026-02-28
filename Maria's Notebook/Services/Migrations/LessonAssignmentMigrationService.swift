@@ -2,8 +2,8 @@
 //  LessonAssignmentMigrationService.swift
 //  Maria's Notebook
 //
-//  Originally migrated StudentLesson records to LessonAssignment.
-//  StudentLesson has been removed — migration is complete.
+//  Originally migrated legacy records to LessonAssignment.
+//  The legacy model has been removed — migration is complete.
 //  This service is kept for API compatibility with DataMigrations.
 //
 
@@ -13,7 +13,7 @@ import OSLog
 
 /// Service responsible for migrating legacy records to the unified LessonAssignment model.
 ///
-/// The StudentLesson model has been fully removed. This service now only exists
+/// The legacy model has been fully removed. This service now only exists
 /// so that existing migration flags remain valid and callers don't break.
 /// All methods return immediately with no work done.
 nonisolated final class LessonAssignmentMigrationService {
@@ -26,9 +26,9 @@ nonisolated final class LessonAssignmentMigrationService {
 
     // MARK: - Public API
 
-    /// Migration is complete — StudentLesson model has been removed.
+    /// Migration is complete — legacy model has been removed.
     func migrateAll() async throws -> LessonAssignmentMigrationResult {
-        logger.debug("LessonAssignment migration skipped — StudentLesson model removed")
+        logger.debug("LessonAssignment migration skipped — legacy model removed")
         return LessonAssignmentMigrationResult()
     }
 
@@ -55,22 +55,22 @@ nonisolated final class LessonAssignmentMigrationService {
 
 /// Result of a migration run.
 struct LessonAssignmentMigrationResult {
-    var studentLessonsMigrated = 0
-    var studentLessonsSkipped = 0
+    var legacyMigrated = 0
+    var legacySkipped = 0
     var presentationsMigrated = 0
     var presentationsSkipped = 0
 
     var totalMigrated: Int {
-        studentLessonsMigrated + presentationsMigrated
+        legacyMigrated + presentationsMigrated
     }
 
     var totalSkipped: Int {
-        studentLessonsSkipped + presentationsSkipped
+        legacySkipped + presentationsSkipped
     }
 }
 
 extension LessonAssignmentMigrationResult: CustomStringConvertible {
     var description: String {
-        "LessonAssignmentMigrationResult(studentLessons: \(studentLessonsMigrated) migrated / \(studentLessonsSkipped) skipped, presentations: \(presentationsMigrated) migrated / \(presentationsSkipped) skipped)"
+        "LessonAssignmentMigrationResult(legacy: \(legacyMigrated) migrated / \(legacySkipped) skipped, presentations: \(presentationsMigrated) migrated / \(presentationsSkipped) skipped)"
     }
 }

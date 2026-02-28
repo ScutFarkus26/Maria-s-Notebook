@@ -197,12 +197,12 @@ final class StudentProgressTabViewModel {
         let trackLessonIDs = Set(trackSteps.compactMap { $0.lessonTemplateID?.uuidString })
 
         // Get this student's LessonPresentation records for track lessons
-        let studentLessonPresentations = allLessonPresentations.filter {
+        let filteredPresentations = allLessonPresentations.filter {
             $0.studentID == studentIDString && trackLessonIDs.contains($0.lessonID)
         }
 
         // Count mastered lessons
-        let masteredLessonIDs = Set(studentLessonPresentations
+        let masteredLessonIDs = Set(filteredPresentations
             .filter { $0.state == .mastered }
             .map { $0.lessonID })
 

@@ -18,7 +18,7 @@ enum DataMigrations {
 
     // MARK: - Schema Migrations (delegated to SchemaMigrationService)
 
-    /// Legacy StudentLesson date normalization (no-op — model removed).
+    /// Legacy date normalization (no-op — model removed).
     static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) async {
         await SchemaMigrationService.normalizeGivenAtToDateOnlyIfNeeded(using: context)
     }
@@ -33,7 +33,7 @@ enum DataMigrations {
         SchemaMigrationService.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
     }
 
-    /// Legacy WorkModel ID backfill from StudentLesson (no-op — model removed).
+    /// Legacy WorkModel ID backfill (no-op — model removed).
     static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
         await SchemaMigrationService.migrateWorkContractsToWorkModelsIfNeeded(using: context)
     }
@@ -85,7 +85,7 @@ enum DataMigrations {
 
     // MARK: - Relationship Backfills (delegated to RelationshipBackfillService)
 
-    /// Legacy StudentLesson relationship backfill (no-op — model removed).
+    /// Legacy relationship backfill (no-op — model removed).
     static func backfillRelationshipsIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillRelationshipsIfNeeded(using: context)
     }
@@ -108,19 +108,19 @@ enum DataMigrations {
     /// Legacy check-in model has been deleted and migration is complete.
     /// These methods are no longer available as the underlying model no longer exists.
 
-    /// Legacy isPresented backfill (no-op — StudentLesson model removed).
+    /// Legacy isPresented backfill (no-op — model removed).
     static func backfillIsPresentedIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillIsPresentedIfNeeded(using: context)
     }
 
-    /// Legacy scheduledForDay backfill (no-op — StudentLesson model removed).
+    /// Legacy scheduledForDay backfill (no-op — model removed).
     static func backfillScheduledForDayIfNeeded(using context: ModelContext) async {
         await RelationshipBackfillService.backfillScheduledForDayIfNeeded(using: context)
     }
 
-    // MARK: - LessonAssignment Migration (consolidation of StudentLesson + Presentation)
+    // MARK: - LessonAssignment Migration (consolidation of legacy models)
 
-    /// Legacy StudentLesson migration (no-op — model removed).
+    /// Legacy migration (no-op — model removed).
     /// Marks migration flags as complete.
     static func migrateLessonAssignmentsIfNeeded(using context: ModelContext) async {
         let service = LessonAssignmentMigrationService(context: context)

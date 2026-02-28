@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Validates LessonAssignment data integrity.
-//  StudentLesson model has been removed — validation now only checks LessonAssignment records.
+//  The legacy model has been removed — validation now only checks LessonAssignment records.
 //
 
 import Foundation
@@ -12,7 +12,7 @@ import OSLog
 
 /// Validates LessonAssignment data integrity.
 ///
-/// The StudentLesson model has been removed, so validation now only checks
+/// The legacy model has been removed, so validation now only checks
 /// LessonAssignment records for internal consistency.
 final class LessonAssignmentMigrationValidator {
     private let context: ModelContext
@@ -55,7 +55,7 @@ final class LessonAssignmentMigrationValidator {
 
     /// Quick check to see if data looks healthy.
     func isMigrationComplete() throws -> Bool {
-        // StudentLesson removed — migration is trivially complete
+        // Legacy model removed — migration is trivially complete
         return true
     }
 
@@ -110,22 +110,22 @@ final class LessonAssignmentMigrationValidator {
 // MARK: - Supporting Types
 
 struct LessonAssignmentValidationResult {
-    var totalStudentLessons = 0
+    var totalLegacyRecords = 0
     var totalPresentations = 0
     var totalLessonAssignments = 0
 
-    var unmatchedStudentLessons: [UnmatchedRecord] = []
+    var unmatchedLegacyRecords: [UnmatchedRecord] = []
     var unmatchedPresentations: [UnmatchedRecord] = []
     var dataIntegrityIssues: [DataIntegrityIssue] = []
 
     var isValid: Bool {
-        unmatchedStudentLessons.isEmpty &&
+        unmatchedLegacyRecords.isEmpty &&
         unmatchedPresentations.isEmpty &&
         dataIntegrityIssues.isEmpty
     }
 
     var hasCriticalIssues: Bool {
-        !unmatchedStudentLessons.isEmpty
+        !unmatchedLegacyRecords.isEmpty
     }
 }
 

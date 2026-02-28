@@ -205,7 +205,7 @@ final class Note: Identifiable {
         if lesson != nil { return "lesson" }
         if work != nil { return "work" }
         if lessonAssignment != nil { return "presentation" }
-        // studentLesson relationship removed — fully migrated to lessonAssignment
+        // Legacy relationship removed — fully migrated to lessonAssignment
         if attendanceRecord != nil { return "attendance" }
         if workCheckIn != nil { return "workCheckIn" }
         if workCompletionRecord != nil { return "workCompletion" }

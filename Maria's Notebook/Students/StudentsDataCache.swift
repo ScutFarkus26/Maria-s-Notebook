@@ -62,7 +62,7 @@ final class StudentsDataCache {
             daysSinceLastLesson = [:]
         }
 
-        // Clear studentLessons cache (no longer needed for lastLesson mode)
+        // Clear lesson assignments cache (no longer needed for lastLesson mode)
         lessonAssignments = []
         lessons = [:]
     }

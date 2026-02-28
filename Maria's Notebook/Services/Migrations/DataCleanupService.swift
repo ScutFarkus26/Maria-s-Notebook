@@ -422,7 +422,7 @@ enum DataCleanupService {
         if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
 
         mergeRelationship(from: duplicate.notes, to: &canonical.notes, setter: { $0.lesson = canonical })
-        // studentLessons relationship removed — fully migrated to LessonAssignment
+        // Legacy relationship removed — fully migrated to LessonAssignment
         mergeRelationship(from: duplicate.lessonAssignments, to: &canonical.lessonAssignments, setter: { $0.lesson = canonical })
     }
 
@@ -475,7 +475,7 @@ enum DataCleanupService {
         // Merge relationships (parent entities)
         if canonical.lesson == nil { canonical.lesson = duplicate.lesson }
         if canonical.work == nil { canonical.work = duplicate.work }
-        // studentLesson relationship removed — fully migrated to LessonAssignment
+        // Legacy relationship removed — fully migrated to LessonAssignment
         if canonical.lessonAssignment == nil { canonical.lessonAssignment = duplicate.lessonAssignment }
         if canonical.attendanceRecord == nil { canonical.attendanceRecord = duplicate.attendanceRecord }
         if canonical.workCheckIn == nil { canonical.workCheckIn = duplicate.workCheckIn }
@@ -504,7 +504,7 @@ enum DataCleanupService {
         // Core models (most likely to have user-visible duplicates)
         results["Student"] = deduplicateStudentsStrong(using: context)
         results["Lesson"] = deduplicateLessonsStrong(using: context)
-        // StudentLesson removed — fully migrated to LessonAssignment
+        // Legacy model removed — fully migrated to LessonAssignment
         results["LessonAssignment"] = deduplicate(LessonAssignment.self, using: context)
         results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context)
 

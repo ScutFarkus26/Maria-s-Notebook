@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Student Lesson Progress Helper
+// MARK: - Presentation Progress Helper
 
 /// Helper for computing progress state for lesson presentations.
 enum PresentationProgressHelper {

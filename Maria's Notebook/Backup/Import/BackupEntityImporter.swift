@@ -105,9 +105,9 @@ enum BackupEntityImporter {
         }
     }
 
-    // MARK: - Student Lessons
+    // MARK: - Legacy Presentations
 
-    /// Imports student lessons from DTOs.
+    /// Imports legacy presentations from DTOs.
     ///
     /// - Parameters:
     ///   - dtos: The legacy presentation DTOs to import

@@ -36,7 +36,7 @@ struct StudentsView<WorkloadContent: View>: View {
         attendanceRecordsForChangeDetection.map { $0.id }
     }
     
-    private var studentLessonIDs: [UUID] {
+    private var presentationIDs: [UUID] {
         lessonAssignmentsForChangeDetection.map { $0.id }
     }
     
@@ -390,7 +390,7 @@ struct StudentsView<WorkloadContent: View>: View {
             .onChange(of: attendanceRecordIDs) { _, _ in
                 reloadDataAsync()
             }
-            .onChange(of: studentLessonIDs) { _, _ in
+            .onChange(of: presentationIDs) { _, _ in
                 reloadDataAsync()
             }
             .onChange(of: lessonIDs) { _, _ in
@@ -646,7 +646,7 @@ struct StudentsView<WorkloadContent: View>: View {
             modelContext: modelContext,
             calendar: calendar,
             attendanceRecordIDs: Set(attendanceRecordIDs),
-            studentLessonIDs: Set(studentLessonIDs),
+            presentationIDs: Set(presentationIDs),
             lessonIDs: Set(lessonIDs),
             students: uniqueStudents
         )

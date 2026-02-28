@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-// MARK: - Student Lesson Absent Helper
+// MARK: - Presentation Absent Helper
 
 /// Helper for determining absent students in a lesson presentation.
 enum PresentationAbsentHelper {

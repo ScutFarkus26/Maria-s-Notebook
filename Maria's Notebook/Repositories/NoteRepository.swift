@@ -89,7 +89,7 @@ struct NoteRepository: SavingRepository {
     ///   - needsFollowUp: Whether the note needs follow-up. Defaults to false
     ///   - lesson: Optional lesson relationship
     ///   - work: Optional work relationship
-    ///   - studentLesson: Optional studentLesson relationship
+    ///   - lessonAssignment: Optional lessonAssignment relationship
     ///   - studentMeeting: Optional studentMeeting relationship
     ///   - imagePath: Optional image path
     ///   - reportedBy: Optional reporter type

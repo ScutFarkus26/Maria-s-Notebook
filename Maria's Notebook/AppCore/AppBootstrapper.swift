@@ -129,7 +129,7 @@ final class AppBootstrapper {
             logger.info("Post-launch migrations: integrity repairs completed in \(formatSeconds(Date().timeIntervalSince(integrityStart)))s")
         }
 
-        // 3.10. LessonAssignment Migration (StudentLesson + Presentation consolidation)
+        // 3.10. LessonAssignment Migration (legacy model consolidation)
         let lessonAssignmentStart = Date()
         await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
         await DataMigrations.migrateLessonAssignmentsV2IfNeeded(using: backgroundContext)

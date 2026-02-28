@@ -97,9 +97,9 @@ final class MigrationDiagnosticService {
         return report
     }
 
-    /// Attempts to fix common issues (no-op now that StudentLesson is removed).
+    /// Attempts to fix common issues (no-op now that legacy model is removed).
     func fixCommonIssues() async -> MigrationFixResult {
-        logger.info("Fix common issues: no legacy StudentLesson data to fix")
+        logger.info("Fix common issues: no legacy data to fix")
         return MigrationFixResult()
     }
 

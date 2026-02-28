@@ -210,7 +210,7 @@ final class StudentsViewModel {
         modelContext: ModelContext,
         calendar: Calendar,
         attendanceRecordIDs: Set<UUID>,
-        studentLessonIDs: Set<UUID>,
+        presentationIDs: Set<UUID>,
         lessonIDs: Set<UUID>,
         students: [Student]
     ) {
@@ -221,7 +221,7 @@ final class StudentsViewModel {
         
         // Check if data changed
         let dataChanged = attendanceRecordIDs != lastAttendanceIDs ||
-                         studentLessonIDs != lastLessonAssignmentIDs ||
+                         presentationIDs != lastLessonAssignmentIDs ||
                          lessonIDs != lastLessonIDs
         
         guard dataChanged else { return }
@@ -249,7 +249,7 @@ final class StudentsViewModel {
         
         // Update change tracking
         lastAttendanceIDs = attendanceRecordIDs
-        lastLessonAssignmentIDs = studentLessonIDs
+        lastLessonAssignmentIDs = presentationIDs
         lastLessonIDs = lessonIDs
     }
     
@@ -322,7 +322,7 @@ final class StudentsViewModel {
     }
 
     /// Computes days since last lesson for multiple students efficiently.
-    /// Fetches all student lessons once and filters in memory to avoid repeated queries.
+    /// Fetches all lesson assignments once and filters in memory to avoid repeated queries.
     // MARK: - Shared Helper for Lesson Queries
     
     /// Shared data structure containing pre-fetched lesson data for efficient computation.

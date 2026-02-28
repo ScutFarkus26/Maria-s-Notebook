@@ -171,7 +171,7 @@ public enum PreferenceValueDTO: Codable, Sendable, Equatable {
 // MARK: - BackupPayload
 public struct BackupPayload: Codable, Sendable {
 
-    // Preserve the original JSON key "studentLessons" for backward compatibility with older backups
+    // Preserve the original JSON key "studentLessons" for backward compatibility with older backup files
     enum CodingKeys: String, CodingKey {
         case items, students, lessons
         case legacyPresentations = "studentLessons"

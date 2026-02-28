@@ -5,14 +5,14 @@ import OSLog
 // MARK: - Relationship Backfill Service
 
 /// Service responsible for backfilling relationships between entities.
-/// StudentLesson backfill methods are no longer needed (model removed).
+/// Legacy backfill methods are no longer needed (model removed).
 /// Remaining backfills operate on other model types.
 enum RelationshipBackfillService {
     private static let logger = Logger.migration
 
-    // MARK: - Legacy StudentLesson Backfills (no-ops)
+    // MARK: - Legacy Backfills (no-ops)
 
-    /// StudentLesson model removed — backfill complete. Marks flag if not already set.
+    /// Legacy model removed — backfill complete. Marks flag if not already set.
     static func backfillRelationshipsIfNeeded(using context: ModelContext) async {
         let flagKey = "Backfill.relationships.v1"
         if !MigrationFlag.isComplete(key: flagKey) {
@@ -20,7 +20,7 @@ enum RelationshipBackfillService {
         }
     }
 
-    /// StudentLesson model removed — backfill complete. Marks flag if not already set.
+    /// Legacy model removed — backfill complete. Marks flag if not already set.
     static func backfillIsPresentedIfNeeded(using context: ModelContext) async {
         let flagKey = "Backfill.isPresentedFromGivenAt.v1"
         if !MigrationFlag.isComplete(key: flagKey) {
@@ -28,7 +28,7 @@ enum RelationshipBackfillService {
         }
     }
 
-    /// StudentLesson model removed — backfill complete. Marks flag if not already set.
+    /// Legacy model removed — backfill complete. Marks flag if not already set.
     static func backfillScheduledForDayIfNeeded(using context: ModelContext) async {
         let flagKey = "Backfill.scheduledForDay.v1"
         if !MigrationFlag.isComplete(key: flagKey) {

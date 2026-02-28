@@ -32,24 +32,24 @@ struct PresentationNotesSectionUnified: View {
             let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
 
             // Convert studentIDs (String array) to UUID set for comparison
-            let studentLessonStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
-            let studentLessonLessonID = lessonAssignment.lessonID
+            let presentationStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
+            let presentationLessonID = lessonAssignment.lessonID
 
             return allNotes.filter { note in
                 // Must have a work relationship
                 guard let work = note.work else { return false }
 
                 // Work's lessonID must match lessonAssignment's lessonID
-                guard work.lessonID == studentLessonLessonID else { return false }
+                guard work.lessonID == presentationLessonID else { return false }
 
                 // Filter by scope to ensure note is relevant to this group
                 switch note.scope {
                 case .all:
                     return true
                 case .student(let id):
-                    return studentLessonStudentIDs.contains(id)
+                    return presentationStudentIDs.contains(id)
                 case .students(let ids):
-                    return ids.contains { studentLessonStudentIDs.contains($0) }
+                    return ids.contains { presentationStudentIDs.contains($0) }
                 }
             }
         } catch {
