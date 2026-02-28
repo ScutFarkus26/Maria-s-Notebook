@@ -1,44 +1,44 @@
 import SwiftUI
 import SwiftData
 
-/// A day column for the Work agenda calendar that displays both work items and student lessons
+/// A day column for the Work agenda calendar that displays both work items and lesson assignments
 struct WorkAgendaDayColumn: View {
     @Environment(\.modelContext) private var modelContext
-    
+
     let day: Date
     let availableHeight: CGFloat
     let showPresentations: Bool
     let onPillTap: (WorkCheckIn) -> Void
     let onGroupTap: ((CheckInGroup) -> Void)?
-    let onStudentLessonSelect: ((StudentLesson) -> Void)?
-    
+    let onLessonAssignmentSelect: ((LessonAssignment) -> Void)?
+
     // Fetch work check-ins for this day (scheduled status only)
     @Query private var allCheckIns: [WorkCheckIn]
-    
-    // Fetch scheduled student lessons (not yet given)
-    @Query(filter: #Predicate<StudentLesson> { !$0.isPresented && $0.givenAt == nil })
-    private var allStudentLessons: [StudentLesson]
-    
-    init(day: Date, availableHeight: CGFloat, showPresentations: Bool = true, onPillTap: @escaping (WorkCheckIn) -> Void, onGroupTap: ((CheckInGroup) -> Void)? = nil, onStudentLessonSelect: ((StudentLesson) -> Void)? = nil) {
+
+    // Fetch scheduled lesson assignments (not yet presented)
+    @Query(filter: #Predicate<LessonAssignment> { $0.stateRaw != "presented" })
+    private var allLessonAssignments: [LessonAssignment]
+
+    init(day: Date, availableHeight: CGFloat, showPresentations: Bool = true, onPillTap: @escaping (WorkCheckIn) -> Void, onGroupTap: ((CheckInGroup) -> Void)? = nil, onLessonAssignmentSelect: ((LessonAssignment) -> Void)? = nil) {
         self.day = day
         self.availableHeight = availableHeight
         self.showPresentations = showPresentations
         self.onPillTap = onPillTap
         self.onGroupTap = onGroupTap
-        self.onStudentLessonSelect = onStudentLessonSelect
-        
+        self.onLessonAssignmentSelect = onLessonAssignmentSelect
+
         // Initialize work check-ins query for this day (scheduled status only)
         let (start, end) = AppCalendar.dayRange(for: day)
         let scheduledStatus = "Scheduled"
-        _allCheckIns = Query(filter: #Predicate { 
-            $0.statusRaw == scheduledStatus && $0.date >= start && $0.date < end 
+        _allCheckIns = Query(filter: #Predicate {
+            $0.statusRaw == scheduledStatus && $0.date >= start && $0.date < end
         })
     }
-    
-    private var studentLessonsForDay: [StudentLesson] {
+
+    private var lessonAssignmentsForDay: [LessonAssignment] {
         let (start, end) = AppCalendar.dayRange(for: day)
-        return allStudentLessons.filter { lesson in
-            guard let scheduledDate = lesson.scheduledFor else { return false }
+        return allLessonAssignments.filter { la in
+            guard let scheduledDate = la.scheduledFor else { return false }
             return scheduledDate >= start && scheduledDate < end
         }
     }
@@ -160,26 +160,26 @@ struct WorkAgendaDayColumn: View {
 
     private enum CalendarItem: Identifiable {
         case checkInGroup(CheckInGroup)
-        case studentLesson(StudentLesson)
-        
+        case lessonAssignment(LessonAssignment)
+
         var id: UUID {
             switch self {
             case .checkInGroup(let g): return g.id
-            case .studentLesson(let sl): return sl.id
+            case .lessonAssignment(let la): return la.id
             }
         }
-        
+
         var sortDate: Date {
             switch self {
             case .checkInGroup(let g): return g.sortDate
-            case .studentLesson(let sl): return sl.scheduledFor ?? .distantPast
+            case .lessonAssignment(let la): return la.scheduledFor ?? .distantPast
             }
         }
     }
-    
+
     private var allItems: [CalendarItem] {
         let work = groupedCheckIns.map { CalendarItem.checkInGroup($0) }
-        let lessons = showPresentations ? studentLessonsForDay.map { CalendarItem.studentLesson($0) } : []
+        let lessons = showPresentations ? lessonAssignmentsForDay.map { CalendarItem.lessonAssignment($0) } : []
         return (work + lessons).sorted { $0.sortDate < $1.sortDate }
     }
     
@@ -209,21 +209,21 @@ struct WorkAgendaDayColumn: View {
                                     .opacity(0.9)
                             }
                         }
-                    case .studentLesson(let sl):
+                    case .lessonAssignment(let la):
                         StudentLessonPill(
-                            snapshot: sl.toLessonAssignmentSnapshot(),
+                            snapshot: la.snapshot(),
                             day: day,
-                            targetLessonAssignmentID: sl.id,
+                            targetLessonAssignmentID: la.id,
                             showTimeBadge: false,
                             enableMergeDrop: false,
                             showAgeIndicator: false
                         )
                         .opacity(0.5)
-                        .draggable(UnifiedCalendarDragPayload.studentLesson(sl.id).stringRepresentation) {
+                        .draggable(UnifiedCalendarDragPayload.studentLesson(la.id).stringRepresentation) {
                             StudentLessonPill(
-                                snapshot: sl.toLessonAssignmentSnapshot(),
+                                snapshot: la.snapshot(),
                                 day: day,
-                                targetLessonAssignmentID: sl.id,
+                                targetLessonAssignmentID: la.id,
                                 showTimeBadge: false,
                                 enableMergeDrop: false,
                                 showAgeIndicator: false
@@ -231,7 +231,7 @@ struct WorkAgendaDayColumn: View {
                             .opacity(0.45)
                         }
                         .onTapGesture {
-                            onStudentLessonSelect?(sl)
+                            onLessonAssignmentSelect?(la)
                         }
                     }
                 }

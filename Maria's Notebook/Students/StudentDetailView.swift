@@ -39,7 +39,7 @@ struct StudentDetailView: View {
     @State private var showAIPlanning = false
 
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
-    private var studentLessonIDs: [UUID] { vm.studentLessons.map(\.id) }
+    private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.map(\.id) }
 
     @ViewBuilder
     private var tabContent: some View {
@@ -83,8 +83,8 @@ struct StudentDetailView: View {
 
     @ViewBuilder
     private func lessonGiveSheet(for lesson: Lesson) -> some View {
-        let newSL: StudentLesson = vm.createDraftStudentLesson(for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator)
-        StudentLessonDetailView(studentLesson: newSL) {
+        let newLA = vm.createDraftLessonAssignment(for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator)
+        StudentLessonDetailView(lessonAssignment: newLA) {
             vm.selectedLessonForGive = nil
             vm.loadData(modelContext: modelContext)
         }
@@ -202,9 +202,9 @@ struct StudentDetailView: View {
         .sheet(item: $vm.selectedLessonForGive) { lesson in
             lessonGiveSheet(for: lesson)
         }
-        .sheet(item: $vm.selectedStudentLessonForDetail) { sl in
-            StudentLessonDetailView(studentLesson: sl) {
-                vm.selectedStudentLessonForDetail = nil
+        .sheet(item: $vm.selectedLessonAssignmentForDetail) { la in
+            StudentLessonDetailView(lessonAssignment: la) {
+                vm.selectedLessonAssignmentForDetail = nil
             }
             .studentDetailSheetSizing()
         }
@@ -233,7 +233,7 @@ struct StudentDetailView: View {
             vm.loadData(modelContext: modelContext)
             workCache = fetchWorkForStudent()
         }
-        .onChange(of: studentLessonIDs) { _, _ in
+        .onChange(of: lessonAssignmentIDs) { _, _ in
             vm.loadData(modelContext: modelContext)
             workCache = fetchWorkForStudent()
         }

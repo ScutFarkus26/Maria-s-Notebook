@@ -236,13 +236,13 @@ extension TodayView {
     func updateFilteredQueries() {
         let (dayStart, dayEnd) = AppCalendar.dayRange(for: viewModel.date)
 
-        // Fetch filtered StudentLesson IDs
+        // Fetch filtered LessonAssignment IDs
         do {
-            let lessonDescriptor = FetchDescriptor<StudentLesson>(
-                predicate: #Predicate<StudentLesson> { lesson in
+            let lessonDescriptor = FetchDescriptor<LessonAssignment>(
+                predicate: #Predicate<LessonAssignment> { lesson in
                     lesson.scheduledForDay >= dayStart && lesson.scheduledForDay < dayEnd
                 },
-                sortBy: [SortDescriptor(\StudentLesson.id)]
+                sortBy: [SortDescriptor(\LessonAssignment.id)]
             )
             let lessons = try modelContext.fetch(lessonDescriptor)
             filteredStudentLessonIDs = lessons.map { $0.id }

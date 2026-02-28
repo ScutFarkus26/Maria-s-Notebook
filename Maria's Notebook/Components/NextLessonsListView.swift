@@ -2,10 +2,10 @@ import SwiftUI
 
 struct NextLessonsListView: View {
     let isLoading: Bool
-    let lessons: [StudentLessonSnapshot]
+    let lessons: [LessonAssignmentSnapshot]
     let countText: String
-    let lessonName: (StudentLessonSnapshot) -> String
-    let lessonSubject: (StudentLessonSnapshot) -> String?
+    let lessonName: (LessonAssignmentSnapshot) -> String
+    let lessonSubject: (LessonAssignmentSnapshot) -> String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

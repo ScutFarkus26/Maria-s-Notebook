@@ -264,3 +264,4 @@ extension LessonAssignmentMigrationResult: CustomStringConvertible {
         "LessonAssignmentMigrationResult(studentLessons: \(studentLessonsMigrated) migrated / \(studentLessonsSkipped) skipped, presentations: \(presentationsMigrated) migrated / \(presentationsSkipped) skipped)"
     }
 }
+

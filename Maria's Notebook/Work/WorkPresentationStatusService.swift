@@ -132,46 +132,6 @@ struct WorkPresentationStatusService {
             logger.warning("Failed to fetch draft LessonAssignment: \(error)")
         }
 
-        // Check for StudentLesson records (legacy system or inbox waiting area)
-        let isPresentedFalse = false
-        let studentLessonDescriptor = FetchDescriptor<StudentLesson>(
-            predicate: #Predicate<StudentLesson> { sl in
-                sl.lessonID == lessonIDString &&
-                sl.isPresented == isPresentedFalse
-            },
-            sortBy: [SortDescriptor(\.scheduledFor, order: .forward)]
-        )
-        
-        do {
-            let studentLessons = try modelContext.fetch(studentLessonDescriptor)
-            // Filter to only lessons with this student
-            let relevantLessons = studentLessons.filter { sl in
-                sl.studentIDs.contains(work.studentID)
-            }
-            
-            // First check for scheduled ones
-            if let scheduled = relevantLessons.first(where: { sl in
-                sl.scheduledFor != nil
-            }), let scheduledDate = scheduled.scheduledFor {
-                return .scheduled(date: scheduledDate)
-            }
-            
-            // Then check for ones in the inbox (not presented, not scheduled)
-            if let inInbox = relevantLessons.first(where: { sl in
-                sl.scheduledFor == nil
-            }) {
-                let otherStudents = inInbox.studentIDs.filter { $0 != work.studentID }
-                
-                if otherStudents.isEmpty {
-                    return .inInbox(students: [work.studentID])
-                } else {
-                    return .withOtherStudents(students: otherStudents)
-                }
-            }
-        } catch {
-            logger.warning("Failed to fetch StudentLesson: \(error)")
-        }
-
         return .notFound
     }
 }

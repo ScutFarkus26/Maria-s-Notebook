@@ -14,7 +14,7 @@ enum TodayAgendaBuilder {
     /// New items (not in saved order) are appended at the end in default order.
     /// Work items with group/flexible check-in styles are merged into grouped rows.
     static func buildAgenda(
-        lessons: [StudentLesson],
+        lessons: [LessonAssignment],
         overdueSchedule: [ScheduledWorkItem],
         todaysSchedule: [ScheduledWorkItem],
         staleFollowUps: [FollowUpWorkItem],

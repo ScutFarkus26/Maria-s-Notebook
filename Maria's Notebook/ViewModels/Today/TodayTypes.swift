@@ -35,7 +35,7 @@ enum AgendaItemType: String, Codable, Sendable {
 /// Represents either a lesson or a work item (scheduled check-in or follow-up).
 /// Grouped variants merge multiple students' work from the same lesson into one row.
 enum AgendaItem: Identifiable {
-    case lesson(StudentLesson)
+    case lesson(LessonAssignment)
     case scheduledWork(ScheduledWorkItem)
     case followUp(FollowUpWorkItem)
     case groupedScheduledWork([ScheduledWorkItem])

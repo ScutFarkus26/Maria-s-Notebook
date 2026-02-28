@@ -22,7 +22,6 @@ extension UnifiedNoteEditor {
         case .general: return "Quick Note"
         case .lesson: return "Lesson Note"
         case .work: return "Work Note"
-        case .studentLesson: return "Presentation Note"
         case .presentation: return "Presentation Note"
         case .attendance: return "Attendance Note"
         case .workCheckIn: return "Check-In Note"
@@ -37,7 +36,7 @@ extension UnifiedNoteEditor {
 
     var shouldShowStudentSelection: Bool {
         switch context {
-        case .attendance, .workCompletion, .studentMeeting, .studentLesson:
+        case .attendance, .workCompletion, .studentMeeting:
             return false
         default:
             return true
@@ -60,8 +59,6 @@ extension UnifiedNoteEditor {
             if let studentID = UUID(uuidString: meeting.studentID) {
                 return [studentID]
             }
-        case .studentLesson(let sl):
-            return Set(sl.studentIDs.compactMap { UUID(uuidString: $0) })
         case .presentation(let pres):
             return Set(pres.studentUUIDs)
         case .work(let work):
@@ -295,7 +292,6 @@ extension UnifiedNoteEditor {
         case .general: return ".general"
         case .lesson: return ".lesson"
         case .work: return ".work"
-        case .studentLesson: return ".studentLesson"
         case .presentation: return ".presentation"
         case .attendance: return ".attendance"
         case .workCheckIn: return ".workCheckIn"

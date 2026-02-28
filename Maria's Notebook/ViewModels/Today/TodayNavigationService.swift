@@ -152,7 +152,7 @@ enum TodayNavigationService {
     ) -> Bool {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
         do {
-            let descriptor = FetchDescriptor<StudentLesson>(
+            let descriptor = FetchDescriptor<LessonAssignment>(
                 predicate: #Predicate { sl in
                     sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
                 }
@@ -196,10 +196,10 @@ enum TodayNavigationService {
 
     /// Filters lessons by level using the provided student lookup.
     private static func filterLessonsByLevel(
-        _ lessons: [StudentLesson],
+        _ lessons: [LessonAssignment],
         studentsByID: [UUID: Student],
         levelFilter: LevelFilter
-    ) -> [StudentLesson] {
+    ) -> [LessonAssignment] {
         guard levelFilter != .all else {
             return lessons.filter { sl in
                 let ids = sl.resolvedStudentIDs

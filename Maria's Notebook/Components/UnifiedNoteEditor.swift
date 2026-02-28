@@ -46,7 +46,6 @@ struct UnifiedNoteEditor: View {
         case general
         case lesson(Lesson)
         case work(WorkModel)
-        case studentLesson(StudentLesson)
         case presentation(Presentation)
         case attendance(AttendanceRecord)
         case workCheckIn(WorkCheckIn)

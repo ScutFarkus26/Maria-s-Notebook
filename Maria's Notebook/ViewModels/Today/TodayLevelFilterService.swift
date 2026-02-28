@@ -18,10 +18,10 @@ enum TodayLevelFilterService {
     ///   - levelFilter: The level filter to apply
     /// - Returns: Filtered lessons matching the criteria
     static func filterLessons(
-        _ lessons: [StudentLesson],
+        _ lessons: [LessonAssignment],
         studentsByID: [UUID: Student],
         levelFilter: LevelFilter
-    ) -> [StudentLesson] {
+    ) -> [LessonAssignment] {
         guard levelFilter != .all else {
             // For "all" filter, just ensure students are visible (cached)
             return lessons.filter { sl in

@@ -1,185 +1,54 @@
 import SwiftUI
 import SwiftData
 
-/// Unified notes section for StudentLesson that displays both new Note objects and legacy string field
+/// Unified notes section for a LessonAssignment that displays both new Note objects and legacy string field
 struct StudentLessonNotesSectionUnified: View {
-    let studentLesson: StudentLesson
+    let lessonAssignment: LessonAssignment
     @Binding var legacyNotes: String
     let onLegacyNotesChange: (String) -> Void
-    
+
     @Environment(\.modelContext) private var modelContext
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: Note?
-    
-    // Helper computed values for matching
-    private var slID: String {
-        studentLesson.id.uuidString
-    }
-    
-    private var slLessonID: String {
-        studentLesson.resolvedLessonID.uuidString
-    }
-    
-    private var slStudentIDs: Set<String> {
-        Set(studentLesson.resolvedStudentIDs.map { $0.uuidString })
-    }
-    
-    private var slGivenDay: Date? {
-        studentLesson.givenAt.map { Calendar.current.startOfDay(for: $0) }
-    }
-    
-    // Matched LessonAssignments using robust matching with migratedFromStudentLessonID as primary
+
+    // We already have the LessonAssignment directly — no matching needed
     private var matchedLessonAssignments: [LessonAssignment] {
-        do {
-            let allAssignments = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
-
-            var matched: [LessonAssignment] = []
-            var seenIDs: Set<UUID> = []
-
-            // Primary match: migratedFromStudentLessonID == studentLesson.id.uuidString
-            for la in allAssignments {
-                if let legacyID = la.migratedFromStudentLessonID,
-                   legacyID == slID,
-                   !seenIDs.contains(la.id) {
-                    matched.append(la)
-                    seenIDs.insert(la.id)
-                }
-            }
-
-            // Fallback: lessonID matches AND student set intersection/subset
-            if matched.isEmpty {
-                var candidates: [LessonAssignment] = []
-
-                for la in allAssignments {
-                    if seenIDs.contains(la.id) { continue }
-
-                    // Check lessonID match
-                    let lessonMatch = la.lessonID == slLessonID || la.lessonID == studentLesson.lessonID
-                    guard lessonMatch else { continue }
-
-                    // Check student match
-                    let laStudentIDs = Set(la.studentIDs)
-                    let studentMatch = laStudentIDs == slStudentIDs ||
-                                     laStudentIDs.isSubset(of: slStudentIDs) ||
-                                     !laStudentIDs.intersection(slStudentIDs).isEmpty
-                    guard studentMatch else { continue }
-
-                    candidates.append(la)
-                }
-
-                // If multiple candidates, choose by time proximity
-                if candidates.count == 1 {
-                    matched.append(candidates[0])
-                } else if candidates.count > 1 {
-                    var bestMatch: LessonAssignment?
-                    var minTimeDifference: TimeInterval = .greatestFiniteMagnitude
-
-                    let slDate: Date
-                    if let givenAt = studentLesson.givenAt {
-                        slDate = givenAt
-                    } else if let scheduledFor = studentLesson.scheduledFor {
-                        slDate = scheduledFor
-                    } else {
-                        slDate = studentLesson.createdAt
-                    }
-
-                    for candidate in candidates {
-                        if let presentedAt = candidate.presentedAt {
-                            let timeDifference = abs(presentedAt.timeIntervalSince(slDate))
-                            if timeDifference < minTimeDifference {
-                                minTimeDifference = timeDifference
-                                bestMatch = candidate
-                            }
-                        }
-                    }
-
-                    if let best = bestMatch {
-                        matched.append(best)
-                    } else {
-                        matched.append(candidates[0])
-                    }
-                }
-            }
-
-            return matched
-        } catch {
-            return []
-        }
+        [lessonAssignment]
     }
-    
-    // Get matched assignment IDs for efficient note fetching
+
     private var matchedAssignmentIDs: Set<UUID> {
-        Set(matchedLessonAssignments.map { $0.id })
+        Set([lessonAssignment.id])
     }
 
-    // Get notes from matched LessonAssignments
+    // Get notes from the LessonAssignment
     private var presentationNotesForThisLesson: [Note] {
-        let matchedIDs = matchedAssignmentIDs
-        guard !matchedIDs.isEmpty else { return [] }
-
-        do {
-            // Try to use relationship arrays first (more efficient)
-            var notes: [Note] = []
-            for assignment in matchedLessonAssignments {
-                if let assignmentNotes = assignment.unifiedNotes {
-                    notes.append(contentsOf: assignmentNotes)
-                }
-            }
-
-            // If relationship arrays are not available or incomplete, fetch all notes and filter
-            if notes.isEmpty {
-                let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
-                notes = allNotes.filter { note in
-                    // Check via presentation relationship
-                    if let notePresentation = note.lessonAssignment {
-                        return matchedIDs.contains(notePresentation.id)
-                    }
-                    return false
-                }
-            } else {
-                // De-duplicate in case relationship arrays overlap
-                var seenIDs: Set<UUID> = []
-                notes = notes.filter { note in
-                    if seenIDs.contains(note.id) {
-                        return false
-                    }
-                    seenIDs.insert(note.id)
-                    return true
-                }
-            }
-
-            return notes
-        } catch {
-            return []
-        }
+        lessonAssignment.unifiedNotes ?? []
     }
-    
-    // Get notes from WorkModels associated with this studentLesson
+
+    // Get notes from WorkModels associated with this lesson assignment
     private var workNotesForThisStudentLesson: [Note] {
         do {
             // Fetch all Notes to avoid SwiftData predicate limitations
             let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
-            
-            // Convert studentLesson.studentIDs (String array) to UUID set for comparison
-            let studentLessonStudentIDs = Set(studentLesson.studentIDs.compactMap { UUID(uuidString: $0) })
-            let studentLessonLessonID = studentLesson.lessonID
-            
+
+            // Convert studentIDs (String array) to UUID set for comparison
+            let studentLessonStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
+            let studentLessonLessonID = lessonAssignment.lessonID
+
             return allNotes.filter { note in
                 // Must have a work relationship
                 guard let work = note.work else { return false }
-                
-                // Work's lessonID must match studentLesson's lessonID
+
+                // Work's lessonID must match lessonAssignment's lessonID
                 guard work.lessonID == studentLessonLessonID else { return false }
-                
+
                 // Filter by scope to ensure note is relevant to this group
                 switch note.scope {
                 case .all:
                     return true
                 case .student(let id):
-                    // Include if studentLesson.studentIDs contains this id
                     return studentLessonStudentIDs.contains(id)
                 case .students(let ids):
-                    // Include if ANY id in the scope matches ANY studentID in studentLesson
                     return ids.contains { studentLessonStudentIDs.contains($0) }
                 }
             }
@@ -187,12 +56,10 @@ struct StudentLessonNotesSectionUnified: View {
             return []
         }
     }
-    
-    // Get lesson-attached notes (not from presentations)
-    // Task requirement: Notes where note.studentLesson == current StudentLesson
+
+    // Get lesson-attached notes from the LessonAssignment
     private var lessonNotes: [Note] {
-        // Use inverse relationship from StudentLesson
-        studentLesson.unifiedNotes ?? []
+        lessonAssignment.unifiedNotes ?? []
     }
     
     // Get presentation-attached notes
@@ -294,7 +161,7 @@ struct StudentLessonNotesSectionUnified: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .sheet(isPresented: $showAddNoteSheet) {
             UnifiedNoteEditor(
-                context: .studentLesson(studentLesson),
+                context: .presentation(lessonAssignment),
                 initialNote: nil,
                 onSave: { _ in
                     // Note is automatically saved via relationship
@@ -307,7 +174,7 @@ struct StudentLessonNotesSectionUnified: View {
         }
         .sheet(item: $noteBeingEdited) { note in
             UnifiedNoteEditor(
-                context: .studentLesson(studentLesson),
+                context: .presentation(lessonAssignment),
                 initialNote: note,
                 onSave: { _ in
                     noteBeingEdited = nil

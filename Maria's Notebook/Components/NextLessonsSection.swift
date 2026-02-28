@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NextLessonRow: View {
-    let snapshot: StudentLessonSnapshot
+    let snapshot: LessonAssignmentSnapshot
     let lesson: Lesson?
 
     var body: some View {
@@ -27,7 +27,7 @@ struct NextLessonRow: View {
 }
 
 struct NextLessonsSection: View {
-    let snapshots: [StudentLessonSnapshot]
+    let snapshots: [LessonAssignmentSnapshot]
     let lessonsByID: [UUID: Lesson]
 
     var body: some View {

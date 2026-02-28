@@ -41,7 +41,7 @@ struct TodayView: View {
 
     // MARK: - Navigation State
     @State var selectedWorkID: UUID?
-    @State var selectedStudentLesson: StudentLesson?
+    @State var selectedLessonAssignment: LessonAssignment?
     @State var isShowingQuickNote = false
     @State var noteBeingEdited: Note?
 
@@ -117,9 +117,9 @@ struct TodayView: View {
                 viewModel.reload()
             }
         }
-        .sheet(item: $selectedStudentLesson) { sl in
-            StudentLessonDetailView(studentLesson: sl) {
-                selectedStudentLesson = nil
+        .sheet(item: $selectedLessonAssignment) { la in
+            StudentLessonDetailView(lessonAssignment: la) {
+                selectedLessonAssignment = nil
             }
 #if os(macOS)
             .frame(minWidth: 720, minHeight: 640)

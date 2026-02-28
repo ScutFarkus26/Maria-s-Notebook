@@ -8,9 +8,9 @@ struct DaysSinceLastLessonView: View {
     @Environment(\.calendar) private var calendar
 
     @Query(sort: [
-        SortDescriptor(\StudentLesson.givenAt, order: .reverse),
-        SortDescriptor(\StudentLesson.createdAt, order: .reverse)
-    ]) private var allStudentLessons: [StudentLesson]
+        SortDescriptor(\LessonAssignment.presentedAt, order: .reverse),
+        SortDescriptor(\LessonAssignment.createdAt, order: .reverse)
+    ]) private var allLessonAssignments: [LessonAssignment]
 
     @Query private var lessons: [Lesson]
 
@@ -25,12 +25,13 @@ struct DaysSinceLastLessonView: View {
     }
 
     private var lastLessonDate: Date? {
-        let relevant = allStudentLessons.filter { sl in
-            sl.resolvedStudentIDs.contains(student.id) && sl.isGiven && !excludedLessonIDs.contains(sl.resolvedLessonID)
+        let studentIDString = student.id.uuidString
+        let relevant = allLessonAssignments.filter { la in
+            la.isPresented && la.studentIDs.contains(studentIDString) && !excludedLessonIDs.contains(la.resolvedLessonID)
         }
         var latest: Date? = nil
-        for sl in relevant {
-            let when = sl.givenAt ?? sl.scheduledFor ?? sl.createdAt
+        for la in relevant {
+            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
             if let cur = latest {
                 if when > cur { latest = when }
             } else {

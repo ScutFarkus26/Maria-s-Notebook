@@ -156,7 +156,7 @@ struct WorkAgendaCalendarPane: View {
                     let normalizedDay = AppCalendar.startOfDay(day)
                     switch unifiedPayload {
                     case .studentLesson(let id):
-                        rescheduleStudentLesson(id: id, to: normalizedDay)
+                        rescheduleLessonAssignment(id: id, to: normalizedDay)
                     case .workCheckIn(let id):
                         rescheduleCheckIn(id: id, to: normalizedDay)
                     // Phase 6: workPlanItem case removed - migrated to workCheckIn
@@ -223,15 +223,19 @@ struct WorkAgendaCalendarPane: View {
         _ = saveCoordinator.save(modelContext, reason: "Reschedule WorkCheckIn")
     }
     
-    private func rescheduleStudentLesson(id: UUID, to day: Date) {
-        let fetch = FetchDescriptor<StudentLesson>(predicate: #Predicate<StudentLesson> { $0.id == id })
-        guard let lesson = modelContext.safeFetchFirst(fetch) else { return }
-        
+    private func rescheduleLessonAssignment(id: UUID, to day: Date) {
+        let fetch = FetchDescriptor<LessonAssignment>(predicate: #Predicate<LessonAssignment> { $0.id == id })
+        guard let la = modelContext.safeFetchFirst(fetch) else { return }
+
         let normalized = AppCalendar.startOfDay(day)
         let baseDate = Calendar.current.date(byAdding: .hour, value: 9, to: normalized) ?? normalized
-        lesson.setScheduledFor(baseDate, using: AppCalendar.shared)
-        
-        _ = saveCoordinator.save(modelContext, reason: "Reschedule StudentLesson from Work view")
+        la.scheduledFor = baseDate
+        if la.state == .draft {
+            la.stateRaw = LessonAssignmentState.scheduled.rawValue
+        }
+        la.modifiedAt = Date()
+
+        _ = saveCoordinator.save(modelContext, reason: "Reschedule LessonAssignment from Work view")
     }
 
 

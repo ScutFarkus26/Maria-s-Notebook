@@ -13,16 +13,16 @@ enum TodayDataFetcher {
     // MARK: - Lesson Fetching
 
     /// Fetches lessons for a specific day.
-    /// Includes lessons scheduled for the day AND lessons presented (givenAt) on the day,
+    /// Includes lessons scheduled for the day AND lessons presented (presentedAt) on the day,
     /// so that the "Lessons Presented" section shows all presentations regardless of original schedule.
     static func fetchLessons(
         day: Date,
         nextDay: Date,
         context: ModelContext
-    ) -> [StudentLesson] {
+    ) -> [LessonAssignment] {
         do {
             // Fetch lessons scheduled for this day
-            let byDayDescriptor = FetchDescriptor<StudentLesson>(
+            let byDayDescriptor = FetchDescriptor<LessonAssignment>(
                 predicate: #Predicate { sl in
                     sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
                 },
@@ -30,13 +30,14 @@ enum TodayDataFetcher {
             )
             var dayLessons = try context.fetch(byDayDescriptor)
 
-            // Also fetch lessons that were presented (givenAt) on this day but not scheduled for it.
+            // Also fetch lessons that were presented (presentedAt) on this day but not scheduled for it.
             // This catches inbox items or lessons scheduled for other days that were presented today.
-            let presentedDescriptor = FetchDescriptor<StudentLesson>(
+            let presentedState = LessonAssignmentState.presented.rawValue
+            let presentedDescriptor = FetchDescriptor<LessonAssignment>(
                 predicate: #Predicate { sl in
-                    if let givenAt = sl.givenAt {
-                        return sl.isPresented == true &&
-                            givenAt >= day && givenAt < nextDay &&
+                    if let presentedAt = sl.presentedAt {
+                        return sl.stateRaw == presentedState &&
+                            presentedAt >= day && presentedAt < nextDay &&
                             (sl.scheduledForDay < day || sl.scheduledForDay >= nextDay)
                     } else {
                         return false

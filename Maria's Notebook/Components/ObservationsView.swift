@@ -560,7 +560,6 @@ struct ObservationsView: View {
         if let lesson = note.lesson { return .lesson(lesson) }
         if let work = note.work { return .work(work) }
         if let pres = note.lessonAssignment { return .presentation(pres) }
-        if let studentLesson = note.studentLesson { return .studentLesson(studentLesson) }
         if let attendanceRecord = note.attendanceRecord { return .attendance(attendanceRecord) }
         if let workCheckIn = note.workCheckIn { return .workCheckIn(workCheckIn) }
         if let workCompletion = note.workCompletionRecord { return .workCompletion(workCompletion) }

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LinkedLessonSection: View {
     let lessonsByID: [UUID: Lesson]
-    let studentLessonSnapshotsByID: [UUID: StudentLessonSnapshot]
+    let studentLessonSnapshotsByID: [UUID: LessonAssignmentSnapshot]
     @Binding var selectedStudentLessonID: UUID?
     let createdDateOnlyFormatter: DateFormatter
     let onOpenLinkedDetails: () -> Void
@@ -22,7 +22,7 @@ struct LinkedLessonSection: View {
                 
                 let lesson = lessonsByID[snapshot.lessonID]
                 let lessonName = lesson?.name ?? "Unknown Lesson"
-                let date = snapshot.scheduledFor ?? snapshot.givenAt ?? snapshot.createdAt
+                let date = snapshot.scheduledFor ?? snapshot.presentedAt ?? snapshot.createdAt
                 let formattedDate = createdDateOnlyFormatter.string(from: date)
                 
                 HStack(spacing: 10) {
@@ -68,11 +68,11 @@ struct LinkedLessonSection: View {
         .sheet(isPresented: $showingLinkPicker) {
             NavigationStack {
                 List {
-                    let sorted = studentLessonSnapshotsByID.values.sorted { lhs, rhs in
-                        let ld = lhs.scheduledFor ?? lhs.givenAt ?? lhs.createdAt
-                        let rd = rhs.scheduledFor ?? rhs.givenAt ?? rhs.createdAt
+                    let sorted = studentLessonSnapshotsByID.values.sorted(by: { (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
+                        let ld = lhs.scheduledFor ?? lhs.presentedAt ?? lhs.createdAt
+                        let rd = rhs.scheduledFor ?? rhs.presentedAt ?? rhs.createdAt
                         return ld > rd
-                    }
+                    })
                     let filtered = sorted.filter { Set($0.studentIDs).isSuperset(of: selectedStudentIDs) }
                     if filtered.isEmpty {
                         ContentUnavailableView(
@@ -84,7 +84,7 @@ struct LinkedLessonSection: View {
                         ForEach(filtered, id: \.id) { snap in
                             let lesson = lessonsByID[snap.lessonID]
                             let name = lesson?.name ?? "Lesson"
-                            let date = createdDateOnlyFormatter.string(from: snap.scheduledFor ?? snap.givenAt ?? snap.createdAt)
+                            let date = createdDateOnlyFormatter.string(from: snap.scheduledFor ?? snap.presentedAt ?? snap.createdAt)
                             Button {
                                 selectedStudentLessonID = snap.id
                                 showingLinkPicker = false

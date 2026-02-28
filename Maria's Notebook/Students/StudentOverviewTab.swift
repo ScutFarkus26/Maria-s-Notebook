@@ -20,7 +20,7 @@ struct StudentOverviewTab: View {
     @Binding var selectedWorkID: UUID?
     
     let lessonsByID: [UUID: Lesson]
-    let nextLessonsForStudent: [StudentLessonSnapshot]
+    let nextLessonsForStudent: [LessonAssignmentSnapshot]
     
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar

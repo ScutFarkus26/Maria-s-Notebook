@@ -7,7 +7,7 @@ struct StudentLessonDraftSheet: View {
     @Environment(\.modelContext) private var modelContext
 
     // Filtered query to observe the draft by its ID
-    @Query private var matches: [StudentLesson]
+    @Query private var matches: [LessonAssignment]
 
     let id: UUID
     let onDone: () -> Void
@@ -15,13 +15,13 @@ struct StudentLessonDraftSheet: View {
     init(id: UUID, onDone: @escaping () -> Void) {
         self.id = id
         self.onDone = onDone
-        _matches = Query(filter: #Predicate<StudentLesson> { $0.id == id })
+        _matches = Query(filter: #Predicate<LessonAssignment> { $0.id == id })
     }
 
     var body: some View {
         Group {
             if let sl = matches.first {
-                StudentLessonDetailView(studentLesson: sl, onDone: onDone, autoFocusLessonPicker: true)
+                StudentLessonDetailView(lessonAssignment: sl, onDone: onDone, autoFocusLessonPicker: true)
                     .onDisappear {
                         // If the draft is still empty when the sheet closes, remove it
                         if let current = matches.first {

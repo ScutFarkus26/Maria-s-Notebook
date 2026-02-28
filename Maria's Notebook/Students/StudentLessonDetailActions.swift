@@ -9,7 +9,7 @@ final class StudentLessonDetailActions {
     private static let logger = Logger.students
 
     func applyEditsToModel(
-        studentLesson: StudentLesson,
+        lessonAssignment: LessonAssignment,
         editingLessonID: UUID,
         scheduledFor: Date?,
         givenAt: Date?,
@@ -24,16 +24,23 @@ final class StudentLessonDetailActions {
         // Do not allow zero-student lessons; skip applying edits if empty selection
         guard !selectedStudentIDs.isEmpty else { return }
 
-        // CloudKit compatibility: Convert UUID to String for assignment
-        studentLesson.lessonID = editingLessonID.uuidString
-        studentLesson.setScheduledFor(scheduledFor, using: calendar)
-        studentLesson.givenAt = givenAt.map { calendar.startOfDay(for: $0) }
-        studentLesson.isPresented = isPresented
-        studentLesson.notes = notes
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.studentIDs = selectedStudentIDs.map { $0.uuidString }
-        studentLesson.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
-        studentLesson.lesson = lessons.first(where: { $0.id == editingLessonID })
+        lessonAssignment.lessonID = editingLessonID.uuidString
+        lessonAssignment.notes = notes
+        lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
+        lessonAssignment.studentIDs = selectedStudentIDs.map { $0.uuidString }
+        lessonAssignment.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        lessonAssignment.lesson = lessons.first(where: { $0.id == editingLessonID })
+
+        // State transitions: presented > scheduled > draft
+        if isPresented {
+            let date = givenAt ?? Date()
+            lessonAssignment.markPresented(at: calendar.startOfDay(for: date))
+        } else {
+            if lessonAssignment.state == .presented {
+                lessonAssignment.presentedAt = nil
+            }
+            lessonAssignment.setScheduledFor(scheduledFor, using: calendar)
+        }
     }
 
     func autoCreateNextIfNeeded(

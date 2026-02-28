@@ -212,90 +212,80 @@ final class LessonPickerViewModel {
         guard let finalLesson = resolvedLesson else {
             throw SaveError.missingLesson
         }
-        
+
         // Build selected IDs and search for an existing unscheduled/unpresented match
         let selectedIDs = Array(selectedStudentIDs)
         let selectedSet = Set(selectedIDs)
-        let targetLessonID = finalLesson.id
-        // CloudKit compatibility: Convert UUID to String for predicate
-        let targetLessonIDString = targetLessonID.uuidString
-        let predicate = #Predicate<StudentLesson> { sl in
-            sl.givenAt == nil && sl.lessonID == targetLessonIDString
+        let targetLessonIDString = finalLesson.id.uuidString
+        let draftRaw = LessonAssignmentState.draft.rawValue
+        let scheduledRaw = LessonAssignmentState.scheduled.rawValue
+        let predicate = #Predicate<LessonAssignment> { la in
+            la.lessonID == targetLessonIDString &&
+            (la.stateRaw == draftRaw || la.stateRaw == scheduledRaw)
         }
-        let existingCandidates = safeFetch(FetchDescriptor<StudentLesson>(predicate: predicate), from: context)
-        let existingMatch = existingCandidates.first(where: { $0.resolvedLessonID == targetLessonID && Set($0.resolvedStudentIDs) == selectedSet })
+        let existingCandidates = safeFetch(FetchDescriptor<LessonAssignment>(predicate: predicate), from: context)
+        let existingMatch = existingCandidates.first(where: { la in
+            la.resolvedLessonID == finalLesson.id && Set(la.resolvedStudentIDs) == selectedSet
+        })
 
         // Either reuse existing or create a new one
-        let studentLesson: StudentLesson
+        let la: LessonAssignment
         let isNew: Bool
         if let match = existingMatch {
-            studentLesson = match
+            la = match
             isNew = false
         } else {
-            studentLesson = StudentLessonFactory.makeUnscheduled(
+            la = PresentationFactory.makeDraft(
                 lessonID: finalLesson.id,
                 studentIDs: selectedIDs
             )
             isNew = true
         }
 
-        // Apply current state onto the chosen record
-        // CloudKit compatibility: Convert UUID to String
-        studentLesson.lessonID = finalLesson.id.uuidString
-        studentLesson.studentIDs = selectedIDs.map { $0.uuidString }
-        studentLesson.scheduledFor = (mode == .plan ? scheduledFor : nil)
-        studentLesson.givenAt = (mode == .given ? givenAt : nil)
-        studentLesson.isPresented = (mode == .given)
-        studentLesson.notes = notes
-        studentLesson.needsPractice = needsPractice
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
-        studentLesson.followUpWork = followUpWork
+        // Apply current state
+        la.lessonID = targetLessonIDString
+        la.studentIDs = selectedIDs.map { $0.uuidString }
+        la.needsPractice = needsPractice
+        la.needsAnotherPresentation = needsAnotherPresentation
+        la.followUpWork = followUpWork
+        la.lesson = finalLesson
+        la.modifiedAt = Date()
 
-        // Update relationships to mirror snapshots
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
-        let allStudents = safeFetch(FetchDescriptor<Student>(), from: context)
-        let fetchedStudents = allStudents.filter { selectedSet.contains($0.id) }
-        studentLesson.students = fetchedStudents
-        studentLesson.lesson = finalLesson
-        
-        if isNew {
-            context.insert(studentLesson)
+        if mode == .given {
+            la.markPresented(at: givenAt ?? Date())
+        } else if let date = scheduledFor {
+            la.scheduledFor = date
+            la.stateRaw = LessonAssignmentState.scheduled.rawValue
+        } else {
+            la.scheduledFor = nil
+            la.stateRaw = LessonAssignmentState.draft.rawValue
         }
-        
+
+        // Set snapshots for display
+        la.lessonTitleSnapshot = finalLesson.name
+        la.lessonSubheadingSnapshot = finalLesson.subheading
+
+        if isNew {
+            context.insert(la)
+        }
+
         // WorkModel flow
         // If marking as given and practice is requested, explode per-student practice work via LifecycleService
         if mode == .given && needsPractice {
             let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())
             do {
-                // Bridge: look up corresponding LessonAssignment for LifecycleService
-                let slIDString = studentLesson.id.uuidString
-                let laDesc = FetchDescriptor<LessonAssignment>(
-                    predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
+                _ = try LifecycleService.recordPresentationAndExplodeWork(
+                    from: la,
+                    presentedAt: presentedDate,
+                    modelContext: context
                 )
-                if let la = try context.fetch(laDesc).first {
-                    _ = try LifecycleService.recordPresentationAndExplodeWork(
-                        from: la,
-                        presentedAt: presentedDate,
-                        modelContext: context
-                    )
-                }
             } catch {
                 // Ignore errors for now; caller handles thrown save errors later
             }
         }
-        
+
         // Auto-enroll students in track if lesson belongs to a track
-        // When presented
-        if mode == .given {
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: finalLesson,
-                studentIDs: selectedIDs.map { $0.uuidString },
-                modelContext: context
-            )
-        }
-        // When scheduled
-        else if mode == .plan, scheduledFor != nil {
+        if mode == .given || (mode == .plan && scheduledFor != nil) {
             GroupTrackService.autoEnrollInTrackIfNeeded(
                 lesson: finalLesson,
                 studentIDs: selectedIDs.map { $0.uuidString },
@@ -303,36 +293,27 @@ final class LessonPickerViewModel {
             )
         }
 
-        // If planning (not given) and practice is requested, create active practice work per student (no presentation link)
+        // If planning (not given) and practice is requested, create active practice work per student
         if mode == .plan && needsPractice {
             let lessonID = finalLesson.id
-            // Fetch all WorkModels once and filter in memory (no predicates)
+            let lessonIDString = finalLesson.id.uuidString
             let allWorkModels = safeFetch(FetchDescriptor<WorkModel>(), from: context)
             let activeRaw = WorkStatus.active.rawValue
             let reviewRaw = WorkStatus.review.rawValue
             let practiceRaw = WorkKind.practiceLesson.rawValue
-            
+
             for studentID in selectedIDs {
                 let sidString = studentID.uuidString
-                // Check if WorkModel already exists for this student/lesson/practice
                 let exists = allWorkModels.contains { work in
-                    // Check if student is a participant
                     let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
                     guard hasStudent else { return false }
-                    // Check if work is for this lesson (via studentLessonID)
-                    guard let slID = work.studentLessonID else { return false }
-                    let allSLs = safeFetch(FetchDescriptor<StudentLesson>(), from: context)
-                    guard let sl = allSLs.first(where: { $0.id == slID }),
-                          UUID(uuidString: sl.lessonID) == lessonID else {
-                        return false
-                    }
-                    // Check status and kind
+                    // Check if work is for this lesson via lessonID
+                    guard work.lessonID == lessonIDString else { return false }
                     return (work.statusRaw == activeRaw || work.statusRaw == reviewRaw) &&
                            (work.kindRaw ?? "") == practiceRaw
                 }
-                
+
                 if !exists {
-                    // Create WorkModel
                     let repository = WorkRepository(context: context)
                     do {
                         _ = try repository.createWork(
@@ -356,7 +337,6 @@ final class LessonPickerViewModel {
             let sidStrings = selectedIDs.map { $0.uuidString }
             let lidString = finalLesson.id.uuidString
             for sid in sidStrings {
-                // De-dupe by (student, lesson, kind=followUp) in active/review
                 let activeRaw = WorkStatus.active.rawValue
                 let reviewRaw = WorkStatus.review.rawValue
                 let followRaw = WorkKind.followUpAssignment.rawValue
@@ -380,7 +360,6 @@ final class LessonPickerViewModel {
                             presentationID: nil,
                             scheduledDate: nil
                         )
-                        // Store follow-up text in unified notes
                         workModel.setLegacyNoteText(trimmedFollowUp, in: context)
                     } catch {
                         Self.logger.warning("Failed to create follow-up work for student \(sid, privacy: .public): \(error)")
@@ -388,7 +367,7 @@ final class LessonPickerViewModel {
                 }
             }
         }
-        
+
         do {
             try context.save()
         } catch {

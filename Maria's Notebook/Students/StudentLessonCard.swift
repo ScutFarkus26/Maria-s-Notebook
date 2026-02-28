@@ -9,7 +9,7 @@ import UIKit
 #endif
 
 struct StudentLessonCard: View {
-    let snapshot: StudentLessonSnapshot
+    let snapshot: LessonAssignmentSnapshot
     let lesson: Lesson?
     let students: [Student]
 
@@ -55,8 +55,8 @@ struct StudentLessonCard: View {
     }
 
     private var statusText: String {
-        if snapshot.isGiven {
-            if let given = snapshot.givenAt {
+        if snapshot.isPresented {
+            if let given = snapshot.presentedAt {
                 let fmt = DateFormatter()
                 fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
                 return "Presented on " + fmt.string(from: given)

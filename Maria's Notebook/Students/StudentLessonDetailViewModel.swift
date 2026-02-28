@@ -8,10 +8,10 @@ import OSLog
 final class StudentLessonDetailViewModel {
     private static let logger = Logger.students
     // MARK: - Dependencies
-    var studentLesson: StudentLesson
+    var lessonAssignment: LessonAssignment
     var modelContext: ModelContext
     var saveCoordinator: SaveCoordinator
-    
+
     // MARK: - Editable State
     var editingLessonID: UUID
     var scheduledFor: Date?
@@ -29,7 +29,7 @@ final class StudentLessonDetailViewModel {
     /// The mastery state for progress tracking. Only applies when lesson is presented.
     /// nil = not yet loaded, .presented = shown but not mastered, .mastered = student has mastered
     var masteryState: LessonPresentationState = .presented
-    
+
     // MARK: - UI State
     var showLessonPicker: Bool = false
     var showAssignmentComposer: Bool = false
@@ -37,13 +37,13 @@ final class StudentLessonDetailViewModel {
     var showingStudentPickerPopover: Bool = false
     var showDeleteAlert: Bool = false
     var showingMoveStudentsSheet: Bool = false
-    
+
     // MARK: - Workflow Panel State (for embedded presentation workflow)
     var showWorkflowPanel: Bool = false
     var presentationViewModel: PostPresentationFormViewModel?
     var savedScrollPosition: CGPoint = .zero
     var hasUnsavedWorkflowChanges: Bool = false
-    
+
     // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []
     var showMovedBanner: Bool = false
@@ -55,29 +55,27 @@ final class StudentLessonDetailViewModel {
     private var notesAutosaveTask: Task<Void, Never>? = nil
 
     // MARK: - Initialization
-    init(studentLesson: StudentLesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator, autoFocusLessonPicker: Bool = false) {
-        self.studentLesson = studentLesson
+    init(lessonAssignment: LessonAssignment, modelContext: ModelContext, saveCoordinator: SaveCoordinator, autoFocusLessonPicker: Bool = false) {
+        self.lessonAssignment = lessonAssignment
         self.modelContext = modelContext
         self.saveCoordinator = saveCoordinator
 
         // Initialize local state from the model
-        // CloudKit compatibility: Convert String lessonID to UUID
-        self.editingLessonID = UUID(uuidString: studentLesson.lessonID) ?? UUID()
-        self.scheduledFor = studentLesson.scheduledFor
-        self.givenAt = studentLesson.givenAt
-        self.isPresented = studentLesson.isPresented
-        self.notes = studentLesson.notes
-        self.originalNotes = studentLesson.notes
-        self.needsAnotherPresentation = studentLesson.needsAnotherPresentation
-        // Convert string IDs to UUIDs for CloudKit compatibility
-        self.selectedStudentIDs = Set(studentLesson.studentIDs.compactMap { UUID(uuidString: $0) })
+        self.editingLessonID = UUID(uuidString: lessonAssignment.lessonID) ?? UUID()
+        self.scheduledFor = lessonAssignment.scheduledFor
+        self.givenAt = lessonAssignment.presentedAt
+        self.isPresented = lessonAssignment.isPresented
+        self.notes = lessonAssignment.notes
+        self.originalNotes = lessonAssignment.notes
+        self.needsAnotherPresentation = lessonAssignment.needsAnotherPresentation
+        self.selectedStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
 
         self.showLessonPicker = autoFocusLessonPicker
 
         // Load mastery state from existing LessonPresentation records
         self.masteryState = Self.loadMasteryState(
-            lessonID: studentLesson.lessonID,
-            studentIDs: studentLesson.studentIDs,
+            lessonID: lessonAssignment.lessonID,
+            studentIDs: lessonAssignment.studentIDs,
             modelContext: modelContext
         )
     }
@@ -123,14 +121,14 @@ final class StudentLessonDetailViewModel {
         }
         return .presented
     }
-    
+
     // MARK: - Computed Helpers
-    
+
     /// Resolves the currently selected Lesson object from the provided list
     func lessonObject(from lessons: [Lesson]) -> Lesson? {
         lessons.first(where: { $0.id == editingLessonID })
     }
-    
+
     /// Determines the next lesson in the group based on the current selection
     func nextLessonInGroup(from lessons: [Lesson]) -> Lesson? {
         guard let current = lessonObject(from: lessons) else { return nil }
@@ -144,7 +142,7 @@ final class StudentLessonDetailViewModel {
     func applyEditsToModel(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
         let actions = StudentLessonDetailActions()
         actions.applyEditsToModel(
-            studentLesson: studentLesson,
+            lessonAssignment: lessonAssignment,
             editingLessonID: editingLessonID,
             scheduledFor: scheduledFor,
             givenAt: givenAt,
@@ -157,7 +155,7 @@ final class StudentLessonDetailViewModel {
             calendar: calendar
         )
     }
-    
+
     /// Saves changes to the database, handles lifecycle events, and auto-creates next lessons
     func save(
         studentsAll: [Student],
@@ -167,43 +165,36 @@ final class StudentLessonDetailViewModel {
         onDone: (() -> Void)? = nil
     ) {
         // Capture prior presented state
-        let wasGiven = studentLesson.isPresented || studentLesson.givenAt != nil
+        let wasGiven = lessonAssignment.isPresented
 
         // 1. Apply local edits to the model
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
 
-        // 2. Engagement Lifecycle (Record Presentation — work is created explicitly via workflow panel or pie menu)
+        // 2. Engagement Lifecycle (Record Presentation)
         let nowGiven = isPresented || (givenAt != nil)
         if nowGiven {
             do {
-                // Bridge: look up corresponding LessonAssignment for LifecycleService
-                let slIDString = studentLesson.id.uuidString
-                let laDesc = FetchDescriptor<LessonAssignment>(
-                    predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
+                let _ = try LifecycleService.recordPresentation(
+                    from: lessonAssignment,
+                    presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
+                    modelContext: modelContext
                 )
-                if let la = try modelContext.fetch(laDesc).first {
-                    let _ = try LifecycleService.recordPresentation(
-                        from: la,
-                        presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
-                        modelContext: modelContext
-                    )
-                }
             } catch {
                 Self.logger.debug("LifecycleService error: \(error)")
             }
 
             // Update mastery state on LessonPresentation records
             updateMasteryState(
-                lessonID: studentLesson.lessonID,
-                studentIDs: studentLesson.studentIDs,
+                lessonID: lessonAssignment.lessonID,
+                studentIDs: lessonAssignment.studentIDs,
                 state: masteryState
             )
 
             // Auto-enroll students in track if lesson belongs to a track
-            if let lesson = studentLesson.lesson {
+            if let lesson = lessonAssignment.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,
-                    studentIDs: studentLesson.studentIDs,
+                    studentIDs: lessonAssignment.studentIDs,
                     modelContext: modelContext,
                     saveCoordinator: saveCoordinator
                 )
@@ -211,11 +202,11 @@ final class StudentLessonDetailViewModel {
         }
 
         // Auto-enroll when lesson is scheduled (if not already presented)
-        if !nowGiven, studentLesson.scheduledFor != nil {
-            if let lesson = studentLesson.lesson {
+        if !nowGiven, lessonAssignment.scheduledFor != nil {
+            if let lesson = lessonAssignment.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,
-                    studentIDs: studentLesson.studentIDs,
+                    studentIDs: lessonAssignment.studentIDs,
                     modelContext: modelContext,
                     saveCoordinator: saveCoordinator
                 )
@@ -225,7 +216,7 @@ final class StudentLessonDetailViewModel {
         // 3. Auto-create next lesson if needed
         let actions = StudentLessonDetailActions()
         let nextLesson = nextLessonInGroup(from: lessons)
-        
+
         actions.autoCreateNextIfNeeded(
             wasGiven: wasGiven,
             nowGiven: nowGiven,
@@ -238,7 +229,7 @@ final class StudentLessonDetailViewModel {
         )
 
         // 4. Persist
-        if saveCoordinator.save(modelContext, reason: "Saving student lesson") {
+        if saveCoordinator.save(modelContext, reason: "Saving lesson assignment") {
             // Reset autosave state
             notesAutosaveTask?.cancel()
             originalNotes = notes
@@ -250,16 +241,16 @@ final class StudentLessonDetailViewModel {
             onDone?()
         }
     }
-    
+
     /// A lightweight save for autosaving notes or minor updates
     func saveImmediate(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
-        saveCoordinator.save(modelContext, reason: "Auto-saving student lesson")
+        saveCoordinator.save(modelContext, reason: "Auto-saving lesson assignment")
     }
 
-    /// Deletes the student lesson
+    /// Deletes the lesson assignment
     func delete(onDone: (() -> Void)? = nil) {
-        let id = studentLesson.id
+        let id = lessonAssignment.id
         let ctx = modelContext
         let coordinator = saveCoordinator
 
@@ -268,24 +259,23 @@ final class StudentLessonDetailViewModel {
 
         // Perform deletion asynchronously
         Task { @MainActor in
-            var desc = FetchDescriptor<StudentLesson>(predicate: #Predicate { $0.id == id })
+            var desc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
             desc.fetchLimit = 1
             do {
-                    if let toDelete = try ctx.fetch(desc).first {
-                    // Access relationship to avoid faults before deletion
+                if let toDelete = try ctx.fetch(desc).first {
                     _ = toDelete.studentIDs
                     ctx.delete(toDelete)
-                    coordinator.save(ctx, reason: "Deleting student lesson")
+                    coordinator.save(ctx, reason: "Deleting lesson assignment")
                 }
             } catch {
-                Self.logger.warning("Failed to fetch StudentLesson for deletion: \(error)")
+                Self.logger.warning("Failed to fetch LessonAssignment for deletion: \(error)")
             }
             StudentLessonDetailUtilities.notifyInboxRefresh()
         }
     }
-    
+
     // MARK: - Special Logic
-    
+
     /// Handles the "Move Students" action, creating a new lesson for them and removing them from this one
     func moveStudentsToInbox(
         studentsAll: [Student],
@@ -304,14 +294,14 @@ final class StudentLessonDetailViewModel {
             lessonAssignmentsAll: lessonAssignmentsAll,
             context: modelContext
         )
-        
+
         // Remove students from current VM state
         selectedStudentIDs.subtract(studentsToMove)
-        
-        // Sync to model immediately so the view updates - convert UUIDs to strings for CloudKit compatibility
-        let remainingUUIDs = Set(studentLesson.resolvedStudentIDs).subtracting(studentsToMove)
-        studentLesson.studentIDs = remainingUUIDs.map { $0.uuidString }
-        studentLesson.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
+
+        // Sync to model immediately so the view updates
+        let remainingUUIDs = Set(lessonAssignment.resolvedStudentIDs).subtracting(studentsToMove)
+        lessonAssignment.studentIDs = remainingUUIDs.map { $0.uuidString }
+        lessonAssignment.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
         saveCoordinator.save(modelContext, reason: "Moving students to inbox")
 
         StudentLessonDetailUtilities.notifyInboxRefresh()
@@ -319,7 +309,7 @@ final class StudentLessonDetailViewModel {
         // UI Updates
         studentsToMove.removeAll()
         showMovedBanner = true
-        
+
         // Hide banner after delay
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -327,7 +317,7 @@ final class StudentLessonDetailViewModel {
             showMovedBanner = false
         }
     }
-    
+
     /// Reacts to changes in "Needs Another Presentation" toggle
     func handleNeedsAnotherChange(
         newValue: Bool,
@@ -360,7 +350,7 @@ final class StudentLessonDetailViewModel {
             modelContext.insert(newLA)
         }
     }
-    
+
     /// Schedules a new presentation for the next lesson in the group
     func scheduleNextLessonToInbox(
         studentsAll: [Student],
@@ -391,49 +381,25 @@ final class StudentLessonDetailViewModel {
         saveCoordinator.save(modelContext, reason: "Scheduling next lesson")
         StudentLessonDetailUtilities.notifyInboxRefresh()
     }
-    
+
     // MARK: - Notes Autosave
-    
+
     private func scheduleNotesAutosave() {
         notesDirty = (notes != originalNotes)
         notesAutosaveTask?.cancel()
-        
+
         guard notesDirty else { return }
-        
+
         notesAutosaveTask = Task {
             do {
                 try await Task.sleep(for: .milliseconds(600)) // 0.6s debounce
             } catch {
-                // Task was cancelled, exit early
                 return
             }
             guard !Task.isCancelled else { return }
-            
+
             await MainActor.run {
-                // We need to fetch current snapshot of dependencies from the model or
-                // ideally, we should just save the notes.
-                // However, saveImmediate requires the arrays.
-                // Since this runs in the VM context, we might not have the latest `studentsAll` if they changed.
-                // But for notes, we generally only update the `notes` field.
-                
-                // NOTE: In a strictly pure VM, we'd need the View to trigger this.
-                // For simplicity/safety in this refactor, we accept that 'applyEditsToModel'
-                // might use the 'studentLesson.students' if we don't pass new ones.
-                // But `applyEditsToModel` requires `studentsAll`.
-                
-                // To solve this properly in MVVM: The View should trigger the flush, or
-                // we rely on the fact that `applyEditsToModel` is mainly updating the `StudentLesson` object
-                // which is a class.
-                
-                // We will defer the actual persistent save to `flushNotesAutosaveIfNeeded`
-                // called by the View, OR we set a flag.
-                
-                // However, the requirement is to move logic to VM.
-                // We will signal the View or just let the `saveImmediate` happen via a closure provided by the View?
-                // No, that's too complex.
-                // We will update the `StudentLesson` object directly here.
-                
-                studentLesson.notes = notes
+                lessonAssignment.notes = notes
                 saveCoordinator.save(modelContext, reason: "Auto-saving notes")
 
                 originalNotes = notes
@@ -447,7 +413,7 @@ final class StudentLessonDetailViewModel {
         notesAutosaveTask?.cancel()
         guard notesDirty else { return }
 
-        studentLesson.notes = notes
+        lessonAssignment.notes = notes
         saveCoordinator.save(modelContext, reason: "Saving notes")
 
         originalNotes = notes
@@ -469,17 +435,14 @@ final class StudentLessonDetailViewModel {
 
         for studentID in studentIDs {
             if let existing = allLessonPresentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentID }) {
-                // Update existing record
                 existing.state = state
                 existing.lastObservedAt = Date()
                 if state == .mastered && existing.masteredAt == nil {
                     existing.masteredAt = Date()
                 } else if state != .mastered {
-                    // If downgrading from mastered, clear masteredAt
                     existing.masteredAt = nil
                 }
             } else {
-                // Create new LessonPresentation if it doesn't exist
                 let lp = LessonPresentation(
                     studentID: studentID,
                     lessonID: lessonID,
@@ -494,7 +457,7 @@ final class StudentLessonDetailViewModel {
         }
 
         // If marking as mastered, check if track is now complete
-        if state == .mastered, let lesson = studentLesson.lesson {
+        if state == .mastered, let lesson = lessonAssignment.lesson {
             for studentID in studentIDs {
                 GroupTrackService.checkAndCompleteTrackIfNeeded(
                     lesson: lesson,
@@ -505,15 +468,15 @@ final class StudentLessonDetailViewModel {
             }
         }
     }
-    
+
     // MARK: - Workflow Panel Management
-    
+
     /// Enters workflow mode by initializing the presentation view model
     func enterWorkflowMode(students: [Student]) {
         presentationViewModel = PostPresentationFormViewModel(students: students)
         showWorkflowPanel = true
     }
-    
+
     /// Exits workflow mode and cleans up the presentation view model
     func exitWorkflowMode() {
         presentationViewModel = nil

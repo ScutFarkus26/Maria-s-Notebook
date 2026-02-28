@@ -8,9 +8,9 @@ import Foundation
 private let logger = Logger.students
 
 private enum StudentLessonsSort: String {
-    case presentThenGiven = "Default"
+    case upcomingThenPresented = "Default"
     case dateCreated = "Date Created"
-    case dateGiven = "Date Given"
+    case datePresented = "Date Presented"
 }
 
 private enum CompletionFilter: String {
@@ -32,7 +32,7 @@ struct StudentLessonsRootView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use lightweight query for change detection only
-    @Query(sort: [SortDescriptor(\StudentLesson.id)]) private var allStudentLessons: [StudentLesson]
+    @Query(sort: [SortDescriptor(\LessonAssignment.id)]) private var allLessonAssignments: [LessonAssignment]
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
@@ -64,8 +64,8 @@ struct StudentLessonsRootView: View {
     private var sort: StudentLessonsSort {
         switch studentLessonsSortRaw {
         case "dateCreated": return .dateCreated
-        case "dateGiven": return .dateGiven
-        default: return .presentThenGiven
+        case "datePresented", "dateGiven": return .datePresented
+        default: return .upcomingThenPresented
         }
     }
 
@@ -87,7 +87,7 @@ struct StudentLessonsRootView: View {
     // MODERN: Computed properties with automatic dependency tracking
     // No manual cache invalidation needed - SwiftUI handles updates automatically
     
-    /// Subject-filtered lesson IDs for filtering student lessons
+    /// Subject-filtered lesson IDs for filtering lesson assignments
     private var subjectLessonIDs: Set<UUID>? {
         guard let subject = selectedSubject else { return nil }
         let subjectLessons = lessons.filter { lesson in
@@ -97,21 +97,21 @@ struct StudentLessonsRootView: View {
         return ids.isEmpty ? nil : ids
     }
     
-    /// Filtered student lessons based on completion filter and subject selection
-    /// Automatically recomputes when filter, subject, or allStudentLessons changes
-    private var filteredStudentLessons: [StudentLesson] {
+    /// Filtered lesson assignments based on completion filter and subject selection
+    /// Automatically recomputes when filter, subject, or allLessonAssignments changes
+    private var filteredAssignments: [LessonAssignment] {
         // Apply completion filter
-        let base: [StudentLesson]
+        let base: [LessonAssignment]
         switch filter {
         case .all:
-            // Exclude hidden undated (presented but no givenAt)
-            base = allStudentLessons.filter { !($0.isGiven && $0.givenAt == nil) }
+            // Exclude hidden undated (presented but no presentedAt)
+            base = allLessonAssignments.filter { !($0.isPresented && $0.presentedAt == nil) }
         case .completed:
-            base = allStudentLessons.filter { $0.isGiven && $0.givenAt != nil }
+            base = allLessonAssignments.filter { $0.isPresented && $0.presentedAt != nil }
         case .notCompleted:
-            base = allStudentLessons.filter { !$0.isGiven }
+            base = allLessonAssignments.filter { !$0.isPresented }
         case .hiddenUndated:
-            base = allStudentLessons.filter { $0.isGiven && $0.givenAt == nil }
+            base = allLessonAssignments.filter { $0.isPresented && $0.presentedAt == nil }
         }
         
         // Apply subject filter if selected
@@ -125,24 +125,24 @@ struct StudentLessonsRootView: View {
         return base
     }
     
-    /// Sorted student lessons based on current sort mode
-    /// Automatically recomputes when sort or filteredStudentLessons changes
-    private var sortedStudentLessons: [StudentLesson] {
+    /// Sorted lesson assignments based on current sort mode
+    /// Automatically recomputes when sort or filteredAssignments changes
+    private var sortedAssignments: [LessonAssignment] {
         #if DEBUG
         let startTime = Date()
         defer {
             let duration = Date().timeIntervalSince(startTime)
             PerformanceLogger.log(
                 screenName: "StudentLessonsRootView - Sort",
-                itemCount: filteredStudentLessons.count,
+                itemCount: filteredAssignments.count,
                 duration: duration
             )
         }
         #endif
         
         switch sort {
-        case .presentThenGiven:
-            let upcoming = filteredStudentLessons.filter { !$0.isGiven }.sorted { lhs, rhs in
+        case .upcomingThenPresented:
+            let upcoming = filteredAssignments.filter { !$0.isPresented }.sorted { lhs, rhs in
                 switch (lhs.scheduledFor, rhs.scheduledFor) {
                 case let (l?, r?): return l < r
                 case (nil, nil): return lhs.createdAt < rhs.createdAt
@@ -150,17 +150,17 @@ struct StudentLessonsRootView: View {
                 case (_?, nil): return true
                 }
             }
-            let given = filteredStudentLessons.filter { $0.isGiven }.sorted { lhs, rhs in
-                let l = lhs.givenAt ?? .distantPast
-                let r = rhs.givenAt ?? .distantPast
+            let presented = filteredAssignments.filter { $0.isPresented }.sorted { lhs, rhs in
+                let l = lhs.presentedAt ?? .distantPast
+                let r = rhs.presentedAt ?? .distantPast
                 return l > r
             }
-            return upcoming + given
+            return upcoming + presented
         case .dateCreated:
-            return filteredStudentLessons.sorted { $0.createdAt > $1.createdAt }
-        case .dateGiven:
-            return filteredStudentLessons.sorted { lhs, rhs in
-                switch (lhs.givenAt, rhs.givenAt) {
+            return filteredAssignments.sorted { $0.createdAt > $1.createdAt }
+        case .datePresented:
+            return filteredAssignments.sorted { lhs, rhs in
+                switch (lhs.presentedAt, rhs.presentedAt) {
                 case let (l?, r?): return l > r
                 case (nil, nil): return lhs.createdAt > rhs.createdAt
                 case (nil, _?): return false
@@ -171,16 +171,16 @@ struct StudentLessonsRootView: View {
     }
     
     // MODERN: Specialized views for different presentation layouts
-    // These are only used for .presentThenGiven sort mode
+    // These are only used for .upcomingThenPresented sort mode
     
-    /// Hidden undated presentations - automatically updates when filteredStudentLessons changes
-    private var hiddenUndated: [StudentLesson] {
-        filteredStudentLessons.sorted { $0.createdAt > $1.createdAt }
+    /// Hidden undated presentations - automatically updates when filteredAssignments changes
+    private var hiddenUndated: [LessonAssignment] {
+        filteredAssignments.sorted { $0.createdAt > $1.createdAt }
     }
     
-    /// Upcoming presentations (not yet given) - automatically updates
-    private var defaultUpcoming: [StudentLesson] {
-        filteredStudentLessons.filter { !$0.isGiven }.sorted { lhs, rhs in
+    /// Upcoming presentations (not yet presented) - automatically updates
+    private var defaultUpcoming: [LessonAssignment] {
+        filteredAssignments.filter { !$0.isPresented }.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?): return l < r
             case (nil, nil): return lhs.createdAt < rhs.createdAt
@@ -190,11 +190,11 @@ struct StudentLessonsRootView: View {
         }
     }
     
-    /// Given presentations - automatically updates
-    private var defaultGiven: [StudentLesson] {
-        filteredStudentLessons.filter { $0.isGiven && $0.givenAt != nil }.sorted { lhs, rhs in
-            let l = lhs.givenAt ?? .distantPast
-            let r = rhs.givenAt ?? .distantPast
+    /// Presented assignments - automatically updates
+    private var defaultPresented: [LessonAssignment] {
+        filteredAssignments.filter { $0.isPresented && $0.presentedAt != nil }.sorted { lhs, rhs in
+            let l = lhs.presentedAt ?? .distantPast
+            let r = rhs.presentedAt ?? .distantPast
             return l > r
         }
     }
@@ -246,8 +246,8 @@ struct StudentLessonsRootView: View {
             #endif
         }
         .sheet(isPresented: Binding(get: { selectedLessonID != nil }, set: { if !$0 { selectedLessonID = nil } })) {
-            if let id = selectedLessonID, let sl = filteredStudentLessons.first(where: { $0.id == id }) {
-                StudentLessonDetailView(studentLesson: sl, onDone: {
+            if let id = selectedLessonID, let sl = filteredAssignments.first(where: { $0.id == id }) {
+                StudentLessonDetailView(lessonAssignment: sl, onDone: {
                     selectedLessonID = nil
                 })
             } else {
@@ -268,8 +268,8 @@ struct StudentLessonsRootView: View {
             }
         }
         .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
-            if let id = quickActionsLessonID, let sl = filteredStudentLessons.first(where: { $0.id == id }) {
-                StudentLessonQuickActionsView(studentLesson: sl) {
+            if let id = quickActionsLessonID, let sl = filteredAssignments.first(where: { $0.id == id }) {
+                StudentLessonQuickActionsView(lessonAssignment: sl) {
                     quickActionsLessonID = nil
                 }
             } else {
@@ -291,7 +291,7 @@ struct StudentLessonsRootView: View {
         }
         .onChange(of: appRouter.navigationDestination) { _, destination in
             if case .quickActions = destination {
-                if let first = filteredStudentLessons.first { quickActionsLessonID = first.id }
+                if let first = filteredAssignments.first { quickActionsLessonID = first.id }
                 appRouter.clearNavigation()
             }
         }
@@ -300,7 +300,7 @@ struct StudentLessonsRootView: View {
             PerformanceLogger.logScreenLoad(
                 screenName: "StudentLessonsRootView",
                 itemCounts: [
-                    "studentLessons": filteredStudentLessons.count,
+                    "lessonAssignments": filteredAssignments.count,
                     "lessons": lessons.count,
                     "students": students.count
                 ]
@@ -416,7 +416,7 @@ struct StudentLessonsRootView: View {
     // MARK: - Content (Unchanged)
     private var content: some View {
         Group {
-            if sort == .presentThenGiven {
+            if sort == .upcomingThenPresented {
                 if filter == .hiddenUndated {
                     if hiddenUndated.isEmpty {
                         VStack(spacing: 8) {
@@ -457,11 +457,11 @@ struct StudentLessonsRootView: View {
                     }
                 } else {
                     let showUpcoming = filter != .completed
-                    let showGiven = filter != .notCompleted
+                    let showPresented = filter != .notCompleted
                     let up = defaultUpcoming
-                    let gv = defaultGiven
+                    let gv = defaultPresented
 
-                    if (!showUpcoming || up.isEmpty) && (!showGiven || gv.isEmpty) {
+                    if (!showUpcoming || up.isEmpty) && (!showPresented || gv.isEmpty) {
                         VStack(spacing: 8) {
                             Text("No presentations")
                                 .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
@@ -497,7 +497,7 @@ struct StudentLessonsRootView: View {
                                         }
                                     }
                                 }
-                                if showGiven && !gv.isEmpty {
+                                if showPresented && !gv.isEmpty {
                                     VStack(alignment: .leading, spacing: 8) {
                                         HStack(spacing: 10) {
                                             Image(systemName: "checkmark.circle")
@@ -528,7 +528,7 @@ struct StudentLessonsRootView: View {
                     }
                 }
             } else {
-                if sortedStudentLessons.isEmpty {
+                if sortedAssignments.isEmpty {
                     VStack(spacing: 8) {
                         Text("No presentations")
                             .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
@@ -540,7 +540,7 @@ struct StudentLessonsRootView: View {
                 } else {
                     ScrollView {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                            ForEach(sortedStudentLessons, id: \.id) { sl in
+                            ForEach(sortedAssignments, id: \.id) { sl in
                                 StudentLessonCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
                                     .onTapGesture { selectedLessonID = sl.id }
                                     .contextMenu {

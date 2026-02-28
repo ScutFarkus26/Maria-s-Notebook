@@ -28,7 +28,7 @@ struct StudentLessonQuickActionsView: View {
     @Query(sort: \LessonAssignment.createdAt, animation: .default)
     private var lessonAssignmentsAll: [LessonAssignment]
 
-    let studentLesson: StudentLesson
+    let lessonAssignment: LessonAssignment
     let onDone: (() -> Void)?
 
     @State private var needsPractice: Bool
@@ -41,17 +41,17 @@ struct StudentLessonQuickActionsView: View {
     @State private var showFollowUpSheet: Bool = false
     @State private var followUpDraft: String = ""
 
-    init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil) {
-        self.studentLesson = studentLesson
+    init(lessonAssignment: LessonAssignment, onDone: (() -> Void)? = nil) {
+        self.lessonAssignment = lessonAssignment
         self.onDone = onDone
-        _needsPractice = State(initialValue: studentLesson.needsPractice)
-        _needsAnotherPresentation = State(initialValue: studentLesson.needsAnotherPresentation)
-        _followUpWork = State(initialValue: studentLesson.followUpWork)
+        _needsPractice = State(initialValue: lessonAssignment.needsPractice)
+        _needsAnotherPresentation = State(initialValue: lessonAssignment.needsAnotherPresentation)
+        _followUpWork = State(initialValue: lessonAssignment.followUpWork)
     }
 
     private var lesson: Lesson? {
         // CloudKit compatibility: lessonID is now String, convert to UUID for comparison
-        guard let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) else { return nil }
+        guard let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) else { return nil }
         return lessons.first(where: { $0.id == lessonIDUUID })
     }
 
@@ -115,15 +115,15 @@ struct StudentLessonQuickActionsView: View {
                     Button("Plan Next Lesson in Group") {
                         guard let next = nextLessonInGroup else { return }
                         // Do not create or plan lessons for zero students
-                        guard !studentLesson.resolvedStudentIDs.isEmpty else { return }
-                        let sameStudents = Set(studentLesson.resolvedStudentIDs)
+                        guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }
+                        let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
                         let exists = lessonAssignmentsAll.contains { la in
                             la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
                         }
                         if !exists {
                             let newLA = PresentationFactory.makeDraft(
                                 lessonID: next.id,
-                                studentIDs: studentLesson.resolvedStudentIDs
+                                studentIDs: lessonAssignment.resolvedStudentIDs
                             )
                             PresentationFactory.attachRelationships(
                                 to: newLA,
@@ -144,7 +144,7 @@ struct StudentLessonQuickActionsView: View {
                             showPlannedBanner = false
                         }
                     }
-                    .disabled(nextLessonInGroup == nil || didPlanNext || studentLesson.resolvedStudentIDs.isEmpty)
+                    .disabled(nextLessonInGroup == nil || didPlanNext || lessonAssignment.resolvedStudentIDs.isEmpty)
                 }
             }
             .frame(minWidth: 360)
@@ -182,9 +182,9 @@ struct StudentLessonQuickActionsView: View {
                     Button("Add") {
                         let trimmed = followUpDraft.trimmed()
                         if !trimmed.isEmpty {
-                            let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
+                            let sidStrings = lessonAssignment.resolvedStudentIDs.map { $0.uuidString }
                             // CloudKit compatibility: lessonID is already String
-                            let lidString = studentLesson.lessonID
+                            let lidString = lessonAssignment.lessonID
                             for sid in sidStrings {
                                 // De-dupe by (student, lesson, kind=followUp) in active/review
                                 let activeRaw = WorkStatus.active.rawValue
@@ -234,33 +234,23 @@ struct StudentLessonQuickActionsView: View {
 
     private func saveChanges() {
         if presentedNow {
-            studentLesson.isPresented = true
+            let presentedDate = AppCalendar.startOfDay(Date())
+            lessonAssignment.markPresented(at: presentedDate)
             do {
-                let presentedDate = AppCalendar.startOfDay(Date())
-                // CRITICAL: Set givenAt on StudentLesson for dual-write consistency
-                // This ensures DaysSinceLastLessonView can correctly calculate days since presentation
-                studentLesson.givenAt = presentedDate
-                // Bridge: look up corresponding LessonAssignment for LifecycleService
-                let slIDString = studentLesson.id.uuidString
-                let laDesc = FetchDescriptor<LessonAssignment>(
-                    predicate: #Predicate { $0.migratedFromStudentLessonID == slIDString }
+                _ = try LifecycleService.recordPresentation(
+                    from: lessonAssignment,
+                    presentedAt: presentedDate,
+                    modelContext: modelContext
                 )
-                if let la = try modelContext.fetch(laDesc).first {
-                    _ = try LifecycleService.recordPresentation(
-                        from: la,
-                        presentedAt: presentedDate,
-                        modelContext: modelContext
-                    )
-                }
             } catch {
                 // ignore
             }
-            
+
             // Auto-enroll in track if lesson belongs to a track
-            if let lesson = studentLesson.lesson {
+            if let lesson = lessonAssignment.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
                     lesson: lesson,
-                    studentIDs: studentLesson.studentIDs,
+                    studentIDs: lessonAssignment.studentIDs,
                     modelContext: modelContext,
                     saveCoordinator: saveCoordinator
                 )
@@ -268,7 +258,7 @@ struct StudentLessonQuickActionsView: View {
         }
 
         // Phase 3: Auto-create next lesson in group when marking presented now
-        if presentedNow, let lessonIDUUID = UUID(uuidString: studentLesson.lessonID),
+        if presentedNow, let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID),
            let current = lessons.first(where: { $0.id == lessonIDUUID }) {
             let currentSubject = current.subject.trimmed()
             let currentGroup = current.group.trimmed()
@@ -280,7 +270,7 @@ struct StudentLessonQuickActionsView: View {
                 .sorted { $0.orderInGroup < $1.orderInGroup }
                 if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
                     let next = candidates[idx + 1]
-                    let sameStudents = Set(studentLesson.resolvedStudentIDs)
+                    let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
                     // Skip if there are no students attached
                     guard !sameStudents.isEmpty else { return }
                     let exists = lessonAssignmentsAll.contains { la in
@@ -304,33 +294,31 @@ struct StudentLessonQuickActionsView: View {
             }
         }
 
-        // Remove legacy fields and auto-create blocks for practice and follow-up
-
-        studentLesson.needsAnotherPresentation = needsAnotherPresentation
+        lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
 
         // Ensure relationships mirror snapshots
-        studentLesson.students = studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
-        if let lessonIDUUID = UUID(uuidString: studentLesson.lessonID) {
-            studentLesson.lesson = lessons.first(where: { $0.id == lessonIDUUID })
+        lessonAssignment.students = studentsAll.filter { lessonAssignment.resolvedStudentIDs.contains($0.id) }
+        if let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) {
+            lessonAssignment.lesson = lessons.first(where: { $0.id == lessonIDUUID })
         }
 
         if needsAnotherPresentation {
             // Skip creating follow-up if zero students
-            guard !studentLesson.resolvedStudentIDs.isEmpty else { return }
-            let sameStudents = Set(studentLesson.resolvedStudentIDs)
-            let currentLessonID = studentLesson.resolvedLessonID
+            guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }
+            let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
+            let currentLessonID = lessonAssignment.resolvedLessonID
             let exists = lessonAssignmentsAll.contains { la in
                 la.resolvedLessonID == currentLessonID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
             }
             if !exists {
                 let newLA = PresentationFactory.makeDraft(
                     lessonID: currentLessonID,
-                    studentIDs: studentLesson.resolvedStudentIDs
+                    studentIDs: lessonAssignment.resolvedStudentIDs
                 )
                 PresentationFactory.attachRelationships(
                     to: newLA,
-                    lesson: UUID(uuidString: studentLesson.lessonID).flatMap { lid in lessons.first(where: { $0.id == lid }) },
-                    students: studentsAll.filter { studentLesson.resolvedStudentIDs.contains($0.id) }
+                    lesson: UUID(uuidString: lessonAssignment.lessonID).flatMap { lid in lessons.first(where: { $0.id == lid }) },
+                    students: studentsAll.filter { lessonAssignment.resolvedStudentIDs.contains($0.id) }
                 )
                 modelContext.insert(newLA)
             }
@@ -343,9 +331,9 @@ struct StudentLessonQuickActionsView: View {
 
     private func addPracticeIfNeeded() {
         // Create practice contracts if none exist for these students/lesson
-        let sidStrings = studentLesson.resolvedStudentIDs.map { $0.uuidString }
+        let sidStrings = lessonAssignment.resolvedStudentIDs.map { $0.uuidString }
         // CloudKit compatibility: lessonID is already String
-        let lidString = studentLesson.lessonID
+        let lidString = lessonAssignment.lessonID
         var createdAny = false
         for sid in sidStrings {
             let activeRaw = WorkStatus.active.rawValue
@@ -397,7 +385,7 @@ struct StudentLessonQuickActionsView: View {
 }
 
 #Preview {
-    Text("StudentLessonQuickActionsView preview requires real data and cannot run here.")
+    Text("StudentLessonQuickActionsView preview requires real SwiftData context and cannot run here.")
         .frame(minWidth: 360, minHeight: 240)
         .padding()
 }

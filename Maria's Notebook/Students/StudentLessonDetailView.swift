@@ -28,7 +28,7 @@ struct StudentLessonDetailView: View {
         TestStudentsFilter.filterVisible(studentsAllRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    let studentLesson: StudentLesson
+    let lessonAssignment: LessonAssignment
     let autoFocusLessonPicker: Bool
     var onDone: (() -> Void)? = nil
 
@@ -39,8 +39,8 @@ struct StudentLessonDetailView: View {
     // We initialize it with a dummy state; it will be configured in onAppear
     @State private var lessonPickerVM = LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: UUID())
 
-    init(studentLesson: StudentLesson, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
-        self.studentLesson = studentLesson
+    init(lessonAssignment: LessonAssignment, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
+        self.lessonAssignment = lessonAssignment
         self.onDone = onDone
         self.autoFocusLessonPicker = autoFocusLessonPicker
     }
@@ -65,7 +65,7 @@ struct StudentLessonDetailView: View {
             if vm == nil {
                 // Initialize Main VM
                 let newVM = StudentLessonDetailViewModel(
-                    studentLesson: studentLesson,
+                    lessonAssignment: lessonAssignment,
                     modelContext: modelContext,
                     saveCoordinator: saveCoordinator,
                     autoFocusLessonPicker: autoFocusLessonPicker
@@ -561,7 +561,7 @@ struct StudentLessonDetailContentView: View {
     
     private var notesSection: some View {
         StudentLessonNotesSectionUnified(
-            studentLesson: vm.studentLesson,
+            lessonAssignment: vm.lessonAssignment,
             legacyNotes: $vm.notes,
             onLegacyNotesChange: { vm.notes = $0 }
         )
@@ -646,8 +646,8 @@ struct StudentLessonDetailContentView: View {
     
     private func handleCancelWithCleanup() {
         // Cleanup empty drafts if cancelling
-        if vm.studentLesson.studentIDs.isEmpty {
-            modelContext.delete(vm.studentLesson)
+        if vm.lessonAssignment.studentIDs.isEmpty {
+            modelContext.delete(vm.lessonAssignment)
             do {
                 try modelContext.save()
             } catch {

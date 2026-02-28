@@ -375,7 +375,7 @@ extension TodayView {
                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        selectedStudentLesson = sl
+                        selectedLessonAssignment = sl
                     }
                 }
             }
@@ -520,7 +520,7 @@ extension TodayView {
             )
             .contentShape(Rectangle())
             .onTapGesture {
-                selectedStudentLesson = sl
+                selectedLessonAssignment = sl
             }
 
         case .scheduledWork(let scheduled):

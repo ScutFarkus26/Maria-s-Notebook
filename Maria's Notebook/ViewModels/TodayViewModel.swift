@@ -55,7 +55,7 @@ final class TodayViewModel {
 
     // MARK: - Outputs
 
-    var todaysLessons: [StudentLesson] = []
+    var todaysLessons: [LessonAssignment] = []
 
     // WorkModel-based lists
     var overdueSchedule: [ScheduledWorkItem] = []
