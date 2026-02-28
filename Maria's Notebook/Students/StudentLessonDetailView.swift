@@ -507,7 +507,7 @@ struct StudentLessonDetailContentView: View {
     // MARK: - Sections
 
     private var lessonHeaderSection: some View {
-        StudentLessonHeaderView(
+        PresentationHeaderView(
             lessonName: currentLesson?.name ?? "Lesson",
             subject: currentLesson?.subject ?? "",
             group: currentLesson?.group ?? "",
@@ -560,7 +560,7 @@ struct StudentLessonDetailContentView: View {
     }
     
     private var notesSection: some View {
-        StudentLessonNotesSectionUnified(
+        PresentationNotesSectionUnified(
             lessonAssignment: vm.lessonAssignment,
             legacyNotes: $vm.notes,
             onLegacyNotesChange: { vm.notes = $0 }
@@ -596,7 +596,7 @@ struct StudentLessonDetailContentView: View {
     }
     
     private var bottomBar: some View {
-        StudentLessonBottomBar(
+        PresentationBottomBar(
             onDelete: { vm.showDeleteAlert = true },
             onCancel: handleCancelWithCleanup,
             onSave: handleSaveAndDone,
@@ -732,7 +732,7 @@ struct StudentLessonDetailContentView: View {
     // MARK: - Progress State Logic
 
     private var isJustPresentedActive: Bool {
-        StudentLessonProgressHelper.isJustPresentedActive(
+        PresentationProgressHelper.isJustPresentedActive(
             isPresented: vm.isPresented,
             givenAt: vm.givenAt,
             calendar: calendar
@@ -740,7 +740,7 @@ struct StudentLessonDetailContentView: View {
     }
 
     private var isPreviouslyPresentedActive: Bool {
-        StudentLessonProgressHelper.isPreviouslyPresentedActive(
+        PresentationProgressHelper.isPreviouslyPresentedActive(
             isPresented: vm.isPresented,
             givenAt: vm.givenAt,
             calendar: calendar
@@ -773,7 +773,7 @@ struct StudentLessonDetailContentView: View {
     private var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
 
     private var absentStudentIDs: Set<UUID> {
-        StudentLessonAbsentHelper.computeAbsentStudentIDs(
+        PresentationAbsentHelper.computeAbsentStudentIDs(
             selectedStudentIDs: vm.selectedStudentIDs,
             scheduledDay: scheduledAttendanceDay,
             modelContext: modelContext
@@ -781,7 +781,7 @@ struct StudentLessonDetailContentView: View {
     }
 
     private var canMoveAbsentStudents: Bool {
-        StudentLessonAbsentHelper.canMoveAbsentStudents(
+        PresentationAbsentHelper.canMoveAbsentStudents(
             studentCount: selectedStudentsList.count,
             isPresented: vm.isPresented,
             absentStudentIDs: absentStudentIDs

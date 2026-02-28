@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// Unified notes section for a LessonAssignment that displays both new Note objects and legacy string field
-struct StudentLessonNotesSectionUnified: View {
+struct PresentationNotesSectionUnified: View {
     let lessonAssignment: LessonAssignment
     @Binding var legacyNotes: String
     let onLegacyNotesChange: (String) -> Void
@@ -26,7 +26,7 @@ struct StudentLessonNotesSectionUnified: View {
     }
 
     // Get notes from WorkModels associated with this lesson assignment
-    private var workNotesForThisStudentLesson: [Note] {
+    private var workNotesForThisPresentation: [Note] {
         do {
             // Fetch all Notes to avoid SwiftData predicate limitations
             let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
@@ -70,7 +70,7 @@ struct StudentLessonNotesSectionUnified: View {
     // Get all unified notes (lesson-attached + work-attached + presentation-attached), merged, de-duplicated, and sorted
     private var allUnifiedNotes: [Note] {
         let lessonNotes = self.lessonNotes
-        let workNotes = workNotesForThisStudentLesson
+        let workNotes = workNotesForThisPresentation
         let presentationNotes = self.presentationNotes
         
         // Merge and de-duplicate by note.id (keep first occurrence)

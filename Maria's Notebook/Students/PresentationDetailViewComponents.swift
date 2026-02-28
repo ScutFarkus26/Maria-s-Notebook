@@ -228,7 +228,7 @@ struct MasteryStateRow: View {
 // MARK: - Bottom Bar
 
 /// Bottom action bar with Delete, Cancel, and Save buttons
-struct StudentLessonBottomBar: View {
+struct PresentationBottomBar: View {
     let onDelete: () -> Void
     let onCancel: () -> Void
     let onSave: () -> Void

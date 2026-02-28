@@ -132,7 +132,7 @@ final class StudentLessonDetailViewModel {
     /// Determines the next lesson in the group based on the current selection
     func nextLessonInGroup(from lessons: [Lesson]) -> Lesson? {
         guard let current = lessonObject(from: lessons) else { return nil }
-        let actions = StudentLessonDetailActions()
+        let actions = PresentationDetailActions()
         return actions.nextLessonInGroup(from: current, lessons: lessons)
     }
 
@@ -140,7 +140,7 @@ final class StudentLessonDetailViewModel {
 
     /// Applies local state to the persistent model without saving (useful for immediate updates)
     func applyEditsToModel(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
-        let actions = StudentLessonDetailActions()
+        let actions = PresentationDetailActions()
         actions.applyEditsToModel(
             lessonAssignment: lessonAssignment,
             editingLessonID: editingLessonID,
@@ -214,7 +214,7 @@ final class StudentLessonDetailViewModel {
         }
 
         // 3. Auto-create next lesson if needed
-        let actions = StudentLessonDetailActions()
+        let actions = PresentationDetailActions()
         let nextLesson = nextLessonInGroup(from: lessons)
 
         actions.autoCreateNextIfNeeded(
@@ -236,7 +236,7 @@ final class StudentLessonDetailViewModel {
             notesDirty = false
 
             // Notify system
-            StudentLessonDetailUtilities.notifyInboxRefresh()
+            PresentationDetailUtilities.notifyInboxRefresh()
 
             onDone?()
         }
@@ -270,7 +270,7 @@ final class StudentLessonDetailViewModel {
             } catch {
                 Self.logger.warning("Failed to fetch LessonAssignment for deletion: \(error)")
             }
-            StudentLessonDetailUtilities.notifyInboxRefresh()
+            PresentationDetailUtilities.notifyInboxRefresh()
         }
     }
 
@@ -284,7 +284,7 @@ final class StudentLessonDetailViewModel {
     ) {
         guard !studentsToMove.isEmpty, let currentLesson = lessonObject(from: lessons) else { return }
 
-        let actions = StudentLessonDetailActions()
+        let actions = PresentationDetailActions()
 
         // Perform move using helper
         self.movedStudentNames = actions.moveStudentsToInbox(
@@ -304,7 +304,7 @@ final class StudentLessonDetailViewModel {
         lessonAssignment.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
         saveCoordinator.save(modelContext, reason: "Moving students to inbox")
 
-        StudentLessonDetailUtilities.notifyInboxRefresh()
+        PresentationDetailUtilities.notifyInboxRefresh()
 
         // UI Updates
         studentsToMove.removeAll()
@@ -379,7 +379,7 @@ final class StudentLessonDetailViewModel {
         )
         modelContext.insert(newLA)
         saveCoordinator.save(modelContext, reason: "Scheduling next lesson")
-        StudentLessonDetailUtilities.notifyInboxRefresh()
+        PresentationDetailUtilities.notifyInboxRefresh()
     }
 
     // MARK: - Notes Autosave
@@ -404,7 +404,7 @@ final class StudentLessonDetailViewModel {
 
                 originalNotes = notes
                 notesDirty = false
-                StudentLessonDetailUtilities.notifyInboxRefresh()
+                PresentationDetailUtilities.notifyInboxRefresh()
             }
         }
     }
@@ -418,7 +418,7 @@ final class StudentLessonDetailViewModel {
 
         originalNotes = notes
         notesDirty = false
-        StudentLessonDetailUtilities.notifyInboxRefresh()
+        PresentationDetailUtilities.notifyInboxRefresh()
     }
 
     // MARK: - Mastery State Management

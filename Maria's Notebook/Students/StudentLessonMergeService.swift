@@ -40,7 +40,7 @@ enum StudentLessonMergeService {
 
         context.delete(source)
         context.safeSave()
-        StudentLessonDetailUtilities.notifyInboxRefresh()
+        PresentationDetailUtilities.notifyInboxRefresh()
         toastService.showSuccess("Presentations merged")
         return true
     }

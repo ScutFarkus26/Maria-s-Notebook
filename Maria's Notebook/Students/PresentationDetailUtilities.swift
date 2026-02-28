@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 @MainActor
-enum StudentLessonDetailUtilities {
+enum PresentationDetailUtilities {
     enum Formatters {
         static let scheduleDay: DateFormatter = {
             let f = DateFormatter()

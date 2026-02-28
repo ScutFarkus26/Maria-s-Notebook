@@ -6,7 +6,7 @@ import OSLog
 
 /// Service for creating follow-up assignments after lesson presentations.
 @MainActor
-enum StudentLessonAssignmentService {
+enum PresentationAssignmentService {
     private static let logger = Logger.students
 
     // MARK: - Create Follow-Up Assignments

@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - Summary Section
-struct StudentLessonSummarySection: View {
+struct PresentationSummarySection: View {
     let lessonName: String
     let subject: String
     let subjectColor: Color
@@ -93,7 +93,7 @@ struct StudentLessonSummarySection: View {
 }
 
 // MARK: - Schedule Section
-struct StudentLessonScheduleSection: View {
+struct PresentationScheduleSection: View {
     let statusText: String
     let isScheduled: Bool
     
@@ -122,7 +122,7 @@ struct StudentLessonScheduleSection: View {
 }
 
 // MARK: - Given/Presented Section
-struct StudentLessonPresentedSection: View {
+struct PresentationPresentedSection: View {
     @Binding var isPresented: Bool
     @Binding var givenAt: Date?
     
@@ -168,7 +168,7 @@ struct StudentLessonPresentedSection: View {
 }
 
 // MARK: - Next Lesson Section
-struct StudentLessonNextLessonSection: View {
+struct PresentationNextLessonSection: View {
     let isPresented: Bool
     let nextLesson: Lesson?
     let canPlanNext: Bool
@@ -212,7 +212,7 @@ struct StudentLessonNextLessonSection: View {
 }
 
 // MARK: - Flags Section
-struct StudentLessonFlagsSection: View {
+struct PresentationFlagsSection: View {
     @Binding var needsPractice: Bool
     @Binding var needsAnotherPresentation: Bool
     
@@ -236,7 +236,7 @@ struct StudentLessonFlagsSection: View {
 }
 
 // MARK: - Follow Up Section
-struct StudentLessonFollowUpSection: View {
+struct PresentationFollowUpSection: View {
     @Binding var followUpWork: String
     
     var body: some View {
@@ -259,7 +259,7 @@ struct StudentLessonFollowUpSection: View {
 }
 
 // MARK: - Notes Section
-struct StudentLessonNotesSection: View {
+struct PresentationNotesSection: View {
     @Binding var notes: String
     
     var body: some View {

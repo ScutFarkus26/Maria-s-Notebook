@@ -4,7 +4,7 @@ import SwiftData
 // MARK: - Student Lesson Absent Helper
 
 /// Helper for determining absent students in a lesson presentation.
-enum StudentLessonAbsentHelper {
+enum PresentationAbsentHelper {
 
     // MARK: - Compute Absent Student IDs
 

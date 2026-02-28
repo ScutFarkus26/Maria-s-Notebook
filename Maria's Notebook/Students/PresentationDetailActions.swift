@@ -5,7 +5,7 @@ import SwiftUI
 
 @Observable
 @MainActor
-final class StudentLessonDetailActions {
+final class PresentationDetailActions {
     private static let logger = Logger.students
 
     func applyEditsToModel(
@@ -110,7 +110,7 @@ final class StudentLessonDetailActions {
         #endif
 
         if case .success = result {
-            StudentLessonDetailUtilities.notifyInboxRefresh()
+            PresentationDetailUtilities.notifyInboxRefresh()
         }
     }
 
@@ -142,7 +142,7 @@ final class StudentLessonDetailActions {
 
         if case .success = result {
             context.safeSave()
-            StudentLessonDetailUtilities.notifyInboxRefresh()
+            PresentationDetailUtilities.notifyInboxRefresh()
             return true
         }
         return false
@@ -183,7 +183,7 @@ final class StudentLessonDetailActions {
         }
 
         context.safeSave()
-        StudentLessonDetailUtilities.notifyInboxRefresh()
+        PresentationDetailUtilities.notifyInboxRefresh()
         return movedStudentNames
     }
 

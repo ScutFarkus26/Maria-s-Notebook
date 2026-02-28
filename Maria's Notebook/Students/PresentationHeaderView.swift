@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct StudentLessonHeaderView: View {
+struct PresentationHeaderView: View {
     let lessonName: String
     let subject: String
     let group: String
