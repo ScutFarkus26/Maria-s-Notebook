@@ -21,7 +21,8 @@ import SwiftUI
     // DEPRECATED: workTypeRaw is maintained for data migration only
     // New code should use kindRaw. After migration completes, workType reads from kind.
     private(set) var workTypeRaw: String = "Research"
-    var studentLessonID: UUID? = nil
+    @Attribute(originalName: "studentLessonID")
+    var assignmentUUID: UUID? = nil
     var createdAt: Date = Date()
     var completedAt: Date? = nil
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
@@ -63,8 +64,9 @@ import SwiftUI
     var sourceContextTypeRaw: String? = nil
     /// Source context ID (e.g., project session ID)
     var sourceContextID: String? = nil
-    /// Legacy student lesson ID for traceability
-    var legacyStudentLessonID: String? = nil
+    /// Legacy assignment ID for traceability
+    @Attribute(originalName: "legacyStudentLessonID")
+    var legacyAssignmentID: String? = nil
     /// Check-in style: how multi-student work check-ins are displayed (individual, group, flexible)
     var checkInStyleRaw: String? = nil
 
@@ -72,7 +74,7 @@ import SwiftUI
         id: UUID = UUID(),
         title: String = "",
         kind: WorkKind = .research,
-        studentLessonID: UUID? = nil,
+        assignmentUUID: UUID? = nil,
         createdAt: Date = Date(),
         completedAt: Date? = nil,
         participants: [WorkParticipantEntity] = [],
@@ -92,12 +94,12 @@ import SwiftUI
         scheduledReason: ScheduledReason? = nil,
         sourceContextType: WorkSourceContextType? = nil,
         sourceContextID: String? = nil,
-        legacyStudentLessonID: String? = nil
+        legacyAssignmentID: String? = nil
     ) {
         self.id = id
         self.title = title
         self.workTypeRaw = Self.legacyWorkTypeRaw(for: kind)
-        self.studentLessonID = studentLessonID
+        self.assignmentUUID = assignmentUUID
         // Use AppCalendar.shared for consistent date normalization across the app
         self.createdAt = AppCalendar.startOfDay(createdAt)
         self.completedAt = completedAt.map { AppCalendar.startOfDay($0) }
@@ -122,7 +124,7 @@ import SwiftUI
         self.scheduledReasonRaw = scheduledReason?.rawValue
         self.sourceContextTypeRaw = sourceContextType?.rawValue
         self.sourceContextID = sourceContextID
-        self.legacyStudentLessonID = legacyStudentLessonID
+        self.legacyAssignmentID = legacyAssignmentID
     }
 
     /// Maps WorkKind to the legacy workTypeRaw string without going through deprecated WorkType.

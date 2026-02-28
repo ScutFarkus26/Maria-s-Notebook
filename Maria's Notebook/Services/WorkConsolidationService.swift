@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Service for consolidating duplicate WorkModel records.
-/// Duplicates are identified by matching title, studentLessonID, and workType.
+/// Duplicates are identified by matching title, assignmentUUID, and workType.
 @MainActor
 struct WorkConsolidationService {
     let context: ModelContext
@@ -22,13 +22,13 @@ struct WorkConsolidationService {
             return (0, 0, [])
         }
         
-        // Group works by duplicate criteria: title, studentLessonID, and kind
+        // Group works by duplicate criteria: title, assignmentUUID, and kind
         let groups = allWorks.grouped { work -> String in
             let title = work.title.trimmed()
-            let studentLessonID = work.studentLessonID?.uuidString ?? "nil"
+            let assignmentUUID = work.assignmentUUID?.uuidString ?? "nil"
             // Use kind for grouping
             let workKind = (work.kind ?? .research).rawValue
-            return "\(title)|\(studentLessonID)|\(workKind)"
+            return "\(title)|\(assignmentUUID)|\(workKind)"
         }
         
         // Process each group

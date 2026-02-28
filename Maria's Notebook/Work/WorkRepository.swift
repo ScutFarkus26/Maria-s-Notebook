@@ -123,13 +123,13 @@ struct WorkRepository {
     ) throws -> WorkModel {
         // Use WorkKind directly (new system), with smart defaults
         let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
-        let studentLessonID = resolvePresentationID(studentID: studentID, lessonID: lessonID, presentationID: presentationID)
+        let assignmentUUID = resolvePresentationID(studentID: studentID, lessonID: lessonID, presentationID: presentationID)
 
         let work = WorkModel(
             id: UUID(),
             title: title ?? "",
             kind: workKind,
-            studentLessonID: studentLessonID,
+            assignmentUUID: assignmentUUID,
             createdAt: Date(),
             completedAt: nil,
             participants: [],
@@ -145,7 +145,7 @@ struct WorkRepository {
         work.studentID = studentID.uuidString
         work.lessonID = lessonID.uuidString
         work.presentationID = presentationID?.uuidString
-        work.legacyStudentLessonID = studentLessonID?.uuidString
+        work.legacyAssignmentID = assignmentUUID?.uuidString
 
         // Create participant
         let participant = WorkParticipantEntity(studentID: studentID, completedAt: nil, work: work)

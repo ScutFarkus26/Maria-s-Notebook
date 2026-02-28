@@ -456,7 +456,7 @@ enum DataCleanupService {
         if canonical.scheduledReasonRaw == nil { canonical.scheduledReasonRaw = duplicate.scheduledReasonRaw }
         if canonical.sourceContextTypeRaw == nil { canonical.sourceContextTypeRaw = duplicate.sourceContextTypeRaw }
         if canonical.sourceContextID == nil { canonical.sourceContextID = duplicate.sourceContextID }
-        if canonical.legacyStudentLessonID == nil { canonical.legacyStudentLessonID = duplicate.legacyStudentLessonID }
+        if canonical.legacyAssignmentID == nil { canonical.legacyAssignmentID = duplicate.legacyAssignmentID }
 
         mergeRelationship(from: duplicate.participants, to: &canonical.participants, setter: { $0.work = canonical })
         mergeRelationship(from: duplicate.checkIns, to: &canonical.checkIns, setter: { $0.work = canonical; $0.workID = canonical.id.uuidString })

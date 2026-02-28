@@ -547,7 +547,7 @@ public final class IncrementalBackupService {
                 notes: la.notes,
                 trackID: la.trackID,
                 trackStepID: la.trackStepID,
-                migratedFromStudentLessonID: la.migratedFromStudentLessonID,
+                migratedFromLegacyID: la.migratedFromLegacyID,
                 migratedFromPresentationID: la.migratedFromPresentationID
             )
         }

@@ -335,7 +335,7 @@ public struct WorkDTO: Codable, Sendable {
     public var title: String
     public var studentIDs: [UUID]
     public var workType: String
-    public var studentLessonID: UUID?
+    public var assignmentUUID: UUID?
     public var createdAt: Date
     public var completedAt: Date?
     public var participants: [WorkParticipantDTO]
@@ -421,7 +421,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
     public var notes: String
     public var trackID: String?
     public var trackStepID: String?
-    public var migratedFromStudentLessonID: String?
+    public var migratedFromLegacyID: String?
     public var migratedFromPresentationID: String?
 
     public init(
@@ -441,7 +441,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         notes: String,
         trackID: String?,
         trackStepID: String?,
-        migratedFromStudentLessonID: String?,
+        migratedFromLegacyID: String?,
         migratedFromPresentationID: String?
     ) {
         self.id = id
@@ -460,7 +460,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         self.notes = notes
         self.trackID = trackID
         self.trackStepID = trackStepID
-        self.migratedFromStudentLessonID = migratedFromStudentLessonID
+        self.migratedFromLegacyID = migratedFromLegacyID
         self.migratedFromPresentationID = migratedFromPresentationID
     }
 }

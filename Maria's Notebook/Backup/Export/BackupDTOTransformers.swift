@@ -127,7 +127,7 @@ enum BackupDTOTransformers {
             notes: assignment.notes,
             trackID: assignment.trackID,
             trackStepID: assignment.trackStepID,
-            migratedFromStudentLessonID: assignment.migratedFromStudentLessonID,
+            migratedFromLegacyID: assignment.migratedFromLegacyID,
             migratedFromPresentationID: assignment.migratedFromPresentationID
         )
     }
