@@ -43,7 +43,7 @@ final class StudentLessonDetailActions {
         selectedStudentIDs: Set<UUID>,
         studentsAll: [Student],
         lessons: [Lesson],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         context: ModelContext
     ) {
         #if DEBUG
@@ -112,7 +112,7 @@ final class StudentLessonDetailActions {
         selectedStudentIDs: Set<UUID>,
         studentsAll: [Student],
         lessons: [Lesson],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         context: ModelContext
     ) -> Bool {
         // Fetch LessonAssignments for duplicate checking (service now expects LessonAssignment)
@@ -145,7 +145,7 @@ final class StudentLessonDetailActions {
         currentLesson: Lesson,
         studentsToMove: Set<UUID>,
         studentsAll: [Student],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         context: ModelContext
     ) -> [String] {
         guard !studentsToMove.isEmpty else { return [] }
@@ -155,24 +155,24 @@ final class StudentLessonDetailActions {
             .map { StudentFormatter.displayName(for: $0) }
 
         let targetSet = studentsToMove
-        let existing = studentLessonsAll.first(where: { sl in
-            sl.resolvedLessonID == currentLesson.id && sl.scheduledFor == nil && !sl.isGiven && Set(sl.resolvedStudentIDs) == targetSet
+        let existing = lessonAssignmentsAll.first(where: { la in
+            la.resolvedLessonID == currentLesson.id && la.scheduledFor == nil && !la.isPresented && Set(la.resolvedStudentIDs) == targetSet
         })
 
         if let ex = existing {
             ex.students = studentsAll.filter { targetSet.contains($0.id) }
             ex.lesson = currentLesson
         } else {
-            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
+            let newLA = PresentationFactory.makeDraft(
                 lessonID: currentLesson.id,
                 studentIDs: Array(targetSet)
             )
-            StudentLessonFactory.attachRelationships(
-                to: newStudentLesson,
+            PresentationFactory.attachRelationships(
+                to: newLA,
                 lesson: currentLesson,
                 students: studentsAll.filter { targetSet.contains($0.id) }
             )
-            context.insert(newStudentLesson)
+            context.insert(newLA)
         }
 
         context.safeSave()

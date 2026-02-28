@@ -15,7 +15,7 @@ struct StudentLessonDetailView: View {
     // Live Queries
     @Query private var lessons: [Lesson]
     @Query private var studentsAllRaw: [Student]
-    @Query private var studentLessonsAll: [StudentLesson]
+    @Query private var lessonAssignmentsAll: [LessonAssignment]
     
     private var lessonIDs: [UUID] {
         lessons.map { $0.id }
@@ -54,7 +54,7 @@ struct StudentLessonDetailView: View {
                     lessonPickerVM: lessonPickerVM,
                     lessons: lessons,
                     studentsAll: studentsAll,
-                    studentLessonsAll: studentLessonsAll,
+                    lessonAssignmentsAll: lessonAssignmentsAll,
                     onDone: onDone
                 )
             } else {
@@ -93,7 +93,7 @@ struct StudentLessonDetailView: View {
                 vm.handleNeedsAnotherChange(
                     newValue: val,
                     studentsAll: studentsAll,
-                    studentLessonsAll: studentLessonsAll,
+                    lessonAssignmentsAll: lessonAssignmentsAll,
                     lessons: lessons
                 )
             }
@@ -170,7 +170,7 @@ struct StudentLessonDetailContentView: View {
     
     let lessons: [Lesson]
     let studentsAll: [Student]
-    let studentLessonsAll: [StudentLesson]
+    let lessonAssignmentsAll: [LessonAssignment]
     let onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -466,7 +466,7 @@ struct StudentLessonDetailContentView: View {
         vm.save(
             studentsAll: studentsAll,
             lessons: lessons,
-            studentLessonsAll: studentLessonsAll,
+            lessonAssignmentsAll: lessonAssignmentsAll,
             calendar: calendar
         ) {
             vm.exitWorkflowMode()
@@ -622,7 +622,7 @@ struct StudentLessonDetailContentView: View {
     private func handleMoveStudents() {
         vm.moveStudentsToInbox(
             studentsAll: studentsAll,
-            studentLessonsAll: studentLessonsAll,
+            lessonAssignmentsAll: lessonAssignmentsAll,
             lessons: lessons
         )
         vm.showingMoveStudentsSheet = false
@@ -661,7 +661,7 @@ struct StudentLessonDetailContentView: View {
         vm.save(
             studentsAll: studentsAll,
             lessons: lessons,
-            studentLessonsAll: studentLessonsAll,
+            lessonAssignmentsAll: lessonAssignmentsAll,
             calendar: calendar
         ) {
             handleDone()

@@ -162,7 +162,7 @@ final class StudentLessonDetailViewModel {
     func save(
         studentsAll: [Student],
         lessons: [Lesson],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         calendar: Calendar,
         onDone: (() -> Void)? = nil
     ) {
@@ -226,7 +226,7 @@ final class StudentLessonDetailViewModel {
             selectedStudentIDs: selectedStudentIDs,
             studentsAll: studentsAll,
             lessons: lessons,
-            studentLessonsAll: studentLessonsAll,
+            lessonAssignmentsAll: lessonAssignmentsAll,
             context: modelContext
         )
 
@@ -282,19 +282,19 @@ final class StudentLessonDetailViewModel {
     /// Handles the "Move Students" action, creating a new lesson for them and removing them from this one
     func moveStudentsToInbox(
         studentsAll: [Student],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         lessons: [Lesson]
     ) {
         guard !studentsToMove.isEmpty, let currentLesson = lessonObject(from: lessons) else { return }
-        
+
         let actions = StudentLessonDetailActions()
-        
+
         // Perform move using helper
         self.movedStudentNames = actions.moveStudentsToInbox(
             currentLesson: currentLesson,
             studentsToMove: studentsToMove,
             studentsAll: studentsAll,
-            studentLessonsAll: studentLessonsAll,
+            lessonAssignmentsAll: lessonAssignmentsAll,
             context: modelContext
         )
         
@@ -325,61 +325,62 @@ final class StudentLessonDetailViewModel {
     func handleNeedsAnotherChange(
         newValue: Bool,
         studentsAll: [Student],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         lessons: [Lesson]
     ) {
         guard newValue else { return }
         guard !selectedStudentIDs.isEmpty else { return }
-        
-        // If toggled ON, ensure we create a fresh "not given" entry if one doesn't exist
+
+        // If toggled ON, ensure we create a fresh draft entry if one doesn't exist
         let sameStudents = Set(selectedStudentIDs)
-        let exists = studentLessonsAll.contains { sl in
-            sl.resolvedLessonID == editingLessonID &&
-            sl.scheduledFor == nil &&
-            !sl.isGiven &&
-            Set(sl.resolvedStudentIDs) == sameStudents
+        let exists = lessonAssignmentsAll.contains { la in
+            la.resolvedLessonID == editingLessonID &&
+            la.scheduledFor == nil &&
+            !la.isPresented &&
+            Set(la.resolvedStudentIDs) == sameStudents
         }
-        
+
         if !exists {
-            let newStudentLesson = StudentLessonFactory.makeUnscheduled(
+            let newLA = PresentationFactory.makeDraft(
                 lessonID: editingLessonID,
                 studentIDs: Array(sameStudents)
             )
-            StudentLessonFactory.attachRelationships(
-                to: newStudentLesson,
+            PresentationFactory.attachRelationships(
+                to: newLA,
                 lesson: nil,
                 students: studentsAll.filter { sameStudents.contains($0.id) }
             )
+            modelContext.insert(newLA)
         }
     }
     
     /// Schedules a new presentation for the next lesson in the group
     func scheduleNextLessonToInbox(
         studentsAll: [Student],
-        studentLessonsAll: [StudentLesson],
+        lessonAssignmentsAll: [LessonAssignment],
         lessons: [Lesson]
     ) {
         guard let next = nextLessonInGroup(from: lessons) else { return }
         guard !selectedStudentIDs.isEmpty else { return }
-        
+
         let sameStudents = Set(selectedStudentIDs)
-        
+
         // Avoid duplicates
-        let exists = studentLessonsAll.contains { sl in
-            sl.resolvedLessonID == next.id && Set(sl.resolvedStudentIDs) == sameStudents && sl.givenAt == nil
+        let exists = lessonAssignmentsAll.contains { la in
+            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
         }
         if exists { return }
 
-        let newStudentLesson = StudentLessonFactory.makeUnscheduled(
+        let newLA = PresentationFactory.makeDraft(
             lessonID: next.id,
             studentIDs: Array(sameStudents)
         )
-        StudentLessonFactory.attachRelationships(
-            to: newStudentLesson,
+        PresentationFactory.attachRelationships(
+            to: newLA,
             lesson: nil,
             students: studentsAll.filter { sameStudents.contains($0.id) }
         )
-        modelContext.insert(newStudentLesson)
+        modelContext.insert(newLA)
         saveCoordinator.save(modelContext, reason: "Scheduling next lesson")
         StudentLessonDetailUtilities.notifyInboxRefresh()
     }
