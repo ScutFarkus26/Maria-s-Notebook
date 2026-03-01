@@ -3,11 +3,11 @@ import SwiftData
 
 @Model
 final class TodoSubtask {
-    var id: UUID
-    var title: String
-    var isCompleted: Bool
-    var orderIndex: Int
-    var createdAt: Date
+    var id: UUID = UUID()
+    var title: String = ""
+    var isCompleted: Bool = false
+    var orderIndex: Int = 0
+    var createdAt: Date = Date()
     var completedAt: Date?
     
     // Relationship to parent todo

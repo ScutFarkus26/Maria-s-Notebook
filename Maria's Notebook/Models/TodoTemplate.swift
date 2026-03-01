@@ -4,11 +4,11 @@ import SwiftUI
 
 @Model
 final class TodoTemplate {
-    var id: UUID
-    var name: String // Template name (e.g., "Weekly Lesson Plan")
-    var title: String // Default todo title
-    var notes: String
-    var createdAt: Date
+    var id: UUID = UUID()
+    var name: String = ""
+    var title: String = ""
+    var notes: String = ""
+    var createdAt: Date = Date()
     private var priorityRaw: String = TodoPriority.none.rawValue
     // Store default time estimate in minutes
     var defaultEstimatedMinutes: Int?
