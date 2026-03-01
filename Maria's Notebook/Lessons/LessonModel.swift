@@ -81,13 +81,13 @@ final class Lesson: Identifiable {
     // Relationship with explicit inverse and cascade delete rule
     @Relationship(deleteRule: .cascade, inverse: \Note.lesson) var notes: [Note]? = []
     
-    // Relationship to LessonAssignment - inverse specified on this side (the "many" side)
-    @Relationship(inverse: \LessonAssignment.lesson)
+    // Relationship to LessonAssignment - cascade deletes assignments when lesson is deleted
+    @Relationship(deleteRule: .cascade, inverse: \LessonAssignment.lesson)
     var lessonAssignments: [LessonAssignment]? = []
     
     // Relationship to LessonAttachment - cascade delete attachments when lesson is deleted
     @Relationship(deleteRule: .cascade, inverse: \LessonAttachment.lesson)
-    var attachments: [LessonAttachment]?
+    var attachments: [LessonAttachment]? = []
 
     // MARK: - Initializer
 

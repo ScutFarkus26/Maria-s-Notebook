@@ -18,7 +18,7 @@ final class Track: Identifiable {
     /// Ordered steps in this track (cascade delete when track is deleted)
     /// Optional to satisfy CloudKit relationship requirements
     @Relationship(deleteRule: .cascade, inverse: \TrackStep.track)
-    var steps: [TrackStep]?
+    var steps: [TrackStep]? = []
     
     init(
         id: UUID = UUID(),
