@@ -83,24 +83,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		513F2B342F40462F00D54727 /* Errors */ = {
-			isa = PBXGroup;
-			children = (
-				513F2B352F40465F00D54727 /* AppError.swift */,
-				513F2B362F40466000D54727 /* StudentError.swift */,
-				513F2B372F4046AA00D54727 /* LessonError.swift */,
-				513F2B382F4046AB00D54727 /* WorkError.swift */,
-				513F2B392F4046F000D54727 /* AttendanceError.swift */,
-				513F2B3A2F4046F000D54727 /* SyncError.swift */,
-				513F2B3B2F40473100D54727 /* ErrorHandling.swift */,
-				513F2B3C2F40475700D54727 /* ErrorViews.swift */,
-				513F2B3D2F4047AE00D54727 /* DOMAIN_ERRORS_GUIDE.md */,
-				513F2B3E2F40482E00D54727 /* StudentRepositoryExample.swift */,
-				513F2B3F2F40488000D54727 /* README.md */,
-			);
-			path = Errors;
-			sourceTree = "<group>";
-		};
 		5141E7EC2ED77B0F004F918F = {
 			isa = PBXGroup;
 			children = (
@@ -109,7 +91,6 @@
 				5141E7F62ED77B0F004F918F /* Products */,
 				51EB8AEC2F37B28A005F1D80 /* BackupTests */,
 				51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */,
-				513F2B342F40462F00D54727 /* Errors */,
 			);
 			sourceTree = "<group>";
 		};
