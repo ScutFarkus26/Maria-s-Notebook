@@ -40,7 +40,32 @@ enum BackupDTOTransformers {
             writeUp: lesson.writeUp,
             createdAt: nil,
             updatedAt: nil,
-            pagesFileRelativePath: lesson.pagesFileRelativePath
+            pagesFileRelativePath: lesson.pagesFileRelativePath,
+            suggestedFollowUpWork: lesson.suggestedFollowUpWork,
+            sourceRaw: lesson.sourceRaw,
+            personalKindRaw: lesson.personalKindRaw,
+            defaultWorkKindRaw: lesson.defaultWorkKindRaw,
+            materials: lesson.materials,
+            purpose: lesson.purpose,
+            ageRange: lesson.ageRange,
+            teacherNotes: lesson.teacherNotes,
+            prerequisiteLessonIDs: lesson.prerequisiteLessonIDs,
+            relatedLessonIDs: lesson.relatedLessonIDs
+        )
+    }
+
+    // MARK: - LessonExercise
+
+    static func toDTO(_ exercise: LessonExercise) -> LessonExerciseDTO {
+        LessonExerciseDTO(
+            id: exercise.id,
+            lessonID: exercise.lesson?.id,
+            orderIndex: exercise.orderIndex,
+            title: exercise.title,
+            preparation: exercise.preparation,
+            presentationSteps: exercise.presentationSteps,
+            notes: exercise.notes,
+            createdAt: exercise.createdAt
         )
     }
 
@@ -833,6 +858,10 @@ enum BackupDTOTransformers {
 
     static func toDTOs(_ presentations: [LessonPresentation]) -> [LessonPresentationDTO] {
         presentations.map { toDTO($0) }
+    }
+
+    static func toDTOs(_ exercises: [LessonExercise]) -> [LessonExerciseDTO] {
+        exercises.map { toDTO($0) }
     }
 
     static func toDTOs(_ templates: [NoteTemplate]) -> [NoteTemplateDTO] {

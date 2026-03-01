@@ -263,10 +263,10 @@ private struct LessonRowView: View {
 
 #Preview {
     let rows = [
-        LessonCSVImporter.Row(name: "The Story of Numerals", subject: "Math", group: "Introduction", subheading: "", writeUp: "A foundational story.", orderInGroup: nil),
-        LessonCSVImporter.Row(name: "Introduce the Materials", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: "", orderInGroup: nil),
-        LessonCSVImporter.Row(name: "Three Period Lesson and Layered Layout", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: "", orderInGroup: nil),
+        LessonCSVImporter.Row(name: "The Story of Numerals", subject: "Math", group: "Introduction", subheading: "", writeUp: "A foundational story.", orderInGroup: nil, materials: "", purpose: "", ageRange: "", teacherNotes: ""),
+        LessonCSVImporter.Row(name: "Introduce the Materials", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: "", orderInGroup: nil, materials: "", purpose: "", ageRange: "", teacherNotes: ""),
+        LessonCSVImporter.Row(name: "Three Period Lesson and Layered Layout", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: "", orderInGroup: nil, materials: "", purpose: "", ageRange: "", teacherNotes: ""),
     ]
     let parsed = LessonCSVImporter.Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: ["The Story of Numerals — Math"], warnings: ["Row 4: Missing required Name or Subject; row skipped."])
-    return LessonImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
+    LessonImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
 }

@@ -4,11 +4,12 @@ import Foundation
 public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
+    /// Format version 9: Adds LessonExercise and new Lesson album fields (materials, purpose, ageRange, teacherNotes)
     /// Format version 8: Adds backup coverage for all entity types (Work, Track, Supply, Todo, etc.)
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    nonisolated public static let formatVersion = 8
+    nonisolated public static let formatVersion = 9
     /// Minimum format version that enforces checksum validation
     nonisolated public static let checksumEnforcedVersion = 5
     /// Format version that introduced compression (backups < this version are uncompressed)
@@ -181,7 +182,7 @@ public struct BackupPayload: Codable, Sendable {
         case projects, projectAssignmentTemplates, projectSessions, projectRoles
         case projectTemplateWeeks, projectWeekRoleAssignments
         case workCheckIns, workSteps, workParticipants, practiceSessions
-        case lessonAttachments, lessonPresentations
+        case lessonAttachments, lessonPresentations, lessonExercises
         case noteTemplates, meetingTemplates
         case reminders, calendarEvents
         case tracks, trackSteps, studentTrackEnrollments, groupTracks
@@ -230,6 +231,8 @@ public struct BackupPayload: Codable, Sendable {
     // Lesson extras (format v8+)
     public var lessonAttachments: [LessonAttachmentDTO]?
     public var lessonPresentations: [LessonPresentationDTO]?
+    // Lesson exercises (format v9+)
+    public var lessonExercises: [LessonExerciseDTO]?
 
     // Templates (format v8+)
     public var noteTemplates: [NoteTemplateDTO]?
@@ -308,6 +311,28 @@ public struct LessonDTO: Codable, Sendable {
     public var updatedAt: Date?
     // File-related fields are intentionally omitted; only include managed relative path if needed
     public var pagesFileRelativePath: String?
+    // Montessori album fields (format v9+)
+    public var suggestedFollowUpWork: String?
+    public var sourceRaw: String?
+    public var personalKindRaw: String?
+    public var defaultWorkKindRaw: String?
+    public var materials: String?
+    public var purpose: String?
+    public var ageRange: String?
+    public var teacherNotes: String?
+    public var prerequisiteLessonIDs: String?
+    public var relatedLessonIDs: String?
+}
+
+public struct LessonExerciseDTO: Codable, Sendable {
+    public var id: UUID
+    public var lessonID: UUID?
+    public var orderIndex: Int
+    public var title: String
+    public var preparation: String
+    public var presentationSteps: String
+    public var notes: String
+    public var createdAt: Date
 }
 
 public struct LegacyPresentationDTO: Codable, Sendable {

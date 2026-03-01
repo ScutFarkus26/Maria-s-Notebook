@@ -29,7 +29,13 @@ struct LessonDetailView: View {
     @State private var draftSuggestedFollowUpWork: String = ""
     @State private var draftSource: LessonSource = .album
     @State private var draftPersonalKind: PersonalLessonKind = .personal
+    @State private var draftMaterials: String = ""
+    @State private var draftPurpose: String = ""
+    @State private var draftAgeRange: String = ""
+    @State private var draftTeacherNotes: String = ""
     @State private var showDeleteAlert = false
+    @State private var showingExerciseEditor = false
+    @State private var editingExercise: LessonExercise? = nil
 
     @State private var showingPagesImporter = false
     @State private var resolvedPagesURL: URL?
@@ -182,6 +188,9 @@ struct LessonDetailView: View {
                 if lesson.source == .album {
                     StatusPill(text: "Album", color: .blue, icon: nil)
                 }
+                if !lesson.ageRange.isEmpty {
+                    StatusPill(text: lesson.ageRange, color: .orange, icon: nil)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -197,13 +206,60 @@ struct LessonDetailView: View {
             if lesson.source == .personal {
                 infoRow(icon: SFSymbol.People.person, title: "Personal Type", value: lesson.personalKind?.label ?? "Personal")
             }
+            if !lesson.ageRange.isEmpty {
+                infoRow(icon: "person.2", title: "Age Range", value: lesson.ageRange)
+            }
 
+            // Purpose
+            if !lesson.purpose.trimmed().isEmpty {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                    HStack(spacing: AppTheme.Spacing.small + 2) {
+                        Image(systemName: "target")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        Text("Purpose")
+                            .font(AppTheme.ScaledFont.calloutSemibold)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(lesson.purpose)
+                        .font(AppTheme.ScaledFont.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.top, AppTheme.Spacing.verySmall)
+            }
+
+            // Materials
+            if !lesson.materialsItems.isEmpty {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                    HStack(spacing: AppTheme.Spacing.small + 2) {
+                        Image(systemName: "tray.full")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        Text("Materials")
+                            .font(AppTheme.ScaledFont.calloutSemibold)
+                            .foregroundStyle(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                        ForEach(lesson.materialsItems, id: \.self) { item in
+                            HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
+                                Text("•").font(AppTheme.ScaledFont.body)
+                                Text(item)
+                                    .font(AppTheme.ScaledFont.body)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                }
+                .padding(.top, AppTheme.Spacing.verySmall)
+            }
+
+            // Write Up (Presentation Notes)
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 HStack(spacing: AppTheme.Spacing.small + 2) {
                     Image(systemName: SFSymbol.Document.docText)
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
-                    Text("Notes")
+                    Text("Presentation Notes")
                         .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                 }
@@ -218,6 +274,47 @@ struct LessonDetailView: View {
             }
             .padding(.top, AppTheme.Spacing.verySmall)
 
+            // Teacher Notes
+            if !lesson.teacherNotes.trimmed().isEmpty {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                    HStack(spacing: AppTheme.Spacing.small + 2) {
+                        Image(systemName: "note.text")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        Text("Teacher Notes")
+                            .font(AppTheme.ScaledFont.calloutSemibold)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(lesson.teacherNotes)
+                        .font(AppTheme.ScaledFont.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.top, AppTheme.Spacing.verySmall)
+            }
+
+            // Exercises
+            if !lesson.sortedExercises.isEmpty {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                        ForEach(lesson.sortedExercises) { exercise in
+                            LessonExerciseRow(exercise: exercise)
+                        }
+                    }
+                    .padding(.top, AppTheme.Spacing.xsmall)
+                } label: {
+                    HStack(spacing: AppTheme.Spacing.small + 2) {
+                        Image(systemName: "list.number")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        Text("Exercises (\(lesson.sortedExercises.count))")
+                            .font(AppTheme.ScaledFont.calloutSemibold)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, AppTheme.Spacing.verySmall)
+            }
+
+            // Suggested Follow-Up Work
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 HStack(spacing: AppTheme.Spacing.small + 2) {
                     Image(systemName: SFSymbol.Action.checkmarkCircle)
@@ -234,8 +331,7 @@ struct LessonDetailView: View {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
                         ForEach(lesson.suggestedFollowUpWorkItems, id: \.self) { item in
                             HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
-                                Text("•")
-                                    .font(AppTheme.ScaledFont.body)
+                                Text("•").font(AppTheme.ScaledFont.body)
                                 Text(item)
                                     .font(AppTheme.ScaledFont.body)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,6 +341,26 @@ struct LessonDetailView: View {
                 }
             }
             .padding(.top, AppTheme.Spacing.verySmall)
+
+            // Prerequisites
+            if !lesson.prerequisiteLessonUUIDs.isEmpty {
+                LessonRelationshipsSection(
+                    title: "Prerequisites",
+                    icon: "arrow.backward.circle",
+                    lessonIDs: lesson.prerequisiteLessonUUIDs,
+                    modelContext: modelContext
+                )
+            }
+
+            // Related Lessons
+            if !lesson.relatedLessonUUIDs.isEmpty {
+                LessonRelationshipsSection(
+                    title: "Related Lessons",
+                    icon: "link",
+                    lessonIDs: lesson.relatedLessonUUIDs,
+                    modelContext: modelContext
+                )
+            }
 
             if let url = resolvedPagesURL {
                 HStack { Spacer() }
@@ -280,6 +396,30 @@ struct LessonDetailView: View {
                         Text(k.label).tag(k)
                     }
                 }
+            }
+
+            TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
+                .textFieldStyle(.roundedBorder)
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                Text("Purpose / Learning Objective")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $draftPurpose)
+                    .frame(minHeight: 60)
+                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+            }
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                Text("Materials")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                Text("Enter one material per line")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+                TextEditor(text: $draftMaterials)
+                    .frame(minHeight: 80)
+                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -326,6 +466,15 @@ struct LessonDetailView: View {
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                Text("Teacher Notes")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $draftTeacherNotes)
+                    .frame(minHeight: 100)
+                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+            }
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Text("Suggested Follow-Up Work")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
@@ -335,6 +484,44 @@ struct LessonDetailView: View {
                 TextEditor(text: $draftSuggestedFollowUpWork)
                     .frame(minHeight: 120)
                     .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+            }
+
+            // Exercises Editor
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                HStack {
+                    Text("Exercises")
+                        .font(AppTheme.ScaledFont.calloutSemibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        editingExercise = nil
+                        showingExerciseEditor = true
+                    } label: {
+                        Label("Add", systemImage: "plus.circle")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if lesson.sortedExercises.isEmpty {
+                    Text("No exercises yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(lesson.sortedExercises) { exercise in
+                        LessonExerciseRow(exercise: exercise)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                editingExercise = exercise
+                                showingExerciseEditor = true
+                            }
+                    }
+                }
+            }
+            .sheet(isPresented: $showingExerciseEditor) {
+                LessonExerciseEditorSheet(
+                    lesson: lesson,
+                    existingExercise: editingExercise,
+                    onSave: {}
+                )
             }
         }
         .padding(.horizontal, AppTheme.Spacing.small)
@@ -377,6 +564,10 @@ struct LessonDetailView: View {
                         } else {
                             updated.personalKind = nil
                         }
+                        updated.materials = draftMaterials
+                        updated.purpose = draftPurpose.trimmed()
+                        updated.ageRange = draftAgeRange.trimmed()
+                        updated.teacherNotes = draftTeacherNotes
                         onSave(updated)
                         isEditing = false
                     }
@@ -413,6 +604,10 @@ struct LessonDetailView: View {
         draftSuggestedFollowUpWork = lesson.suggestedFollowUpWork
         draftSource = lesson.source
         draftPersonalKind = lesson.personalKind ?? .personal
+        draftMaterials = lesson.materials
+        draftPurpose = lesson.purpose
+        draftAgeRange = lesson.ageRange
+        draftTeacherNotes = lesson.teacherNotes
     }
 
     private func resolvePagesURL() -> URL? {

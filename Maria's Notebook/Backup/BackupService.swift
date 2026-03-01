@@ -93,6 +93,7 @@ public final class BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras…")
         let lessonAttachmentDTOs = fetchAndTransformInBatches(LessonAttachment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         let lessonPresentationDTOs = fetchAndTransformInBatches(LessonPresentation.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        let lessonExerciseDTOs = fetchAndTransformInBatches(LessonExercise.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.55), "Collecting templates & tracks…")
         let noteTemplateDTOs = fetchAndTransformInBatches(NoteTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         let meetingTemplateDTOs = fetchAndTransformInBatches(MeetingTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
@@ -151,6 +152,7 @@ public final class BackupService {
         payload.practiceSessions = practiceSessionDTOs
         payload.lessonAttachments = lessonAttachmentDTOs
         payload.lessonPresentations = lessonPresentationDTOs
+        payload.lessonExercises = lessonExerciseDTOs
         payload.noteTemplates = noteTemplateDTOs
         payload.meetingTemplates = meetingTemplateDTOs
         payload.reminders = reminderDTOs
@@ -224,6 +226,7 @@ public final class BackupService {
         counts["PracticeSession"] = practiceSessionDTOs.count
         counts["LessonAttachment"] = lessonAttachmentDTOs.count
         counts["LessonPresentation"] = lessonPresentationDTOs.count
+        counts["LessonExercise"] = lessonExerciseDTOs.count
         counts["NoteTemplate"] = noteTemplateDTOs.count
         counts["MeetingTemplate"] = meetingTemplateDTOs.count
         counts["Reminder"] = reminderDTOs.count
@@ -558,7 +561,16 @@ public final class BackupService {
                 existingCheck: { try fetchOne(LessonPresentation.self, id: $0, using: modelContext) }
             )
         }
-        
+
+        if let lessonExercises = payload.lessonExercises {
+            try BackupEntityImporter.importLessonExercises(
+                lessonExercises,
+                into: modelContext,
+                existingCheck: { try fetchOne(LessonExercise.self, id: $0, using: modelContext) },
+                lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+            )
+        }
+
         progress(0.76, "Importing templates…")
         
         if let noteTemplates = payload.noteTemplates {

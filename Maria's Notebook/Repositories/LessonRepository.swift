@@ -92,7 +92,11 @@ struct LessonRepository: SavingRepository {
         sortIndex: Int = 0,
         source: LessonSource = .album,
         personalKind: PersonalLessonKind? = nil,
-        defaultWorkKind: WorkKind? = nil
+        defaultWorkKind: WorkKind? = nil,
+        materials: String = "",
+        purpose: String = "",
+        ageRange: String = "",
+        teacherNotes: String = ""
     ) -> Lesson {
         let lesson = Lesson(
             name: name,
@@ -104,7 +108,11 @@ struct LessonRepository: SavingRepository {
             writeUp: writeUp,
             sourceRaw: source.rawValue,
             personalKindRaw: personalKind?.rawValue,
-            defaultWorkKind: defaultWorkKind
+            defaultWorkKind: defaultWorkKind,
+            materials: materials,
+            purpose: purpose,
+            ageRange: ageRange,
+            teacherNotes: teacherNotes
         )
         context.insert(lesson)
         return lesson
@@ -134,34 +142,30 @@ struct LessonRepository: SavingRepository {
         writeUp: String? = nil,
         orderInGroup: Int? = nil,
         sortIndex: Int? = nil,
-        defaultWorkKind: WorkKind? = nil
+        defaultWorkKind: WorkKind? = nil,
+        materials: String? = nil,
+        purpose: String? = nil,
+        ageRange: String? = nil,
+        teacherNotes: String? = nil,
+        prerequisiteLessonIDs: String? = nil,
+        relatedLessonIDs: String? = nil
     ) -> Bool {
         guard let lesson = fetchLesson(id: id) else { return false }
 
-        if let name = name {
-            lesson.name = name
-        }
-        if let subject = subject {
-            lesson.subject = subject
-        }
-        if let group = group {
-            lesson.group = group
-        }
-        if let subheading = subheading {
-            lesson.subheading = subheading
-        }
-        if let writeUp = writeUp {
-            lesson.writeUp = writeUp
-        }
-        if let orderInGroup = orderInGroup {
-            lesson.orderInGroup = orderInGroup
-        }
-        if let sortIndex = sortIndex {
-            lesson.sortIndex = sortIndex
-        }
-        if let defaultWorkKind = defaultWorkKind {
-            lesson.defaultWorkKind = defaultWorkKind
-        }
+        if let name = name { lesson.name = name }
+        if let subject = subject { lesson.subject = subject }
+        if let group = group { lesson.group = group }
+        if let subheading = subheading { lesson.subheading = subheading }
+        if let writeUp = writeUp { lesson.writeUp = writeUp }
+        if let orderInGroup = orderInGroup { lesson.orderInGroup = orderInGroup }
+        if let sortIndex = sortIndex { lesson.sortIndex = sortIndex }
+        if let defaultWorkKind = defaultWorkKind { lesson.defaultWorkKind = defaultWorkKind }
+        if let materials = materials { lesson.materials = materials }
+        if let purpose = purpose { lesson.purpose = purpose }
+        if let ageRange = ageRange { lesson.ageRange = ageRange }
+        if let teacherNotes = teacherNotes { lesson.teacherNotes = teacherNotes }
+        if let prerequisiteLessonIDs = prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = prerequisiteLessonIDs }
+        if let relatedLessonIDs = relatedLessonIDs { lesson.relatedLessonIDs = relatedLessonIDs }
 
         return true
     }

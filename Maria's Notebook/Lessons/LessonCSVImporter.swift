@@ -11,6 +11,10 @@ enum LessonCSVImporter {
         var subheading: String
         var writeUp: String
         var orderInGroup: Int?
+        var materials: String
+        var purpose: String
+        var ageRange: String
+        var teacherNotes: String
     }
 
     // MARK: - Parsed (dry run)
@@ -77,7 +81,11 @@ enum LessonCSVImporter {
             "group": ["group", "category"],
             "subheading": ["subheading", "subtitle"],
             "writeup": ["writeup", "write up", "notes", "description"],
-            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"]
+            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"],
+            "materials": ["materials", "material"],
+            "purpose": ["purpose", "objective", "learning objective"],
+            "agerange": ["agerange", "age range", "age", "ages"],
+            "teachernotes": ["teachernotes", "teacher notes", "teacher note"]
         ]
 
         let headerMap = try mapHeaders(header, synonyms: synonyms)
@@ -113,12 +121,17 @@ enum LessonCSVImporter {
                 }
             }
 
+            let materials = value("materials").trimmed()
+            let purpose = value("purpose").trimmed()
+            let ageRange = value("agerange").trimmed()
+            let teacherNotes = value("teachernotes").trimmed()
+
             if name.isEmpty || subject.isEmpty {
                 warnings.append("Row \(i + 2): Missing required Name or Subject; row skipped.")
                 continue
             }
 
-            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup)
+            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup, materials: materials, purpose: purpose, ageRange: ageRange, teacherNotes: teacherNotes)
             rows.append(row)
 
             let key = duplicateKey(name: name, subject: subject, group: group)
@@ -154,7 +167,11 @@ enum LessonCSVImporter {
             "group": ["group", "category"],
             "subheading": ["subheading", "subtitle"],
             "writeup": ["writeup", "write up", "notes", "description"],
-            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"]
+            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"],
+            "materials": ["materials", "material"],
+            "purpose": ["purpose", "objective", "learning objective"],
+            "agerange": ["agerange", "age range", "age", "ages"],
+            "teachernotes": ["teachernotes", "teacher notes", "teacher note"]
         ]
 
         let headerMap = try mapHeaders(header, synonyms: synonyms)
@@ -187,12 +204,17 @@ enum LessonCSVImporter {
                 }
             }
 
+            let materials = value("materials").trimmed()
+            let purpose = value("purpose").trimmed()
+            let ageRange = value("agerange").trimmed()
+            let teacherNotes = value("teachernotes").trimmed()
+
             if name.isEmpty || subject.isEmpty {
                 warnings.append("Row \(i + 2): Missing required Name or Subject; row skipped.")
                 continue
             }
 
-            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup)
+            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup, materials: materials, purpose: purpose, ageRange: ageRange, teacherNotes: teacherNotes)
             rows.append(row)
 
             let key = duplicateKey(name: name, subject: subject, group: group)
@@ -242,11 +264,26 @@ enum LessonCSVImporter {
                     changed = true
                 }
                 if let newOrder = r.orderInGroup {
-                    // Compare optional Ints safely
                     if existingLesson.orderInGroup != newOrder {
                         existingLesson.orderInGroup = newOrder
                         changed = true
                     }
+                }
+                if !r.materials.isEmpty && r.materials != existingLesson.materials {
+                    existingLesson.materials = r.materials
+                    changed = true
+                }
+                if !r.purpose.isEmpty && r.purpose != existingLesson.purpose {
+                    existingLesson.purpose = r.purpose
+                    changed = true
+                }
+                if !r.ageRange.isEmpty && r.ageRange != existingLesson.ageRange {
+                    existingLesson.ageRange = r.ageRange
+                    changed = true
+                }
+                if !r.teacherNotes.isEmpty && r.teacherNotes != existingLesson.teacherNotes {
+                    existingLesson.teacherNotes = r.teacherNotes
+                    changed = true
                 }
                 if changed {
                     updated += 1
@@ -269,7 +306,7 @@ enum LessonCSVImporter {
                     orderToUse = nextOrder
                 }
 
-                let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp)
+                let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp, materials: r.materials, purpose: r.purpose, ageRange: r.ageRange, teacherNotes: r.teacherNotes)
                 lesson.orderInGroup = orderToUse
                 context.insert(lesson)
                 byKey[key] = lesson

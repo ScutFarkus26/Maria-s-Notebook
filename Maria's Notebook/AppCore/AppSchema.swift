@@ -8,6 +8,7 @@ struct AppSchema {
         Student.self,
         Lesson.self,
         LessonAttachment.self,
+        LessonExercise.self,
         // Legacy model removed — fully migrated to LessonAssignment
         WorkCompletionRecord.self,
         WorkModel.self,

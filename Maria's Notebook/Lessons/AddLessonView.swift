@@ -22,6 +22,10 @@ struct AddLessonView: View {
     @State private var group: String = ""
     @State private var subheading: String = ""
     @State private var writeUp: String = ""
+    @State private var materials: String = ""
+    @State private var purpose: String = ""
+    @State private var ageRange: String = ""
+    @State private var teacherNotes: String = ""
     @State private var showingBulkEntry: Bool = false
 
     @State private var source: LessonSource = .album
@@ -67,9 +71,35 @@ struct AddLessonView: View {
                     }
                 }
 
+                Section("Montessori Details") {
+                    TextField("Age Range (e.g., 6+, 3-6)", text: $ageRange)
+                    VStack(alignment: .leading) {
+                        Text("Purpose / Learning Objective")
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $purpose)
+                            .frame(minHeight: 60)
+                    }
+                }
+
+                Section("Materials") {
+                    VStack(alignment: .leading) {
+                        Text("Enter one material per line")
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $materials)
+                            .frame(minHeight: 80)
+                    }
+                }
+
                 Section("Write Up") {
                     TextEditor(text: $writeUp)
                         .frame(minHeight: 140)
+                }
+
+                Section("Teacher Notes") {
+                    TextEditor(text: $teacherNotes)
+                        .frame(minHeight: 80)
                 }
             }
             .formStyle(.grouped)
@@ -89,7 +119,11 @@ struct AddLessonView: View {
                         subheading: subheading.trimmed(),
                         writeUp: writeUp,
                         source: source,
-                        personalKind: source == .personal ? personalKind : nil
+                        personalKind: source == .personal ? personalKind : nil,
+                        materials: materials,
+                        purpose: purpose.trimmed(),
+                        ageRange: ageRange.trimmed(),
+                        teacherNotes: teacherNotes
                     )
 
                     // Automatically create/update Track object if lesson belongs to a track
@@ -118,7 +152,7 @@ struct AddLessonView: View {
             }
         }
         .padding(24)
-        .frame(width: 520, height: 520)
+        .frame(width: 520, height: 720)
         .sheet(isPresented: $showingBulkEntry) {
             BulkLessonsEntryView(
                 defaultSubject: subject.trimmed().isEmpty ? defaultSubject : subject,

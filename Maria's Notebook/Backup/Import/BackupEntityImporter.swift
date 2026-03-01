@@ -85,7 +85,51 @@ enum BackupEntityImporter {
         try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
             let lesson = Lesson(id: dto.id, name: dto.name, subject: dto.subject, group: dto.group, orderInGroup: dto.orderInGroup, subheading: dto.subheading, writeUp: dto.writeUp)
             if let pages = dto.pagesFileRelativePath { lesson.pagesFileRelativePath = pages }
+            // Format v9+ fields
+            if let v = dto.suggestedFollowUpWork { lesson.suggestedFollowUpWork = v }
+            if let v = dto.sourceRaw { lesson.sourceRaw = v }
+            if let v = dto.personalKindRaw { lesson.personalKindRaw = v }
+            if let v = dto.defaultWorkKindRaw { lesson.defaultWorkKindRaw = v }
+            if let v = dto.materials { lesson.materials = v }
+            if let v = dto.purpose { lesson.purpose = v }
+            if let v = dto.ageRange { lesson.ageRange = v }
+            if let v = dto.teacherNotes { lesson.teacherNotes = v }
+            if let v = dto.prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = v }
+            if let v = dto.relatedLessonIDs { lesson.relatedLessonIDs = v }
             return lesson
+        }
+    }
+
+    // MARK: - Lesson Exercises
+
+    /// Imports lesson exercises from DTOs.
+    static func importLessonExercises(
+        _ dtos: [LessonExerciseDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<LessonExercise>,
+        lessonCheck: EntityExistsCheck<Lesson>
+    ) rethrows {
+        for dto in dtos {
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
+            let exercise = LessonExercise(
+                id: dto.id,
+                orderIndex: dto.orderIndex,
+                title: dto.title,
+                preparation: dto.preparation,
+                presentationSteps: dto.presentationSteps,
+                notes: dto.notes,
+                createdAt: dto.createdAt
+            )
+            if let lessonID = dto.lessonID {
+                do {
+                    if let lesson = try lessonCheck(lessonID) {
+                        exercise.lesson = lesson
+                    }
+                } catch {
+                    print("⚠️ [Backup:\(#function)] Failed to check lesson for exercise: \(error)")
+                }
+            }
+            modelContext.insert(exercise)
         }
     }
 

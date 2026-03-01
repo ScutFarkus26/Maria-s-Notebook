@@ -25,6 +25,24 @@ final class Lesson: Identifiable {
     /// Suggested follow-up work items (newline-separated list)
     var suggestedFollowUpWork: String = ""
 
+    // MARK: - Montessori Album Fields
+
+    /// Newline-separated list of materials needed for this lesson
+    var materials: String = ""
+    /// Learning objective / purpose of the lesson
+    var purpose: String = ""
+    /// Simple age range string (e.g., "6+", "3-6", "9-12")
+    var ageRange: String = ""
+    /// Teacher-specific notes separate from the presentation script (writeUp)
+    var teacherNotes: String = ""
+
+    // MARK: - Lesson Relationships
+
+    /// Comma-separated UUIDs of lessons that are prerequisites for this lesson
+    var prerequisiteLessonIDs: String = ""
+    /// Comma-separated UUIDs of related/companion lessons
+    var relatedLessonIDs: String = ""
+
     /// Raw storage for source ("album" or "personal"). Defaults to album for backward compatibility.
     var sourceRaw: String = "album"
     /// Raw storage for optional personal kind when source is personal. Nil or empty means default .personal.
@@ -77,6 +95,47 @@ final class Lesson: Identifiable {
             .filter { !$0.isEmpty }
     }
 
+    /// Helper to access materials as an array of individual items
+    @Transient
+    var materialsItems: [String] {
+        materials
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Parsed prerequisite lesson UUIDs
+    @Transient
+    var prerequisiteLessonUUIDs: [UUID] {
+        get {
+            prerequisiteLessonIDs
+                .components(separatedBy: ",")
+                .compactMap { UUID(uuidString: $0.trimmingCharacters(in: .whitespaces)) }
+        }
+        set {
+            prerequisiteLessonIDs = newValue.map { $0.uuidString }.joined(separator: ",")
+        }
+    }
+
+    /// Parsed related lesson UUIDs
+    @Transient
+    var relatedLessonUUIDs: [UUID] {
+        get {
+            relatedLessonIDs
+                .components(separatedBy: ",")
+                .compactMap { UUID(uuidString: $0.trimmingCharacters(in: .whitespaces)) }
+        }
+        set {
+            relatedLessonIDs = newValue.map { $0.uuidString }.joined(separator: ",")
+        }
+    }
+
+    /// Exercises sorted by orderIndex
+    @Transient
+    var sortedExercises: [LessonExercise] {
+        (exercises ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    }
+
     // FIX: Made optional for CloudKit
     // Relationship with explicit inverse and cascade delete rule
     @Relationship(deleteRule: .cascade, inverse: \Note.lesson) var notes: [Note]? = []
@@ -88,6 +147,10 @@ final class Lesson: Identifiable {
     // Relationship to LessonAttachment - cascade delete attachments when lesson is deleted
     @Relationship(deleteRule: .cascade, inverse: \LessonAttachment.lesson)
     var attachments: [LessonAttachment]? = []
+
+    // Relationship to LessonExercise - cascade delete exercises when lesson is deleted
+    @Relationship(deleteRule: .cascade, inverse: \LessonExercise.lesson)
+    var exercises: [LessonExercise]? = []
 
     // MARK: - Initializer
 
@@ -105,7 +168,13 @@ final class Lesson: Identifiable {
         pagesFileRelativePath: String? = nil,
         sourceRaw: String = "album",
         personalKindRaw: String? = nil,
-        defaultWorkKind: WorkKind? = nil
+        defaultWorkKind: WorkKind? = nil,
+        materials: String = "",
+        purpose: String = "",
+        ageRange: String = "",
+        teacherNotes: String = "",
+        prerequisiteLessonIDs: String = "",
+        relatedLessonIDs: String = ""
     ) {
         self.id = id
         self.name = name
@@ -121,7 +190,14 @@ final class Lesson: Identifiable {
         self.sourceRaw = sourceRaw
         self.personalKindRaw = personalKindRaw
         self.defaultWorkKindRaw = defaultWorkKind?.rawValue
+        self.materials = materials
+        self.purpose = purpose
+        self.ageRange = ageRange
+        self.teacherNotes = teacherNotes
+        self.prerequisiteLessonIDs = prerequisiteLessonIDs
+        self.relatedLessonIDs = relatedLessonIDs
         self.notes = []
         self.lessonAssignments = []
+        self.exercises = []
     }
 }
