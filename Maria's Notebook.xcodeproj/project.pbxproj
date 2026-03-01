@@ -24,11 +24,6 @@
 		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
 		51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
-		51EB8AED2F37B2A2005F1D80 /* StreamingBackupWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingBackupWriterTests.swift; sourceTree = "<group>"; };
-		51EB8AEE2F37B2BE005F1D80 /* BackupValidationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupValidationServiceTests.swift; sourceTree = "<group>"; };
-		51EB8AEF2F37B2D5005F1D80 /* ChecksumVerificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecksumVerificationServiceTests.swift; sourceTree = "<group>"; };
-		51EB8AF02F37B2FA005F1D80 /* DeltaSyncServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeltaSyncServiceTests.swift; sourceTree = "<group>"; };
-		51EB8AF12F37B323005F1D80 /* SmartRetentionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartRetentionManagerTests.swift; sourceTree = "<group>"; };
 		51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Maria's Notebook Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
