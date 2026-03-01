@@ -53,6 +53,7 @@ final class CloudKitSyncStatusService {
     private var remoteChangeObserver: NSObjectProtocol?
     private var saveObserver: NSObjectProtocol?
     private var storeCoordinatorChangeObserver: NSObjectProtocol?
+    private var cloudKitEventObserver: NSObjectProtocol?
     private var syncStartTime: Date?
     private var modelContainer: ModelContainer?
     private var syncingTask: Task<Void, Never>?
@@ -189,6 +190,28 @@ final class CloudKitSyncStatusService {
                 }
             }
         }
+
+        // Observe CloudKit sync events (setup, import, export) for precise status tracking.
+        // This is Apple's recommended notification (iOS 14+/macOS 11+) for monitoring
+        // NSPersistentCloudKitContainer sync operations. It provides the exact event type
+        // and whether it succeeded or failed, which is more precise than inferring sync
+        // state from NSManagedObjectContextDidSave + NSPersistentStoreRemoteChange alone.
+        cloudKitEventObserver = NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // Extract event data before crossing isolation boundary (Notification is not Sendable)
+            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event else { return }
+            let type = event.type
+            let isFinished = event.endDate != nil
+            let succeeded = event.succeeded
+            let errorDesc = event.error?.localizedDescription
+            Task { @MainActor [weak self] in
+                self?.handleCloudKitEvent(type: type, isFinished: isFinished, succeeded: succeeded, errorDescription: errorDesc)
+            }
+        }
     }
 
     /// Removes all notification observers and cancels pending tasks.
@@ -211,9 +234,13 @@ final class CloudKitSyncStatusService {
         if let observer = storeCoordinatorChangeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = cloudKitEventObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         remoteChangeObserver = nil
         saveObserver = nil
         storeCoordinatorChangeObserver = nil
+        cloudKitEventObserver = nil
     }
 
     private nonisolated func stopObserving() {
@@ -386,6 +413,77 @@ final class CloudKitSyncStatusService {
                 self.updateSyncHealth()
             }
         }
+    }
+
+    // MARK: - CloudKit Event Handler
+
+    /// Handles NSPersistentCloudKitContainer sync event notifications.
+    /// These events provide precise success/failure information about setup, import,
+    /// and export operations — more reliable than inferring sync state from
+    /// NSManagedObjectContextDidSave + NSPersistentStoreRemoteChange alone.
+    ///
+    /// Called with pre-extracted values from the notification to avoid Sendable issues.
+    private func handleCloudKitEvent(
+        type: NSPersistentCloudKitContainer.EventType,
+        isFinished: Bool,
+        succeeded: Bool,
+        errorDescription: String?
+    ) {
+        // Events fire twice: once when started (isFinished == false) and once when finished
+        guard isFinished else {
+            // Event is still in progress — ensure syncing indicator is on
+            if !isSyncing {
+                isSyncing = true
+                syncStartTime = Date()
+                updateSyncHealth()
+            }
+            return
+        }
+
+        let typeDescription: String
+        switch type {
+        case .setup:  typeDescription = "Setup"
+        case .import: typeDescription = "Import"
+        case .export: typeDescription = "Export"
+        @unknown default: typeDescription = "Unknown"
+        }
+
+        if succeeded {
+            Self.logger.debug("CloudKit \(typeDescription) succeeded")
+
+            // Update lastSuccessfulSync for data operations (import/export), not setup
+            if type != .setup {
+                let now = Date()
+                lastSuccessfulSync = now
+                lastSyncError = nil
+                pendingSyncCount = 0
+                retryLogic.resetRetryCount()
+
+                // Cancel the inference-based sync timeout since we have a definitive result
+                syncingTask?.cancel()
+                syncingTask = nil
+                isSyncing = false
+
+                UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            }
+        } else if let errorDesc = errorDescription {
+            Self.logger.error("CloudKit \(typeDescription) failed: \(errorDesc)")
+
+            lastSyncError = "\(typeDescription) failed: \(errorDesc)"
+            isSyncing = false
+            syncingTask?.cancel()
+            syncingTask = nil
+
+            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+
+            // Schedule retry for data operation failures (not setup)
+            if type != .setup {
+                scheduleRetry()
+            }
+        }
+
+        updateSyncHealth()
     }
 
     // MARK: - Manual Sync

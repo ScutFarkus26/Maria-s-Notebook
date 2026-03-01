@@ -146,7 +146,20 @@ final class AppBootstrapping {
                 let container = try ModelContainer(for: schema, configurations: config)
                 
                 cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
-                
+
+                // NOTE: CloudKit schema initialization
+                // SwiftData automatically initializes the CloudKit schema when creating a
+                // ModelContainer with cloudKitDatabase: .private(). Unlike raw Core Data,
+                // there is no need to call initializeCloudKitSchema() manually.
+                //
+                // IMPORTANT: Before releasing to the App Store, deploy the CloudKit schema
+                // from the Development environment to Production via the CloudKit Dashboard:
+                //   1. Go to https://icloud.developer.apple.com
+                //   2. Select the container: iCloud.DanielSDeBerry.MariasNoteBook
+                //   3. Click "Deploy Schema Changes..." under the Development environment
+                //
+                // Schema changes must be additive only (no deletes, renames, or type changes).
+
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                 // Clear any previous error since CloudKit is now active
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
