@@ -65,6 +65,7 @@ struct StatCard: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .frame(maxWidth: .infinity, minHeight: 120)
         .cardStyle()
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -356,8 +357,8 @@ struct TemplateCard: View {
                                 .fontWeight(.medium)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.green.opacity(0.15)))
-                                .foregroundStyle(.green)
+                                .background(Capsule().fill(AppColors.success.opacity(0.15)))
+                                .foregroundStyle(AppColors.success)
                         }
                     }
 
@@ -408,7 +409,7 @@ struct DatabaseStatsSubsection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                     isExpanded.toggle()
                 }
             } label: {

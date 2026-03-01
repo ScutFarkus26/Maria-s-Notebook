@@ -51,13 +51,13 @@ struct UnplannedStudentsStrip: View {
                     .rotationEffect(.degrees(expanded ? 180 : 0))
                     .foregroundStyle(.secondary)
                 Text("Unplanned today · \(unplanned.count)")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
             }
 
             if expanded {

@@ -66,7 +66,7 @@ struct PaperLessonCard: View {
             // Header row: Name + Personal badge
             HStack(alignment: .top, spacing: 8) {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -76,7 +76,7 @@ struct PaperLessonCard: View {
 
                 if isPersonal {
                     Text(lesson.personalKind?.badgeLabel ?? "Personal")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(Color.orange.opacity(0.12)))
@@ -87,14 +87,14 @@ struct PaperLessonCard: View {
             // Content preview: Subheading or writeUp excerpt
             if !lesson.subheading.isEmpty {
                 Text(lesson.subheading)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary.opacity(0.85))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             } else if let excerpt = writeUpExcerpt {
                 Text(excerpt)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
@@ -108,7 +108,7 @@ struct PaperLessonCard: View {
                 // Subject + Group
                 if !lesson.group.isEmpty || !lesson.subject.isEmpty {
                     Text(groupSubjectLine)
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -122,7 +122,7 @@ struct PaperLessonCard: View {
                             .font(.system(size: 10))
                         if attachmentCount > 1 {
                             Text("\(attachmentCount)")
-                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                         }
                     }
                     .foregroundStyle(.secondary.opacity(0.7))
@@ -134,13 +134,13 @@ struct PaperLessonCard: View {
                         Image(systemName: "person.fill")
                             .font(.system(size: 9))
                         Text("\(count)")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.orange.opacity(0.15)))
-                    .overlay(Capsule().stroke(Color.orange.opacity(0.4), lineWidth: 0.5))
-                    .foregroundStyle(.orange)
+                    .background(Capsule().fill(AppColors.warning.opacity(0.15)))
+                    .overlay(Capsule().stroke(AppColors.warning.opacity(0.4), lineWidth: 0.5))
+                    .foregroundStyle(AppColors.warning)
                 }
             }
         }

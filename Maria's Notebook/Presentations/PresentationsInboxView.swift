@@ -72,7 +72,7 @@ struct PresentationsInboxView: View {
     private var aiSuggestButton: some View {
         Button(action: { showAIPlanning = true }) {
             Label("Suggest Next", systemImage: "sparkles")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
         }
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
@@ -97,7 +97,7 @@ struct PresentationsInboxView: View {
 
                         #if os(iOS)
                         Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 coordinator.toggleCalendar()
                             }
                         } label: {
@@ -149,7 +149,7 @@ struct PresentationsInboxView: View {
                             Text(StudentFormatter.displayName(for: student))
                                 .font(.caption.weight(.medium))
                             Button {
-                                withAnimation(.easeInOut(duration: 0.15)) {
+                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                                     coordinator.clearStudentFilter()
                                 }
                             } label: {
@@ -157,10 +157,10 @@ struct PresentationsInboxView: View {
                                     .font(.caption)
                             }
                         }
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                         .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
                         .padding(.vertical, AppTheme.Spacing.verySmall)
-                        .background(Color.orange.opacity(UIConstants.OpacityConstants.accent))
+                        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.accent))
                         .clipShape(Capsule())
                         .padding(.horizontal, AppTheme.Spacing.medium)
                     }
@@ -364,7 +364,7 @@ struct PresentationsInboxView: View {
             HStack(spacing: AppTheme.Spacing.small) {
                 Text("Students")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
                 Spacer()
                 if !studentsNeedingLessons.isEmpty {
                     Text("\(studentsNeedingLessons.count)")
@@ -463,7 +463,7 @@ struct PresentationsInboxView: View {
                     if days == Int.max {
                         Text("No lessons")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppColors.warning)
                     } else if days == 0 {
                         Text("Today")
                             .font(.caption2)
@@ -471,12 +471,12 @@ struct PresentationsInboxView: View {
                     } else {
                         Text("\(days)d ago")
                             .font(.caption2)
-                            .foregroundStyle(days >= 3 ? .orange : .secondary)
+                            .foregroundStyle(days >= 3 ? AppColors.warning : .secondary)
                     }
                 } else {
                     Text("No lessons")
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                 }
             }
 
@@ -511,7 +511,7 @@ struct PresentationsInboxView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                 if coordinator.selectedStudentFilter == student.id {
                     coordinator.clearStudentFilter()
                 } else {
@@ -530,11 +530,11 @@ private struct InboxDropDelegate: DropDelegate {
     let coordinator: PresentationsCoordinator
 
     func dropEntered(info: DropInfo) {
-        withAnimation { coordinator.setInboxTargeted(true) }
+        adaptiveWithAnimation { coordinator.setInboxTargeted(true) }
     }
 
     func dropExited(info: DropInfo) {
-        withAnimation { coordinator.setInboxTargeted(false) }
+        adaptiveWithAnimation { coordinator.setInboxTargeted(false) }
     }
 
     func validateDrop(info: DropInfo) -> Bool {
@@ -542,7 +542,7 @@ private struct InboxDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        withAnimation { coordinator.setInboxTargeted(false) }
+        adaptiveWithAnimation { coordinator.setInboxTargeted(false) }
         let providers = info.itemProviders(for: [.text])
         guard let provider = providers.first else { return false }
 

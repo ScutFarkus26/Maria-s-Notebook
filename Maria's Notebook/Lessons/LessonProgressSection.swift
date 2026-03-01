@@ -71,7 +71,7 @@ struct LessonProgressSection: View {
                 .foregroundStyle(.secondary)
                 .font(.system(size: 16))
             Text("Lesson Progress")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.secondary)
         }
     }
@@ -178,7 +178,7 @@ struct LessonProgressSection: View {
                                 .foregroundStyle(needsAnotherPresentation ? .orange : .secondary)
                                 .font(.system(size: 18))
                             Text("Needs Another Presentation")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.bodySemibold)
                         }
                     }
                     .toggleStyle(.button)
@@ -191,7 +191,7 @@ struct LessonProgressSection: View {
                             showRePresentPopover.toggle()
                         } label: {
                             Label("Schedule", systemImage: "calendar.badge.clock")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .font(AppTheme.ScaledFont.caption)
                         }
                         .buttonStyle(.bordered)
                         .popover(isPresented: $showRePresentPopover, arrowEdge: .top) {
@@ -251,13 +251,13 @@ struct LessonProgressSection: View {
                             Image(systemName: "arrow.right.circle")
                                 .foregroundStyle(.blue)
                             Text("Next in Group: \(next.name)")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.bodySemibold)
                         }
                         Button {
                             planNextLessonInGroup()
                         } label: {
                             Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
-                                .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                                .font(AppTheme.ScaledFont.callout)
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(didPlanNext || lessonAssignmentsAll.contains { la in
@@ -271,7 +271,7 @@ struct LessonProgressSection: View {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(Color.green.opacity(showJustPresentedFlash ? 0.5 : 0.0), lineWidth: 2)
             )
-            .animation(.easeInOut(duration: 0.6), value: showJustPresentedFlash)
+            .adaptiveAnimation(.easeInOut(duration: 0.6), value: showJustPresentedFlash)
             .onAppear {
                 if isPresented {
                     if let date = givenAt, calendar.isDateInToday(date) {
@@ -414,7 +414,7 @@ struct LessonProgressSection: View {
             }
         }
         didPlanNext = true
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
         Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(2))
@@ -428,13 +428,13 @@ struct LessonProgressSection: View {
     private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
         quickBannerText = text
         quickBannerColor = color
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             showQuickBanner = true
         }
         Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(seconds))
-                withAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
             } catch {
                 Self.logger.warning("Task sleep failed: \(error)")
             }
@@ -484,7 +484,7 @@ private struct StatusChip: View {
                 .strokeBorder(tint.opacity(0.35), lineWidth: 1)
         )
         .contentTransition(.opacity)
-        .animation(.spring(response: 0.25, dampingFraction: 0.9), value: active)
+        .adaptiveAnimation(.spring(response: 0.25, dampingFraction: 0.9), value: active)
     }
 }
 

@@ -80,7 +80,7 @@ struct GroupProgressionView: View {
                     }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(duration: 0.3), value: viewModel.selectedStudentIDs.isEmpty)
+                .adaptiveAnimation(.spring(duration: 0.3), value: viewModel.selectedStudentIDs.isEmpty)
             }
         }
     }

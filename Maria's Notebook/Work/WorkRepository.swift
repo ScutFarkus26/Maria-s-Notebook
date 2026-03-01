@@ -173,6 +173,7 @@ struct WorkRepository {
             _ = work.setLegacyNoteText(note, in: context)
         }
         try context.save()
+        HapticService.shared.notification(.success)
     }
 
     /// Update a WorkModel's status

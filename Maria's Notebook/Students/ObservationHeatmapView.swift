@@ -432,11 +432,11 @@ struct StudentObservationCard: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(StudentFormatter.displayName(for: observation.student))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
                 
                 Text(statusText)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

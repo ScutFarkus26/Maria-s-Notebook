@@ -270,11 +270,11 @@ struct WorkDetailView: View {
 
                 // Student name
                 Text(studentName())
-                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleLarge)
 
                 // Lesson info pill
                 Label(lessonTitle(), systemImage: "book.closed.fill")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, AppTheme.Spacing.compact)
                     .padding(.vertical, AppTheme.Spacing.small)
@@ -286,10 +286,10 @@ struct WorkDetailView: View {
             // Work title field
             VStack(alignment: .leading, spacing: 6) {
                 Text("Title")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                 TextField("Work Title", text: $viewModel.workTitle)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .padding(AppTheme.Spacing.compact)
                     .background(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
@@ -304,7 +304,7 @@ struct WorkDetailView: View {
             // Work kind segmented control
             VStack(alignment: .leading, spacing: 8) {
                 Text("Type")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
@@ -316,7 +316,7 @@ struct WorkDetailView: View {
                             icon: kind.iconName,
                             label: kind.shortLabel
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.workKind = kind
                             }
                         }
@@ -326,9 +326,15 @@ struct WorkDetailView: View {
 
             // Status pills
             VStack(alignment: .leading, spacing: 8) {
-                Text("Status")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text("Status")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.secondary)
+                    #if os(macOS)
+                    Text("")
+                        .help("Active = in progress, Review = checking work, Complete = finished")
+                    #endif
+                }
 
                 HStack(spacing: 8) {
                     ForEach(WorkStatus.allCases) { s in
@@ -339,13 +345,18 @@ struct WorkDetailView: View {
                             icon: s.iconName,
                             label: s.displayName
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.status = s
 
                                 // When marking as complete with good outcome, offer to unlock next lesson
                                 if let info = unlockInfo {
                                     checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
                                 }
+                            }
+                            if s == .complete {
+                                HapticService.shared.notification(.success)
+                            } else {
+                                HapticService.shared.selection()
                             }
                         }
                     }
@@ -357,7 +368,7 @@ struct WorkDetailView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "lock.open.fill")
                                 Text("Unlock")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                             }
                             .foregroundStyle(Color.accentColor)
                             .padding(.horizontal, AppTheme.Spacing.compact)
@@ -375,7 +386,7 @@ struct WorkDetailView: View {
             // Check-in style
             VStack(alignment: .leading, spacing: 8) {
                 Text("Check-In Style")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
@@ -387,7 +398,7 @@ struct WorkDetailView: View {
                             icon: style.iconName,
                             label: style.displayName
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.checkInStyle = style
                             }
                         }
@@ -395,7 +406,7 @@ struct WorkDetailView: View {
                 }
 
                 Text(viewModel.checkInStyle.shortDescription)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -408,7 +419,7 @@ struct WorkDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Outcome picker styled as pills
                 Text("Outcome")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 FlowLayout(spacing: 8) {
@@ -420,7 +431,7 @@ struct WorkDetailView: View {
                             icon: outcome.iconName,
                             label: outcome.displayName
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.completionOutcome = outcome
                             }
                         }
@@ -429,7 +440,7 @@ struct WorkDetailView: View {
 
                 // Completion note
                 TextField("Add a completion note...", text: $viewModel.completionNote)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .padding(AppTheme.Spacing.compact)
                     .background(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
@@ -450,6 +461,7 @@ struct WorkDetailView: View {
                         .font(.system(size: 20))
                         .foregroundStyle(.green)
                 }
+                .accessibilityLabel("Add step")
                 .buttonStyle(.plain)
             }
         ) {
@@ -480,7 +492,7 @@ struct WorkDetailView: View {
                             .tint(.green)
 
                         Text("\(progress.completed)/\(progress.total)")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
@@ -507,7 +519,7 @@ struct WorkDetailView: View {
                 // Add new check-in section
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Schedule New Check-In")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     
                     HStack(spacing: 12) {
@@ -546,7 +558,7 @@ struct WorkDetailView: View {
                                 Image(systemName: "checkmark.circle")
                                     .font(.system(size: 12, weight: .medium))
                                 Text(viewModel.newPlanPurpose.isEmpty ? "Progress Check" : viewModel.newPlanPurpose)
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 10, weight: .semibold))
                             }
@@ -561,7 +573,7 @@ struct WorkDetailView: View {
                         .buttonStyle(.plain)
                         
                         Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 addPlan()
                             }
                         } label: {
@@ -569,12 +581,13 @@ struct WorkDetailView: View {
                                 .font(.system(size: 24))
                                 .foregroundStyle(.blue)
                         }
+                        .accessibilityLabel("Add plan")
                         .buttonStyle(.plain)
                     }
                     
                     // Optional note field
                     TextField("Add a note (optional)", text: $viewModel.newPlanNote)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .padding(AppTheme.Spacing.small)
                         .background(
                             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
@@ -658,7 +671,7 @@ struct WorkDetailView: View {
                 if !stats.topBehaviors.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Recent Observations")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
 
                         FlowLayout(spacing: 6) {
@@ -673,7 +686,7 @@ struct WorkDetailView: View {
                 if stats.needsReteaching > 0 || stats.upcomingCheckIns > 0 {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Action Items")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
 
                         HStack(spacing: 12) {
@@ -777,27 +790,27 @@ struct WorkDetailView: View {
                 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(status.displayText)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                     
                     // Additional context based on status
                     switch status {
                     case .scheduled(let date):
                         Text(date.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     case .inInbox(let students):
                         if students.count > 1 {
                             Text("Ready to present with \(students.count) students")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         } else {
                             Text("Ready to present")
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }
                     case .withOtherStudents(let students):
                         Text("Waiting area with \(students.count) other \(students.count == 1 ? "student" : "students")")
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     case .notFound:
                         EmptyView()
@@ -836,11 +849,11 @@ struct WorkDetailView: View {
                         
                         VStack(alignment: .leading, spacing: 3) {
                             Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.bodySemibold)
                             
                             if let date = presentation.presentedAt ?? presentation.scheduledFor {
                                 Text(date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .font(AppTheme.ScaledFont.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -870,12 +883,12 @@ struct WorkDetailView: View {
                                         Image(systemName: "list.clipboard")
                                             .font(.system(size: 14, weight: .medium))
                                         Text("Follow-up Work")
-                                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                            .font(AppTheme.ScaledFont.captionSemibold)
                                     }
                                     .foregroundStyle(.blue)
                                     
                                     Text(presentation.followUpWork)
-                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 .padding(AppTheme.Spacing.small)
@@ -895,12 +908,12 @@ struct WorkDetailView: View {
                                 Image(systemName: "note.text")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Presentation Notes")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                             }
                             .foregroundStyle(.purple)
                             
                             Text(presentation.notes)
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }
                         .padding(AppTheme.Spacing.small)
@@ -919,13 +932,13 @@ struct WorkDetailView: View {
                                 Image(systemName: "person.2.fill")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Also presented to:")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                             }
-                            .foregroundStyle(.green)
-                            
+                            .foregroundStyle(AppColors.success)
+
                             ForEach(students.filter { $0.id.uuidString != viewModel.work?.studentID }) { student in
                                 Text("• \(StudentFormatter.displayName(for: student))")
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .font(AppTheme.ScaledFont.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -952,6 +965,7 @@ struct WorkDetailView: View {
                         .font(.system(size: 20))
                         .foregroundStyle(.purple)
                 }
+                .accessibilityLabel("Add note")
                 .buttonStyle(.plain)
             }
         ) {

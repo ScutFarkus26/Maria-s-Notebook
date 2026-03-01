@@ -21,7 +21,7 @@ struct StudentImportPreviewView: View {
             // Header
             HStack(alignment: .firstTextBaseline) {
                 Text("Import Students Preview")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -63,7 +63,7 @@ struct StudentImportPreviewView: View {
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Summary")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {
@@ -86,10 +86,10 @@ struct StudentImportPreviewView: View {
     private func stat(_ title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutBold)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -101,7 +101,7 @@ struct StudentImportPreviewView: View {
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(.yellow)
                 Spacer()
-                Button(action: { withAnimation { showWarnings.toggle() } }) {
+                Button(action: { adaptiveWithAnimation { showWarnings.toggle() } }) {
                     Image(systemName: showWarnings ? "chevron.down" : "chevron.right")
                         .foregroundStyle(.secondary)
                 }
@@ -112,7 +112,7 @@ struct StudentImportPreviewView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(parsed.warnings.indices, id: \.self) { i in
                         Text("• \(parsed.warnings[i])")
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -132,13 +132,13 @@ struct StudentImportPreviewView: View {
     private var listSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Students to Import")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
                 if includedRows.isEmpty {
                     Text("No rows selected for import. Remove filters or close to cancel.")
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
@@ -147,7 +147,7 @@ struct StudentImportPreviewView: View {
                         let i = pair.offset
                         let r = pair.element
                         StudentRowView(row: r, isPotentialDuplicate: isPotentialDuplicate(row: r), onRemove: {
-                            withAnimation { includedRows.removeSubrange(i...i) }
+                            adaptiveWithAnimation { includedRows.removeSubrange(i...i) }
                         })
                         .padding(10)
                         .background(
@@ -196,7 +196,7 @@ private struct StudentRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("\(row.firstName) \(row.lastName)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                 if isPotentialDuplicate {
                     Label("Potential duplicate", systemImage: "exclamationmark.triangle.fill")
                         .labelStyle(.iconOnly)
@@ -207,7 +207,7 @@ private struct StudentRowView: View {
                 HStack(spacing: 8) {
                     if let lvl = row.level {
                         Text(lvl.rawValue)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.tint)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -215,7 +215,7 @@ private struct StudentRowView: View {
                     }
                     if let b = row.birthday {
                         Text("DOB: \(dateFormatter.string(from: b))")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -223,7 +223,7 @@ private struct StudentRowView: View {
                     }
                     if let ds = row.dateStarted {
                         Text("Start: \(dateFormatter.string(from: ds))")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -233,7 +233,7 @@ private struct StudentRowView: View {
                         Button(action: onRemove) {
                             Image(systemName: "minus.circle.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(AppColors.destructive)
                         }
                         .buttonStyle(.plain)
                         .help("Exclude this row from import")

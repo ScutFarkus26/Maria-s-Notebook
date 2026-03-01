@@ -29,6 +29,8 @@ struct SyncStatusBadge: View {
                         .font(.system(size: 12))
                         .foregroundStyle(syncService.syncHealth.color)
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .help("iCloud Sync Status")
@@ -74,7 +76,7 @@ struct SyncStatusPopover: View {
             if case .error(let message) = syncService.syncHealth {
                 Text(message)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.destructive)
                     .lineLimit(3)
             }
 

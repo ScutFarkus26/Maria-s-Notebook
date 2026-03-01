@@ -29,7 +29,7 @@ struct StudentNoteRowView: View {
                 if item.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                         .offset(x: 4, y: -4)
                 }
 
@@ -37,7 +37,7 @@ struct StudentNoteRowView: View {
                 if item.needsFollowUp {
                     Image(systemName: "flag.fill")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                         .offset(x: item.isPinned ? 4 : 4, y: item.isPinned ? 8 : -4)
                 }
             }

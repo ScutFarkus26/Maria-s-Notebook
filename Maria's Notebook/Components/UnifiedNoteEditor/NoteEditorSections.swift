@@ -90,7 +90,7 @@ extension UnifiedNoteEditor {
         }
         .frame(minHeight: 44)
         .opacity(detectedStudentIDs.isEmpty ? 0 : 1)
-        .animation(.easeInOut(duration: UIConstants.AnimationDuration.quick), value: detectedStudentIDs)
+        .adaptiveAnimation(.easeInOut(duration: UIConstants.AnimationDuration.quick), value: detectedStudentIDs)
         .accessibilityHidden(detectedStudentIDs.isEmpty)
     }
 
@@ -207,7 +207,7 @@ extension UnifiedNoteEditor {
                         HStack(spacing: 4) {
                             TagBadge(tag: tag)
                             Button {
-                                withAnimation { tags.removeAll { $0 == tag } }
+                                adaptiveWithAnimation { tags.removeAll { $0 == tag } }
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 12))
@@ -426,7 +426,7 @@ extension UnifiedNoteEditor {
             Toggle(isOn: $needsFollowUp) {
                 HStack(spacing: AppTheme.Spacing.xsmall) {
                     Image(systemName: "flag.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                     Text("Follow Up")
                 }
             }
@@ -530,7 +530,7 @@ private struct TemplatePickerView: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             // Header with expand/collapse
             Button {
-                withAnimation(.easeInOut(duration: UIConstants.AnimationDuration.quick)) {
+                adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.quick)) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -571,7 +571,7 @@ private struct TemplatePickerView: View {
             HStack(spacing: AppTheme.Spacing.verySmall) {
                 // "All" chip
                 Button {
-                    withAnimation {
+                    adaptiveWithAnimation {
                         selectedFilterTag = nil
                     }
                 } label: {
@@ -593,7 +593,7 @@ private struct TemplatePickerView: View {
                     if count > 0 {
                         let tagColor = TagHelper.tagColor(tag).color
                         Button {
-                            withAnimation {
+                            adaptiveWithAnimation {
                                 selectedFilterTag = (selectedFilterTag == tag) ? nil : tag
                             }
                         } label: {

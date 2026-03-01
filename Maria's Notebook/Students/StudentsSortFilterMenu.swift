@@ -21,7 +21,7 @@ struct StudentsSortFilterMenu: View {
         Menu {
             Section("Sort") {
                 Button {
-                    withAnimation { sortOrderRaw = "alphabetical" }
+                    adaptiveWithAnimation { sortOrderRaw = "alphabetical" }
                 } label: {
                     Label("A–Z", systemImage: "textformat.abc")
                     if isAlphabetical {
@@ -30,7 +30,7 @@ struct StudentsSortFilterMenu: View {
                 }
 
                 Button {
-                    withAnimation { sortOrderRaw = "manual" }
+                    adaptiveWithAnimation { sortOrderRaw = "manual" }
                 } label: {
                     Label("Manual", systemImage: "arrow.up.arrow.down")
                     if isManual {
@@ -41,7 +41,7 @@ struct StudentsSortFilterMenu: View {
 
             Section("Filter") {
                 Button {
-                    withAnimation { filterRaw = "all" }
+                    adaptiveWithAnimation { filterRaw = "all" }
                 } label: {
                     Label("All", systemImage: "person.3.fill")
                     if filterRaw == "all" || (filterRaw != "upper" && filterRaw != "lower" && filterRaw != "presentNow" && filterRaw != "presentToday") {
@@ -50,7 +50,7 @@ struct StudentsSortFilterMenu: View {
                 }
 
                 Button {
-                    withAnimation { filterRaw = "presentNow" }
+                    adaptiveWithAnimation { filterRaw = "presentNow" }
                 } label: {
                     Label("Present Now", systemImage: "checkmark.circle.fill")
                     if filterRaw == "presentNow" || filterRaw == "presentToday" {
@@ -59,7 +59,7 @@ struct StudentsSortFilterMenu: View {
                 }
 
                 Button {
-                    withAnimation { filterRaw = "upper" }
+                    adaptiveWithAnimation { filterRaw = "upper" }
                 } label: {
                     Label("Upper", systemImage: "circle.fill")
                     if filterRaw == "upper" {
@@ -68,7 +68,7 @@ struct StudentsSortFilterMenu: View {
                 }
 
                 Button {
-                    withAnimation { filterRaw = "lower" }
+                    adaptiveWithAnimation { filterRaw = "lower" }
                 } label: {
                     Label("Lower", systemImage: "circle.fill")
                     if filterRaw == "lower" {

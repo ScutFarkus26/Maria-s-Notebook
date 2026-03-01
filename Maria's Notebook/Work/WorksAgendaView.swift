@@ -183,7 +183,7 @@ struct WorksAgendaView: View {
                                     Button("Today") {
                                         calendarStartDate = AppCalendar.startOfDay(Date())
                                     }
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background(Color.primary.opacity(0.08), in: Capsule())
@@ -225,7 +225,7 @@ struct WorksAgendaView: View {
                 HStack(spacing: 12) {
                     #if os(iOS)
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             isCalendarMinimized.toggle()
                         }
                     } label: {
@@ -410,6 +410,7 @@ struct WorksAgendaView: View {
     private func markCompleted(_ w: WorkModel) {
         w.status = .complete
         _ = saveCoordinator.save(modelContext, reason: "Mark work completed")
+        HapticService.shared.notification(.success)
     }
 
     private func scheduleToday(_ w: WorkModel) {

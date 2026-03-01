@@ -81,11 +81,11 @@ struct StudentSelectionSheet: View {
             if min > 0 && count < min {
                 Label("Select at least \(min)", systemImage: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
             } else if max > 0 && count >= max {
                 Label("\(count) selected (max reached)", systemImage: "checkmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.success)
             } else {
                 let maxText = max > 0 ? " (max \(max))" : ""
                 Label("\(count) selected\(maxText)", systemImage: "checkmark.circle")

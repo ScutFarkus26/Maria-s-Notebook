@@ -67,7 +67,7 @@ extension TodayView {
 
     var attendanceStrip: some View {
         Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                 isAttendanceExpanded.toggle()
             }
         } label: {
@@ -75,10 +75,10 @@ extension TodayView {
                 // Primary stat: In Class (Present + Tardy)
                 HStack(spacing: 8) {
                     Text("In Class")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                     Text("\(viewModel.attendanceSummary.presentCount)")
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
@@ -152,7 +152,7 @@ extension TodayView {
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text("\(title) \(count)")
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 10)
@@ -165,7 +165,7 @@ extension TodayView {
     @ViewBuilder
     func studentPill(_ name: String, color: Color) -> some View {
         Text(name)
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .foregroundStyle(color)
             .textSelection(.disabled)
             .padding(.horizontal, 8)

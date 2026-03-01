@@ -169,7 +169,7 @@ struct LessonsCardsGridView: View {
                 .transaction { tx in
                     if !hasAppeared { tx.animation = nil }
                 }
-                .animation(gridAnimation, value: idList)
+                .adaptiveAnimation(gridAnimation, value: idList)
                 .padding(.top, 24)
                 .padding(.bottom, 24)
                 .padding(.trailing, 24)
@@ -192,7 +192,7 @@ struct LessonsCardsGridView: View {
                     Task { @MainActor in
                         do {
                             try await Task.sleep(for: .milliseconds(100))
-                            withAnimation {
+                            adaptiveWithAnimation() {
                                 scrollProxy.scrollTo(lessonID, anchor: .center)
                             }
                         } catch {
@@ -225,7 +225,7 @@ struct LessonsCardsGridView: View {
 
         HStack(spacing: 8) {
             Text(displayName)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             if hasIntro {

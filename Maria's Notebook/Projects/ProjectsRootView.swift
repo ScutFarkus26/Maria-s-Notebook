@@ -299,7 +299,7 @@ struct ProjectSidebarRow: View {
             // Title and member count
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
                 Text(club.title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
@@ -308,7 +308,7 @@ struct ProjectSidebarRow: View {
                 HStack(spacing: AppTheme.Spacing.xsmall) {
                     Circle().fill(projectColor).frame(width: 6, height: 6)
                     Text("\(memberCount) \(memberCount == 1 ? "member" : "members")")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
                 }
             }

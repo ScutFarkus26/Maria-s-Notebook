@@ -57,7 +57,7 @@ struct LessonDetailCard: View {
             // Header
             HStack(alignment: .firstTextBaseline) {
                 Text(isEditing ? "Edit Lesson" : "Lesson Details")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 Spacer()
                 Button {
                     onClose()
@@ -73,28 +73,28 @@ struct LessonDetailCard: View {
             // Title + badges
             VStack(spacing: 8) {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleLarge)
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 8) {
                     if !lesson.subject.isEmpty {
                         Text(lesson.subject)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                     }
                     if !lesson.group.isEmpty {
                         Text(lesson.group)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                     }
                     if lesson.source == .personal {
                         Text(lesson.personalKind?.badgeLabel ?? "Personal")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(Capsule().fill(Color.primary.opacity(0.08)))
@@ -263,7 +263,7 @@ struct LessonDetailCard: View {
         } message: {
             Text(importError ?? "")
         }
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
     }
 
     private var infoSection: some View {
@@ -281,7 +281,7 @@ struct LessonDetailCard: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
                     Text("Notes")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                 }
                 if lesson.writeUp.trimmed().isEmpty {
@@ -290,7 +290,7 @@ struct LessonDetailCard: View {
                 } else {
                     ScrollView {
                         Text(lesson.writeUp)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(minHeight: 180, maxHeight: 360)
@@ -328,7 +328,7 @@ struct LessonDetailCard: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Imported Pages File")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
@@ -368,7 +368,7 @@ struct LessonDetailCard: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftWriteUp)
                     .frame(minHeight: 140)

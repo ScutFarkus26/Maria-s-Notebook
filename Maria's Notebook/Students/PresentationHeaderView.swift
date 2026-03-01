@@ -12,7 +12,7 @@ struct PresentationHeaderView: View {
             if let onTapTitle {
                 Button(action: onTapTitle) {
                     Text(lessonName)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                 }
@@ -20,7 +20,7 @@ struct PresentationHeaderView: View {
                 .accessibilityLabel("Open Pages file for \(lessonName)")
             } else {
                 Text(lessonName)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleXLarge)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
             }
@@ -39,7 +39,7 @@ struct PresentationHeaderView: View {
 
     private func pillTag(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.system(size: 13, weight: .medium, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .foregroundStyle(color)

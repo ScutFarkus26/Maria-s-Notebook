@@ -130,12 +130,12 @@ struct StudentDetailView: View {
     private var headerRow: some View {
         HStack {
             Text("Student Info")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
             Button(action: { showAIPlanning = true }) {
                 Label("Plan Lessons", systemImage: "sparkles")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)

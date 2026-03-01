@@ -199,7 +199,7 @@ struct LessonsRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
+        .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
         #if os(iOS)
         .environment(\.editMode, $editMode)
         #endif

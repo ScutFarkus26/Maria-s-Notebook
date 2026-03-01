@@ -41,7 +41,7 @@ struct LessonDetailView: View {
             // Header
             HStack {
                 Text("Lesson Info")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 Spacer()
             }
             .padding(.horizontal, AppTheme.Spacing.large)
@@ -67,7 +67,7 @@ struct LessonDetailView: View {
                         // Journey Timeline
                         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
                             Text("Lesson Journey")
-                                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                                .font(AppTheme.ScaledFont.titleSmall)
 
                             LessonJourneyTimeline(lesson: lesson, modelContext: modelContext)
                                 .frame(height: 350)
@@ -167,7 +167,7 @@ struct LessonDetailView: View {
     private var headerContent: some View {
         VStack(spacing: AppTheme.Spacing.compact) {
             Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-                .font(.system(size: AppTheme.FontSize.titleXLarge, weight: .black, design: .rounded))
+                .font(AppTheme.ScaledFont.titleXLarge)
                 .frame(maxWidth: .infinity)
             HStack(spacing: AppTheme.Spacing.small) {
                 if !lesson.subject.isEmpty {
@@ -204,7 +204,7 @@ struct LessonDetailView: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
                     Text("Notes")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                 }
                 if lesson.writeUp.trimmed().isEmpty {
@@ -212,7 +212,7 @@ struct LessonDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     Text(lesson.writeUp)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.body)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -224,7 +224,7 @@ struct LessonDetailView: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
                     Text("Suggested Follow-Up Work")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                 }
                 if lesson.suggestedFollowUpWorkItems.isEmpty {
@@ -235,9 +235,9 @@ struct LessonDetailView: View {
                         ForEach(lesson.suggestedFollowUpWorkItems, id: \.self) { item in
                             HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
                                 Text("•")
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                    .font(AppTheme.ScaledFont.body)
                                 Text(item)
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                    .font(AppTheme.ScaledFont.body)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
@@ -284,7 +284,7 @@ struct LessonDetailView: View {
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Text("Imported Pages File")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                     HStack(spacing: AppTheme.Spacing.small) {
@@ -318,7 +318,7 @@ struct LessonDetailView: View {
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftWriteUp)
                     .frame(minHeight: 160)
@@ -327,10 +327,10 @@ struct LessonDetailView: View {
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Text("Suggested Follow-Up Work")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 Text("Enter one suggestion per line")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
                 TextEditor(text: $draftSuggestedFollowUpWork)
                     .frame(minHeight: 120)
@@ -347,12 +347,12 @@ struct LessonDetailView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             Text(value)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
         }
     }
 
@@ -519,7 +519,7 @@ struct OpenInPagesButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.horizontal, AppTheme.Spacing.large - 4)
                 .padding(.vertical, AppTheme.Spacing.small)
                 .background(

@@ -42,7 +42,7 @@ final class PaginationState {
     func loadMore() {
         guard hasMore else { return }
         let newCount = min(displayedCount + pageSize, totalCount)
-        withAnimation(.easeInOut(duration: 0.15)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
             displayedCount = newCount
         }
     }
@@ -86,7 +86,7 @@ struct LoadMoreButton: View {
                 Text("(\(remainingCount) remaining)")
                     .foregroundStyle(.secondary)
             }
-            .font(.system(size: 14, weight: .medium, design: .rounded))
+            .font(AppTheme.ScaledFont.bodySemibold)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
         }
@@ -134,7 +134,7 @@ struct PaginatedListFooter: View {
                 }
 
                 Text("Showing \(state.displayedCount) of \(state.totalCount) \(itemName)")
-                    .font(.system(size: 12, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
             }
             .padding(.vertical, 8)

@@ -120,7 +120,7 @@ struct SmallWidgetView: View {
             if entry.todos.isEmpty {
                 Text("All done! ✓")
                     .font(.subheadline)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.success)
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(entry.todos.prefix(3)) { todo in
@@ -131,7 +131,7 @@ struct SmallWidgetView: View {
                                 .font(.caption)
                                 .lineLimit(1)
                         }
-                        .foregroundStyle(todo.isOverdue ? .red : (todo.isDueToday ? .orange : .primary))
+                        .foregroundStyle(todo.isOverdue ? AppColors.destructive : (todo.isDueToday ? AppColors.warning : .primary))
                     }
                 }
             }
@@ -164,7 +164,7 @@ struct MediumWidgetView: View {
                 VStack {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.largeTitle)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                     Text("All done!")
                         .font(.subheadline)
                 }
@@ -180,7 +180,7 @@ struct MediumWidgetView: View {
                                 .lineLimit(1)
                             Spacer()
                         }
-                        .foregroundStyle(todo.isOverdue ? .red : (todo.isDueToday ? .orange : .primary))
+                        .foregroundStyle(todo.isOverdue ? AppColors.destructive : (todo.isDueToday ? AppColors.warning : .primary))
                     }
                 }
             }
@@ -191,7 +191,7 @@ struct MediumWidgetView: View {
 
 struct LargeWidgetView: View {
     let entry: TodoWidgetEntry
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -206,14 +206,14 @@ struct LargeWidgetView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            
+
             Divider()
-            
+
             if entry.todos.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 60))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                     Text("All tasks complete!")
                         .font(.headline)
                 }

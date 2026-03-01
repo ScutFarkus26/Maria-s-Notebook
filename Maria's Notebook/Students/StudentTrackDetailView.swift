@@ -207,7 +207,7 @@ struct StudentTrackDetailView: View {
                 // Center text
                 VStack(spacing: 0) {
                     Text("\(progressPercent)")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
                         .foregroundStyle(.primary)
                     Text("%")
                         .font(.caption)
@@ -329,11 +329,11 @@ struct StudentTrackDetailView: View {
                 if isMastered {
                     Label("Mastered", systemImage: "star.fill")
                         .font(.caption2)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                 } else if isPresented {
                     Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                 }
             }
 

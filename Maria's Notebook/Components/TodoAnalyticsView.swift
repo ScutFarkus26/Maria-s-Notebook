@@ -94,7 +94,7 @@ struct TodoAnalyticsView: View {
                     // Daily Completion Chart
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Daily Completions (Last 7 Days)")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppTheme.ScaledFont.calloutSemibold)
                         
                         Chart(dailyCompletionData, id: \.date) { item in
                             BarMark(
@@ -118,14 +118,14 @@ struct TodoAnalyticsView: View {
                     if !tagBreakdown.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Completions by Tag")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppTheme.ScaledFont.calloutSemibold)
                             
                             ForEach(tagBreakdown, id: \.tag) { item in
                                 HStack {
                                     TagBadge(tag: item.tag, compact: true)
                                     Spacer()
                                     Text("\(item.count)")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(AppTheme.ScaledFont.bodySemibold)
                                         .foregroundStyle(TodoTagHelper.tagColor(item.tag).color)
                                 }
                                 .padding(.vertical, 8)
@@ -140,7 +140,7 @@ struct TodoAnalyticsView: View {
                     if !priorityBreakdown.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Completions by Priority")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppTheme.ScaledFont.calloutSemibold)
                             
                             ForEach(priorityBreakdown, id: \.priority) { item in
                                 HStack {
@@ -148,10 +148,10 @@ struct TodoAnalyticsView: View {
                                         .font(.system(size: 12))
                                         .foregroundStyle(Color(item.priority.color))
                                     Text(item.priority.rawValue)
-                                        .font(.system(size: 14))
+                                        .font(AppTheme.ScaledFont.body)
                                     Spacer()
                                     Text("\(item.count)")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(AppTheme.ScaledFont.bodySemibold)
                                         .foregroundStyle(Color(item.priority.color))
                                 }
                                 .padding(.vertical, 8)
@@ -166,15 +166,15 @@ struct TodoAnalyticsView: View {
                     if let topTag = tagBreakdown.first {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Insights", systemImage: "lightbulb.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.orange)
-                            
+                                .font(AppTheme.ScaledFont.calloutSemibold)
+                                .foregroundStyle(AppColors.warning)
+
                             Text("You complete the most \(TodoTagHelper.tagName(topTag.tag)) tasks (\(topTag.count) total)")
-                                .font(.system(size: 14))
+                                .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
-                        .background(Color.orange.opacity(0.1))
+                        .background(AppColors.warning.opacity(0.1))
                         .cornerRadius(12)
                     }
                 }
@@ -207,12 +207,12 @@ private struct TodoStatCard: View {
                 Image(systemName: icon)
                     .font(.system(size: 12))
                 Text(title)
-                    .font(.system(size: 11))
+                    .font(AppTheme.ScaledFont.captionSmall)
             }
             .foregroundStyle(.secondary)
             
             Text(value)
-                .font(.system(size: 24, weight: .bold))
+                .font(AppTheme.ScaledFont.header)
                 .foregroundStyle(color)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

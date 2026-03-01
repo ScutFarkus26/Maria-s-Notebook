@@ -70,7 +70,7 @@ struct WorkflowProgressIndicator: View {
                 .foregroundStyle(isComplete ? .green : .secondary)
                 .font(.system(size: 14))
             Text(text)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
     }

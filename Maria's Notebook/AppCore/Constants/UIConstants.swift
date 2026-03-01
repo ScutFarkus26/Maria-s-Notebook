@@ -73,11 +73,11 @@ enum UIConstants {
     
     /// Standardized opacity values for consistent visual hierarchy
     enum OpacityConstants {
-        /// 0.04 - Very faint backgrounds (subtle cards)
-        static let veryFaint: Double = 0.04
-        
-        /// 0.06 - Subtle borders and dividers
-        nonisolated static let subtle: Double = 0.06
+        /// 0.06 - Very faint backgrounds (subtle cards, improved contrast)
+        static let veryFaint: Double = 0.06
+
+        /// 0.08 - Subtle borders and dividers (improved contrast)
+        nonisolated static let subtle: Double = 0.08
         
         /// 0.08 - Faint strokes and lines
         nonisolated static let faint: Double = 0.08

@@ -31,7 +31,7 @@ struct StudentCSVMappingView: View {
             // Header
             HStack(alignment: .firstTextBaseline) {
                 Text("Map Columns")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -42,7 +42,7 @@ struct StudentCSVMappingView: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 Text("Choose which CSV columns map to student fields. You must provide either First + Last, or a Full Name column.")
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
 
                 Form {

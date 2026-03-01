@@ -39,7 +39,7 @@ struct ProcedureEditorSheet: View {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
                     // Header
                     Text(isEditing ? "Edit Procedure" : "New Procedure")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
                     basicInfoSection

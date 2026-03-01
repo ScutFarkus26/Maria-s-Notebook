@@ -140,24 +140,18 @@ struct PlanNextLessonService {
         }
 
         // Create the new LessonAssignment
-        do {
-            let newLessonAssignment = PresentationFactory.makeDraft(
-                lessonID: nextLesson.id,
-                studentIDs: Array(studentIDs)
-            )
-            let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
-            PresentationFactory.attachRelationships(
-                to: newLessonAssignment,
-                lesson: nextLesson,
-                students: relatedStudents
-            )
-            context.insert(newLessonAssignment)
-            return .success(newLessonAssignment)
-        } catch {
-            // If dual-write fails, treat as a generic error
-            // In practice this shouldn't happen, but we need to handle it
-            return .noCurrentLesson  // Reusing existing error case
-        }
+        let newLessonAssignment = PresentationFactory.makeDraft(
+            lessonID: nextLesson.id,
+            studentIDs: Array(studentIDs)
+        )
+        let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
+        PresentationFactory.attachRelationships(
+            to: newLessonAssignment,
+            lesson: nextLesson,
+            students: relatedStudents
+        )
+        context.insert(newLessonAssignment)
+        return .success(newLessonAssignment)
     }
 
     /// Plans the next lesson when you already know what the next lesson is.

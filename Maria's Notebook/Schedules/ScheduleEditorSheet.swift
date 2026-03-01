@@ -47,7 +47,7 @@ struct ScheduleEditorSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     Text(isEditing ? "Edit Schedule" : "New Schedule")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
                     basicInfoSection
@@ -248,7 +248,7 @@ struct ScheduleEditorSheet: View {
                 removeStudent(assignment.studentID, from: weekday)
             } label: {
                 Image(systemName: "minus.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.destructive)
             }
             .buttonStyle(.plain)
         }

@@ -5,7 +5,7 @@ struct LastLessonModePlaceholderView: View {
         ContentUnavailableView {
             Label("Last Lesson Mode", systemImage: "clock.badge.exclamationmark")
         } description: {
-            Text("This is a placeholder for Last Lesson Mode. Build out your last lesson mode UI here.")
+            Text("Identify students who need attention based on how long it has been since their last lesson. Students are sorted by days since their most recent presentation, making it easy to ensure no one falls behind.")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -92,7 +92,7 @@ public struct BulkLessonsEntryView: View {
             // Header
             HStack(alignment: .firstTextBaseline) {
                 Text("Bulk Add Lessons")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 Spacer()
             }
             .padding(.horizontal, 24)
@@ -109,7 +109,7 @@ public struct BulkLessonsEntryView: View {
 
                 HStack(spacing: 8) {
                     Text("Source:")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     Picker("Source", selection: $batchSource) {
                         ForEach(LessonSource.allCases) { s in
@@ -132,7 +132,7 @@ public struct BulkLessonsEntryView: View {
                 HStack(spacing: 8) {
                     Label("Quick Fill", systemImage: "paintbrush")
                         .foregroundStyle(.secondary)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                     Divider().frame(height: 16)
                     TextField("Subject", text: $quickSubject)
                         .textFieldStyle(.roundedBorder)
@@ -231,11 +231,11 @@ public struct BulkLessonsEntryView: View {
         HStack(spacing: columnSpacing) {
             // Selection header (empty space)
             Spacer().frame(width: selectionColumnWidth)
-            Text("Name").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).frame(width: widths[0], alignment: .leading)
-            Text("Subject").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).frame(width: widths[1], alignment: .leading)
-            Text("Group").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).frame(width: widths[2], alignment: .leading)
-            Text("Subheading").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).frame(width: widths[3], alignment: .leading)
-            Text("Write Up").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).frame(width: widths[4], alignment: .leading)
+            Text("Name").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[0], alignment: .leading)
+            Text("Subject").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[1], alignment: .leading)
+            Text("Group").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[2], alignment: .leading)
+            Text("Subheading").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[3], alignment: .leading)
+            Text("Write Up").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[4], alignment: .leading)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)

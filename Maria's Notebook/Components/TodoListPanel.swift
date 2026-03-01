@@ -122,7 +122,7 @@ struct TodoListPanel: View {
                 // Header
                 HStack(spacing: 12) {
                     Text("To-Do")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
 
                     Spacer()
 
@@ -181,7 +181,7 @@ struct TodoListPanel: View {
                                 isSelected: selectedFilter == filter,
                                 count: todos.filter { filter.matches($0) }.count
                             ) {
-                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                     selectedFilter = filter
                                 }
                             }
@@ -222,7 +222,7 @@ struct TodoListPanel: View {
                                         .font(.system(size: 56, weight: .ultraLight))
                                         .foregroundStyle(.quaternary)
                                     Text(emptyStateMessage)
-                                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                                        .font(AppTheme.ScaledFont.calloutSemibold)
                                         .foregroundStyle(.secondary)
                                 }
                                 .padding(48)
@@ -260,7 +260,7 @@ struct TodoListPanel: View {
 
                     TextField("New To-Do", text: $newTodoTitle)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 16))
+                        .font(AppTheme.ScaledFont.callout)
                         .focused($isAddingFocused)
                         .onSubmit {
                             addTodo()
@@ -625,11 +625,11 @@ struct TodoRow: View {
 
             // Checkbox
             Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                     checkboxScale = 0.8
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                         checkboxScale = 1.0
                         onToggle()
                     }
@@ -651,13 +651,13 @@ struct TodoRow: View {
             // Content
             VStack(alignment: .leading, spacing: 3) {
                 Text(todo.title)
-                    .font(.system(size: 17))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(todo.isCompleted ? .secondary : .primary)
                     .strikethrough(todo.isCompleted, color: .secondary.opacity(0.5))
 
                 if !todo.notes.isEmpty {
                     Text(todo.notes)
-                        .font(.system(size: 14))
+                        .font(AppTheme.ScaledFont.body)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -668,7 +668,7 @@ struct TodoRow: View {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 10))
                             Text(assignedStudents.map { $0.firstName }.joined(separator: ", "))
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                         }
                         .foregroundStyle(.blue.opacity(0.7))
                     }
@@ -682,7 +682,7 @@ struct TodoRow: View {
                             Image(systemName: "repeat")
                                 .font(.system(size: 10))
                             Text(todo.recurrence.shortLabel)
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                         }
                         .foregroundStyle(.purple.opacity(0.7))
                     }
@@ -692,7 +692,7 @@ struct TodoRow: View {
                             Image(systemName: "checklist")
                                 .font(.system(size: 10))
                             Text(progressText)
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                         }
                         .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(0.7) : .secondary.opacity(0.5))
                     }
@@ -921,7 +921,7 @@ struct TodoEditSheet: View {
             // Header
             HStack {
                 Text("Edit Task")
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                     .foregroundStyle(.primary)
                 Spacer()
                 HStack(spacing: 12) {
@@ -962,7 +962,7 @@ struct TodoEditSheet: View {
                     // Title Section
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Title")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.5)
@@ -970,7 +970,7 @@ struct TodoEditSheet: View {
                         TextField("Task title", text: $title)
                             .textFieldStyle(.roundedBorder)
                             .focused($isTitleFocused)
-                            .font(.system(size: 16))
+                            .font(AppTheme.ScaledFont.callout)
                     }
                     
                     Divider()
@@ -1033,13 +1033,13 @@ struct TodoEditSheet: View {
                     // Notes Section
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Notes")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.5)
                         
                         TextEditor(text: $notes)
-                            .font(.system(size: 15))
+                            .font(AppTheme.ScaledFont.body)
                             .frame(minHeight: 120)
                             .padding(8)
                             .background(Color.primary.opacity(0.04))
@@ -1083,7 +1083,7 @@ struct TodoEditSheet: View {
                     // Title Section
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Title")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.5)
@@ -1091,7 +1091,7 @@ struct TodoEditSheet: View {
                         TextField("Task title", text: $title)
                             .textFieldStyle(.roundedBorder)
                             .focused($isTitleFocused)
-                            .font(.system(size: 16))
+                            .font(AppTheme.ScaledFont.callout)
                     }
                     
                     Divider()
@@ -1154,13 +1154,13 @@ struct TodoEditSheet: View {
                     // Notes Section
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Notes")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.5)
                         
                         TextEditor(text: $notes)
-                            .font(.system(size: 15))
+                            .font(AppTheme.ScaledFont.body)
                             .frame(minHeight: 120)
                             .padding(8)
                             .background(Color.primary.opacity(0.04))
@@ -1242,7 +1242,7 @@ struct TodoEditSheet: View {
     private var studentSectionHeader: some View {
         HStack {
             Text("Assigned To")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -1266,7 +1266,7 @@ struct TodoEditSheet: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 12))
                     Text("Suggest")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                 }
             }
             .foregroundStyle(.purple)
@@ -1290,7 +1290,7 @@ struct TodoEditSheet: View {
                 HStack(spacing: 8) {
                     ForEach(selectedStudents) { student in
                         TodoStudentChip(student: student) {
-                            _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                                 selectedStudentIDs.remove(student.id.uuidString)
                             }
                         }
@@ -1308,13 +1308,13 @@ struct TodoEditSheet: View {
             VStack(spacing: 6) {
                 ForEach(available) { student in
                     Button {
-                        withAnimation(Animation.spring(response: 0.25, dampingFraction: 0.85)) {
+                        adaptiveWithAnimation(Animation.spring(response: 0.25, dampingFraction: 0.85)) {
                             _ = selectedStudentIDs.insert(student.id.uuidString)
                         }
                     } label: {
                         HStack {
                             Text(student.fullName)
-                                .font(.system(size: 15, design: .rounded))
+                                .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.primary)
                             Spacer()
                             Image(systemName: "plus.circle")
@@ -1336,14 +1336,14 @@ struct TodoEditSheet: View {
     private var dueDateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Schedule")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
 
             HStack {
                 Text("When")
-                    .font(.system(size: 14, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                 Spacer()
                 TodoSchedulePickerButton(
                     scheduledDate: $scheduledDate,
@@ -1361,10 +1361,10 @@ struct TodoEditSheet: View {
 
             if recurrence != .none {
                 Toggle("Repeat after completion", isOn: $repeatAfterCompletion)
-                    .font(.system(size: 14, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                 if recurrence == .custom {
                     Stepper("Every \(customIntervalDays) days", value: $customIntervalDays, in: 1...365)
-                        .font(.system(size: 14, design: .rounded))
+                        .font(AppTheme.ScaledFont.body)
                 }
             }
         }
@@ -1375,7 +1375,7 @@ struct TodoEditSheet: View {
     private var prioritySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Priority")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -1383,7 +1383,7 @@ struct TodoEditSheet: View {
             HStack(spacing: 8) {
                 ForEach(TodoPriority.allCases, id: \.self) { priorityLevel in
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             priority = priorityLevel
                         }
                     } label: {
@@ -1391,7 +1391,8 @@ struct TodoEditSheet: View {
                             Image(systemName: priorityLevel.icon)
                                 .font(.system(size: 12))
                             Text(priorityLevel.rawValue)
-                                .font(.system(size: 14, weight: priority == priorityLevel ? .semibold : .regular, design: .rounded))
+                                .font(AppTheme.ScaledFont.body)
+                                .fontWeight(priority == priorityLevel ? .semibold : .regular)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -1426,7 +1427,7 @@ struct TodoEditSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Repeat")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -1443,7 +1444,7 @@ struct TodoEditSheet: View {
             Menu {
                 ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             recurrence = pattern
                         }
                     } label: {
@@ -1458,7 +1459,7 @@ struct TodoEditSheet: View {
             } label: {
                 HStack {
                     Text(recurrence.description)
-                        .font(.system(size: 15, design: .rounded))
+                        .font(AppTheme.ScaledFont.body)
                         .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "chevron.up.chevron.down")
@@ -1488,7 +1489,7 @@ struct TodoEditSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Checklist")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -1497,7 +1498,7 @@ struct TodoEditSheet: View {
                 
                 if !todo.subtasks.isEmpty {
                     Text(todo.subtasksProgressText ?? "")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                 }
                 
@@ -1540,7 +1541,7 @@ struct TodoEditSheet: View {
     private var workIntegrationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Work Integration")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -1553,7 +1554,7 @@ struct TodoEditSheet: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Linked to Work Item")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                         Text("This todo is connected to a work item")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -1572,8 +1573,8 @@ struct TodoEditSheet: View {
                         }
                     } label: {
                         Text("Unlink")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.red)
+                            .font(AppTheme.ScaledFont.captionSemibold)
+                            .foregroundStyle(AppColors.destructive)
                     }
                     .buttonStyle(.plain)
                 }
@@ -1588,7 +1589,7 @@ struct TodoEditSheet: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 16))
                         Text("Create Work Item")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                         Spacer()
                         Image(systemName: "arrow.right")
                             .font(.system(size: 12))
@@ -1614,7 +1615,7 @@ struct TodoEditSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Attachments")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -1646,7 +1647,7 @@ struct TodoEditSheet: View {
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(fileName(from: path))
-                                    .font(.system(size: 14))
+                                    .font(AppTheme.ScaledFont.body)
                                     .lineLimit(1)
                                 Text(fileSize(for: path))
                                     .font(.caption)
@@ -1689,7 +1690,7 @@ struct TodoEditSheet: View {
     private var timeEstimateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Time Tracking")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -1698,7 +1699,7 @@ struct TodoEditSheet: View {
                 // Estimated Time
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Estimated Time")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
                     
                     HStack(spacing: 12) {
@@ -1770,7 +1771,7 @@ struct TodoEditSheet: View {
                 // Actual Time
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Actual Time")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
                     
                     HStack(spacing: 12) {
@@ -1890,7 +1891,7 @@ struct TodoEditSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Reminder")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -1965,7 +1966,7 @@ struct TodoEditSheet: View {
     private var moodReflectionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Mood & Reflection")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -2021,7 +2022,7 @@ struct TodoEditSheet: View {
                     .foregroundStyle(.secondary)
                 
                 TextEditor(text: $reflectionNotes)
-                    .font(.system(size: 14))
+                    .font(AppTheme.ScaledFont.body)
                     .frame(minHeight: 80)
                     .padding(8)
                     .background(Color.primary.opacity(0.04))
@@ -2041,7 +2042,7 @@ struct TodoEditSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Location Reminder")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -2075,7 +2076,7 @@ struct TodoEditSheet: View {
                             Image(systemName: "mappin.circle.fill")
                                 .foregroundStyle(.red)
                             Text(String(format: "%.4f, %.4f", lat, lon))
-                                .font(.system(size: 13, design: .monospaced))
+                                .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                             
                             Spacer()
@@ -2327,7 +2328,7 @@ struct TodoEditSheet: View {
                 
                 // Add matched students to selection
                 for student in matchedStudents {
-                    _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                    _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                         selectedStudentIDs.insert(student.id.uuidString)
                     }
                 }
@@ -2557,7 +2558,7 @@ private struct SubtaskRow: View {
             
             TextField("Subtask", text: $editingTitle)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
                 .strikethrough(subtask.isCompleted)
                 .focused($isFocused)
@@ -2621,10 +2622,11 @@ private struct TodoFilterChip: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(isSelected ? .white : filter.color)
                 Text(filter.rawValue)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
+                    .fontWeight(isSelected ? .semibold : .medium)
                 if count > 0 && !isSelected {
                     Text("\(count)")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -2648,7 +2650,7 @@ private struct TodoStudentChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(student.firstName)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
             
             Button {
                 onRemove()

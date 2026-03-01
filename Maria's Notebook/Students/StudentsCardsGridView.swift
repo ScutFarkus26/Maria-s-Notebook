@@ -164,7 +164,7 @@ struct StudentsCardsGridView: View {
                     )
                 }
             }
-            .animation(gridAnimation, value: idList)
+            .adaptiveAnimation(gridAnimation, value: idList)
             .transaction { tx in
                 if !hasAppeared { tx.animation = nil }
             }

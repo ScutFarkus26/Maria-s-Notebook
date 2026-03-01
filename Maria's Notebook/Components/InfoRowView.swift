@@ -9,7 +9,7 @@ struct InfoRowView: View {
         HStack(alignment: .firstTextBaseline) {
             Label {
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             } icon: {
                 Image(systemName: icon)
@@ -21,7 +21,7 @@ struct InfoRowView: View {
             Spacer(minLength: 0)
 
             Text(value)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(title))

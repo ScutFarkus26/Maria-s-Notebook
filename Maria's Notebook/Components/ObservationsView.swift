@@ -238,7 +238,7 @@ struct ObservationsView: View {
         }
         ToolbarItem(placement: .automatic) {
             Button(isSelecting ? "Done" : "Select") {
-                withAnimation {
+                adaptiveWithAnimation {
                     if isSelecting { selectedItemIDs.removeAll() }
                     isSelecting.toggle()
                 }
@@ -403,7 +403,7 @@ struct ObservationsView: View {
                 // Show context badge if note is attached to a specific entity
                 if let contextText = item.contextText {
                     Text(contextText)
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -415,12 +415,12 @@ struct ObservationsView: View {
                 
                 Spacer()
                 Text(item.date, style: .relative)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
             }
             if let firstLine = firstLine(of: item.body) {
                 Text(firstLine)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
             }
@@ -480,7 +480,7 @@ struct ObservationsView: View {
 
     private func studentChip(_ name: String) -> some View {
         Text(name)
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .foregroundStyle(Color.accentColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -686,7 +686,7 @@ struct ObservationsView: View {
             #if os(macOS)
             VStack(spacing: 16) {
                 Text("Pick a Day")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 DatePicker("Date", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .labelsHidden()
@@ -767,7 +767,7 @@ struct ObservationsView: View {
         private var header: some View {
             HStack {
                 Text("Summary")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 Spacer()
                 Button(isSummarizing ? "Stop" : "Close") { onCancel() }
             }
@@ -795,7 +795,7 @@ struct ObservationsView: View {
                             Text("Follow Ups").font(.headline)
                             ForEach(actions, id: \.self) { a in
                                 HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: "checkmark.circle").foregroundStyle(.green)
+                                    Image(systemName: "checkmark.circle").foregroundStyle(AppColors.success)
                                     Text(a)
                                 }
                             }

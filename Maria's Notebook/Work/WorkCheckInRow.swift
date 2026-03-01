@@ -70,14 +70,14 @@ struct WorkCheckInRow: View {
     private var checkInHeader: some View {
         HStack(spacing: 6) {
             Text(checkIn.date.formatted(date: .abbreviated, time: .omitted))
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
             
             let purposeText = checkIn.purpose.trimmed()
             if !purposeText.isEmpty {
                 Text("|")
                     .foregroundStyle(.secondary)
                 Text(purposeText)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
             }
         }
     }
@@ -88,10 +88,10 @@ struct WorkCheckInRow: View {
                 ForEach(notes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Notes:")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                         Text(note.body)
-                            .font(.system(size: AppTheme.FontSize.caption))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }

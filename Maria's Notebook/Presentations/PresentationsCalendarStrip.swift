@@ -60,7 +60,7 @@ struct PresentationsCalendarStrip: View {
                         // Otherwise, update startDate, which will trigger the onChange below.
                         if calendar.isDate(targetDate, inSameDayAs: startDate) {
                             if let first = days.first {
-                                withAnimation {
+                                adaptiveWithAnimation {
                                     proxy.scrollTo(first, anchor: .leading)
                                 }
                             }
@@ -125,14 +125,14 @@ struct PresentationsCalendarStrip: View {
                     } catch {
                         Self.logger.warning("Task sleep interrupted: \(error)")
                     }
-                    withAnimation {
+                    adaptiveWithAnimation {
                         proxy.scrollTo(first, anchor: .leading)
                     }
                 }
             }
             .onChange(of: startDate) { _, _ in
                 if let first = days.first {
-                    withAnimation {
+                    adaptiveWithAnimation {
                         proxy.scrollTo(first, anchor: .leading)
                     }
                 }
@@ -146,7 +146,7 @@ struct PresentationsCalendarStrip: View {
                         } catch {
                             Self.logger.warning("Task sleep interrupted: \(error)")
                         }
-                        withAnimation {
+                        adaptiveWithAnimation {
                             proxy.scrollTo(first, anchor: .leading)
                         }
                     }

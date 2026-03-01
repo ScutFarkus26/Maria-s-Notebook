@@ -285,10 +285,10 @@ struct MeetingsLogView: View {
                 // Student name
                 if let studentID = meeting.studentIDUUID, let student = studentsByID[studentID] {
                     Text(displayName(for: student))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
                     Text("Unknown Student")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
 

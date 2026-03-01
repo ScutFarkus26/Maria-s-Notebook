@@ -134,12 +134,12 @@ struct TodoLocationPickerView: View {
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.name ?? "Unknown")
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(AppTheme.ScaledFont.bodySemibold)
                                     .foregroundStyle(.primary)
                                 
                                 if let address = item.address?.shortAddress {
                                     Text(address)
-                                        .font(.system(size: 13))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
                                 }
@@ -178,9 +178,9 @@ struct TodoLocationPickerView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(locationName.isEmpty ? "Selected Location" : locationName)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                 Text(String(format: "%.4f, %.4f", coord.latitude, coord.longitude))
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
             
@@ -238,7 +238,7 @@ struct TodoLocationPickerView: View {
         searchResults = []
         searchText = ""
         
-        withAnimation {
+        adaptiveWithAnimation {
             cameraPosition = .region(MKCoordinateRegion(
                 center: coord,
                 latitudinalMeters: 500,

@@ -11,7 +11,7 @@ struct RatingLevelSelector: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
@@ -24,7 +24,7 @@ struct RatingLevelSelector: View {
                             .frame(width: 32, height: 32)
                             .overlay(
                                 Text("\(level)")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .foregroundStyle(selectedLevel == level ? .white : color)
                             )
                     }
@@ -33,7 +33,7 @@ struct RatingLevelSelector: View {
 
                 if let level = selectedLevel {
                     Text(levelLabels(level))
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -49,7 +49,7 @@ struct StudentUnderstandingSelector: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Understanding")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
@@ -67,7 +67,7 @@ struct StudentUnderstandingSelector: View {
                 Spacer()
 
                 Text(understandingLabel(for: level))
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -117,7 +117,7 @@ struct PracticeSectionHeader: View {
                     .font(.system(size: 16))
             }
             Text(title)
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.primary)
         }
     }
@@ -132,7 +132,7 @@ struct StyledNotesTextField: View {
 
     var body: some View {
         TextField(placeholder, text: $text, axis: .vertical)
-            .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+            .font(AppTheme.ScaledFont.body)
             .lineLimit(lineLimit)
             .textFieldStyle(.plain)
             .padding(12)
@@ -164,7 +164,7 @@ struct OptionalFieldToggle<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $isEnabled) {
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
             }
 
             if isEnabled {
@@ -186,16 +186,16 @@ struct SelectedStudentRow: View {
     var body: some View {
         HStack {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.success)
                 .font(.system(size: 16))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(StudentFormatter.displayName(for: student))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
 
                 if let title = workTitle {
                     Text(title)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -231,7 +231,7 @@ struct StudentSelectorSearchBar: View {
                 .font(.system(size: 14))
 
             TextField("Search students...", text: $searchText)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .textFieldStyle(.plain)
 
             if !searchText.isEmpty {
@@ -263,7 +263,7 @@ struct LessonContextCard: View {
                     .foregroundStyle(.indigo)
                     .font(.system(size: 16))
                 Text("Lesson Context")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.primary)
             }
 
@@ -272,13 +272,13 @@ struct LessonContextCard: View {
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(lesson.name)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
 
                         if !lesson.subject.isEmpty || !lesson.group.isEmpty {
                             HStack(spacing: 6) {
                                 if !lesson.subject.isEmpty {
                                     Text(lesson.subject)
-                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }
 
@@ -289,7 +289,7 @@ struct LessonContextCard: View {
 
                                 if !lesson.group.isEmpty {
                                     Text(lesson.group)
-                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -313,11 +313,11 @@ struct LessonContextCard: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(presentation.isPresented ? "Presented" : "Scheduled")
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
 
                             if let date = presentation.presentedAt ?? presentation.scheduledFor {
                                 Text(date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSmall)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -346,7 +346,7 @@ struct PracticeSessionBottomBar: View {
         HStack(spacing: 12) {
             Button(action: onCancel) {
                 Text("Cancel")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
@@ -364,7 +364,7 @@ struct PracticeSessionBottomBar: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
                     Text("Save Session")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)

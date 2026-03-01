@@ -314,7 +314,7 @@ struct PresentationsListView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Filters")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.top, 8)
@@ -325,7 +325,7 @@ struct PresentationsListView: View {
                     color: .accentColor,
                     isSelected: filter == .all
                 ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsFilterRaw = "all"
                     }
                 }
@@ -336,7 +336,7 @@ struct PresentationsListView: View {
                     color: .green,
                     isSelected: filter == .completed
                 ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsFilterRaw = "completed"
                     }
                 }
@@ -347,13 +347,13 @@ struct PresentationsListView: View {
                     color: .orange,
                     isSelected: filter == .notCompleted
                 ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsFilterRaw = "notCompleted"
                     }
                 }
 
                 Text("Subject")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.top, 8)
@@ -365,7 +365,7 @@ struct PresentationsListView: View {
                     color: .accentColor,
                     isSelected: selectedSubject == nil
                 ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsSubjectRaw = ""
                     }
                 }
@@ -377,7 +377,7 @@ struct PresentationsListView: View {
                         color: AppColors.color(forSubject: subject),
                         isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
                     ) {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                             presentationsSubjectRaw = subject
                         }
                     }
@@ -391,7 +391,7 @@ struct PresentationsListView: View {
                     color: .gray,
                     isSelected: filter == .hiddenUndated
                 ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         if filter == .hiddenUndated {
                             presentationsFilterRaw = previousPresentationsFilterRaw ?? "all"
                         } else {
@@ -421,9 +421,9 @@ struct PresentationsListView: View {
                     if hiddenUndated.isEmpty {
                         VStack(spacing: 8) {
                             Text("No hidden presentations")
-                                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.titleMedium)
                             Text("Presentations marked presented without a date will appear here.")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -434,7 +434,7 @@ struct PresentationsListView: View {
                                     Image(systemName: "eye.slash.fill")
                                         .foregroundStyle(.secondary)
                                     Text("Hidden")
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                        .font(AppTheme.ScaledFont.captionSemibold)
                                         .foregroundStyle(.secondary)
                                 }
                                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
@@ -464,9 +464,9 @@ struct PresentationsListView: View {
                     if (!showUpcoming || up.isEmpty) && (!showPresented || gv.isEmpty) {
                         VStack(spacing: 8) {
                             Text("No presentations")
-                                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.titleMedium)
                             Text("Try adjusting your filters or add presentations from the Lessons library.")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                                .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -479,7 +479,7 @@ struct PresentationsListView: View {
                                             Image(systemName: "clock")
                                                 .foregroundStyle(.secondary)
                                             Text("To Present")
-                                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                                .font(AppTheme.ScaledFont.captionSemibold)
                                                 .foregroundStyle(.secondary)
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
@@ -503,7 +503,7 @@ struct PresentationsListView: View {
                                             Image(systemName: "checkmark.circle")
                                                 .foregroundStyle(.secondary)
                                             Text("Given")
-                                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                                .font(AppTheme.ScaledFont.captionSemibold)
                                                 .foregroundStyle(.secondary)
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
@@ -531,9 +531,9 @@ struct PresentationsListView: View {
                 if sortedAssignments.isEmpty {
                     VStack(spacing: 8) {
                         Text("No presentations")
-                            .font(.system(size: AppTheme.FontSize.titleMedium, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.titleMedium)
                         Text("Try adjusting your filters or add presentations from the Lessons library.")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.body)
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -143,12 +143,12 @@ private struct GroupSummaryCard: View {
                 if summary.studentsReadyForNext > 0 {
                     Label("\(summary.studentsReadyForNext) ready for next", systemImage: "checkmark.circle")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                 }
                 if summary.studentsNeedingAttention > 0 {
                     Label("\(summary.studentsNeedingAttention) need attention", systemImage: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                 }
             }
 

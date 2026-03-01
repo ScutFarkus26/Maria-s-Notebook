@@ -47,7 +47,7 @@ struct AddLessonToInboxSheet: View {
                     // Header
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Add Lesson to Inbox")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(AppTheme.ScaledFont.titleXLarge)
                         
                         HStack(spacing: 6) {
                             Text("For:")

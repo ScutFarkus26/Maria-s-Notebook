@@ -30,7 +30,7 @@ struct TodoDateChip: View {
                     .font(.system(size: 10, weight: .medium))
             }
             Text(chipText)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
 
             // Deadline flag indicator
             if todo.hasDeadline && !todo.isOverdue {

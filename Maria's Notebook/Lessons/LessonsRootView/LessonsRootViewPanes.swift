@@ -275,7 +275,7 @@ extension LessonsRootView {
                                 Task { @MainActor in
                                     do {
                                         try await Task.sleep(for: .milliseconds(100))
-                                        withAnimation {
+                                        adaptiveWithAnimation {
                                             scrollProxy.scrollTo(lesson.id, anchor: .center)
                                         }
                                     } catch {
@@ -304,7 +304,7 @@ extension LessonsRootView {
                                 Task { @MainActor in
                                     do {
                                         try await Task.sleep(for: .milliseconds(100))
-                                        withAnimation {
+                                        adaptiveWithAnimation {
                                             scrollProxy.scrollTo(lesson.id, anchor: .center)
                                         }
                                     } catch {

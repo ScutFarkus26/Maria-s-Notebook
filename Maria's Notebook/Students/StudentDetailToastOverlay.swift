@@ -10,7 +10,7 @@ struct StudentDetailToastOverlay: View {
         Group {
             if let message = message {
                 Text(message)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(

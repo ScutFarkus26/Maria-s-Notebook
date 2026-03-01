@@ -169,7 +169,7 @@ struct NewProjectSessionSheet: View {
                         offeredWorks.removeAll { $0.id == work.id }
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                     }
                     .buttonStyle(.plain)
                 }
@@ -185,7 +185,7 @@ struct NewProjectSessionSheet: View {
             if offeredWorks.count < minSelections {
                 Text("Add at least \(minSelections) work offers")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
             }
         }
         .padding(.leading, 8)

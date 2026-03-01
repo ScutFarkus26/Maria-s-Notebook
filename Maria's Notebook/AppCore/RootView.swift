@@ -10,6 +10,7 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import TipKit
 
 extension UUID: @retroactive Identifiable {
     public var id: UUID { self }
@@ -178,6 +179,7 @@ struct RootView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
+    private let quickNoteTip = QuickNoteTip()
     @State private var isShowingQuickNote = false
     @State private var newPresentationDraftID: UUID?
     @State private var isShowingNewWorkItem = false
@@ -234,6 +236,11 @@ struct RootView: View {
         .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
         .saveErrorAlert()
         .toastOverlay(ToastService.shared)
+        .overlay(alignment: .bottom) {
+            TipView(quickNoteTip, arrowEdge: .bottom)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 80)
+        }
         .overlay(alignment: .bottomTrailing) {
             QuickNoteGlassButton(
                 isShowingSheet: $isShowingQuickNote,

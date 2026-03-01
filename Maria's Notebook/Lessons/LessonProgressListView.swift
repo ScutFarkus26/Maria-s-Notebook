@@ -77,10 +77,10 @@ struct LessonProgressListView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Lesson Progress")
-                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleLarge)
                 
                 Text("\(filteredLessons.count) \(filteredLessons.count == 1 ? "lesson" : "lessons")")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
             }
             
@@ -125,7 +125,7 @@ struct LessonProgressListView: View {
                             selectedSubject = nil
                         } label: {
                             Text("All")
-                                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.bodySemibold)
                                 .foregroundStyle(selectedSubject == nil ? .white : .primary)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
@@ -141,7 +141,7 @@ struct LessonProgressListView: View {
                                 selectedSubject = subject
                             } label: {
                                 Text(subject)
-                                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                                    .font(AppTheme.ScaledFont.bodySemibold)
                                     .foregroundStyle(selectedSubject == subject ? .white : .primary)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 8)
@@ -193,14 +193,14 @@ struct LessonProgressListView: View {
                 // Lesson info
                 VStack(alignment: .leading, spacing: 6) {
                     Text(lesson.name)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     
                     HStack(spacing: 8) {
                         if !lesson.subject.isEmpty {
                             Text(lesson.subject)
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }
                         
@@ -210,7 +210,7 @@ struct LessonProgressListView: View {
                                     .foregroundStyle(.tertiary)
                             }
                             Text(lesson.group)
-                                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -277,7 +277,7 @@ struct LessonProgressListView: View {
             Image(systemName: icon)
                 .font(.system(size: 12))
             Text(value)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 8)
@@ -298,11 +298,11 @@ struct LessonProgressListView: View {
             
             VStack(spacing: 6) {
                 Text("No Lessons Found")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.secondary)
                 
                 Text(searchText.isEmpty ? "Create your first lesson to see progress" : "Try adjusting your search or filters")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
             }

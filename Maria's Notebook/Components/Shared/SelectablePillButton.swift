@@ -16,7 +16,7 @@ struct SelectablePillButton<T: Hashable>: View {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
                 Text(label)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
             .foregroundStyle(isSelected ? .white : color)
             .padding(.horizontal, 14)

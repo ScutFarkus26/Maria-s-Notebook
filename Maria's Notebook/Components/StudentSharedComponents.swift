@@ -167,7 +167,7 @@ struct LevelBadge: View {
                 .fill(backgroundColor)
                 .frame(width: 6, height: 6)
             Text(level.rawValue)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(backgroundColor)
         }
         .padding(.horizontal, 8)
@@ -218,7 +218,7 @@ struct BobbingAnimationModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .offset(y: bob ? -offset : offset)
-            .animation(
+            .adaptiveAnimation(
                 isAnimating ? .easeInOut(duration: duration).repeatCount(60, autoreverses: true) : nil,
                 value: bob
             )

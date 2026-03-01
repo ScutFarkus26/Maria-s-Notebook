@@ -88,7 +88,7 @@ struct StudentPickerPopover: View {
                 LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(filteredStudentsForPicker) { student in
                         Button {
-                            withAnimation {
+                            adaptiveWithAnimation {
                                 if selectedIDs.contains(student.id) {
                                     selectedIDs.remove(student.id)
                                 } else {

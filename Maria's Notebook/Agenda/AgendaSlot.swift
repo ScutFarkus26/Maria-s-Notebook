@@ -63,7 +63,7 @@ struct AgendaSlot: View {
             VStack(alignment: .leading, spacing: 8) {
                 if scheduledLessonsForSlot.isEmpty {
                     Text("No plans yet")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 10)

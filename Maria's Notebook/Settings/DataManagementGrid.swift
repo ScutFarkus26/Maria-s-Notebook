@@ -197,7 +197,7 @@ struct DataManagementGrid: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 Label("Restore", systemImage: SFSymbol.Action.arrowCounterclockwise)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
 
                 Picker("", selection: $viewModel.restoreMode) {
                     Text("Merge").tag(BackupService.RestoreMode.merge)
@@ -281,7 +281,7 @@ struct DataManagementGrid: View {
                 HStack {
                     Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
@@ -311,7 +311,7 @@ struct DataManagementGrid: View {
     private func resultBanner(_ message: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
             Image(systemName: SFSymbol.Action.checkmarkCircleFill)
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.success)
             Text(message)
                 .font(.caption)
                 .lineLimit(1)

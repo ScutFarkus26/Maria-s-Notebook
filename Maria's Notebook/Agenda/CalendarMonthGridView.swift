@@ -165,7 +165,7 @@ private struct DayCell: View {
                 }()
                 Button(action: { onTap(d) }) {
                     Text(label)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(isNS ? Color.red : Color.primary)
                         .frame(height: 40)
                         .frame(maxWidth: .infinity)

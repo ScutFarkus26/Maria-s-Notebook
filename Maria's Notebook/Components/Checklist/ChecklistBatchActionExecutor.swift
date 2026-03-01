@@ -118,7 +118,7 @@ enum ChecklistBatchActionExecutor {
                     group.studentIDs.append(studentIDString)
                 }
             } else {
-                PresentationFactory.insertDraft(
+                _ = PresentationFactory.insertDraft(
                     lessonID: lesson.id,
                     studentIDs: [student.id],
                     context: context
@@ -218,7 +218,7 @@ enum ChecklistBatchActionExecutor {
                 GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
             }
         } else {
-            PresentationFactory.insertPresented(
+            _ = PresentationFactory.insertPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context

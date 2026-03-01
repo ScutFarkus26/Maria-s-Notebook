@@ -103,7 +103,7 @@ struct ReportGeneratorView: View {
 
                     if let errorMessage = errorMessage {
                         Text(errorMessage)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                             .font(.caption)
                     }
                 }

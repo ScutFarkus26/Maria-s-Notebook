@@ -75,7 +75,7 @@ struct QuickNoteSheet: View {
                     Button("Cancel") { dismiss() }
                         .keyboardShortcut(.cancelAction)
                         .buttonStyle(.plain)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                     
                     Spacer()
                     
@@ -159,7 +159,7 @@ struct QuickNoteSheet: View {
                             selectedStudentIDs: viewModel.selectedStudentIDs,
                             displayName: { viewModel.getDisplayName(for: $0, students: students) },
                             onRemove: { id in
-                                withAnimation {
+                                adaptiveWithAnimation {
                                     _ = viewModel.selectedStudentIDs.remove(id)
                                 }
                             }
@@ -181,7 +181,7 @@ struct QuickNoteSheet: View {
                             detectedCandidateIDs: viewModel.detectedCandidateIDs,
                             displayName: { viewModel.getDisplayName(for: $0, students: students) },
                             onAdd: { id in
-                                withAnimation {
+                                adaptiveWithAnimation {
                                     _ = viewModel.selectedStudentIDs.insert(id)
                                     _ = viewModel.detectedCandidateIDs.remove(id)
                                 }
@@ -252,7 +252,7 @@ struct QuickNoteSheet: View {
                         selectedStudentIDs: viewModel.selectedStudentIDs,
                         displayName: { viewModel.getDisplayName(for: $0, students: students) },
                         onRemove: { id in
-                            withAnimation {
+                            adaptiveWithAnimation {
                                 _ = viewModel.selectedStudentIDs.remove(id)
                             }
                         }
@@ -277,7 +277,7 @@ struct QuickNoteSheet: View {
                         detectedCandidateIDs: viewModel.detectedCandidateIDs,
                         displayName: { viewModel.getDisplayName(for: $0, students: students) },
                         onAdd: { id in
-                            withAnimation {
+                            adaptiveWithAnimation {
                                 _ = viewModel.selectedStudentIDs.insert(id)
                                 _ = viewModel.detectedCandidateIDs.remove(id)
                             }
@@ -366,7 +366,7 @@ struct QuickNoteSheet: View {
                     }
                 }
                 .foregroundStyle(viewModel.tags.isEmpty ? Color.primary : Color.blue)
-                .font(.system(size: 20))
+                .font(AppTheme.ScaledFont.titleMedium)
             }
 
             // Divider

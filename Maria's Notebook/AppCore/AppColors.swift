@@ -47,4 +47,15 @@ struct AppColors {
         let index = abs(key.hashValue) % defaultColorPalette.count
         return defaultColorPalette[index]
     }
+
+    // MARK: - Semantic Status Colors
+
+    /// Red — destructive actions, errors, critical states
+    static let destructive: Color = .red
+    /// Orange — warnings, caution states
+    static let warning: Color = .orange
+    /// Green — success, completion, positive states
+    static let success: Color = .green
+    /// Blue — informational, neutral highlights
+    static let info: Color = .blue
 }

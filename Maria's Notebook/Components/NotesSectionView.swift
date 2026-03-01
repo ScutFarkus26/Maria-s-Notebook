@@ -10,12 +10,12 @@ struct NotesSectionView: View {
                     .foregroundStyle(.secondary)
                     .font(.system(size: 16))
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
 
             TextEditor(text: $notes)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .frame(minHeight: 180)

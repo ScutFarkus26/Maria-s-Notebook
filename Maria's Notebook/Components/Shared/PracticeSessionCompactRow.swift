@@ -17,21 +17,21 @@ struct PracticeSessionCompactRow: View {
                 .foregroundStyle(.purple)
 
             Text(session.date.formatted(date: .abbreviated, time: .omitted))
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
 
             if let duration = session.durationFormatted {
                 Text("•")
                     .foregroundStyle(.tertiary)
                 Text(duration)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
             Text("\(session.participantCount) \(session.participantCount == 1 ? "student" : "students")")
-                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmall)
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 10)

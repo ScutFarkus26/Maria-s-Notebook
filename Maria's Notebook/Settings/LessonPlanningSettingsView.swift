@@ -81,7 +81,7 @@ struct LessonPlanningSettingsView: View {
     private var promptSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                adaptiveWithAnimation(.easeInOut(duration: 0.2)) {
                     isPromptExpanded.toggle()
                 }
             } label: {
@@ -131,7 +131,7 @@ struct LessonPlanningSettingsView: View {
                                 customSystemPrompt = ""
                             }
                             .font(.caption2)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                         }
                     }
                 }
@@ -193,7 +193,7 @@ struct LessonPlanningSettingsView: View {
                 customSystemPrompt = ""
             }
             .font(.caption)
-            .foregroundStyle(.red)
+            .foregroundStyle(AppColors.destructive)
             Spacer()
         }
     }

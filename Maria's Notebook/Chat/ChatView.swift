@@ -91,14 +91,14 @@ struct ChatView: View {
             }
             .onChange(of: viewModel.messages.count) {
                 if let last = viewModel.messages.last {
-                    withAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
+                    adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
                         proxy.scrollTo(last.id, anchor: .bottom)
                     }
                 }
             }
             .onChange(of: viewModel.streamingContent) {
                 if viewModel.isStreaming {
-                    withAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
+                    adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
                         proxy.scrollTo("streaming", anchor: .bottom)
                     }
                 }
@@ -178,7 +178,7 @@ struct ChatView: View {
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
             Image(systemName: SFSymbol.Status.exclamationmarkTriangleFill)
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.warning)
             Text(message)
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)

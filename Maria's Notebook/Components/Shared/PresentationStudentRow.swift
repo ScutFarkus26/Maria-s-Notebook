@@ -31,13 +31,13 @@ struct PresentationStudentRow: View {
 
     private var headerRow: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                 isExpanded.toggle()
             }
         } label: {
             HStack(spacing: 12) {
                 Text(StudentFormatter.displayName(for: student))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -47,7 +47,7 @@ struct PresentationStudentRow: View {
                 HStack(spacing: 4) {
                     if !entry.observation.isEmpty || !entry.assignment.isEmpty {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.success)
                             .font(.system(size: 14))
                     }
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -99,7 +99,7 @@ struct PresentationStudentRow: View {
     private var understandingPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Understanding")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
@@ -119,7 +119,7 @@ struct PresentationStudentRow: View {
                 Spacer()
 
                 Text(understandingLabel(for: entry.understandingLevel))
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -128,7 +128,7 @@ struct PresentationStudentRow: View {
     private var observationField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Observation")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             TextField("Note about this student...", text: $entry.observation, axis: .vertical)
@@ -140,7 +140,7 @@ struct PresentationStudentRow: View {
     private var assignmentField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Follow-up Work")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             TextField("Assignment for this student...", text: $entry.assignment, axis: .vertical)
@@ -164,7 +164,7 @@ struct PresentationStudentRow: View {
                         let truncated = suggestion.count > 20 ? String(suggestion.prefix(20)) + "..." : suggestion
                         Text(truncated).lineLimit(1)
                     }
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(0.08)))
@@ -179,7 +179,7 @@ struct PresentationStudentRow: View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Check-in")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 4) {
@@ -203,7 +203,7 @@ struct PresentationStudentRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Due Date")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 4) {
@@ -235,7 +235,7 @@ struct PresentationStudentRow: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Next Lesson")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
@@ -251,11 +251,11 @@ struct PresentationStudentRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Unlock: \(nextLesson.name)")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.primary)
 
                         Text(isUnlockSelected ? "Will be unlocked when you click Done" : "Lesson will remain blocked")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(isUnlockSelected ? .green : .secondary)
                     }
 

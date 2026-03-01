@@ -196,7 +196,7 @@ struct PracticeSessionSheet: View {
                         Image(systemName: "person.badge.plus")
                             .font(.system(size: 14, weight: .semibold))
                         Text("Add Partners")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
@@ -259,7 +259,7 @@ struct PracticeSessionSheet: View {
 
     private var emptyPartnersMessage: some View {
         Text(searchText.isEmpty ? "No other students have work for this lesson" : "No students match '\(searchText)'")
-            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+            .font(AppTheme.ScaledFont.caption)
             .foregroundStyle(.secondary)
             .italic()
             .padding(.vertical, 8)
@@ -315,13 +315,13 @@ struct PracticeSessionSheet: View {
             OptionalFieldToggle(title: "Track Duration", isEnabled: $hasDuration) {
                 HStack {
                     Text("Duration (minutes)")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
 
                     Spacer()
 
                     Stepper("\(durationMinutes) min", value: $durationMinutes, in: 5...300, step: 5)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 }
                 .onChange(of: durationMinutes) { _, newValue in
                     duration = TimeInterval(newValue * 60)
@@ -335,7 +335,7 @@ struct PracticeSessionSheet: View {
 
             OptionalFieldToggle(title: "Add Location", isEnabled: $hasLocation) {
                 TextField("Location (e.g., Small table, Outside)", text: $location)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .textFieldStyle(.plain)
                     .padding(12)
                     .background(
@@ -365,7 +365,7 @@ struct PracticeSessionSheet: View {
     private func individualStudentCard(for student: Student) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(StudentFormatter.displayName(for: student))
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
 
             StudentUnderstandingSelector(level: Binding(
                 get: { individualUnderstandingLevels[student.id] ?? 3 },
@@ -374,7 +374,7 @@ struct PracticeSessionSheet: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 StyledNotesTextField(

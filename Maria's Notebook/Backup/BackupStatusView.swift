@@ -66,7 +66,7 @@ struct BackupStatusView: View {
                 Spacer()
                 if status.autoBackupDirectoryExists {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                 } else {
                     Text("Not found")
                         .foregroundStyle(.secondary)
@@ -101,10 +101,10 @@ struct BackupStatusView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Image(systemName: "checkmark.shield.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.success)
                         Text("Backup Verified Successfully")
                             .font(.headline)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.success)
                     }
                     
                     GroupBox {
@@ -145,10 +145,10 @@ struct BackupStatusView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                         Text("Verification Failed")
                             .font(.headline)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                     }
                     Text(error.localizedDescription)
                         .font(.caption)

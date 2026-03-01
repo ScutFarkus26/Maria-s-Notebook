@@ -25,7 +25,7 @@ struct WorkCompletionHistoryView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                     Text(errorMessage)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
@@ -42,7 +42,7 @@ struct WorkCompletionHistoryView: View {
                     ForEach(records) { record in
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(AppColors.success)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("\(record.completedAt.formatted(date: .abbreviated, time: .omitted)) • \(record.completedAt.formatted(date: .omitted, time: .shortened))")
                                 let noteText = record.latestUnifiedNoteText.trimmed()

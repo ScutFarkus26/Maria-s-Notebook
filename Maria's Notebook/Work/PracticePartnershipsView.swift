@@ -89,7 +89,7 @@ struct PracticePartnershipsView: View {
                 Image(systemName: "chart.bar.fill")
                     .foregroundStyle(.blue)
                 Text("Practice Statistics")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
             }
             
             HStack(spacing: 20) {
@@ -123,11 +123,11 @@ struct PracticePartnershipsView: View {
             if statistics.totalDuration > 0 {
                 HStack(spacing: 20) {
                     Label(statistics.totalDurationFormatted, systemImage: "clock.fill")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     
                     Label("Avg: \(statistics.averageDurationFormatted)", systemImage: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -147,12 +147,12 @@ struct PracticePartnershipsView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(color)
                 Text(value)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(color)
             }
             
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -164,9 +164,9 @@ struct PracticePartnershipsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "person.2.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.success)
                 Text("Practice Partners")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
             }
             
             ForEach(Array(partnerships.enumerated()), id: \.offset) { _, partnership in
@@ -176,12 +176,12 @@ struct PracticePartnershipsView: View {
                         .frame(width: 10, height: 10)
                     
                     Text(StudentFormatter.displayName(for: partnership.partner))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                     
                     Spacer()
                     
                     Text("\(partnership.sessionCount) session\(partnership.sessionCount == 1 ? "" : "s")")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -210,11 +210,11 @@ struct PracticePartnershipsView: View {
                 .foregroundStyle(.tertiary)
             
             Text(emptyStateTitle)
-                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
             
             Text(emptyStateMessage)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }
@@ -308,7 +308,7 @@ struct PracticePartnershipsSummaryCard: View {
                     Image(systemName: "person.2.fill")
                         .foregroundStyle(.blue)
                     Text("Practice Sessions")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                 }
                 
                 Spacer()
@@ -318,7 +318,7 @@ struct PracticePartnershipsSummaryCard: View {
                         onTapViewAll?()
                     } label: {
                         Text("View All")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.blue)
                     }
                 }
@@ -333,7 +333,7 @@ struct PracticePartnershipsSummaryCard: View {
                             .font(.system(size: 24))
                             .foregroundStyle(.tertiary)
                         Text("No practice sessions yet")
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 20)
@@ -351,7 +351,7 @@ struct PracticePartnershipsSummaryCard: View {
                 if !topPartners.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Practice Partners")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                         
@@ -362,12 +362,12 @@ struct PracticePartnershipsSummaryCard: View {
                                     .frame(width: 6, height: 6)
                                 
                                 Text(StudentFormatter.displayName(for: partnership.partner))
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .font(AppTheme.ScaledFont.caption)
                                 
                                 Spacer()
                                 
                                 Text("\(partnership.sessionCount)")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -378,7 +378,7 @@ struct PracticePartnershipsSummaryCard: View {
                 if !recentSessions.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Recent Sessions")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                         
@@ -399,11 +399,11 @@ struct PracticePartnershipsSummaryCard: View {
     private func statBadge(value: String, label: String, color: Color) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
                 .foregroundStyle(color)
             
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)

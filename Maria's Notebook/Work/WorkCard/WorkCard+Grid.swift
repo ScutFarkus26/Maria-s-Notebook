@@ -95,6 +95,7 @@ struct WorkCardGridContent: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
         .onTapGesture { config.onOpen(config.work) }
         .contextMenu {
             Button {

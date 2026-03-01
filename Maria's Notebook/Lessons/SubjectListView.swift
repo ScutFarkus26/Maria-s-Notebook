@@ -141,14 +141,14 @@ struct SubjectListRow: View {
             // Name and lesson count
             VStack(alignment: .leading, spacing: 2) {
                 Text(subject)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
                 // Lesson count as secondary text
                 HStack(spacing: 4) {
                     Circle().fill(subjectColor).frame(width: 6, height: 6)
                     Text("\(lessonCount) \(lessonCount == 1 ? "lesson" : "lessons")")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
                 }
             }

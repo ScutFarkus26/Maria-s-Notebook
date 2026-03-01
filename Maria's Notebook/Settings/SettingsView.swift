@@ -9,8 +9,14 @@ struct SettingsView: View {
     @State private var statsViewModel = SettingsStatsViewModel()
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var searchText = ""
 
     private var overviewColumns: [GridItem] {
+        // Fall back to single column at accessibility text sizes for readability
+        if dynamicTypeSize.isAccessibilitySize {
+            return [GridItem(.flexible())]
+        }
         // Use 2 columns on iPhone (compact), 4 columns on iPad (regular)
         let columnCount = horizontalSizeClass == .regular ? 4 : 2
         return Array(repeating: GridItem(.flexible(), spacing: 16), count: columnCount)
@@ -25,30 +31,31 @@ struct SettingsView: View {
                 Divider()
                 ScrollView {
                     VStack(spacing: 24) {
-                        // MARK: - 1. General
-                        generalSection
-
-                        // MARK: - 2. Data & Sync
-                        dataSyncSection
-
-                        // MARK: - 3. Backup & Data Management
-                        backupManagementSection
-
-                        // MARK: - 4. Templates
-                        templatesSection
-
-                        // MARK: - 5. Communication
-                        communicationSection
-
-                        // MARK: - 6. AI Features
-                        aiFeaturesSection
-
-                        // MARK: - 7. Database
-                        databaseSection
-
+                        if matchesSearch("general school calendar display colors lesson age work age") {
+                            generalSection
+                        }
+                        if matchesSearch("data sync icloud reminders calendar backup") {
+                            dataSyncSection
+                        }
+                        if matchesSearch("backup restore data management export import") {
+                            backupManagementSection
+                        }
+                        if matchesSearch("templates note meeting") {
+                            templatesSection
+                        }
+                        if matchesSearch("communication attendance email") {
+                            communicationSection
+                        }
+                        if matchesSearch("ai features claude api lesson planning assistant") {
+                            aiFeaturesSection
+                        }
+                        if matchesSearch("database statistics records overview storage") {
+                            databaseSection
+                        }
                         #if DEBUG
-                        // MARK: - 8. Advanced (Debug Only)
-                        advancedSection
+                        if matchesSearch("advanced debug test students") {
+                            advancedSection
+                        }
                         #endif
                     }
                     .frame(maxWidth: 900)
@@ -57,6 +64,7 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
+            .searchable(text: $searchText, prompt: "Search settings")
         }
 #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -70,6 +78,14 @@ struct SettingsView: View {
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
             }
         }
+    }
+
+    // MARK: - Search Filtering
+
+    private func matchesSearch(_ keywords: String) -> Bool {
+        guard !searchText.isEmpty else { return true }
+        let query = searchText.lowercased()
+        return keywords.lowercased().contains(query)
     }
 
     // MARK: - Section Definitions
@@ -242,11 +258,11 @@ struct SettingsView: View {
                                 if AnthropicAPIClient.hasAPIKey() {
                                     Label("API key configured", systemImage: "checkmark.circle.fill")
                                         .font(.caption)
-                                        .foregroundStyle(.green)
+                                        .foregroundStyle(AppColors.success)
                                 } else {
                                     Label("API key required", systemImage: "exclamationmark.triangle")
                                         .font(.caption)
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(AppColors.warning)
                                 }
                             }
                             Spacer()

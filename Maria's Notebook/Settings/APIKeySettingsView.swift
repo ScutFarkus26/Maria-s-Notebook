@@ -74,11 +74,11 @@ struct APIKeySettingsView: View {
                     if AnthropicAPIClient.hasAPIKey() {
                         Label("API key configured", systemImage: "checkmark.circle.fill")
                             .font(.caption)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.success)
                     } else {
                         Label("No API key configured", systemImage: "xmark.circle")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppColors.warning)
                     }
                 }
             }

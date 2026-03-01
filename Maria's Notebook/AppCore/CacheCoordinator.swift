@@ -415,10 +415,10 @@ struct CacheMetricRow: View {
             
             HStack {
                 Label("\(metric.hitCount)", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                
+                    .foregroundStyle(AppColors.success)
+
                 Label("\(metric.missCount)", systemImage: "xmark.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.destructive)
                 
                 Text("Hit Rate: \(metric.hitRate.formatAsPercentage())")
                     .font(.caption)

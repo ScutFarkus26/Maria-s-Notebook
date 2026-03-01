@@ -27,13 +27,13 @@ struct WorkItemCompactRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(work.title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 6) {
                     if let student = work.fetchStudent(from: modelContext) {
                         Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
 
@@ -41,7 +41,7 @@ struct WorkItemCompactRow: View {
                         Text("•")
                             .foregroundStyle(.tertiary)
                         Text(kind.rawValue)
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -51,7 +51,7 @@ struct WorkItemCompactRow: View {
 
             // Status badge
             Text(work.status.rawValue.capitalized)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(work.status.color)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)

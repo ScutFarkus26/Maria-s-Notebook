@@ -145,7 +145,7 @@ struct AttendanceInfoRow: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
                 Text("Attendance (This School Year)")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)

@@ -40,7 +40,7 @@ struct IntroductionCard: View {
                         .foregroundStyle(subjectColor)
 
                     Text("Introduction")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                         .tracking(0.5)
@@ -50,14 +50,14 @@ struct IntroductionCard: View {
 
                 // Title: Group name or Album
                 Text(introduction.displayTitle)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 // Content excerpt
                 Text(contentExcerpt)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
@@ -72,7 +72,7 @@ struct IntroductionCard: View {
                             Image(systemName: "person.2.fill")
                                 .font(.system(size: 10))
                             Text(ageRange)
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                         }
                         .foregroundStyle(subjectColor.opacity(0.8))
                         .padding(.horizontal, 8)
@@ -87,7 +87,7 @@ struct IntroductionCard: View {
                             Image(systemName: "arrow.right.circle.fill")
                                 .font(.system(size: 10))
                             Text("Prerequisites")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                         }
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)

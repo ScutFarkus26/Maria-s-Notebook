@@ -506,7 +506,7 @@ struct LessonAssignmentHistoryView: View {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title(for: la))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                     HStack(spacing: 6) {
                         if let presentedAt = la.presentedAt {
                             Text(Self.timeFormatter.string(from: presentedAt))
@@ -572,7 +572,7 @@ struct LessonAssignmentHistoryView: View {
     private func noteRow(_ note: Note) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(note.body)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
 

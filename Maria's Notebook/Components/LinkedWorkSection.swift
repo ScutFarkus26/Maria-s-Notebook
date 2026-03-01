@@ -15,7 +15,7 @@ struct LinkedWorkSection: View {
                             .foregroundStyle(.secondary)
                             .font(.system(size: 16))
                         Text("Linked Work")
-                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.calloutSemibold)
                             .foregroundStyle(.secondary)
                     }
 

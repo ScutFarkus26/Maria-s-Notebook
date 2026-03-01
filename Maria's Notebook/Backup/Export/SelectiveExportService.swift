@@ -209,7 +209,7 @@ public final class SelectiveExportService {
     ) -> ExportStatistics {
         var includedCounts: [String: Int] = [:]
         var excludedCounts: [String: Int] = [:]
-        var relatedEntitiesAdded = 0
+        let relatedEntitiesAdded = 0
 
         // Count all entities
         let allStudents = safeFetch(FetchDescriptor<Student>(), context: modelContext)

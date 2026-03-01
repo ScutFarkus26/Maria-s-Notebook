@@ -6,12 +6,12 @@ struct ChangeLessonControl: View {
     var body: some View {
         HStack {
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                     showLessonPicker = true
                 }
             } label: {
                 Label("Change Lesson…", systemImage: "pencil")
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)

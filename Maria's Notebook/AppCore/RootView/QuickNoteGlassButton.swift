@@ -28,7 +28,7 @@ struct QuickNoteGlassButton: View {
         // Main button with fixed size
         visualContent
             .scaleEffect(isPressed && !isPieMenuExpanded ? 0.92 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
+            .adaptiveAnimation(.easeInOut(duration: 0.1), value: isPressed)
             .overlay {
                 // Pie menu segments overlay (doesn't affect button layout)
                 if isPieMenuExpanded {
@@ -70,7 +70,7 @@ struct QuickNoteGlassButton: View {
                 .frame(width: pieMenuRadius * 2 + 26, height: pieMenuRadius * 2 + 26)
                 .scaleEffect(sparklePhase ? 1.04 : 0.96)
                 .opacity(0.95)
-                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: sparklePhase)
+                .adaptiveAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: sparklePhase)
 
             ForEach(0..<6, id: \.self) { index in
                 Image(systemName: "sparkle")
@@ -79,7 +79,7 @@ struct QuickNoteGlassButton: View {
                     .offset(orbitOffset(for: index, radius: pieMenuRadius + 20))
                     .rotationEffect(.degrees(sparklePhase ? 360 : 0))
                     .opacity(0.8)
-                    .animation(
+                    .adaptiveAnimation(
                         .linear(duration: 2.6 + Double(index) * 0.2)
                             .repeatForever(autoreverses: false),
                         value: sparklePhase
@@ -151,7 +151,7 @@ struct QuickNoteGlassButton: View {
                 .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
             #endif
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPieMenuExpanded)
+        .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.7), value: isPieMenuExpanded)
     }
 
     private var combinedGesture: some Gesture {
@@ -196,7 +196,7 @@ struct QuickNoteGlassButton: View {
                     }
 
                     // Close pie menu
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isPieMenuExpanded = false
                         highlightedAction = nil
                     }
@@ -213,7 +213,7 @@ struct QuickNoteGlassButton: View {
                     savedOffsetX = finalOffset.width
                     savedOffsetY = finalOffset.height
 
-                    withAnimation(.snappy(duration: 0.25, extraBounce: 0)) {
+                    adaptiveWithAnimation(.snappy(duration: 0.25, extraBounce: 0)) {
                         self.offset = finalOffset
                     }
                 }
@@ -231,7 +231,7 @@ struct QuickNoteGlassButton: View {
                 let distance = hypot(dragTranslation.width, dragTranslation.height)
                 guard distance < 10 else { return }
 
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                     isPieMenuExpanded = true
                 }
 

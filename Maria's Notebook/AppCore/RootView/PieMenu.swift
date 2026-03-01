@@ -110,7 +110,7 @@ struct PieMenuSegment: View {
                 Image(systemName: action.icon)
                     .font(.system(size: 19, weight: .bold, design: .rounded))
                 Text(action.label)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
             }
             .foregroundStyle(.white)
             .offset(iconOffset)
@@ -119,12 +119,12 @@ struct PieMenuSegment: View {
         .scaleEffect(isExpanded ? (isHighlighted ? 1.08 : 1.0) : 0.2)
         .rotationEffect(.degrees(isExpanded ? 0 : 14))
         .opacity(isExpanded ? 1.0 : 0.0)
-        .animation(
+        .adaptiveAnimation(
             .spring(response: 0.42, dampingFraction: 0.68)
                 .delay(action.animationDelay),
             value: isExpanded
         )
-        .animation(.easeInOut(duration: 0.15), value: isHighlighted)
+        .adaptiveAnimation(.easeInOut(duration: 0.15), value: isHighlighted)
     }
 
     private var iconOffset: CGSize {

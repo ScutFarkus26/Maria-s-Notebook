@@ -210,11 +210,11 @@ struct GroupTrackDetailView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(color)
                 Text("\(count)")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutBold)
                     .foregroundStyle(color)
             }
             Text(label)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.secondary)
         }
     }
@@ -281,7 +281,7 @@ private struct LessonStepRow: View {
         case .mastered:
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 14))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.success)
         }
     }
 

@@ -44,7 +44,7 @@ struct ProgressionLessonRow: View {
                     } else if case .scheduled(let date) = node.status {
                         Text("Scheduled \(date, style: .date)")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppColors.warning)
                     } else {
                         Text("—")
                             .font(.caption)
@@ -122,7 +122,7 @@ struct ProgressionLessonRow: View {
                     Text("Check-in \(next.date, style: .date)")
                         .font(.caption2)
                 }
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.warning)
             }
         }
     }

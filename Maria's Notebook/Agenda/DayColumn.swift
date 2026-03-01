@@ -71,17 +71,17 @@ struct DayColumn: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(dayName)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                 Text(dayNumber)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
 
                 if isNonSchoolDaySync(day) {
                     Text("No School")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
                         .background(Capsule().fill(Color.red.opacity(0.15)))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                 }
             }
             .padding(.bottom, 2)
@@ -166,7 +166,7 @@ struct DayColumn: View {
 
     private func periodChip(title: String, tint: Color) -> some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .foregroundStyle(tint)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

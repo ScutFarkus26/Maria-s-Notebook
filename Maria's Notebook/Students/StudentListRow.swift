@@ -95,7 +95,7 @@ struct StudentListRow: View {
 
             // Name only
             Text(student.fullName)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.primary)
 
             Spacer()

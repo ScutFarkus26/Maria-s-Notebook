@@ -62,7 +62,7 @@ struct DefaultStudentCard: View {
     @ViewBuilder
     private func ageBadge(text: String) -> some View {
         Text(text)
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Capsule().fill(Color.primary.opacity(0.08)))
@@ -73,7 +73,7 @@ struct DefaultStudentCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 Text(displayName)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
                     if showAge {
@@ -158,7 +158,7 @@ struct AgeStudentCard: View {
                 .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
                 .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
             Text(text)
-                .font(.system(size: 40, weight: .black, design: .rounded))
+                .font(AppTheme.ScaledFont.titleXLarge)
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -195,7 +195,7 @@ struct AgeStudentCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
                     Text(displayName)
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)
                     headerIcon
@@ -292,15 +292,15 @@ struct LastLessonStudentCard: View {
                         .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(.white)
                     Text("New!")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutBold)
                         .foregroundStyle(.white)
                 } else {
                     Text("\(days)")
-                        .font(.system(size: 40, weight: .black, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
                         .foregroundStyle(.white)
                         .bobbingAnimation(bob: $bob)
                     Text(days == 1 ? "day" : "days")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.white.opacity(0.9))
                 }
             }
@@ -334,7 +334,7 @@ struct LastLessonStudentCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
                     Text(displayName)
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)
                     headerIcon
@@ -344,7 +344,7 @@ struct LastLessonStudentCard: View {
                     .frame(maxWidth: .infinity)
 
                 Text(statusMessage)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.white)
                     .padding(.vertical, 6)
                     .padding(.horizontal, 12)
@@ -389,7 +389,7 @@ struct BirthdayStudentCard: View {
                 // Top: name + balloon (subtle, not competing)
                 HStack(alignment: .top) {
                     Text(displayName)
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)
                     balloon
@@ -402,7 +402,7 @@ struct BirthdayStudentCard: View {
                             .frame(maxWidth: .infinity)
 
                         Text("\(firstNameOnly) turns \(turningAge) today")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.white)
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
@@ -413,7 +413,7 @@ struct BirthdayStudentCard: View {
                             .frame(maxWidth: .infinity)
 
                         Text("until \(firstNameOnly) turns \(turningAge) on \(dateLabel)")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.white)
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
@@ -440,11 +440,11 @@ struct BirthdayStudentCard: View {
     private var bigDaysEmphasis: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("\(daysUntil)")
-                .font(.system(size: 44, weight: .black, design: .rounded))
+                .font(AppTheme.ScaledFont.titleXLarge)
                 .foregroundStyle(.white)
                 .bobbingAnimation(bob: $bob)
             Text(daysUntil == 1 ? "day" : "days")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleMedium)
                 .foregroundStyle(.white.opacity(0.95))
         }
         .padding(.vertical, 10)
@@ -457,7 +457,7 @@ struct BirthdayStudentCard: View {
 
     private var bigTodayBadge: some View {
         Text("Today")
-            .font(.system(size: 36, weight: .black, design: .rounded))
+            .font(AppTheme.ScaledFont.titleXLarge)
             .foregroundStyle(.white)
             .padding(.vertical, 10)
             .padding(.horizontal, 18)

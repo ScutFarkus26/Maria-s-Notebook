@@ -371,7 +371,7 @@ struct PresentationQuickActionsView: View {
 
     private var plannedBanner: some View {
         Text("Next lesson added to Ready to Schedule")
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(

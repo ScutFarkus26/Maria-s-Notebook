@@ -76,7 +76,7 @@ struct QuickNewWorkItemSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     Text("New Work")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Lesson Section
                     lessonSection()
@@ -237,7 +237,7 @@ struct QuickNewWorkItemSheet: View {
     // MARK: - Student Section
 
     private func removeStudent(id: UUID) {
-        _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             selectedStudentIDs.remove(id)
         }
     }
@@ -246,7 +246,7 @@ struct QuickNewWorkItemSheet: View {
     private func studentChip(for student: Student) -> some View {
         HStack(spacing: 4) {
             Text(StudentFormatter.displayName(for: student))
-                .font(.system(size: 14, weight: .medium))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.horizontal, AppTheme.Spacing.compact)
                 .padding(.vertical, AppTheme.Spacing.verySmall)
                 .background(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
@@ -299,7 +299,7 @@ struct QuickNewWorkItemSheet: View {
                     )
                 }
             }
-            .animation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedStudentIDs)
+            .adaptiveAnimation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedStudentIDs)
 
             if selectedStudentIDs.isEmpty {
                 Text("Add at least one student.")
@@ -381,7 +381,7 @@ struct QuickNewWorkItemSheet: View {
                             Image(systemName: legacyReasonIcon(checkInReason))
                                 .font(.system(size: 12, weight: .medium))
                             Text(legacyReasonLabel(checkInReason))
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 10, weight: .semibold))
                         }
@@ -400,7 +400,7 @@ struct QuickNewWorkItemSheet: View {
             if selectedStudentIDs.count > 1 {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Check-In Style")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     
                     HStack(spacing: 8) {
@@ -412,7 +412,7 @@ struct QuickNewWorkItemSheet: View {
                                 icon: style.iconName,
                                 label: style.displayName
                             ) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     checkInStyle = style
                                 }
                             }

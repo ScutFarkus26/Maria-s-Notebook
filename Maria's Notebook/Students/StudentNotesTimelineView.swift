@@ -137,7 +137,7 @@ private struct StudentNotesTimelineList: View {
 
     private func loadMoreItems() {
         let newCount = min(displayedCount + pageSize, allFilteredItems.count)
-        withAnimation {
+        adaptiveWithAnimation {
             displayedCount = newCount
         }
     }
@@ -220,7 +220,7 @@ private struct StudentNotesTimelineList: View {
                                 title: filter.rawValue,
                                 isSelected: selectedFilter == filter
                             ) {
-                                withAnimation {
+                                adaptiveWithAnimation {
                                     selectedFilter = filter
                                     resetPagination()
                                 }
@@ -346,7 +346,7 @@ private struct StudentNotesTimelineList: View {
             // Selection mode toggle
             ToolbarItem(placement: .automatic) {
                 Button(isSelecting ? "Done" : "Select") {
-                    withAnimation {
+                    adaptiveWithAnimation {
                         if isSelecting {
                             selectedNoteIDs.removeAll()
                         }
@@ -439,7 +439,7 @@ private struct StudentNotesTimelineList: View {
     // MARK: - Batch Operations
 
     private func performBatchAction(_ action: (Set<UUID>) -> Void) {
-        withAnimation {
+        adaptiveWithAnimation {
             action(selectedNoteIDs)
             selectedNoteIDs.removeAll()
             isSelecting = false
@@ -477,7 +477,7 @@ private struct StudentNotesTimelineList: View {
     
     private func addNote() {
         guard canAdd else { return }
-        withAnimation {
+        adaptiveWithAnimation {
             viewModel.addGeneralNote(body: newNoteText)
             newNoteText = ""
         }
@@ -612,7 +612,7 @@ private struct StudentNotesTimelineList: View {
 
     @MainActor
     private func togglePin(_ note: Note) {
-        withAnimation {
+        adaptiveWithAnimation {
             note.isPinned.toggle()
             note.updatedAt = Date()
             do {
@@ -631,7 +631,7 @@ private struct StudentNotesTimelineList: View {
             HStack(spacing: 8) {
                 ForEach(allUsedTags, id: \.self) { tag in
                     Button {
-                        withAnimation {
+                        adaptiveWithAnimation {
                             if selectedFilterTags.contains(tag) {
                                 selectedFilterTags.remove(tag)
                             } else {
@@ -649,7 +649,7 @@ private struct StudentNotesTimelineList: View {
                 // Clear all button
                 if !selectedFilterTags.isEmpty {
                     Button {
-                        withAnimation {
+                        adaptiveWithAnimation {
                             selectedFilterTags.removeAll()
                             resetPagination()
                         }
@@ -678,7 +678,7 @@ private struct StudentNotesTimelineList: View {
             Spacer()
 
             Button {
-                withAnimation {
+                adaptiveWithAnimation {
                     searchText = ""
                     debouncedSearchText = ""
                     selectedFilterTags.removeAll()

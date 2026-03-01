@@ -72,12 +72,12 @@ struct GroupIntroductionSheet: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
                 Text(value)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
             }
         }
@@ -93,13 +93,13 @@ struct GroupIntroductionSheet: View {
     private var markdownContent: some View {
         if let attributedString = parseMarkdown(introduction.content) {
             Text(attributedString)
-                .font(.system(size: 15, weight: .regular, design: .default))
+                .font(AppTheme.ScaledFont.body)
                 .lineSpacing(6)
                 .textSelection(.enabled)
         } else {
             // Fallback for plain text
             Text(introduction.content)
-                .font(.system(size: 15, weight: .regular, design: .default))
+                .font(AppTheme.ScaledFont.body)
                 .lineSpacing(6)
                 .textSelection(.enabled)
         }

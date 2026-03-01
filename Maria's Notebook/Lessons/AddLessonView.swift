@@ -35,7 +35,7 @@ struct AddLessonView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Add Lesson")
-                .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleLarge)
 
             HStack {
                 Spacer()

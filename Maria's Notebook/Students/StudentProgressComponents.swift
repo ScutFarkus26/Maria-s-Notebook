@@ -30,11 +30,11 @@ struct ProgressCardHeader: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.primary)
 
                 Text(subtitle)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
             }
 
@@ -89,17 +89,17 @@ struct ProgressStatsSection: View {
             // Progress stats
             HStack(alignment: .lastTextBaseline, spacing: 8) {
                 Text("\(completed)")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleXLarge)
                     .foregroundStyle(color)
 
                 Text("/ \(total) \(completionLabel)")
-                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                     .foregroundStyle(.secondary)
 
                 Spacer()
 
                 Text("\(Int(progressPercent * 100))%")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                     .foregroundStyle(progressPercent >= 1.0 ? .green : .primary)
             }
 
@@ -254,16 +254,16 @@ struct NextItemBanner: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.primary)
 
                 if let subtitle = subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -357,7 +357,8 @@ private struct StatusBannerView: View {
                 )
 
             Text(message)
-                .font(.system(size: AppTheme.FontSize.callout, weight: fontWeight, design: .rounded))
+                .font(AppTheme.ScaledFont.callout)
+                .fontWeight(fontWeight)
                 .foregroundStyle(
                     textGradient.map {
                         AnyShapeStyle(LinearGradient(colors: $0, startPoint: .leading, endPoint: .trailing))
@@ -385,10 +386,10 @@ struct ActivityStatsRow: View {
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: 8) {
             Text("\(totalActivity)")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleXLarge)
                 .foregroundStyle(color)
             Text("total activities")
-                .font(.system(size: 20, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.titleMedium)
                 .foregroundStyle(.secondary)
             Spacer()
         }
@@ -408,10 +409,10 @@ struct ProgressStatBadge: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(color)
             Text("\(count)")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.primary)
             Text(label)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 10)
@@ -431,7 +432,7 @@ struct LastActivityRow: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Text("Last activity \(lastActivityDate, style: .relative)")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 4)
@@ -451,10 +452,10 @@ struct NotesPreviewSection: View {
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                 Text(notes)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.callout)
                     .foregroundStyle(.primary)
                     .lineLimit(3)
             }

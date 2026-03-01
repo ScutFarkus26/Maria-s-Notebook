@@ -76,7 +76,7 @@ struct PresentationCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(lessonName)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 Spacer(minLength: 0)
                 subjectBadge
             }
@@ -87,7 +87,7 @@ struct PresentationCard: View {
                         ForEach(studentChips, id: \.id) { chip in
                             HStack(spacing: AppTheme.Spacing.verySmall) {
                                 Text(chip.label)
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .foregroundStyle(chip.isMissing ? .secondary : .primary)
                             }
                             .padding(.horizontal, 10)
@@ -102,7 +102,7 @@ struct PresentationCard: View {
             }
 
             Text(statusText)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)

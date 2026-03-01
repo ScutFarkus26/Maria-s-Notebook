@@ -81,7 +81,7 @@ struct LessonProgressView: View {
         HStack {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 Text(lesson.name)
-                    .font(.system(size: AppTheme.FontSize.titleMedium, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 
                 HStack(spacing: AppTheme.Spacing.small) {
                     if !lesson.subject.isEmpty {
@@ -111,7 +111,7 @@ struct LessonProgressView: View {
         HStack(spacing: 0) {
             ForEach(ProgressTab.allCases, id: \.self) { tab in
                 Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         selectedTab = tab
                     }
                 } label: {
@@ -119,7 +119,7 @@ struct LessonProgressView: View {
                         Image(systemName: tab.icon)
                             .font(.system(size: 14, weight: .medium))
                         Text(tab.rawValue)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                     }
                     .foregroundStyle(selectedTab == tab ? Color.white : Color.primary)
                     .padding(.horizontal, AppTheme.Spacing.medium)
@@ -149,7 +149,7 @@ struct LessonProgressView: View {
                 // Journey timeline
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
                     Text("Lesson Journey")
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleSmall)
                     
                     LessonJourneyTimeline(lesson: lesson, modelContext: modelContext)
                         .frame(height: 350)
@@ -211,14 +211,14 @@ struct LessonProgressView: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleLarge)
                 
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                 
                 Text(subtitle)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -234,7 +234,7 @@ struct LessonProgressView: View {
     private func quickInsights(stats: LessonStats) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             Text("Insights")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 if stats.activeWorkItems > 0 {
@@ -280,7 +280,7 @@ struct LessonProgressView: View {
                 .foregroundStyle(color)
             
             Text(text)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.primary)
         }
         .padding(AppTheme.Spacing.compact)
@@ -326,11 +326,11 @@ struct LessonProgressView: View {
 
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall + 1) {
                     Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                     
                     if let date = presentation.presentedAt ?? presentation.scheduledFor {
                         Text(date.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -355,7 +355,7 @@ struct LessonProgressView: View {
                     
                     let completed = work.filter { $0.status == .complete }.count
                     Text("\(work.count) work \(work.count == 1 ? "item" : "items") (\(completed) complete)")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.leading, 56)
@@ -406,12 +406,12 @@ struct LessonProgressView: View {
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
                 Text(work.title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
 
                 HStack(spacing: AppTheme.Spacing.verySmall) {
                     if let student = work.fetchStudent(from: modelContext) {
                         Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                     
@@ -419,7 +419,7 @@ struct LessonProgressView: View {
                         Text("•")
                             .foregroundStyle(.tertiary)
                         Text(kind.displayName)
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -479,10 +479,10 @@ struct LessonProgressView: View {
 
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall + 1) {
                     Text(session.isGroupSession ? "Group Practice" : "Solo Practice")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                     
                     Text(session.date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
                 
@@ -506,7 +506,7 @@ struct LessonProgressView: View {
                         .foregroundStyle(.secondary)
                     
                     Text(students.map { StudentFormatter.displayName(for: $0) }.joined(separator: ", "))
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -530,11 +530,11 @@ struct LessonProgressView: View {
 
             VStack(spacing: AppTheme.Spacing.verySmall) {
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.secondary)
                 
                 Text(message)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
             }

@@ -37,11 +37,11 @@ struct LessonJourneyTimeline: View {
                 .foregroundStyle(.tertiary)
             
             Text("No presentations yet")
-                .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
             
             Text("This lesson hasn't been presented to any students")
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -73,12 +73,12 @@ struct LessonJourneyTimeline: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.primary)
                         
                         if let date = presentation.presentedAt ?? presentation.scheduledFor {
                             Text(date.formatted(date: .abbreviated, time: .omitted))
-                                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -89,18 +89,18 @@ struct LessonJourneyTimeline: View {
                 if !students.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(students.count) \(students.count == 1 ? "Student" : "Students")")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                         
                         ForEach(students.prefix(3)) { student in
                             Text("• \(StudentFormatter.displayName(for: student))")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
                         
                         if students.count > 3 {
                             Text("+ \(students.count - 3) more")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.tertiary)
                         }
                     }
@@ -129,7 +129,7 @@ struct LessonJourneyTimeline: View {
                             .font(.system(size: 12))
                             .foregroundStyle(.blue)
                         Text("Work (\(work.count))")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                     }
                     
@@ -139,7 +139,7 @@ struct LessonJourneyTimeline: View {
                     
                     if work.count > 3 {
                         Text("+ \(work.count - 3) more")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.tertiary)
                             .padding(.leading, 8)
                     }
@@ -165,7 +165,7 @@ struct LessonJourneyTimeline: View {
                                 .font(.system(size: 12))
                                 .foregroundStyle(.purple)
                             Text("Practice (\(sessions.count))")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                                 .foregroundStyle(.secondary)
                         }
                         
@@ -175,7 +175,7 @@ struct LessonJourneyTimeline: View {
                         
                         if sessions.count > 3 {
                             Text("+ \(sessions.count - 3) more")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.tertiary)
                                 .padding(.leading, 8)
                         }
@@ -207,7 +207,7 @@ struct LessonJourneyTimeline: View {
                 .frame(width: 6, height: 6)
             
             Text(work.title)
-                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmall)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -227,7 +227,7 @@ struct LessonJourneyTimeline: View {
                 .foregroundStyle(.purple)
             
             Text(session.date.formatted(date: .abbreviated, time: .omitted))
-                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmall)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -306,7 +306,7 @@ struct LessonJourneyTimeline: View {
     return ScrollView {
         VStack(spacing: 20) {
             Text("Lesson Journey")
-                .font(.system(size: AppTheme.FontSize.titleLarge, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleLarge)
             
             LessonJourneyTimeline(lesson: lesson, modelContext: context)
                 .frame(height: 400)

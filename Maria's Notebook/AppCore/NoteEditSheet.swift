@@ -40,7 +40,7 @@ struct NoteEditSheet: View {
             // Header
             HStack {
                 Text("Note")
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                     .foregroundStyle(.primary)
                 Spacer()
                 HStack(spacing: 12) {
@@ -111,7 +111,7 @@ struct NoteEditSheet: View {
                 // Main text editor - the star of the show
                 TextEditor(text: $bodyText)
                     .focused($isTextEditorFocused)
-                    .font(.system(size: 18, design: .default))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .lineSpacing(6)
                     .frame(minHeight: 300)
                     .padding(.horizontal, 28)
@@ -127,7 +127,7 @@ struct NoteEditSheet: View {
                     // Tags section
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Tags")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.5)
@@ -138,7 +138,7 @@ struct NoteEditSheet: View {
                                     HStack(spacing: 4) {
                                         TagBadge(tag: tag)
                                         Button {
-                                            withAnimation { tags.removeAll { $0 == tag } }
+                                            adaptiveWithAnimation { tags.removeAll { $0 == tag } }
                                         } label: {
                                             Image(systemName: "xmark.circle.fill")
                                                 .font(.system(size: 12))
@@ -154,7 +154,7 @@ struct NoteEditSheet: View {
                                         Image(systemName: "plus")
                                             .font(.system(size: 12, weight: .medium))
                                         Text("Add Tag")
-                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .font(AppTheme.ScaledFont.bodySemibold)
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
@@ -174,9 +174,9 @@ struct NoteEditSheet: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "pin.fill")
                                         .font(.system(size: 12))
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(AppColors.warning)
                                     Text("Pin to Top")
-                                        .font(.system(size: 15, design: .rounded))
+                                        .font(AppTheme.ScaledFont.body)
                                 }
                             }
                             .toggleStyle(.switch)
@@ -185,9 +185,9 @@ struct NoteEditSheet: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "flag.fill")
                                         .font(.system(size: 12))
-                                        .foregroundStyle(.red)
+                                        .foregroundStyle(AppColors.destructive)
                                     Text("Follow Up")
-                                        .font(.system(size: 15, design: .rounded))
+                                        .font(AppTheme.ScaledFont.body)
                                 }
                             }
                             .toggleStyle(.switch)
@@ -197,7 +197,7 @@ struct NoteEditSheet: View {
                                     Image(systemName: "doc.text.fill")
                                         .font(.system(size: 12))
                                     Text("Include in Report")
-                                        .font(.system(size: 15, design: .rounded))
+                                        .font(AppTheme.ScaledFont.body)
                                 }
                             }
                             .toggleStyle(.switch)
@@ -210,7 +210,7 @@ struct NoteEditSheet: View {
                                 Image(systemName: "photo.fill")
                                     .font(.system(size: 12))
                                 Text("Photo attached")
-                                    .font(.system(size: 15, design: .rounded))
+                                    .font(AppTheme.ScaledFont.body)
                             }
                             .foregroundStyle(.secondary)
                         }
@@ -479,7 +479,7 @@ struct NoteCustomTagSheet: View {
                                                 .strokeBorder(Color.primary, lineWidth: selectedColor == color ? 3 : 0)
                                         )
                                     Text(color.rawValue)
-                                        .font(.system(size: 11))
+                                        .font(AppTheme.ScaledFont.captionSmall)
                                         .foregroundStyle(.secondary)
                                 }
                             }

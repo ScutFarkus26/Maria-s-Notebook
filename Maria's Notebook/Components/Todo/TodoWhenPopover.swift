@@ -16,7 +16,7 @@ struct TodoWhenPopover: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             Text("When")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -97,7 +97,7 @@ struct TodoWhenPopover: View {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .medium))
                 Text(title)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Spacing.small)
@@ -118,7 +118,7 @@ struct TodoWhenPopover: View {
             // Month navigation
             HStack {
                 Button {
-                    withAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
+                    adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
                         displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
                     }
                 } label: {
@@ -131,12 +131,12 @@ struct TodoWhenPopover: View {
                 Spacer()
 
                 Text(monthYearString(displayedMonth))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
 
                 Spacer()
 
                 Button {
-                    withAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
+                    adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
                         displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
                     }
                 } label: {
@@ -151,7 +151,7 @@ struct TodoWhenPopover: View {
             HStack(spacing: 0) {
                 ForEach(weekdaySymbols, id: \.self) { sym in
                     Text(sym)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity)
                 }
@@ -186,7 +186,8 @@ struct TodoWhenPopover: View {
                 } label: {
                     VStack(spacing: 1) {
                         Text("\(calendar.component(.day, from: d))")
-                            .font(.system(size: 13, weight: isSelected ? .bold : (isToday ? .semibold : .regular)))
+                            .font(AppTheme.ScaledFont.caption)
+                            .fontWeight(isSelected ? .bold : (isToday ? .semibold : .regular))
                             .foregroundStyle(
                                 isSelected ? .white :
                                 isPast ? .secondary.opacity(0.5) :
@@ -222,9 +223,9 @@ struct TodoWhenPopover: View {
                 HStack(spacing: AppTheme.Spacing.small) {
                     Image(systemName: "flag.fill")
                         .font(.system(size: 12))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                     Text("Deadline: \(deadlineDateString(deadline))")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.primary)
                     Spacer()
                     Button {
@@ -250,12 +251,12 @@ struct TodoWhenPopover: View {
                 }
 
                 Button {
-                    withAnimation(UIConstants.SpringAnimation.standard) {
+                    adaptiveWithAnimation(UIConstants.SpringAnimation.standard) {
                         showDeadlinePicker.toggle()
                     }
                 } label: {
                     Text(showDeadlinePicker ? "Done" : "Change Deadline")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.blue)
                 }
                 .buttonStyle(.plain)
@@ -268,7 +269,7 @@ struct TodoWhenPopover: View {
                         Image(systemName: "flag")
                             .font(.system(size: 12))
                         Text("Add Deadline")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -353,7 +354,7 @@ struct TodoSchedulePickerButton: View {
                 Image(systemName: displayIcon)
                     .font(.system(size: 12))
                 Text(displayText)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
             }
             .foregroundStyle(displayColor)
             .padding(.horizontal, AppTheme.Spacing.small)

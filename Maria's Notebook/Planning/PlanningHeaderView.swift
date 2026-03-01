@@ -14,7 +14,7 @@ struct PlanningHeaderView: View {
                 .buttonStyle(.plain)
 
             Text(weekRange)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
 
             Button(action: onNextWeek) { Image(systemName: "chevron.right") }
                 .buttonStyle(.plain)
@@ -22,7 +22,7 @@ struct PlanningHeaderView: View {
             Spacer()
 
             Button("Today", action: onToday)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(Color.primary.opacity(0.08), in: Capsule())

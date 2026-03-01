@@ -150,18 +150,18 @@ struct QuickPracticeSessionSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if let student = studentForWork {
                         Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                            .font(AppTheme.ScaledFont.titleSmall)
                     }
 
                     Text(workItem.title)
-                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                        .font(AppTheme.ScaledFont.body)
                         .foregroundStyle(.secondary)
                 }
             }
 
             DatePicker("Practice Date", selection: $sessionDate, displayedComponents: .date)
                 .datePickerStyle(.compact)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
         }
     }
 
@@ -169,13 +169,13 @@ struct QuickPracticeSessionSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $hasDuration) {
                 Text("Track Duration")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
             }
 
             if hasDuration {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Quick Presets")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
 
                     HStack(spacing: 8) {
@@ -184,7 +184,7 @@ struct QuickPracticeSessionSheet: View {
                                 durationMinutes = minutes
                             } label: {
                                 Text("\(minutes) min")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .foregroundStyle(durationMinutes == minutes ? .white : .primary)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
@@ -198,7 +198,7 @@ struct QuickPracticeSessionSheet: View {
                     }
 
                     Stepper("Custom: \(durationMinutes) min", value: $durationMinutes, in: 5...120, step: 5)
-                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                        .font(AppTheme.ScaledFont.body)
                 }
                 .padding(.leading, 24)
             }
@@ -208,24 +208,24 @@ struct QuickPracticeSessionSheet: View {
     private var partnerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
-                withAnimation {
+                adaptiveWithAnimation {
                     showPartnerSelector.toggle()
                 }
             } label: {
                 HStack {
                     Text("Practice Partners")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.primary)
 
                     Text("(Optional)")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
 
                     Spacer()
 
                     if !selectedPartnerIDs.isEmpty {
                         Text("\(selectedPartnerIDs.count)")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -242,7 +242,7 @@ struct QuickPracticeSessionSheet: View {
             if showPartnerSelector {
                 if suggestedPartners.isEmpty {
                     Text("No co-learners found")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .italic()
                 } else {
@@ -268,7 +268,7 @@ struct QuickPracticeSessionSheet: View {
                     .font(.system(size: 20))
 
                 Text(StudentFormatter.displayName(for: student))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -286,12 +286,12 @@ struct QuickPracticeSessionSheet: View {
     private var qualityMetricsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Quality Metrics")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
 
             // Practice Quality
             VStack(alignment: .leading, spacing: 8) {
                 Text("Practice Quality")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
@@ -305,7 +305,7 @@ struct QuickPracticeSessionSheet: View {
 
                     if let quality = practiceQuality {
                         Text(qualityLabel(for: quality))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -314,7 +314,7 @@ struct QuickPracticeSessionSheet: View {
             // Independence Level
             VStack(alignment: .leading, spacing: 8) {
                 Text("Independence Level")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
@@ -328,7 +328,7 @@ struct QuickPracticeSessionSheet: View {
 
                     if let independence = independenceLevel {
                         Text(independenceLabel(for: independence))
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -348,7 +348,7 @@ struct QuickPracticeSessionSheet: View {
     private var behaviorsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Observable Behaviors")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
 
             VStack(spacing: 8) {
                 behaviorToggle("Asked for help", isOn: $askedForHelp, icon: "hand.raised.fill", color: .orange)
@@ -370,7 +370,7 @@ struct QuickPracticeSessionSheet: View {
                     .foregroundStyle(isOn.wrappedValue ? color : .secondary)
 
                 Text(label)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
             }
         }
         .toggleStyle(.switch)
@@ -379,10 +379,10 @@ struct QuickPracticeSessionSheet: View {
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Session Notes")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
 
             TextEditor(text: $sessionNotes)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .frame(minHeight: 100)
                 .padding(8)
                 .background(
@@ -399,30 +399,30 @@ struct QuickPracticeSessionSheet: View {
     private var nextStepsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Next Steps")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.primary)
 
             // Schedule check-in
             Toggle(isOn: $scheduleCheckIn) {
                 Text("Schedule Check-in")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
             }
 
             if scheduleCheckIn {
                 DatePicker("Check-in Date", selection: $checkInDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .padding(.leading, 24)
             }
 
             // Follow-up actions
             VStack(alignment: .leading, spacing: 6) {
                 Text("Follow-up Actions")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 TextField("e.g., 'Reteach borrowing', 'Create scaffolded worksheet'", text: $followUpActions, axis: .vertical)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .textFieldStyle(.plain)
                     .padding(10)
                     .background(
@@ -435,11 +435,11 @@ struct QuickPracticeSessionSheet: View {
             // Materials used
             VStack(alignment: .leading, spacing: 6) {
                 Text("Materials Used")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 TextField("e.g., 'Manipulatives', 'Worksheet pg 12'", text: $materialsUsed)
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .textFieldStyle(.plain)
                     .padding(10)
                     .background(
@@ -456,7 +456,7 @@ struct QuickPracticeSessionSheet: View {
                 dismiss()
             } label: {
                 Text("Cancel")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
@@ -476,7 +476,7 @@ struct QuickPracticeSessionSheet: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
                     Text("Save Session")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)

@@ -55,15 +55,15 @@ struct StudentHeaderView: View {
                     .shadow(color: Color.pink.opacity(0.25), radius: 24, x: 0, y: 10)
 
                 Text(initials)
-                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleXLarge)
                     .foregroundStyle(.white)
             }
 
             Text(fullName)
-                .font(.system(size: AppTheme.FontSize.titleXLarge, weight: .black, design: .rounded))
+                .font(AppTheme.ScaledFont.titleXLarge)
 
             Text(levelDisplay)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.horizontal, 14)
                 .padding(.vertical, AppTheme.Spacing.small)
                 .background(Capsule().fill(levelColor.opacity(UIConstants.OpacityConstants.medium)))

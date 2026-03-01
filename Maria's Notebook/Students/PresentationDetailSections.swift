@@ -16,12 +16,12 @@ struct PresentationSummarySection: View {
             // Title and subject badge
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(lessonName)
-                    .font(.system(size: AppTheme.FontSize.titleLarge, weight: .heavy, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleLarge)
                     .multilineTextAlignment(.center)
                 
                 if !subject.isEmpty {
                     Text(subject)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .foregroundStyle(subjectColor)
@@ -105,13 +105,13 @@ struct PresentationScheduleSection: View {
                     .frame(width: 20)
                 
                 Text("Scheduled For")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 
                 Spacer(minLength: 0)
                 
                 Text(statusText)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(isScheduled ? .primary : .secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -134,7 +134,7 @@ struct PresentationPresentedSection: View {
                     .frame(width: 20)
                 
                 Text("Presented")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             
@@ -184,13 +184,13 @@ struct PresentationNextLessonSection: View {
                             .frame(width: 20)
                         
                         Text("Next Lesson in Group")
-                            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.calloutSemibold)
                             .foregroundStyle(.secondary)
                     }
                     
                     if let next = nextLesson {
                         Text(next.name)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                         
                         Button {
                             onPlanNext()
@@ -201,7 +201,7 @@ struct PresentationNextLessonSection: View {
                         .disabled(!canPlanNext)
                     } else {
                         Text("No next lesson available")
-                            .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.body)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -224,7 +224,7 @@ struct PresentationFlagsSection: View {
                     .frame(width: 20)
                 
                 Text("Flags")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             
@@ -247,7 +247,7 @@ struct PresentationFollowUpSection: View {
                     .frame(width: 20)
                 
                 Text("Follow Up Work")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             
@@ -270,7 +270,7 @@ struct PresentationNotesSection: View {
                     .frame(width: 20)
                 
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             

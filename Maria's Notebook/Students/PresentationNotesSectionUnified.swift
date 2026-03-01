@@ -102,7 +102,7 @@ struct PresentationNotesSectionUnified: View {
                     .frame(width: 20)
                 
                 Text("Notes")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
                 
                 Spacer()
@@ -127,7 +127,7 @@ struct PresentationNotesSectionUnified: View {
             if !presentationNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Presentation Notes")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
                     

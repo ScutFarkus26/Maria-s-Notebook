@@ -64,6 +64,7 @@ final class AttendanceViewModel {
         let store = AttendanceStore(context: modelContext)
         if store.updateStatus(rec, to: next) {
             recordsByStudentID[studentIDString]?.status = next
+            HapticService.shared.selection()
         }
     }
 

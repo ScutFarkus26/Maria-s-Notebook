@@ -28,7 +28,7 @@ struct ScheduledCheckInsListSection: View {
     private var emptyState: some View {
         Text("No check-ins scheduled yet.")
             .foregroundStyle(.secondary)
-            .font(.system(size: AppTheme.FontSize.body))
+            .font(AppTheme.ScaledFont.body)
             .italic()
     }
     

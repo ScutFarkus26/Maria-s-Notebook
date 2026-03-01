@@ -31,12 +31,12 @@ struct StudentInfoRowsView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             Text(value)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
         }
     }
 }

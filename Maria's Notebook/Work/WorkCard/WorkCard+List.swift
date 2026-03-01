@@ -21,10 +21,10 @@ struct WorkCardListContent: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(config.title)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                         .lineLimit(1)
                     Text(config.subtitle)
-                        .font(.system(size: 13, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -45,7 +45,7 @@ struct WorkCardListContent: View {
         case .openCount(let count):
             if count > 0 {
                 Text("\(count)")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Capsule().fill(workType.color.opacity(0.15)))
@@ -53,7 +53,7 @@ struct WorkCardListContent: View {
             }
         case .status(let status):
             Text(status)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
         }
     }

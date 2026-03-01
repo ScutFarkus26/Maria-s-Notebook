@@ -15,7 +15,7 @@ struct MarkCompletionButton: View {
         Button(action: markCompleted) {
             HStack(spacing: 8) {
                 if justCompleted {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(AppColors.success)
                 } else if isWorking {
                     ProgressView().controlSize(.mini)
                 } else {
@@ -38,7 +38,7 @@ struct MarkCompletionButton: View {
             #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             #endif
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            adaptiveWithAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 justCompleted = true
             }
             Task { @MainActor in
@@ -47,7 +47,7 @@ struct MarkCompletionButton: View {
                 } catch {
                     print("⚠️ [\(#function)] Failed to sleep: \(error)")
                 }
-                withAnimation(.easeOut) { justCompleted = false }
+                adaptiveWithAnimation(.easeOut) { justCompleted = false }
             }
         } catch {
             print("⚠️ [\(#function)] Failed to mark work completed: \(error)")

@@ -74,6 +74,26 @@ enum AppTheme {
         nonisolated static var captionSmallSemibold: Font {
             .system(.caption2, design: .rounded, weight: .semibold)
         }
+
+        /// Caption with semibold weight
+        nonisolated static var captionSemibold: Font {
+            .system(.footnote, design: .rounded, weight: .semibold)
+        }
+
+        /// Callout with semibold weight
+        nonisolated static var calloutSemibold: Font {
+            .system(.callout, design: .rounded, weight: .semibold)
+        }
+
+        /// Callout with bold weight
+        nonisolated static var calloutBold: Font {
+            .system(.callout, design: .rounded, weight: .bold)
+        }
+
+        /// Body text with bold weight
+        nonisolated static var bodyBold: Font {
+            .system(.subheadline, design: .rounded, weight: .bold)
+        }
     }
     
     // MARK: - Shadow Styles
@@ -136,3 +156,9 @@ extension View {
         self.shadow(color: style.color, radius: style.radius, x: style.x, y: style.y)
     }
 }
+
+// MARK: - iOS 26 Liquid Glass Preparation
+// When targeting iOS 26+, consider replacing CardBackgroundModifier and SubtleCardModifier
+// backgrounds with the new .glassEffect() modifier for Apple's Liquid Glass design language.
+// The ScaledFont system, opacity constants, and shadow styles are already well-structured
+// for a smooth transition to the new visual language.

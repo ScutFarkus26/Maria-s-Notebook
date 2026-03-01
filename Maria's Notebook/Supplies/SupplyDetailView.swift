@@ -142,8 +142,8 @@ struct SupplyDetailView: View {
                     .font(.caption.weight(.medium))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.orange.opacity(0.15)))
-                    .foregroundStyle(.orange)
+                    .background(Capsule().fill(AppColors.warning.opacity(0.15)))
+                    .foregroundStyle(AppColors.warning)
             }
         }
         .padding()
@@ -166,7 +166,7 @@ struct SupplyDetailView: View {
             HStack(spacing: 24) {
                 VStack(spacing: 4) {
                     Text("\(supply.currentQuantity)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
                         .foregroundStyle(colorForStatus(supply.status))
                     Text(supply.unit)
                         .font(.subheadline)

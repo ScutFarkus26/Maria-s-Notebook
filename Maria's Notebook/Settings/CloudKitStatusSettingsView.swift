@@ -67,11 +67,11 @@ struct CloudKitStatusSettingsView: View {
             if case .error(let message) = syncService.syncHealth {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
 
                     Text(message)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                         .lineLimit(3)
 
                     Spacer()
@@ -161,7 +161,7 @@ struct SyncStatusIndicator: View {
                 .font(.system(size: 14))
                 .foregroundStyle(health.color)
                 .rotationEffect(.degrees(health == .syncing && isAnimating ? 360 : 0))
-                .animation(
+                .adaptiveAnimation(
                     health == .syncing
                         ? .linear(duration: 1).repeatForever(autoreverses: false)
                         : .default,

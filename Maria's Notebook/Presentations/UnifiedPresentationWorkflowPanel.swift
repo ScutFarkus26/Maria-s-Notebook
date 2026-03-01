@@ -151,7 +151,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     private var toastView: some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.success)
             Text(bulkAppliedMessage)
                 .font(.workflowCallout)
         }
@@ -375,7 +375,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             if students.count > 1 {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Check-In Style")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     
                     HStack(spacing: 8) {
@@ -387,7 +387,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                                 icon: style.iconName,
                                 label: style.displayName
                             ) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     bulkCheckInStyle = style
                                 }
                             }
@@ -436,7 +436,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         }
         
         // Show confirmation toast
-        withAnimation(.easeInOut(duration: 0.3)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
             bulkAppliedMessage = "Applied \"\(trimmed)\" to \(students.count) student\(students.count == 1 ? "" : "s")"
             showBulkAppliedToast = true
         }
@@ -446,7 +446,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             } catch {
                 // Sleep interrupted, dismiss toast anyway
             }
-            withAnimation(.easeInOut(duration: 0.3)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
                 showBulkAppliedToast = false
             }
         }
@@ -463,7 +463,7 @@ struct UnifiedPresentationWorkflowPanel: View {
 
                 let completed = presentationViewModel.entries.values.filter { !$0.observation.isEmpty || !$0.assignment.isEmpty }.count
                 Text("\(completed)/\(presentationViewModel.entries.count)")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.tertiary)
             }
             
@@ -483,7 +483,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         return VStack(spacing: 0) {
             // Header row
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                     if isExpanded {
                         presentationViewModel.expandedStudentIDs.remove(student.id)
                     } else {
@@ -513,7 +513,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             // Understanding level picker
             VStack(alignment: .leading, spacing: 6) {
                 Text("Understanding")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 UnderstandingLevelRow(selectedLevel: Binding(
@@ -525,7 +525,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             // Observation
             VStack(alignment: .leading, spacing: 6) {
                 Text("Observation")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
                 TextField("Note about this student...", text: Binding(
@@ -587,7 +587,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(StudentFormatter.displayName(for: student))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodyBold)
                     
                     // Quick context from presentation
                     if let entry = presentationViewModel.entries[student.id] {
@@ -609,7 +609,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                     addWorkDraft(for: student.id)
                 } label: {
                     Label("Add Work", systemImage: SFSymbol.Action.plusCircleFill)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                 }
                 .buttonStyle(.bordered)
             }
@@ -624,7 +624,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             let drafts = workDrafts[student.id] ?? []
             if drafts.isEmpty && existingWork.isEmpty {
                 Text("No work items yet - add one or use bulk assignment")
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 8)
             } else {
@@ -739,7 +739,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                 title: "Completion Details",
                 isExpanded: draft.showMoreDetails,
                 action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         updateWorkDraft(studentID: studentID, draftID: draft.id) {
                             $0.showMoreDetails.toggle()
                         }
@@ -798,10 +798,10 @@ struct UnifiedPresentationWorkflowPanel: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(work.title.isEmpty ? lessonName : work.title)
-                            .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
 
                         Text("Created \(work.createdAt.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.tertiary)
                     }
 
@@ -829,7 +829,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                         Image(systemName: "calendar.badge.exclamationmark")
                             .font(.system(size: 10))
                         Text("Due: \(dueAt.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmall)
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -958,7 +958,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         }
         
         // Show toast notification
-        withAnimation(.easeInOut(duration: 0.3)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
             bulkAppliedMessage = "Applied \(UnderstandingLevel.label(for: level)) to \(count) student\(count == 1 ? "" : "s")"
             showBulkAppliedToast = true
         }
@@ -970,7 +970,7 @@ struct UnifiedPresentationWorkflowPanel: View {
             } catch {
                 Self.logger.debug("Toast auto-hide interrupted: \(error)")
             }
-            withAnimation(.easeInOut(duration: 0.3)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
                 showBulkAppliedToast = false
             }
         }

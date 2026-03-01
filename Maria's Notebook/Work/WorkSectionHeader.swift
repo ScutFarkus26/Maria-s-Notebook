@@ -8,7 +8,7 @@ struct WorkSectionHeader: View {
             Image(systemName: icon)
                 .foregroundStyle(.secondary)
             Text(title)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
         }

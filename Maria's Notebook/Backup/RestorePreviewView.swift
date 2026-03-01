@@ -67,9 +67,9 @@ public struct RestorePreviewView: View {
                 .font(.headline)
             HStack(spacing: 16) {
                 Label("Inserts: \(preview.totalInserts)", systemImage: "plus.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.success)
                 Label("Deletes: \(preview.totalDeletes)", systemImage: "trash.fill")
-                    .foregroundStyle(preview.totalDeletes > 0 ? .red : .secondary)
+                    .foregroundStyle(preview.totalDeletes > 0 ? AppColors.destructive : .secondary)
             }
             .font(.subheadline)
             .accessibilityElement(children: .combine)

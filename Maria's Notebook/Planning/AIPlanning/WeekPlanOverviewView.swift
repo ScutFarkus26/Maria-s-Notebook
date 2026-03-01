@@ -125,7 +125,7 @@ struct WeekPlanOverviewView: View {
             HStack(spacing: 2) {
                 ForEach(rec.studentNames, id: \.self) { name in
                     Text(initials(from: name))
-                        .font(.system(size: 9, weight: .medium))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
                         .background(.secondary.opacity(0.1), in: Capsule())
@@ -157,7 +157,7 @@ struct WeekPlanOverviewView: View {
                         .font(.system(size: 10))
                         .foregroundStyle(rec.decision == .accepted ? .green : .secondary)
                     Text(rec.decision == .accepted ? "Accepted" : "Skipped")
-                        .font(.system(size: 9))
+                        .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(rec.decision == .accepted ? .green : .secondary)
                 }
             }

@@ -127,13 +127,13 @@ struct MeetingTemplateManagementView: View {
     // MARK: - Actions
 
     private func activateTemplate(_ template: MeetingTemplate) {
-        _ = withAnimation {
+        _ = adaptiveWithAnimation {
             repository.setActiveTemplate(id: template.id)
         }
     }
 
     private func deleteTemplate(_ template: MeetingTemplate) {
-        withAnimation {
+        adaptiveWithAnimation {
             do {
                 try repository.deleteTemplate(id: template.id)
             } catch {
@@ -179,8 +179,8 @@ private struct MeetingTemplateCardRow: View {
                                 .fontWeight(.medium)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.green.opacity(0.15)))
-                                .foregroundStyle(.green)
+                                .background(Capsule().fill(AppColors.success.opacity(0.15)))
+                                .foregroundStyle(AppColors.success)
                         }
                     }
 
@@ -237,7 +237,7 @@ private struct MeetingTemplateCardRow: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(template.isActive ? Color.green.opacity(0.3) : Color.primary.opacity(SettingsStyle.borderOpacity))
+                    .stroke(template.isActive ? AppColors.success.opacity(0.3) : Color.primary.opacity(SettingsStyle.borderOpacity))
             )
             .contentShape(Rectangle())
         }
@@ -263,8 +263,8 @@ private struct MeetingTemplatePreviewSheet: View {
                                 .font(.subheadline.weight(.medium))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(Capsule().fill(Color.green.opacity(0.15)))
-                                .foregroundStyle(.green)
+                                .background(Capsule().fill(AppColors.success.opacity(0.15)))
+                                .foregroundStyle(AppColors.success)
                         }
                         Spacer()
                     }

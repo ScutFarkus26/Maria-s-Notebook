@@ -44,7 +44,7 @@ struct TestStudentsSettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             TextEditor(text: $draftNames)
-                .font(.system(size: AppTheme.FontSize.body))
+                .font(AppTheme.ScaledFont.body)
                 .frame(minHeight: 80)
                 .padding(8)
                 .background(

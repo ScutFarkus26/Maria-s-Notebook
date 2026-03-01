@@ -109,7 +109,7 @@ private struct StudentWorkCard: View {
         VStack(alignment: .leading, spacing: ultraDense ? 6 : (dense ? 8 : 12)) {
             HStack(alignment: .top, spacing: 10) {
                 Text(studentDisplayName(summary.student))
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.primary)
                     .onTapGesture { onTapStudent(summary.student) }
                 Spacer(minLength: 0)
@@ -126,7 +126,7 @@ private struct StudentWorkCard: View {
                         HStack(spacing: ultraDense ? 4 : (dense ? 6 : 8)) {
                             Circle().fill(kindColor(workItem.kind)).frame(width: 6, height: 6)
                             Text(title(for: workItem))
-                                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.bodySemibold)
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
                             Spacer(minLength: 0)
@@ -160,7 +160,7 @@ private struct CountBadge: View {
 
     var body: some View {
         Text("\(count)")
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .foregroundStyle(monochrome ? .primary : color)
             .padding(.horizontal, dense ? 6 : 8)
             .padding(.vertical, dense ? 3 : 4)

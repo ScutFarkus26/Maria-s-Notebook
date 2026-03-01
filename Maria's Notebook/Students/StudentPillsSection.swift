@@ -21,14 +21,14 @@ struct StudentPillsSection: View {
             HStack(spacing: 12) {
                 Button(action: onOpenPicker) {
                     Label("Add/Remove Students", systemImage: "person.2.badge.gearshape")
-                        .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                        .font(AppTheme.ScaledFont.callout)
                 }
                 .buttonStyle(.bordered)
 
                 if canMoveStudents {
                     Button(action: onOpenMove) {
                         Label("Move Students", systemImage: "arrow.right.square")
-                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                            .font(AppTheme.ScaledFont.callout)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -36,7 +36,7 @@ struct StudentPillsSection: View {
                 if canMoveAbsentStudents {
                     Button(action: onOpenMoveAbsent) {
                         Label("Move Absent Students", systemImage: "person.fill.xmark")
-                            .font(.system(size: AppTheme.FontSize.callout, design: .rounded))
+                            .font(AppTheme.ScaledFont.callout)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -48,7 +48,7 @@ struct StudentPillsSection: View {
     private func studentChip(for student: Student) -> some View {
         HStack(spacing: 6) {
             Text(StudentFormatter.displayName(for: student))
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
             Button { onRemove(student.id) } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12, weight: .semibold))

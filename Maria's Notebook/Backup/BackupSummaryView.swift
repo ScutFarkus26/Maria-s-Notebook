@@ -89,7 +89,7 @@ struct BackupSummaryView: View {
             }
             if !summary.warnings.isEmpty {
                 Button(action: {
-                    withAnimation {
+                    adaptiveWithAnimation {
                         warningsExpanded.toggle()
                     }
                 }) {

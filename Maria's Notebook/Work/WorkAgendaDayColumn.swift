@@ -270,18 +270,18 @@ struct GroupedWorkCheckInPill: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 // Student count badge
                 Text("\(group.checkIns.count)")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(Capsule().fill(Color.accentColor))
                 Text(group.lessonTitle)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
             }
             Text(studentNamesDisplay)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
             if !group.purpose.isEmpty {

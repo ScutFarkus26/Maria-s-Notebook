@@ -139,7 +139,8 @@ private struct CompactPillButton: View {
                 Image(systemName: systemImage)
                     .font(.system(size: 12, weight: .medium))
                 Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .font(AppTheme.ScaledFont.caption)
+                    .fontWeight(isSelected ? .semibold : .medium)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)

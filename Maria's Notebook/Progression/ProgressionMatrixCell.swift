@@ -18,6 +18,8 @@ struct ProgressionMatrixCell: View {
             Circle()
                 .fill(status.color.opacity(status == .notStarted ? 0.3 : 1.0))
                 .frame(width: 20, height: 20)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(studentName): \(lessonName) – \(status.label)")

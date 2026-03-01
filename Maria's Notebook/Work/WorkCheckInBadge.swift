@@ -57,7 +57,7 @@ struct WorkCheckInSummary: View {
             Image(systemName: status.iconName)
                 .foregroundStyle(status.color)
             Text(text)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

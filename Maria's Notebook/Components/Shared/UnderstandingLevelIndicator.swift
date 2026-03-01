@@ -19,7 +19,7 @@ struct UnderstandingLevelIndicator: View {
                 HStack(spacing: 6) {
                     circle
                     Text(UnderstandingLevel.label(for: level))
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                 }
             } else {

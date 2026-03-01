@@ -36,11 +36,13 @@ struct ToastMessage: Identifiable, Equatable {
     let message: String
     let type: ToastType
     let duration: TimeInterval
+    let undoAction: (() -> Void)?
 
-    init(_ message: String, type: ToastType = .info, duration: TimeInterval = 2.0) {
+    init(_ message: String, type: ToastType = .info, duration: TimeInterval = 2.0, undoAction: (() -> Void)? = nil) {
         self.message = message
         self.type = type
         self.duration = duration
+        self.undoAction = undoAction
     }
 
     static func == (lhs: ToastMessage, rhs: ToastMessage) -> Bool {
@@ -73,8 +75,17 @@ final class ToastService {
     ///   - message: The message to display
     ///   - type: The type of toast (affects styling)
     ///   - duration: How long to show the toast (default 2 seconds)
-    func show(_ message: String, type: ToastType = .info, duration: TimeInterval = 2.0) {
-        let toast = ToastMessage(message, type: type, duration: duration)
+    ///   - undoAction: Optional closure to execute if user taps Undo
+    func show(_ message: String, type: ToastType = .info, duration: TimeInterval = 2.0, undoAction: (() -> Void)? = nil) {
+        let toast = ToastMessage(message, type: type, duration: undoAction != nil ? max(duration, 4.0) : duration, undoAction: undoAction)
+
+        // Trigger haptic feedback based on toast type
+        switch type {
+        case .success: HapticService.shared.notification(.success)
+        case .warning: HapticService.shared.notification(.warning)
+        case .error: HapticService.shared.notification(.error)
+        case .info: break
+        }
 
         // If no toast is currently showing, show immediately
         if currentToast == nil {
@@ -108,7 +119,7 @@ final class ToastService {
     /// Dismiss the current toast immediately
     func dismiss() {
         dismissTask?.cancel()
-        withAnimation(.easeInOut(duration: 0.25)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
             currentToast = nil
         }
         showNextToast()
@@ -118,7 +129,7 @@ final class ToastService {
     func clearAll() {
         dismissTask?.cancel()
         toastQueue.removeAll()
-        withAnimation(.easeInOut(duration: 0.25)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
             currentToast = nil
         }
     }
@@ -128,7 +139,7 @@ final class ToastService {
     private func showToast(_ toast: ToastMessage) {
         dismissTask?.cancel()
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             currentToast = toast
         }
 
@@ -173,10 +184,12 @@ struct ToastOverlay: View {
     var body: some View {
         Group {
             if let toast = toastService.currentToast {
-                ToastView(toast: toast)
-                    .onTapGesture {
-                        toastService.dismiss()
-                    }
+                ToastView(toast: toast) {
+                    toastService.dismiss()
+                }
+                .onTapGesture {
+                    toastService.dismiss()
+                }
             }
         }
     }
@@ -185,16 +198,29 @@ struct ToastOverlay: View {
 /// The actual toast view component
 struct ToastView: View {
     let toast: ToastMessage
+    var onUndo: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 8) {
             if let iconName = toast.type.iconName {
                 Image(systemName: iconName)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(AppTheme.ScaledFont.bodySemibold)
             }
 
             Text(toast.message)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
+
+            if let undoAction = toast.undoAction {
+                Button {
+                    undoAction()
+                    onUndo?()
+                } label: {
+                    Text("Undo")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .underline()
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

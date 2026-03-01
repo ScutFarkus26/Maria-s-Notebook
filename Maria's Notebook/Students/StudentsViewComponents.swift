@@ -71,7 +71,7 @@ struct SortFilterControls: View {
     private var sortMenu: some View {
         Menu {
             Button {
-                withAnimation { sortOrderRaw = "alphabetical" }
+                adaptiveWithAnimation { sortOrderRaw = "alphabetical" }
             } label: {
                 Label("A–Z", systemImage: "textformat.abc")
                 if effectiveSortOrder == .alphabetical {
@@ -79,7 +79,7 @@ struct SortFilterControls: View {
                 }
             }
             Button {
-                withAnimation { sortOrderRaw = "manual" }
+                adaptiveWithAnimation { sortOrderRaw = "manual" }
             } label: {
                 Label("Manual", systemImage: "arrow.up.arrow.down")
                 if effectiveSortOrder == .manual {
@@ -91,7 +91,7 @@ struct SortFilterControls: View {
                 Image(systemName: "arrow.up.arrow.down")
                 Text("Sort")
             }
-            .font(.system(size: 13, weight: .medium))
+            .font(AppTheme.ScaledFont.captionSemibold)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -100,7 +100,7 @@ struct SortFilterControls: View {
     private var filterMenu: some View {
         Menu {
             Button {
-                withAnimation { filterRaw = "all" }
+                adaptiveWithAnimation { filterRaw = "all" }
             } label: {
                 Label("All", systemImage: "person.3.fill")
                 if selectedFilter == .all {
@@ -108,7 +108,7 @@ struct SortFilterControls: View {
                 }
             }
             Button {
-                withAnimation { filterRaw = "presentNow" }
+                adaptiveWithAnimation { filterRaw = "presentNow" }
             } label: {
                 Label("Present Now", systemImage: "checkmark.circle.fill")
                 if selectedFilter == .presentNow {
@@ -116,7 +116,7 @@ struct SortFilterControls: View {
                 }
             }
             Button {
-                withAnimation { filterRaw = "upper" }
+                adaptiveWithAnimation { filterRaw = "upper" }
             } label: {
                 Label("Upper", systemImage: "circle.fill")
                 if selectedFilter == .upper {
@@ -124,7 +124,7 @@ struct SortFilterControls: View {
                 }
             }
             Button {
-                withAnimation { filterRaw = "lower" }
+                adaptiveWithAnimation { filterRaw = "lower" }
             } label: {
                 Label("Lower", systemImage: "circle.fill")
                 if selectedFilter == .lower {
@@ -136,7 +136,7 @@ struct SortFilterControls: View {
                 Image(systemName: "line.3.horizontal.decrease.circle")
                 Text("Filter")
             }
-            .font(.system(size: 13, weight: .medium))
+            .font(AppTheme.ScaledFont.captionSemibold)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)

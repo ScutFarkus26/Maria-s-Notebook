@@ -112,15 +112,15 @@ class QuickNoteViewModel {
             // Auto-add exact matches that are not already selected
             let newExacts = result.exact.subtracting(self.selectedStudentIDs)
             if !newExacts.isEmpty {
-                withAnimation {
+                adaptiveWithAnimation {
                     self.selectedStudentIDs.formUnion(newExacts)
                 }
             }
-            
+
             // Auto-select unique matches (autoSelect set from enhanced detection)
             let newAutoSelects = result.autoSelect.subtracting(self.selectedStudentIDs)
             if !newAutoSelects.isEmpty {
-                withAnimation {
+                adaptiveWithAnimation {
                     self.selectedStudentIDs.formUnion(newAutoSelects)
                 }
             }
@@ -186,7 +186,7 @@ class QuickNoteViewModel {
                     // REMOVED: unused previousText
                     self.lastReplacementText = updatedText
                     
-                    withAnimation {
+                    adaptiveWithAnimation {
                         self.bodyText = updatedText
                     }
 
@@ -218,7 +218,7 @@ class QuickNoteViewModel {
             // Use the actor to perform robust string replacement
             let newText = await tagger.formatStudentNames(in: currentText, studentData: studentData)
 
-            withAnimation {
+            adaptiveWithAnimation {
                 self.bodyText = newText
                 self.isProcessingAI = false
             }
@@ -341,7 +341,7 @@ class QuickNoteViewModel {
                 let prompt = AIPrompts.processQuickNote(instruction: instruction, text: bodyText)
                 let response = try await session.respond(to: prompt)
                 
-                withAnimation {
+                adaptiveWithAnimation {
                     self.bodyText = response.content
                     self.isProcessingAI = false
                 }

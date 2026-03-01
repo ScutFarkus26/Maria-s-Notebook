@@ -96,28 +96,28 @@ struct SupplyRow: View {
         switch supply.status {
         case .healthy:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.success)
         case .low:
             Label("Low", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption2.weight(.medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Color.orange.opacity(0.15)))
-                .foregroundStyle(.orange)
+                .background(Capsule().fill(AppColors.warning.opacity(0.15)))
+                .foregroundStyle(AppColors.warning)
         case .critical:
             Label("Critical", systemImage: "exclamationmark.circle.fill")
                 .font(.caption2.weight(.medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Color.red.opacity(0.15)))
-                .foregroundStyle(.red)
+                .background(Capsule().fill(AppColors.destructive.opacity(0.15)))
+                .foregroundStyle(AppColors.destructive)
         case .outOfStock:
             Label("Out", systemImage: "xmark.circle.fill")
                 .font(.caption2.weight(.medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Color.red.opacity(0.15)))
-                .foregroundStyle(.red)
+                .background(Capsule().fill(AppColors.destructive.opacity(0.15)))
+                .foregroundStyle(AppColors.destructive)
         }
     }
 

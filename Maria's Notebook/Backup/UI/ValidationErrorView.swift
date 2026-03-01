@@ -63,7 +63,7 @@ struct ValidationErrorView: View {
                     ForEach(validation.warnings) { warning in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(AppColors.warning)
                                 .font(.caption)
                             
                             VStack(alignment: .leading, spacing: 4) {
@@ -97,7 +97,7 @@ struct ValidationErrorView: View {
                     Button("Proceed Anyway") {
                         onProceedAnyway?()
                     }
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
                 }
                 
                 if validation.canProceed {

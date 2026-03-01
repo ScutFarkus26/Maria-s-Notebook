@@ -17,7 +17,7 @@ extension View {
     func errorMessageStyle() -> some View {
         self
             .font(.caption)
-            .foregroundStyle(.red)
+            .foregroundStyle(AppColors.destructive)
             .padding(.horizontal)
     }
     

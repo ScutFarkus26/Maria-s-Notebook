@@ -21,7 +21,7 @@ struct QuickNoteStudentChip: View {
                 .frame(width: 20, height: 20)
                 .overlay {
                     Text(String(displayName.prefix(1)))
-                        .font(.system(size: 10, weight: .bold))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(Color.accentColor)
                 }
             
@@ -89,7 +89,7 @@ struct SuggestionsBar: View {
                 ForEach(detectedCandidateIDs.sorted { $0.uuidString < $1.uuidString }, id: \.self) { id in
                     if let student = students.first(where: { $0.id == id }) {
                         Button {
-                            withAnimation {
+                            adaptiveWithAnimation {
                                 onAdd(id)
                             }
                         } label: {
@@ -239,7 +239,7 @@ struct QuickNoteEditor: View {
     private var macOSEditor: some View {
         ZStack(alignment: .topTrailing) {
             TextEditor(text: $bodyText)
-                .font(.system(size: 16, design: .default))
+                .font(AppTheme.ScaledFont.callout)
                 .lineSpacing(6)
                 .scrollContentBackground(.hidden)
                 .padding()

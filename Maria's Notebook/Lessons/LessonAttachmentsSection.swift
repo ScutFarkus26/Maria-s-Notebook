@@ -96,13 +96,13 @@ struct LessonAttachmentsSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("Attachments", systemImage: "paperclip")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutBold)
 
                 Spacer()
 
                 Button(action: { showingScopeSheet = true }) {
                     Label("Add", systemImage: "plus.circle.fill")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 }
                 .buttonStyle(.borderless)
             }
@@ -161,10 +161,10 @@ struct LessonAttachmentsSection: View {
                 .font(.system(size: 32))
                 .foregroundStyle(.secondary)
             Text("No attachments yet")
-                .font(.system(size: 14, weight: .medium))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
             Text("Add PDFs, images, or Pages documents")
-                .font(.system(size: 12))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -174,7 +174,7 @@ struct LessonAttachmentsSection: View {
     private func attachmentGroup(title: String, attachments: [LessonAttachment], isInherited: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             
@@ -375,7 +375,7 @@ struct AttachmentRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(attachment.fileName)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .lineLimit(1)
                     
                     if isInherited {
@@ -387,14 +387,14 @@ struct AttachmentRow: View {
                 
                 HStack(spacing: 8) {
                     Text(attachment.fileSizeFormatted)
-                        .font(.system(size: 11))
+                        .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                     
                     Text("•")
                         .foregroundStyle(.secondary)
                     
                     Text(attachment.attachedAt, style: .relative)
-                        .font(.system(size: 11))
+                        .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -422,7 +422,7 @@ struct AttachmentRow: View {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
                                 .font(.system(size: 12))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(AppColors.destructive)
                         }
                         .buttonStyle(.borderless)
                         .help("Delete")
@@ -510,7 +510,7 @@ struct AttachmentImportOptionsSheet: View {
                     .foregroundStyle(Color.accentColor)
                 
                 Text("Import Options")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
             }
             .padding(.top, 20)
             
@@ -518,7 +518,7 @@ struct AttachmentImportOptionsSheet: View {
                 // Scope selection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Attachment Scope")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     
                     VStack(spacing: 8) {
@@ -548,9 +548,9 @@ struct AttachmentImportOptionsSheet: View {
                 Toggle(isOn: $deleteOriginal) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Move original to trash")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                         Text("Delete the original file after importing")
-                            .font(.system(size: 11))
+                            .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -610,11 +610,11 @@ struct ScopeOptionButton: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(scope.displayName)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
                     
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }
                 

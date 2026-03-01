@@ -64,7 +64,7 @@ struct QuickNewPresentationSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     Text("Record Presentation")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Lesson Section
                     presentationLessonSection()
@@ -216,7 +216,7 @@ struct QuickNewPresentationSheet: View {
     // MARK: - Student Section
 
     private func removePresentationStudent(id: UUID) {
-        _ = withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             selectedStudentIDs.remove(id)
         }
     }
@@ -225,7 +225,7 @@ struct QuickNewPresentationSheet: View {
     private func presentationStudentChip(for student: Student) -> some View {
         HStack(spacing: 4) {
             Text(StudentFormatter.displayName(for: student))
-                .font(.system(size: 14, weight: .medium))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.horizontal, AppTheme.Spacing.compact)
                 .padding(.vertical, AppTheme.Spacing.verySmall)
                 .background(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
@@ -278,7 +278,7 @@ struct QuickNewPresentationSheet: View {
                     )
                 }
             }
-            .animation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedStudentIDs)
+            .adaptiveAnimation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedStudentIDs)
 
             if selectedStudentIDs.isEmpty {
                 Text("Add at least one student.")

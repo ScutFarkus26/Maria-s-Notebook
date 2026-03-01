@@ -51,12 +51,12 @@ struct PracticeSessionCard: View {
                 
                 // Date
                 Text(formatDate(session.date))
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
                 
                 // Student names
                 Text(studentNames)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 
@@ -65,7 +65,7 @@ struct PracticeSessionCard: View {
                 // Duration if available
                 if let duration = session.durationFormatted {
                     Text(duration)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -90,12 +90,12 @@ struct PracticeSessionCard: View {
                 HStack(spacing: 6) {
                     ForEach(students) { student in
                         Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                             .foregroundStyle(.primary)
                         
                         if student.id != students.last?.id {
                             Text("&")
-                                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                                .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -128,7 +128,7 @@ struct PracticeSessionCard: View {
                 // Notes preview
                 if !session.sharedNotes.isEmpty {
                     Text(session.sharedNotes)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .italic()
@@ -138,13 +138,13 @@ struct PracticeSessionCard: View {
                 HStack(spacing: 12) {
                     if let duration = session.durationFormatted {
                         Label(duration, systemImage: "clock.fill")
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                     
                     if let location = session.location, !location.isEmpty {
                         Label(location, systemImage: "location.fill")
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -154,7 +154,7 @@ struct PracticeSessionCard: View {
                     // Work items count
                     if session.workItemCount > 1 {
                         Text("\(session.workItemCount) items")
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -182,7 +182,7 @@ struct PracticeSessionCard: View {
             // Students section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Participants")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                 
@@ -193,7 +193,7 @@ struct PracticeSessionCard: View {
                             .frame(width: 8, height: 8)
                         
                         Text(StudentFormatter.displayName(for: student))
-                            .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                     }
                 }
             }
@@ -202,7 +202,7 @@ struct PracticeSessionCard: View {
             if session.practiceQuality != nil || session.independenceLevel != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Quality Metrics")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -210,7 +210,7 @@ struct PracticeSessionCard: View {
                         if let quality = session.practiceQuality, let label = session.practiceQualityLabel {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Engagement")
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .font(AppTheme.ScaledFont.caption)
                                     .foregroundStyle(.secondary)
                                 HStack(spacing: 6) {
                                     ForEach(1...5, id: \.self) { level in
@@ -219,7 +219,7 @@ struct PracticeSessionCard: View {
                                             .frame(width: 12, height: 12)
                                     }
                                     Text(label)
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                        .font(AppTheme.ScaledFont.captionSemibold)
                                         .foregroundStyle(.blue)
                                 }
                             }
@@ -228,7 +228,7 @@ struct PracticeSessionCard: View {
                         if let independence = session.independenceLevel, let label = session.independenceLevelLabel {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Independence")
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .font(AppTheme.ScaledFont.caption)
                                     .foregroundStyle(.secondary)
                                 HStack(spacing: 6) {
                                     ForEach(1...5, id: \.self) { level in
@@ -237,8 +237,8 @@ struct PracticeSessionCard: View {
                                             .frame(width: 12, height: 12)
                                     }
                                     Text(label)
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.green)
+                                        .font(AppTheme.ScaledFont.captionSemibold)
+                                        .foregroundStyle(AppColors.success)
                                 }
                             }
                         }
@@ -250,7 +250,7 @@ struct PracticeSessionCard: View {
             if !session.activeBehaviors.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Observed Behaviors")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -266,7 +266,7 @@ struct PracticeSessionCard: View {
             if session.hasActionFlags || session.hasNextSteps {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Next Steps")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -289,7 +289,7 @@ struct PracticeSessionCard: View {
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(.purple)
                                 Text(session.followUpActions)
-                                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                    .font(AppTheme.ScaledFont.caption)
                                     .foregroundStyle(.primary)
                             }
                         }
@@ -301,7 +301,7 @@ struct PracticeSessionCard: View {
             if !workItems.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Work Items")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -312,7 +312,7 @@ struct PracticeSessionCard: View {
                                 .frame(width: 8, height: 8)
                             
                             Text(work.title)
-                                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                                .font(AppTheme.ScaledFont.body)
                         }
                     }
                 }
@@ -322,12 +322,12 @@ struct PracticeSessionCard: View {
             if !session.sharedNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Notes")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
                     Text(session.sharedNotes)
-                        .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                        .font(AppTheme.ScaledFont.body)
                         .foregroundStyle(.primary)
                 }
             }
@@ -336,13 +336,13 @@ struct PracticeSessionCard: View {
             HStack(spacing: 16) {
                 if let duration = session.durationFormatted {
                     Label(duration, systemImage: "clock.fill")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                 }
                 
                 if let location = session.location, !location.isEmpty {
                     Label(location, systemImage: "location.fill")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -369,11 +369,11 @@ struct PracticeSessionCard: View {
                         .foregroundStyle(session.isGroupSession ? .blue : .secondary)
                     
                     Text(session.isGroupSession ? "Group Practice Session" : "Solo Practice Session")
-                        .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.calloutSemibold)
                 }
                 
                 Text(formatDateLong(session.date))
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
             
@@ -387,7 +387,7 @@ struct PracticeSessionCard: View {
                 Image(systemName: session.isGroupSession ? "person.2.fill" : "person.fill")
                     .font(.system(size: 10))
                 Text(session.isGroupSession ? "Group" : "Solo")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
@@ -400,7 +400,7 @@ struct PracticeSessionCard: View {
             Spacer()
             
             Text(formatDate(session.date))
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
         }
     }
@@ -434,7 +434,7 @@ struct PracticeSessionCard: View {
                     .frame(width: 6, height: 6)
             }
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
         }
     }
@@ -442,7 +442,7 @@ struct PracticeSessionCard: View {
     @ViewBuilder
     private func behaviorTag(_ behavior: String) -> some View {
         Text(behavior)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .foregroundStyle(behaviorColor(for: behavior))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -471,7 +471,7 @@ struct PracticeSessionCard: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(color)
             Text(text)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.primary)
         }
     }

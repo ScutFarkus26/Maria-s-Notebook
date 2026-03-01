@@ -156,7 +156,7 @@ public struct InboxSheetView: View {
           getCurrent: { orderedUnscheduledLessons },
           itemFramesProvider: { baseFrames ?? itemFrames },
           onTargetChange: { targeted in
-            withAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
+            adaptiveWithAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
             if targeted {
               if baseFrames == nil { baseFrames = itemFrames }
             } else {
@@ -165,7 +165,7 @@ public struct InboxSheetView: View {
           },
           onInsertionIndexChange: { idx in
             if idx != insertionIndex {
-              withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+              adaptiveWithAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
             }
           },
           performDropHandler: { providers, location in
@@ -266,7 +266,7 @@ public struct InboxSheetView: View {
     .overlay(alignment: .top) {
       if let message = viewModel.toastMessage {
         Text(message)
-          .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+          .font(AppTheme.ScaledFont.captionSemibold)
           .padding(.horizontal, 12)
           .padding(.vertical, 8)
           .background(

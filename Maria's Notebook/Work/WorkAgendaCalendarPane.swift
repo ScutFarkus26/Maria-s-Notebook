@@ -359,7 +359,7 @@ private struct CheckInStudentRow: View {
             // Name row + status dots + open button
             HStack(spacing: 8) {
                 Text(studentName)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
                 Spacer()
                 if let work {
@@ -375,7 +375,7 @@ private struct CheckInStudentRow: View {
 
             // Inline note field
             TextField("Note about this student…", text: $noteText, axis: .vertical)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .lineLimit(2...4)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: noteText) { _, newValue in

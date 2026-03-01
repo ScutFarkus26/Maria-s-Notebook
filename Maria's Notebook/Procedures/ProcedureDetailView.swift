@@ -168,13 +168,13 @@ struct ProcedureDetailView: View {
     private var markdownContent: some View {
         if let attributedString = parseMarkdown(procedure.content) {
             Text(attributedString)
-                .font(.system(size: 15, weight: .regular, design: .default))
+                .font(AppTheme.ScaledFont.body)
                 .lineSpacing(AppTheme.Spacing.verySmall)
                 .textSelection(.enabled)
         } else {
             // Fallback for plain text
             Text(procedure.content)
-                .font(.system(size: 15, weight: .regular, design: .default))
+                .font(AppTheme.ScaledFont.body)
                 .lineSpacing(AppTheme.Spacing.verySmall)
                 .textSelection(.enabled)
         }

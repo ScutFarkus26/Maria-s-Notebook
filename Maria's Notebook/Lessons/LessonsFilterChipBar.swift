@@ -129,7 +129,8 @@ struct FilterChip: View {
                         .font(.system(size: 11, weight: .medium))
                 }
                 Text(label)
-                    .font(.system(size: 13, weight: isActive ? .semibold : .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
+                    .fontWeight(isActive ? .semibold : .regular)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)

@@ -372,7 +372,7 @@ struct ProjectWeekEditorView: View, Identifiable {
                         offeredWorks.remove(at: index)
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                     }
                     .buttonStyle(.plain)
                 }
@@ -388,7 +388,7 @@ struct ProjectWeekEditorView: View, Identifiable {
             if offeredWorks.count < minSelections {
                 Text("Add at least \(minSelections) work offers")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
             }
         }
         .padding(.leading, 8)

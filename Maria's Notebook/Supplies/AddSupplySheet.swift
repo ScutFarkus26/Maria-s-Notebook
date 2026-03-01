@@ -25,7 +25,7 @@ struct AddSupplySheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     Text("New Supply")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
                     basicInfoSection

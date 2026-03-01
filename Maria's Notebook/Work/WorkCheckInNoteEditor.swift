@@ -12,7 +12,7 @@ struct WorkCheckInNoteEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Add Note")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
             
             checkInInfo
             
@@ -36,14 +36,14 @@ struct WorkCheckInNoteEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Text(date.formatted(date: .abbreviated, time: .omitted))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                 
                 let purposeText = purpose.trimmed()
                 if !purposeText.isEmpty {
                     Text("|")
                         .foregroundStyle(.secondary)
                     Text(purposeText)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 }
             }
             .foregroundStyle(.secondary)
@@ -53,12 +53,12 @@ struct WorkCheckInNoteEditor: View {
     private var noteEditor: some View {
 #if os(macOS)
         TextEditor(text: $noteText)
-            .font(.system(size: AppTheme.FontSize.body))
+            .font(AppTheme.ScaledFont.body)
             .frame(minHeight: 120)
             .border(Color.primary.opacity(0.2), width: 1)
 #else
         TextEditor(text: $noteText)
-            .font(.system(size: AppTheme.FontSize.body))
+            .font(AppTheme.ScaledFont.body)
             .frame(minHeight: 120)
             .scrollContentBackground(.hidden)
             .background(Color(uiColor: .secondarySystemBackground))

@@ -134,7 +134,7 @@ extension TodayView {
             let count = todayTodos.count
             if count > 0 {
                 Text("\(count)")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -397,7 +397,7 @@ extension TodayView {
             let count = viewModel.todaysLessons.filter { $0.isPresented }.count
             if count > 0 {
                 Text("\(count)")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -446,7 +446,7 @@ extension TodayView {
             let count = viewModel.completedWork.count
             if count > 0 {
                 Text("\(count)")
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

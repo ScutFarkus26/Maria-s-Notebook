@@ -89,9 +89,9 @@ struct GroupListView: View {
     private var emptyStateView: some View {
         VStack(spacing: 8) {
             Text("No groups")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
             Text("Select a subject to view groups")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -108,7 +108,7 @@ private struct GroupListRow: View {
                 .foregroundStyle(subjectColor)
                 .font(.system(size: 16))
             Text(group.isEmpty ? "Ungrouped" : group)
-                .font(.system(size: AppTheme.FontSize.body, weight: .regular, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
         }
         .padding(.vertical, 4)
     }

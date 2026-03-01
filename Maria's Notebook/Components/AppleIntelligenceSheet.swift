@@ -230,7 +230,7 @@ struct AppleIntelligenceSheet: View {
             let response = try await session.respond(to: prompt, options: .init(temperature: 0.7))
             
             // Animate the text in (simple replacement for now)
-            withAnimation {
+            adaptiveWithAnimation {
                 editorText = response.content
             }
         } catch let error as LanguageModelSession.GenerationError {

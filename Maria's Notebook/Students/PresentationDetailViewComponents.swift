@@ -134,7 +134,7 @@ struct MasteryStateRow: View {
                     .foregroundStyle(.secondary)
                     .font(.system(size: 16))
                 Text("Mastery Status")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             
@@ -325,7 +325,7 @@ struct WorkflowHeaderBar: View {
                 Spacer()
                 
                 Text("\(lessonTitle) Presentation Workflow")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 
                 Spacer()
                 
@@ -360,7 +360,7 @@ struct PlanningPanelHeader: View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
                 Text("Planning")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)

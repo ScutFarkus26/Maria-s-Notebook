@@ -119,7 +119,7 @@ struct NoteTemplateManagementView: View {
     // MARK: - Actions
 
     private func deleteTemplate(_ template: NoteTemplate) {
-        withAnimation {
+        adaptiveWithAnimation {
             do {
                 try repository.deleteTemplate(id: template.id)
             } catch {

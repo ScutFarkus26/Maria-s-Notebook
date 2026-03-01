@@ -9,7 +9,7 @@ struct StudentChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(StudentFormatter.displayName(for: student))
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
             
             Button {
                 onRemove()
@@ -72,7 +72,7 @@ struct MoveStudentsSheet: View {
             // Header
             HStack {
                 Text("Move Students to New Lesson")
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 24)
@@ -82,7 +82,7 @@ struct MoveStudentsSheet: View {
             
             VStack(alignment: .leading, spacing: 16) {
                 Text("Select students who didn't attend. They'll be moved to a new lesson with \"\(lessonName)\".")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
                 
                 VStack(alignment: .leading, spacing: 8) {
@@ -147,7 +147,7 @@ struct MoveStudentRow: View {
                     .font(.system(size: 20))
                 
                 Text(StudentFormatter.displayName(for: student))
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
                 
                 Spacer()
@@ -168,7 +168,7 @@ struct MoveStudentRow: View {
 struct PlannedLessonBanner: View {
     var body: some View {
         Text("Next lesson added to Ready to Schedule")
-            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
@@ -187,11 +187,11 @@ struct MovedStudentsBanner: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("Students moved to new lesson")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
             
             if !studentNames.isEmpty {
                 Text(studentNames.joined(separator: ", "))
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
             }
         }
         .padding(.horizontal, 12)

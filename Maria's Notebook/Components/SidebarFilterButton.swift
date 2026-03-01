@@ -48,14 +48,14 @@ struct FilterButton: View {
                 .frame(width: 20)
 
             Text(title)
-                .font(.system(size: AppTheme.FontSize.caption))
+                .font(AppTheme.ScaledFont.caption)
                 .lineLimit(1)
 
             Spacer(minLength: 0)
             
             if let badge = trailingBadgeText {
                 Text(badge)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(trailingBadgeColor)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

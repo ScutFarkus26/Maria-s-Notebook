@@ -94,10 +94,10 @@ private struct DateBadge: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(date.formatted(.dateTime.month(.abbreviated)))
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.secondary)
             Text(date.formatted(.dateTime.day()))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutBold)
                 .foregroundStyle(.primary)
         }
         .frame(width: 48)
@@ -119,7 +119,7 @@ private struct PurposeLabel: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 12, weight: .medium))
             Text(purpose.isEmpty ? "Check-In" : purpose)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
         }
         .foregroundStyle(.primary)
     }
@@ -133,7 +133,7 @@ private struct DeleteButton: View {
     
     var body: some View {
         Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 action()
             }
         } label: {
@@ -176,14 +176,14 @@ struct NoteRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(note.body)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 8) {
                 NoteTagsRow(tags: note.tags)
                 
                 Text(note.createdAt, style: .date)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.tertiary)
                 
                 Spacer()
@@ -235,7 +235,7 @@ struct SaveCancelButtons: View {
                 onCancel()
             } label: {
                 Text("Cancel")
-                    .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -253,7 +253,7 @@ struct SaveCancelButtons: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
                     Text("Save")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -300,7 +300,7 @@ struct RoundedActionButton: View {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
             }
             .foregroundStyle(color)
             .padding(.horizontal, 16)
@@ -356,7 +356,7 @@ struct DetailSectionCard<Content: View, Trailing: View>: View {
             HStack {
                 Label {
                     Text(title)
-                        .font(.system(size: AppTheme.FontSize.body, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodyBold)
                 } icon: {
                     Image(systemName: icon)
                         .foregroundStyle(accentColor)
@@ -392,11 +392,11 @@ struct EmptyStateView: View {
 
             VStack(spacing: 4) {
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
                 Text(subtitle)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -421,12 +421,12 @@ struct MetricStatBox: View {
                     .foregroundStyle(color)
 
                 Text(value)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                     .foregroundStyle(.primary)
             }
 
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -452,16 +452,16 @@ struct QualityMetricBox: View {
                     .foregroundStyle(color)
 
                 Text(String(format: "%.1f", level))
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                     .foregroundStyle(.primary)
 
                 Text("/ 5")
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
 
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -478,7 +478,7 @@ struct BehaviorPill: View {
 
     var body: some View {
         Text(behavior)
-            .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .foregroundStyle(.blue)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -503,11 +503,11 @@ struct ActionItemBox: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count)")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutBold)
                     .foregroundStyle(.primary)
 
                 Text(label)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
             }
         }
@@ -532,7 +532,7 @@ struct FlagRow: View {
                 .foregroundStyle(color)
 
             Text(text)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(color)
         }
         .padding(10)

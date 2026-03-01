@@ -76,7 +76,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 // Header
                 HStack {
                     Text("Presentation Info")
-                        .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.titleSmall)
                     Spacer()
                     Button("Edit") {
                         showingEditSheet = true
@@ -100,7 +100,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     VStack(alignment: .leading, spacing: 20) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(title(for: la))
-                                .font(.system(size: AppTheme.FontSize.titleMedium, weight: .heavy, design: .rounded))
+                                .font(AppTheme.ScaledFont.titleMedium)
                             if let presentedAt = la.presentedAt {
                                 HStack(spacing: 6) {
                                     Image(systemName: SFSymbol.Time.calendar)
@@ -155,7 +155,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "flag")
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(AppColors.warning)
                                     Text("Follow-Up")
                                         .font(.headline)
                                         .foregroundStyle(.primary)
@@ -164,13 +164,13 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 if la.needsPractice {
                                     Label("Needs Practice", systemImage: "arrow.triangle.2.circlepath")
                                         .font(.subheadline)
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(AppColors.warning)
                                 }
 
                                 if la.needsAnotherPresentation {
                                     Label("Needs Another Presentation", systemImage: SFSymbol.Action.arrowCounterclockwise)
                                         .font(.subheadline)
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(AppColors.warning)
                                 }
 
                                 if !la.followUpWork.isEmpty {
@@ -243,7 +243,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 VStack(spacing: 0) {
                     HStack {
                         Text("Presentation Info")
-                            .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.titleSmall)
                         Spacer()
                         Button(action: close) {
                             Text("Done")
@@ -260,7 +260,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
                     VStack(spacing: 12) {
                         Text("Loading...")
-                            .font(.system(size: AppTheme.FontSize.titleMedium, weight: .heavy, design: .rounded))
+                            .font(AppTheme.ScaledFont.titleMedium)
                         ProgressView()
                             .padding(.top, 8)
                     }
@@ -363,7 +363,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     if stats.total > 0 {
                         HStack(spacing: 4) {
                             Text("\(stats.completed)/\(stats.total)")
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 12))
                         }
@@ -391,7 +391,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                             Image(systemName: "person.2.fill")
                                 .font(.system(size: 14, weight: .medium))
                             Text("Practice Sessions (\(practiceSessions.count))")
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                         }
                         .foregroundStyle(.purple)
                         
@@ -401,7 +401,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                         
                         if practiceSessions.count > 3 {
                             Text("+ \(practiceSessions.count - 3) more sessions")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.tertiary)
                                 .padding(.leading, 8)
                         }
@@ -421,7 +421,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         VStack(alignment: .leading, spacing: 8) {
             // Note body first (like WorkDetailView)
             Text(note.body)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .fixedSize(horizontal: false, vertical: true)
 
             // Display image if available
@@ -441,7 +441,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 }
 
                 Text(note.createdAt, style: .date)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.tertiary)
 
                 Spacer()

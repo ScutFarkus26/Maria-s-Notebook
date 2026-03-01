@@ -211,7 +211,7 @@ struct AgendaPeriodChipView: View {
 
     var body: some View {
         Text(period.label)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .foregroundStyle(period.color)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

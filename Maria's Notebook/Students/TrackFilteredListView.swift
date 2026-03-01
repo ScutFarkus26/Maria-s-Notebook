@@ -167,13 +167,13 @@ struct TrackFilteredListView: View, Identifiable {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "person.3.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
                     .font(.caption)
 
                 Text("Presentation")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.warning)
 
                 Spacer()
 

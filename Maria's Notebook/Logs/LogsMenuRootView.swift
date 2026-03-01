@@ -133,7 +133,7 @@ struct LogsSidebarRow: View {
 
             // Title
             Text(mode.rawValue)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.primary)
 
             Spacer()

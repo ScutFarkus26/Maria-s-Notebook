@@ -403,19 +403,19 @@ struct PlanningWeekViewContent: View {
     // MARK: - Action Handlers
     
     private func handlePrevWeek() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             moveStart(bySchoolDays: -7)
         }
     }
     
     private func handleNextWeek() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             moveStart(bySchoolDays: 7)
         }
     }
     
     private func handleToday() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             computeInitialStartDate()
         }
     }

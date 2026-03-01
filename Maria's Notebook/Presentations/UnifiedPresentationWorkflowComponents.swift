@@ -8,7 +8,7 @@ struct WorkflowSectionHeader: View {
 
     var body: some View {
         Label(title, systemImage: icon)
-            .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.calloutSemibold)
             .foregroundStyle(.secondary)
     }
 }
@@ -42,7 +42,7 @@ struct UnderstandingLevelRow: View {
             if showLabel {
                 Spacer()
                 Text(UnderstandingLevel.label(for: selectedLevel))
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -87,7 +87,7 @@ struct WorkflowDatePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.tertiary)
 
             HStack(spacing: 4) {
@@ -127,7 +127,7 @@ struct WorkflowTextField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             Group {
@@ -138,7 +138,8 @@ struct WorkflowTextField: View {
                     TextField(placeholder, text: $text, axis: axis)
                 }
             }
-            .font(.system(size: AppTheme.FontSize.body, weight: axis == .horizontal ? .medium : .regular, design: .rounded))
+            .font(AppTheme.ScaledFont.body)
+            .fontWeight(axis == .horizontal ? .medium : .regular)
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: axis == .horizontal ? 12 : 10)
@@ -232,7 +233,7 @@ struct ExpandableSectionButton: View {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                 Text(title)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                 Spacer()
             }
             .foregroundStyle(.secondary)
@@ -252,14 +253,14 @@ struct WorkflowDeleteButton: View {
                 Image(systemName: "trash")
                     .font(.system(size: 12, weight: .medium))
                 Text("Remove")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
-            .foregroundStyle(.red)
+            .foregroundStyle(AppColors.destructive)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.red.opacity(0.1))
+                    .fill(AppColors.destructive.opacity(0.1))
             )
         }
         .buttonStyle(.plain)
@@ -276,7 +277,7 @@ struct WorkflowInfoHint: View {
             Image(systemName: "info.circle")
                 .font(.system(size: 11))
             Text(text)
-                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmall)
         }
         .foregroundStyle(.tertiary)
     }
@@ -294,7 +295,7 @@ struct WorkflowBadge: View {
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .semibold))
             Text(text)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 10)
@@ -314,7 +315,7 @@ struct WorkflowPanelHeader: View {
     var body: some View {
         VStack(spacing: 8) {
             Text(title)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -333,7 +334,7 @@ struct StudentEntryRowHeader: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(studentName)
-                .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.primary)
 
             Spacer()
@@ -343,7 +344,7 @@ struct StudentEntryRowHeader: View {
             HStack(spacing: 4) {
                 if hasContent {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                         .font(.system(size: 14))
                 }
 
@@ -374,7 +375,7 @@ struct WorkDatesRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Dates")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {

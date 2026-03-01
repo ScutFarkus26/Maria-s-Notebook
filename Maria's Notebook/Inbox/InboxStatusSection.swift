@@ -10,7 +10,7 @@ struct InboxStatusSection: View {
                     .foregroundStyle(.secondary)
                     .font(.system(size: UIConstants.CardSize.iconSize))
                 Text("Inbox Status")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
 
@@ -30,7 +30,7 @@ struct InboxStatusSection: View {
                     .foregroundStyle(.blue)
                     .font(.system(size: UIConstants.CardSize.iconSize))
                 Text("Scheduled")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.blue)
             }
             .padding(.horizontal, AppTheme.Spacing.compact)
@@ -52,7 +52,7 @@ struct InboxStatusSection: View {
                 scheduledFor = nil
             } label: {
                 Label("Remove from Schedule", systemImage: "xmark.circle")
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -66,7 +66,7 @@ struct InboxStatusSection: View {
                     .foregroundStyle(.secondary)
                     .font(.system(size: UIConstants.CardSize.iconSize))
                 Text("Unscheduled")
-                    .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, AppTheme.Spacing.compact)

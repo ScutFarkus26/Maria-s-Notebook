@@ -104,14 +104,14 @@ struct PracticeSessionsListView: View {
                             } header: {
                                 HStack {
                                     Text(formatDateHeader(dateGroup.date))
-                                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                                        .font(AppTheme.ScaledFont.captionSemibold)
                                         .foregroundStyle(.secondary)
                                         .textCase(.uppercase)
                                     
                                     Spacer()
                                     
                                     Text("\(dateGroup.sessions.count) session\(dateGroup.sessions.count == 1 ? "" : "s")")
-                                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.tertiary)
                                 }
                                 .padding(.horizontal)
@@ -182,12 +182,12 @@ struct PracticeSessionsListView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(color)
                 Text(value)
-                    .font(.system(size: AppTheme.FontSize.titleSmall, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(color)
             }
             
             Text(label)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -221,7 +221,7 @@ struct PracticeSessionsListView: View {
                                         .font(.system(size: 10, weight: .bold))
                                 }
                                 Text("All Students")
-                                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                             }
                             .foregroundStyle(selectedStudent == nil ? .white : .primary)
                             .padding(.horizontal, 12)
@@ -247,7 +247,7 @@ struct PracticeSessionsListView: View {
     
     private func filterChip(_ filter: FilterType) -> some View {
         Button {
-            withAnimation {
+            adaptiveWithAnimation {
                 selectedFilter = filter
             }
         } label: {
@@ -257,7 +257,7 @@ struct PracticeSessionsListView: View {
                         .font(.system(size: 10, weight: .bold))
                 }
                 Text(filter.rawValue)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
             .foregroundStyle(selectedFilter == filter ? .white : .primary)
             .padding(.horizontal, 12)
@@ -284,7 +284,7 @@ struct PracticeSessionsListView: View {
                         .font(.system(size: 10, weight: .bold))
                 }
                 Text(StudentFormatter.displayName(for: student))
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
             .foregroundStyle(selectedStudent == student.id ? .white : .primary)
             .padding(.horizontal, 12)
@@ -308,11 +308,11 @@ struct PracticeSessionsListView: View {
                 .foregroundStyle(.tertiary)
             
             Text(searchText.isEmpty ? "No Practice Sessions" : "No Results Found")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
                 .foregroundStyle(.secondary)
             
             Text(emptyStateMessage)
-                .font(.system(size: AppTheme.FontSize.body, design: .rounded))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)

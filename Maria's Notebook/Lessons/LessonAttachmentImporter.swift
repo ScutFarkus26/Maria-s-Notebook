@@ -156,10 +156,10 @@ struct LessonAttachmentImportSheet: View {
                     .foregroundStyle(Color.accentColor)
                 
                 Text("Import Attachment")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                 
                 Text(fileURL.lastPathComponent)
-                    .font(.system(size: 14))
+                    .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -172,7 +172,7 @@ struct LessonAttachmentImportSheet: View {
             if !suggestedLessons.isEmpty && searchText.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Suggested Lessons")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -192,7 +192,7 @@ struct LessonAttachmentImportSheet: View {
             // Search and lesson list
             VStack(alignment: .leading, spacing: 12) {
                 Text("All Lessons")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .padding(.horizontal)
@@ -220,7 +220,7 @@ struct LessonAttachmentImportSheet: View {
             if selectedLesson != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Attachment Scope")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -232,7 +232,7 @@ struct LessonAttachmentImportSheet: View {
                     .pickerStyle(.segmented)
                     
                     Text(selectedScope.description)
-                        .font(.system(size: 11))
+                        .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal)
@@ -302,14 +302,14 @@ struct LessonSelectionRow: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(lesson.name)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     HStack(spacing: 6) {
                         if !lesson.subject.isEmpty {
                             Text(lesson.subject)
-                                .font(.system(size: 11))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
                         if !lesson.subject.isEmpty && !lesson.group.isEmpty {
@@ -318,7 +318,7 @@ struct LessonSelectionRow: View {
                         }
                         if !lesson.group.isEmpty {
                             Text(lesson.group)
-                                .font(.system(size: 11))
+                                .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
                     }

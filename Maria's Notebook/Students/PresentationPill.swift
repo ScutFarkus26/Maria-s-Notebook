@@ -400,7 +400,7 @@ struct PresentationPill: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(lessonName)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .lineLimit(nil)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -447,10 +447,10 @@ struct PresentationPill: View {
                     // Minimalist "waiting" indicator
                     Image(systemName: "hourglass")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                 }
                 Text(label)
-                    .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
             }
             // Standard text color for readability
             .foregroundStyle(isMissing || isAbsent ? .secondary : .primary)

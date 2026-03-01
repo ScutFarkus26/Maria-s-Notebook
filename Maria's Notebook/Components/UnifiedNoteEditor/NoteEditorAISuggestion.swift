@@ -111,7 +111,7 @@ struct SuggestionPreviewSheet: View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 16) {
             Text("Suggested Tags")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleMedium)
             if !proposedTags.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Tags:").bold()
@@ -129,7 +129,7 @@ struct SuggestionPreviewSheet: View {
                                     if selectedTags.contains(tag) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.system(size: 12))
-                                            .foregroundStyle(.green)
+                                            .foregroundStyle(AppColors.success)
                                     }
                                 }
                                 .opacity(selectedTags.contains(tag) ? 1.0 : 0.5)
@@ -179,7 +179,7 @@ struct SuggestionPreviewSheet: View {
                                         if selectedTags.contains(tag) {
                                             Image(systemName: "checkmark.circle.fill")
                                                 .font(.system(size: 12))
-                                                .foregroundStyle(.green)
+                                                .foregroundStyle(AppColors.success)
                                         }
                                     }
                                     .opacity(selectedTags.contains(tag) ? 1.0 : 0.5)

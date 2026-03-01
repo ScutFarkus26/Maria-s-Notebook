@@ -9,7 +9,7 @@ struct SubtleRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.6 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .adaptiveAnimation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -281,7 +281,7 @@ struct GroupedScheduledWorkListRow: View {
             // Main grouped row
             Button {
                 if isFlexible {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isExpanded.toggle()
                     }
                 } else if let first = items.first {
@@ -292,7 +292,7 @@ struct GroupedScheduledWorkListRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
                             Text("\(items.count)")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)
@@ -378,7 +378,7 @@ struct GroupedFollowUpWorkListRow: View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 if isFlexible {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isExpanded.toggle()
                     }
                 } else if let first = items.first {
@@ -389,7 +389,7 @@ struct GroupedFollowUpWorkListRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
                             Text("\(items.count)")
-                                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .bold, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)
@@ -504,7 +504,7 @@ struct TodoTodayRow: View {
                 if todo.isCompleted {
                     Image(systemName: SFSymbol.Action.checkmark)
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                 }
             }
             .frame(width: 20, height: 20)
@@ -567,7 +567,7 @@ struct TodoTodayRow: View {
                                 let firstName = TodoTagHelper.tagName(todo.tags[0])
                                 let firstColor = TodoTagHelper.tagColor(todo.tags[0])
                                 Text(firstName)
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                                     .foregroundStyle(firstColor.color)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
@@ -575,7 +575,7 @@ struct TodoTodayRow: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 3))
                                 if todo.tags.count > 1 {
                                     Text("+\(todo.tags.count - 1)")
-                                        .font(.system(size: 10))
+                                        .font(AppTheme.ScaledFont.captionSmall)
                                         .foregroundStyle(.secondary)
                                 }
                             }

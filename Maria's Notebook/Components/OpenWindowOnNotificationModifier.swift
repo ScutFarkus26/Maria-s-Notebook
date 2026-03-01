@@ -25,6 +25,9 @@ struct OpenWindowOnNotificationModifier: ViewModifier {
                     openWindow(id: "WorkDetailWindow", value: workID)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openKeyboardShortcutsWindow)) { _ in
+                openWindow(id: "KeyboardShortcutsWindow")
+            }
     }
 }
 

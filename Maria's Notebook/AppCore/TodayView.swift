@@ -265,6 +265,9 @@ struct TodayView: View {
             agendaListSection
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            viewModel.reload()
+        }
         #endif
     }
 
@@ -374,7 +377,7 @@ struct TodayView: View {
     private var toastOverlay: some View {
         if let message = toastMessage {
             Text(message)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(

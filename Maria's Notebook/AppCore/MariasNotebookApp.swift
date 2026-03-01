@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import TipKit
 #if os(macOS)
 import AppKit
 #endif
@@ -17,7 +18,8 @@ struct MariasNotebookApp: App {
     private static let logger = Logger.app_
 
     // MARK: - State Objects
-    
+
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var bootstrapper = AppBootstrapper.shared
     @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
@@ -86,6 +88,8 @@ struct MariasNotebookApp: App {
                                 }
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .background(Color.clear)
+                            } else if !hasCompletedOnboarding {
+                                OnboardingView()
                             } else {
                                 RootView()
                                     .environment(\.calendar, AppCalendar.shared)
@@ -114,6 +118,11 @@ struct MariasNotebookApp: App {
                     databaseErrorCoordinator.setError(error)
                 }
                 
+                // Configure TipKit for contextual feature tips
+                try? Tips.configure([
+                    .displayFrequency(.weekly)
+                ])
+
                 // Only bootstrap if the store loaded successfully
                 if AppBootstrapping.initError == nil {
                     #if os(macOS)
@@ -229,9 +238,14 @@ struct MariasNotebookApp: App {
             }
 
             // 5. HELP & TROUBLESHOOTING (Help Menu)
-            // Hides the "junk" inside a submenu in Help, or you can delete it entirely
             CommandGroup(replacing: .help) {
-                // Keeps the default search bar
+                #if os(macOS)
+                Button("Keyboard Shortcuts") {
+                    NotificationCenter.default.post(name: .openKeyboardShortcutsWindow, object: nil)
+                }
+                .keyboardShortcut("/", modifiers: [.command])
+                #endif
+
                 Button("\(Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "App") Help") {
                     // Action to open help
                 }
@@ -331,6 +345,14 @@ struct MariasNotebookApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 860, height: 640)
         .modelContainer(sharedModelContainer)
+
+        // Keyboard Shortcuts Help Window
+        WindowGroup("Keyboard Shortcuts", id: "KeyboardShortcutsWindow") {
+            KeyboardShortcutsHelpView()
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.automatic)
+        .defaultSize(width: 480, height: 600)
 
         // Lesson Detail Window
         WindowGroup("", id: "LessonDetailWindow", for: UUID.self) { $lessonID in

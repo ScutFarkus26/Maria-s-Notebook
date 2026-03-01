@@ -49,7 +49,7 @@ struct WorkCardPillContent: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lessonTitle)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
                         .layoutPriority(1)
@@ -90,7 +90,7 @@ private struct StudentChipView: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
             .foregroundStyle(isAbsent ? .secondary : .primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

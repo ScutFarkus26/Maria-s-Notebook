@@ -201,7 +201,7 @@ struct AttendanceLogView: View {
                 .fill(color.opacity(0.35))
                 .frame(width: 10, height: 10)
             Text("\(count)")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -239,6 +239,7 @@ struct AttendanceLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
+                .frame(minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
             }
 
@@ -269,6 +270,7 @@ struct AttendanceLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
+                .frame(minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
             }
 
@@ -291,6 +293,7 @@ struct AttendanceLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
+                .frame(minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
             }
 
@@ -392,10 +395,10 @@ struct AttendanceLogView: View {
                 // Student name
                 if let studentID = record.studentIDUUID, let student = studentsByID[studentID] {
                     Text(displayName(for: student))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
                     Text("Unknown Student")
-                        .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
 

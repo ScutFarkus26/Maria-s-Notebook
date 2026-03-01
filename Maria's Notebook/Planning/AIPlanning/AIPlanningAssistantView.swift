@@ -146,7 +146,7 @@ struct AIPlanningAssistantView: View {
             }
             .onChange(of: vm.messages.count) { _, _ in
                 if let lastID = vm.messages.last?.id {
-                    withAnimation {
+                    adaptiveWithAnimation {
                         proxy.scrollTo(lastID, anchor: .bottom)
                     }
                 }
@@ -321,13 +321,13 @@ struct AIPlanningAssistantView: View {
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.warning)
             Text(message)
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(12)
-        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .background(AppColors.warning.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
     }
     
     // MARK: - Actions

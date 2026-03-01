@@ -376,7 +376,7 @@ private struct TodoTemplateEditSheet: View {
     private func templateTagBadge(_ tag: String) -> some View {
         HStack(spacing: 4) {
             Text(TodoTagHelper.tagName(tag))
-                .font(.system(size: 13, weight: .medium))
+                .font(AppTheme.ScaledFont.captionSemibold)
             Button {
                 selectedTags.removeAll { $0 == tag }
             } label: {

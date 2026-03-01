@@ -52,7 +52,7 @@ struct AttendanceCard: View {
     private var originalLayout: some View {
         HStack(spacing: 8) {
             Text(student.fullName)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
                 .lineLimit(1)
                 .truncationMode(.tail)
             
@@ -87,7 +87,7 @@ struct AttendanceCard: View {
         )
         .id(status)
         .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .move(edge: .top).combined(with: .opacity)))
-        .animation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
+        .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
@@ -102,7 +102,7 @@ struct AttendanceCard: View {
                         Image(systemName: "note.text")
                             .foregroundStyle(.secondary)
                         Text(noteContent.text)
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -115,7 +115,7 @@ struct AttendanceCard: View {
                     Image(systemName: "note.text")
                         .foregroundStyle(.secondary)
                     Text(noteContent.text)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -149,7 +149,7 @@ struct AttendanceCard: View {
         // iPhone compact layout
         HStack(spacing: 6) {
             Text(student.fullName)
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
             
@@ -165,7 +165,7 @@ struct AttendanceCard: View {
         HStack(spacing: 6) {
             Text(statusLabel)
                 .id(status)
-                .font(.system(size: AppTheme.FontSize.captionSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(accentColor)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
@@ -181,7 +181,7 @@ struct AttendanceCard: View {
         .background(
             Capsule().fill(accentColor.opacity(UIConstants.OpacityConstants.medium))
         )
-        .animation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
+        .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
 
         // Spacer to push note section to bottom
         Spacer(minLength: 4)
@@ -198,7 +198,7 @@ struct AttendanceCard: View {
                         .imageScale(.medium)
                         .foregroundStyle(.secondary)
                     Text("Add Note")
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -216,7 +216,7 @@ struct AttendanceCard: View {
                         Image(systemName: "note.text")
                             .foregroundStyle(.secondary)
                         Text(noteContent.text)
-                            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -229,7 +229,7 @@ struct AttendanceCard: View {
                     Image(systemName: "note.text")
                         .foregroundStyle(.secondary)
                     Text(noteContent.text)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -269,7 +269,7 @@ struct AttendanceCard: View {
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: status)
+        .adaptiveAnimation(.spring(response: 0.4, dampingFraction: 0.7), value: status)
 #if os(macOS)
         .highPriorityGesture(TapGesture(count: 1).onEnded { if isEditing { onTap() } })
 #else

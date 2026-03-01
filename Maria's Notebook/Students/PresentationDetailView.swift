@@ -120,7 +120,7 @@ struct IndependentWorkflowWindow: View {
             // Header
             HStack {
                 Text("\(lessonName) Presentation Workflow")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 
                 Spacer()
                 
@@ -192,7 +192,7 @@ struct PresentationDetailContentView: View {
                 planningView
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: vm.showWorkflowPanel)
+        .adaptiveAnimation(.easeInOut(duration: 0.3), value: vm.showWorkflowPanel)
         #if os(macOS)
         .frame(
             minWidth: vm.showWorkflowPanel ? 1400 : 720,

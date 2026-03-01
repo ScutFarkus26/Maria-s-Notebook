@@ -360,7 +360,7 @@ struct StudentMeetingsTab: View {
                                     Text(Self.dateFormatter.string(from: item.date))
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
-                                    if item.completed { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+                                    if item.completed { Image(systemName: "checkmark.circle.fill").foregroundStyle(AppColors.success) }
                                     Text("•")
                                         .foregroundStyle(.secondary)
                                     
@@ -399,7 +399,7 @@ struct StudentMeetingsTab: View {
                                 }
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    withAnimation {
+                                    adaptiveWithAnimation {
                                         if isExpanded {
                                             expandedHistoryIDs.remove(item.id)
                                         } else {

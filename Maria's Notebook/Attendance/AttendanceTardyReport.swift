@@ -183,7 +183,7 @@ struct AttendanceTardyReport: View {
                     Spacer()
                     Text("\(row.tardyCount)")
                         .font(.system(.title3, design: .rounded).weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                         .frame(minWidth: 32, alignment: .trailing)
                     Text(row.tardyCount == 1 ? "tardy" : "tardies")
                         .font(.caption)

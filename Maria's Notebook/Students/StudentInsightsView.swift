@@ -114,10 +114,10 @@ struct StudentInsightsView: View {
                 if !snapshot.isReviewed {
                     Label("New", systemImage: "sparkles")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.orange.opacity(0.1))
+                        .background(AppColors.warning.opacity(0.1))
                         .cornerRadius(8)
                 }
             }
@@ -325,8 +325,8 @@ struct StudentInsightsView: View {
             Label("Error", systemImage: SFSymbol.Status.exclamationmarkTriangleFill)
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundStyle(.red)
-            
+                .foregroundStyle(AppColors.destructive)
+
             Text(message)
                 .font(.body)
                 .foregroundStyle(.primary)

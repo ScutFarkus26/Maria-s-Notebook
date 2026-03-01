@@ -226,7 +226,7 @@ private struct ProposedSolutionsSection: View {
                                 Text(s.title.trimmed().isEmpty ? "Untitled" : s.title)
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
-                                if s.isAdopted { Label("Adopted", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon).font(.caption).foregroundStyle(.green) }
+                                if s.isAdopted { Label("Adopted", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon).font(.caption).foregroundStyle(AppColors.success) }
                                 Spacer()
                                 Menu {
                                     Button(s.isAdopted ? "Unmark Adopted" : "Mark Adopted", systemImage: "checkmark.circle") {

@@ -108,7 +108,7 @@ struct TodoMainView: View {
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) {
+                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
                         isSelectMode.toggle()
                         if !isSelectMode { selectedTodoIDs.removeAll() }
                     }
@@ -188,7 +188,7 @@ struct TodoMainView: View {
     }
     
     private func deleteTodo(_ todo: TodoItem) {
-        withAnimation {
+        adaptiveWithAnimation {
             modelContext.delete(todo)
             do {
                 try modelContext.save()
@@ -207,7 +207,7 @@ struct TodoMainView: View {
     }
     
     private func batchComplete() {
-        withAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToComplete = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todosToComplete {
                 todo.isCompleted = true
@@ -224,7 +224,7 @@ struct TodoMainView: View {
     }
     
     private func batchSetHighPriority() {
-        withAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todos {
                 todo.priority = .high
@@ -240,7 +240,7 @@ struct TodoMainView: View {
     }
     
     private func batchSetDueToday() {
-        withAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
             let today = Calendar.current.startOfDay(for: Date())
             for todo in todos {
@@ -257,7 +257,7 @@ struct TodoMainView: View {
     }
     
     private func batchDelete() {
-        withAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToDelete = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todosToDelete {
                 modelContext.delete(todo)
@@ -394,7 +394,8 @@ struct TodoMainView: View {
                                 .background(filter.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
 
                             Text(filter.title)
-                                .font(.system(size: 15, weight: isActive ? .semibold : .regular))
+                                .font(AppTheme.ScaledFont.body)
+                                .fontWeight(isActive ? .semibold : .regular)
 
                             Spacer()
 
@@ -402,7 +403,7 @@ struct TodoMainView: View {
                                 let count = countForFilter(filter)
                                 if count > 0 {
                                     Text("\(count)")
-                                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                                        .font(AppTheme.ScaledFont.captionSemibold)
                                         .foregroundStyle(.tertiary)
                                 }
                             }
@@ -454,7 +455,7 @@ struct TodoMainView: View {
                                         .frame(width: 10)
 
                                     Text(groupName)
-                                        .font(.system(size: 15, weight: .semibold))
+                                        .font(AppTheme.ScaledFont.bodySemibold)
                                         .foregroundStyle(selectedFolder == groupName ? Color.accentColor : .primary)
 
                                     Spacer()
@@ -468,7 +469,7 @@ struct TodoMainView: View {
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    withAnimation(.snappy(duration: 0.2)) {
+                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
                                         if selectedFolder == groupName {
                                             // Deselect folder
                                             selectedFolder = nil
@@ -487,7 +488,7 @@ struct TodoMainView: View {
                                             .foregroundStyle(.secondary)
                                             .font(.system(size: 12, weight: .semibold))
                                         Text(groupName)
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(AppTheme.ScaledFont.captionSemibold)
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
@@ -496,7 +497,7 @@ struct TodoMainView: View {
                                 }
                                 .dropDestination(for: String.self) { items, _ in
                                     guard let dropped = items.first, dropped != item else { return false }
-                                    withAnimation(.snappy(duration: 0.2)) {
+                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
                                         moveTag(from: dropped, toAfter: item)
                                     }
                                     return true
@@ -521,7 +522,7 @@ struct TodoMainView: View {
                                 removeUnusedTags()
                             }
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.destructive)
                         }
                         Button {
                             newFolderName = ""
@@ -564,7 +565,7 @@ struct TodoMainView: View {
                 Spacer()
 
                 Text("\(countForTag(tag))")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -579,7 +580,7 @@ struct TodoMainView: View {
         )
         .dropDestination(for: String.self) { items, _ in
             guard let dropped = items.first, dropped != dragKey else { return false }
-            withAnimation(.snappy(duration: 0.2)) {
+            adaptiveWithAnimation(.snappy(duration: 0.2)) {
                 moveTag(from: dropped, toAfter: dragKey)
             }
             return true
@@ -601,7 +602,7 @@ struct TodoMainView: View {
                         }
                     } label: {
                         Text(selectedTodoIDs.count == filteredTodos.count ? "Deselect All" : "Select All")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(AppTheme.ScaledFont.bodySemibold)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.accent)
@@ -609,7 +610,7 @@ struct TodoMainView: View {
                     Spacer()
                     
                     Text("\(selectedTodoIDs.count) selected")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 20)
@@ -697,7 +698,7 @@ struct TodoMainView: View {
                 Image(systemName: icon)
                     .font(.system(size: 18))
                 Text(title)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
             }
             .foregroundStyle(color)
             .frame(maxWidth: .infinity)
@@ -713,7 +714,7 @@ struct TodoMainView: View {
 
             TextField("Search", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
+                .font(AppTheme.ScaledFont.body)
 
             if !searchText.isEmpty {
                 Button {
@@ -830,13 +831,13 @@ struct TodoMainView: View {
                     .frame(width: 26, height: 26)
 
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodyBold)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 Text("\(todos.count)")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 4)
@@ -940,7 +941,7 @@ struct TodoMainView: View {
 
             VStack(spacing: 6) {
                 Text(emptyStateMessage)
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.secondary)
 
                 if selectedTag == nil && selectedFolder == nil && (selectedFilter == .inbox || selectedFilter == .all) {
@@ -1174,11 +1175,11 @@ struct TodoRowCard: View {
 
                 // Checkbox
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                         checkboxScale = 0.8
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             checkboxScale = 1.0
@@ -1206,13 +1207,13 @@ struct TodoRowCard: View {
                 // Content
                 VStack(alignment: .leading, spacing: 3) {
                     Text(todo.title)
-                        .font(.system(size: 17))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(todo.isCompleted ? .secondary : .primary)
                         .strikethrough(todo.isCompleted, color: .secondary.opacity(0.5))
 
                     if !todo.notes.isEmpty {
                         Text(todo.notes)
-                            .font(.system(size: 14))
+                            .font(AppTheme.ScaledFont.body)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
@@ -1228,7 +1229,7 @@ struct TodoRowCard: View {
                                     Image(systemName: "repeat")
                                         .font(.system(size: 10))
                                     Text(todo.recurrence.shortLabel)
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                        .font(AppTheme.ScaledFont.captionSemibold)
                                 }
                                 .foregroundStyle(.purple.opacity(0.7))
                             }
@@ -1249,7 +1250,7 @@ struct TodoRowCard: View {
                         Image(systemName: "checklist")
                             .font(.system(size: 11))
                         Text(progressText)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                     }
                     .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(0.7) : .secondary.opacity(0.5))
                 }
@@ -1408,7 +1409,7 @@ struct TodoRowCard: View {
             }
 
             Text("+\(tags.count)")
-                .font(.system(size: 11, weight: .medium))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.tertiary)
         }
     }
@@ -1424,7 +1425,7 @@ struct TodoRowCard: View {
 
             if hiddenCount > 0 {
                 Text("+\(hiddenCount)")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -1466,11 +1467,11 @@ struct NewTodoForm: View {
             // Title & Notes
             Section {
                 TextField("What do you need to do?", text: $title)
-                    .font(.system(size: 17))
+                    .font(AppTheme.ScaledFont.titleSmall)
 
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
-                    .font(.system(size: 15))
+                    .font(AppTheme.ScaledFont.body)
             }
 
             // Students
@@ -1488,7 +1489,8 @@ struct NewTodoForm: View {
                                     }
                                 } label: {
                                     Text(student.firstName)
-                                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                                        .font(AppTheme.ScaledFont.caption)
+                                        .fontWeight(isSelected ? .semibold : .regular)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
                                         .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
@@ -1549,7 +1551,7 @@ struct NewTodoForm: View {
                             .font(.system(size: 16))
                             .foregroundStyle(.secondary)
                         Text(subtaskTitles[index])
-                            .font(.system(size: 15))
+                            .font(AppTheme.ScaledFont.body)
                         Spacer()
                         Button {
                             subtaskTitles.remove(at: index)
@@ -1567,7 +1569,7 @@ struct NewTodoForm: View {
                         .font(.system(size: 16))
                         .foregroundStyle(Color.accentColor)
                     TextField("Add subtask", text: $newSubtaskTitle)
-                        .font(.system(size: 15))
+                        .font(AppTheme.ScaledFont.body)
                         .onSubmit {
                             addSubtask()
                         }
@@ -1605,7 +1607,7 @@ struct NewTodoForm: View {
                                 .controlSize(.small)
                         }
                         Label("Create Todo", systemImage: "plus.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppTheme.ScaledFont.calloutSemibold)
                         Spacer()
                     }
                 }
@@ -1721,7 +1723,7 @@ struct TodoDetailView: View {
                 // Title + Checkbox
                 HStack(alignment: .top, spacing: 14) {
                     Button {
-                        withAnimation(.snappy(duration: 0.2)) {
+                        adaptiveWithAnimation(.snappy(duration: 0.2)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             try? modelContext.save()
@@ -1735,7 +1737,7 @@ struct TodoDetailView: View {
                     .buttonStyle(.plain)
 
                     Text(todo.title)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(AppTheme.ScaledFont.titleXLarge)
                         .strikethrough(todo.isCompleted)
                 }
 
@@ -1747,7 +1749,7 @@ struct TodoDetailView: View {
                                 let name = allStudents.first(where: { $0.id == studentID })
                                     .map { "\($0.firstName) \($0.lastName)" } ?? "Unknown"
                                 Text(name)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
                                     .background(Color.accentColor.opacity(0.12))
@@ -1787,7 +1789,7 @@ struct TodoDetailView: View {
                         HStack(spacing: 8) {
                             Circle().fill(todo.priority.color).frame(width: 10, height: 10)
                             Text(todo.priority.rawValue)
-                                .font(.system(size: 15, weight: .medium))
+                                .font(AppTheme.ScaledFont.bodySemibold)
                                 .foregroundStyle(todo.priority.color)
                         }
                     }
@@ -1815,7 +1817,7 @@ struct TodoDetailView: View {
                                 ProgressView(value: Double(completed), total: Double(total))
                                     .tint(completed == total ? .green : .accentColor)
                                 Text("\(completed)/\(total)")
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(AppTheme.ScaledFont.captionSemibold)
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.bottom, 8)
@@ -1826,7 +1828,7 @@ struct TodoDetailView: View {
                                         .font(.system(size: 16))
                                         .foregroundStyle(subtask.isCompleted ? .green : .secondary)
                                     Text(subtask.title)
-                                        .font(.system(size: 15))
+                                        .font(AppTheme.ScaledFont.body)
                                         .foregroundStyle(subtask.isCompleted ? .secondary : .primary)
                                         .strikethrough(subtask.isCompleted)
                                 }
@@ -1870,12 +1872,12 @@ struct TodoDetailView: View {
                             HStack(spacing: 12) {
                                 if todo.notifyOnEntry {
                                     Label("On arrival", systemImage: "arrow.right.circle")
-                                        .font(.system(size: 13))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 if todo.notifyOnExit {
                                     Label("On departure", systemImage: "arrow.left.circle")
-                                        .font(.system(size: 13))
+                                        .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -1890,7 +1892,7 @@ struct TodoDetailView: View {
                             Image(systemName: "briefcase.fill")
                                 .foregroundStyle(.indigo)
                             Text("Linked work item")
-                                .font(.system(size: 15))
+                                .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.indigo)
                         }
                     }
@@ -1900,7 +1902,7 @@ struct TodoDetailView: View {
                 if todo.hasAttachments {
                     detailSection("Attachments", icon: "paperclip") {
                         Text("\(todo.attachmentPaths.count) file\(todo.attachmentPaths.count == 1 ? "" : "s")")
-                            .font(.system(size: 15))
+                            .font(AppTheme.ScaledFont.body)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1912,16 +1914,16 @@ struct TodoDetailView: View {
                             if let mood = todo.mood {
                                 HStack(spacing: 8) {
                                     Text(mood.emoji)
-                                        .font(.system(size: 24))
+                                        .font(AppTheme.ScaledFont.header)
                                     Text(mood.rawValue)
-                                        .font(.system(size: 15, weight: .medium))
+                                        .font(AppTheme.ScaledFont.bodySemibold)
                                         .foregroundStyle(mood.color)
                                 }
                             }
                             let reflection = todo.reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines)
                             if !reflection.isEmpty {
                                 Text(reflection)
-                                    .font(.system(size: 15))
+                                    .font(AppTheme.ScaledFont.body)
                                     .foregroundStyle(.secondary)
                                     .padding(12)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1936,7 +1938,7 @@ struct TodoDetailView: View {
                 if !todo.notes.isEmpty {
                     detailSection("Notes", icon: "text.alignleft") {
                         Text(todo.notes)
-                            .font(.system(size: 15))
+                            .font(AppTheme.ScaledFont.body)
                     }
                 }
 
@@ -1996,7 +1998,7 @@ struct TodoDetailView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -2012,10 +2014,10 @@ struct TodoDetailView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
             Text(label)
-                .font(.system(size: 15))
+                .font(AppTheme.ScaledFont.body)
             Spacer()
             Text(value)
-                .font(.system(size: 15))
+                .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(valueColor)
         }
     }
@@ -2050,11 +2052,11 @@ struct EditTodoForm: View {
         Form {
             Section("Details") {
                 TextField("Title", text: $todo.title)
-                    .font(.system(size: 17))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 
                 TextField("Notes", text: $todo.notes, axis: .vertical)
                     .lineLimit(3...6)
-                    .font(.system(size: 15))
+                    .font(AppTheme.ScaledFont.body)
             }
             
             Section("Schedule") {
@@ -2116,7 +2118,7 @@ struct EditTodoForm: View {
                         Text(formatCompletedDate(completedAt))
                             .foregroundStyle(.secondary)
                     }
-                    .font(.system(size: 14))
+                    .font(AppTheme.ScaledFont.body)
                 }
             }
         }
@@ -2221,7 +2223,7 @@ struct TagPicker: View {
                 
                 TextField("Search tags", text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 15))
+                    .font(AppTheme.ScaledFont.body)
                     .focused($isSearchFieldFocused)
                     .onSubmit {
                         createTagFromSearchIfNeeded()
@@ -2269,7 +2271,7 @@ struct TagPicker: View {
             if !selectedTags.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Selected Tags")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     
@@ -2432,7 +2434,7 @@ struct TagButton: View {
                 }
                 Text(tagName)
             }
-            .font(.system(size: 13, weight: .medium))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(isSelected ? tagColor.color : tagColor.lightColor)
@@ -2496,7 +2498,7 @@ struct CustomTagSheet: View {
                                         )
                                     
                                     Text(color.rawValue)
-                                        .font(.system(size: 11))
+                                        .font(AppTheme.ScaledFont.captionSmall)
                                 }
                             }
                             .buttonStyle(.plain)

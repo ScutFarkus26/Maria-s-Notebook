@@ -19,7 +19,7 @@ struct StatusPill: View {
                     .font(.system(size: UIConstants.CardSize.iconSize))
             }
             Text(text)
-                .font(.system(size: AppTheme.FontSize.caption))
+                .font(AppTheme.ScaledFont.caption)
                 .fontWeight(.medium)
         }
         .padding(.horizontal, AppTheme.Spacing.sm)

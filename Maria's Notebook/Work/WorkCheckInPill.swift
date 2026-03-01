@@ -15,12 +15,12 @@ struct WorkCheckInPill: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if !studentName.trimmed().isEmpty {
                     Text(studentName)
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                 }
                 Text(workTitle)
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }

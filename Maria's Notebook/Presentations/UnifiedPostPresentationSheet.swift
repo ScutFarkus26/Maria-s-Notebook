@@ -168,14 +168,14 @@ struct UnifiedPostPresentationSheet: View {
     private var header: some View {
         VStack(spacing: AppTheme.Spacing.xsmall) {
             Text("Presentation Complete")
-                .font(.system(size: AppTheme.FontSize.titleSmall, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.titleSmall)
 
             Text(lessonName)
-                .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
 
             Text(Date(), style: .date)
-                .font(.system(size: AppTheme.FontSize.captionSmall, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmall)
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -187,7 +187,7 @@ struct UnifiedPostPresentationSheet: View {
     private var statusSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             Label("Presentation Status", systemImage: "flag.fill")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.secondary)
 
             #if os(iOS)
@@ -245,14 +245,14 @@ struct UnifiedPostPresentationSheet: View {
     private var bulkAssignmentSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             Label("Quick Assignment", systemImage: "doc.text.fill")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.secondary)
 
             // Suggested follow-up work from lesson
             if !suggestedWorkItems.isEmpty {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
                     Text("Suggested by lesson:")
-                        .font(.system(size: AppTheme.FontSize.captionSmall, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.tertiary)
 
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -262,15 +262,15 @@ struct UnifiedPostPresentationSheet: View {
                             } label: {
                                 HStack(spacing: AppTheme.Spacing.verySmall) {
                                     Image(systemName: "sparkles")
-                                        .font(.system(size: AppTheme.FontSize.captionSmall))
+                                        .font(AppTheme.ScaledFont.captionSmall)
                                     Text(suggestion)
                                         .lineLimit(2)
                                     Spacer()
                                     Image(systemName: "arrow.right.circle.fill")
-                                        .font(.system(size: AppTheme.FontSize.callout))
+                                        .font(AppTheme.ScaledFont.callout)
                                         .foregroundStyle(Color.accentColor)
                                 }
-                                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                                .font(AppTheme.ScaledFont.captionSemibold)
                                 .padding(.horizontal, AppTheme.Spacing.compact)
                                 .padding(.vertical, AppTheme.Spacing.small)
                                 .background(
@@ -319,7 +319,7 @@ struct UnifiedPostPresentationSheet: View {
                         .labelsHidden()
                 }
             }
-            .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+            .font(AppTheme.ScaledFont.caption)
         }
         .padding(.horizontal, AppTheme.Spacing.medium)
     }
@@ -345,7 +345,7 @@ struct UnifiedPostPresentationSheet: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack {
                 Label("Student Status & Notes", systemImage: "person.2.fill")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -353,7 +353,7 @@ struct UnifiedPostPresentationSheet: View {
                 // Completion indicator
                 let completed = viewModel.entries.values.filter { !$0.observation.isEmpty || !$0.assignment.isEmpty }.count
                 Text("\(completed)/\(viewModel.entries.count)")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.tertiary)
             }
 
@@ -428,7 +428,7 @@ struct UnifiedPostPresentationSheet: View {
     private var groupObservationSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             Label("Group Observation", systemImage: "text.bubble.fill")
-                .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.secondary)
 
             TextField("Notes about the presentation overall...", text: $viewModel.groupObservation, axis: .vertical)
@@ -451,8 +451,8 @@ struct UnifiedPostPresentationSheet: View {
 
             if !canDismiss {
                 Text("Select a presented status to finish")
-                    .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
-                    .foregroundStyle(.orange)
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(AppColors.warning)
             }
 
             Button("Done") {

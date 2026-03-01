@@ -22,7 +22,7 @@ struct MTSummaryStrip: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
     }
 
     private struct StatCard: View {
@@ -32,7 +32,7 @@ struct MTSummaryStrip: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(stat.icon)
-                        .font(.system(size: AppTheme.FontSize.titleSmall))
+                        .font(AppTheme.ScaledFont.titleSmall)
                         .accessibilityHidden(true)
                     Text(stat.title)
                         .font(.caption)

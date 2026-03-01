@@ -87,7 +87,7 @@ struct DropZone: View {
             VStack(alignment: .leading, spacing: 8) {
                 if scheduledLessonsForSlot.isEmpty {
                     Text("No plans yet")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 10)
@@ -148,11 +148,11 @@ struct DropZone: View {
             getCurrent: { scheduledLessonsForSlot },
             itemFramesProvider: { itemFrames },
             onTargetChange: { targeted in
-                withAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted }
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted }
             },
             onInsertionIndexChange: { idx in
                 if insertionIndex != idx {
-                    withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+                    adaptiveWithAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
                 }
             }
         ))

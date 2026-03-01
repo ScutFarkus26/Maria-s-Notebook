@@ -11,7 +11,7 @@ struct WorkDetailBottomBar: View {
                 onDelete()
             } label: {
                 Label("Delete", systemImage: "trash")
-                    .font(.system(size: AppTheme.FontSize.caption))
+                    .font(AppTheme.ScaledFont.caption)
             }
 
             Spacer()
@@ -19,13 +19,13 @@ struct WorkDetailBottomBar: View {
             Button("Cancel") {
                 onCancel()
             }
-            .font(.system(size: AppTheme.FontSize.caption))
+            .font(AppTheme.ScaledFont.caption)
 
             Button("Save") {
                 onSave()
             }
             .buttonStyle(.borderedProminent)
-            .font(.system(size: AppTheme.FontSize.caption))
+            .font(AppTheme.ScaledFont.caption)
             .keyboardShortcut(.defaultAction)
         }
         .padding(.vertical, 8)

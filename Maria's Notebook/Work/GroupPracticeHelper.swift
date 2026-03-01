@@ -34,7 +34,7 @@ struct GroupPracticeBadge: View {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 10, weight: .semibold))
                 Text("+\(partnerCount)")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
@@ -63,10 +63,10 @@ struct QuickGroupPracticeButton: View {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 12, weight: .medium))
                 Text("Group")
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                 if availablePartners.count > 0 {
                     Text("(\(availablePartners.count))")
-                        .font(.system(size: AppTheme.FontSize.caption, weight: .bold, design: .rounded))
+                        .font(AppTheme.ScaledFont.captionSemibold)
                 }
             }
             .foregroundStyle(.white)

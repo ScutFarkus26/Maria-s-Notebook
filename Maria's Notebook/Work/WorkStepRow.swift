@@ -23,20 +23,20 @@ struct WorkStepRow: View {
 
             // Step number
             Text("\(step.orderIndex + 1).")
-                .font(.system(size: AppTheme.FontSize.caption, weight: .medium, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .frame(width: 24, alignment: .trailing)
 
             // Step content
             VStack(alignment: .leading, spacing: 2) {
                 Text(step.title.isEmpty ? "Untitled Step" : step.title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .strikethrough(step.isCompleted)
                     .foregroundStyle(step.isCompleted ? .secondary : .primary)
 
                 if !step.instructions.isEmpty {
                     Text(step.instructions)
-                        .font(.system(size: AppTheme.FontSize.caption, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }

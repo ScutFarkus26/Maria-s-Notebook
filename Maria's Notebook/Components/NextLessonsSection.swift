@@ -13,7 +13,7 @@ struct NextLessonRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(lesson?.name ?? "Lesson")
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleSmall)
                 if let subject = lesson?.subject, !subject.isEmpty {
                     Text(subject)
                         .foregroundStyle(.secondary)
@@ -34,10 +34,10 @@ struct NextLessonsSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Next Lessons")
-                    .font(.system(size: AppTheme.FontSize.header, weight: .heavy, design: .rounded))
+                    .font(AppTheme.ScaledFont.header)
                 Spacer()
                 Text("\(snapshots.count)")
-                    .font(.system(size: AppTheme.FontSize.callout, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 4)

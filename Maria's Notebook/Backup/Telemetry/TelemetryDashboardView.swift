@@ -184,7 +184,7 @@ struct TelemetryDashboardView: View {
                         telemetry.clearAllData()
                         updateReport()
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.destructive)
                 }
             }
             .padding()

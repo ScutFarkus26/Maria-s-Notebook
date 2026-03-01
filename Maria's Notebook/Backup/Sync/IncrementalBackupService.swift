@@ -460,7 +460,6 @@ public final class IncrementalBackupService {
         let lessons: [Lesson] = fetchFiltered(Lesson.self)
 
         // LegacyPresentation removed — no longer exported in incremental backups
-        let legacyPresentations: [LessonAssignment] = []
 
         progress(0.35, "Collecting lesson assignments…")
         let lessonAssignments: [LessonAssignment] = fetchFiltered(LessonAssignment.self)

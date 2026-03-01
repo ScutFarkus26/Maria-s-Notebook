@@ -54,7 +54,7 @@ struct LessonSearchField: View {
             .onChange(of: searchText) { _, newValue in
                 // Keep the popover visible while typing
                 if !newValue.trimmed().isEmpty {
-                    if !isPresented { withAnimation(.easeInOut) { isPresented = true } }
+                    if !isPresented { adaptiveWithAnimation(.easeInOut) { isPresented = true } }
                 }
             }
             .onSubmit {
@@ -63,14 +63,14 @@ struct LessonSearchField: View {
                 if let match = filteredLessons.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
                     selectedLessonID = match.id
                     searchText = match.name
-                    withAnimation(.easeInOut) { isPresented = false }
+                    adaptiveWithAnimation(.easeInOut) { isPresented = false }
                     isFocused = false
                 }
             }
             .onChange(of: isFocused) { _, newValue in
                 textFocused = newValue
                 if newValue {
-                    withAnimation(.easeInOut) { isPresented = true }
+                    adaptiveWithAnimation(.easeInOut) { isPresented = true }
                 }
             }
             .onChange(of: textFocused) { _, newValue in
@@ -85,7 +85,7 @@ struct LessonSearchField: View {
             }
             .onTapGesture {
                 isFocused = true
-                withAnimation(.easeInOut) { isPresented = true }
+                adaptiveWithAnimation(.easeInOut) { isPresented = true }
             }
             .popover(isPresented: $isPresented, arrowEdge: .bottom) {
                 LessonPickerPopover(
@@ -116,7 +116,7 @@ struct LessonPickerPopover: View {
                 Button(action: {
                     selectedLessonID = lesson.id
                     searchText = lesson.name
-                    withAnimation(.easeInOut) { isPresented = false }
+                    adaptiveWithAnimation(.easeInOut) { isPresented = false }
                     isFocused = false
                 }) {
                     HStack {
@@ -186,7 +186,7 @@ struct StudentsSection: View {
                 }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
             }
-            .animation(.spring(response: 0.25, dampingFraction: 0.85), value: viewModel.selectedStudentIDs)
+            .adaptiveAnimation(.spring(response: 0.25, dampingFraction: 0.85), value: viewModel.selectedStudentIDs)
             
             if viewModel.selectedStudentIDs.isEmpty {
                 Text("Add at least one student.")
@@ -271,7 +271,7 @@ struct StatusSection: View {
                     displayedComponents: [.date, .hourAndMinute],
                     defaultHour: 9
                 )
-                .animation(.easeInOut, value: viewModel.scheduledFor)
+                .adaptiveAnimation(.easeInOut, value: viewModel.scheduledFor)
             } else {
                 OptionalDatePicker(
                     toggleLabel: "Include date",
@@ -279,7 +279,7 @@ struct StatusSection: View {
                     date: $viewModel.givenAt,
                     displayedComponents: [.date]
                 )
-                .animation(.easeInOut, value: viewModel.givenAt)
+                .adaptiveAnimation(.easeInOut, value: viewModel.givenAt)
             }
         }
     }

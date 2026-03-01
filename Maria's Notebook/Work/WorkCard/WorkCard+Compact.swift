@@ -12,7 +12,7 @@ struct WorkCardCompactContent: View {
                 Image(systemName: config.workType.icon)
                     .foregroundStyle(config.workType.color)
                 Text(config.title)
-                    .font(.system(size: AppTheme.FontSize.body, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
                 Spacer()
             }
@@ -49,7 +49,7 @@ private struct ParticipantChipView: View {
                 Image(systemName: participant.isCompleted ? "checkmark.circle.fill" : "circle")
                 Text(participant.name)
             }
-            .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+            .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .foregroundStyle(color)

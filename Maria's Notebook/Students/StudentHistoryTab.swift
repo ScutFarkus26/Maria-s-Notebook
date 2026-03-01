@@ -205,10 +205,10 @@ struct StudentHistoryTab: View {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                     Text("Completed")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
 
                     if let startedAt = enrollment.startedAt {
                         Text("•")

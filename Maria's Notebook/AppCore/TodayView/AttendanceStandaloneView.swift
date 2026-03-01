@@ -119,7 +119,7 @@ struct AttendanceStandaloneView: View {
     private var toastOverlay: some View {
         if let message = toastMessage {
             Text(message)
-                .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .padding(.horizontal, AppTheme.Spacing.compact)
                 .padding(.vertical, AppTheme.Spacing.small)
                 .background(
@@ -179,7 +179,7 @@ struct AttendanceStandaloneView: View {
     // MARK: - Toast
 
     private func toast(_ message: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toastMessage = message
         }
         Task { @MainActor in
@@ -188,7 +188,7 @@ struct AttendanceStandaloneView: View {
             } catch {
                 Self.logger.warning("Failed to sleep for toast dismissal: \(error)")
             }
-            withAnimation(.easeInOut(duration: 0.25)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil
             }
         }

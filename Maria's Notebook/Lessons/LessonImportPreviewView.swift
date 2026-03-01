@@ -21,7 +21,7 @@ struct LessonImportPreviewView: View {
             // Header
             HStack(alignment: .firstTextBaseline) {
                 Text("Import Preview")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.titleMedium)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -63,7 +63,7 @@ struct LessonImportPreviewView: View {
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Summary")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {
@@ -86,10 +86,10 @@ struct LessonImportPreviewView: View {
     private func stat(_ title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(AppTheme.ScaledFont.calloutBold)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -101,7 +101,7 @@ struct LessonImportPreviewView: View {
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(.yellow)
                 Spacer()
-                Button(action: { withAnimation { showWarnings.toggle() } }) {
+                Button(action: { adaptiveWithAnimation { showWarnings.toggle() } }) {
                     Image(systemName: showWarnings ? "chevron.down" : "chevron.right")
                         .foregroundStyle(.secondary)
                 }
@@ -112,7 +112,7 @@ struct LessonImportPreviewView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(parsed.warnings.indices, id: \.self) { i in
                         Text("• \(parsed.warnings[i])")
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -132,13 +132,13 @@ struct LessonImportPreviewView: View {
     private var listSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Lessons to Import")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
                 if includedRows.isEmpty {
                     Text("No rows selected for import. Remove filters or close to cancel.")
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
@@ -147,7 +147,7 @@ struct LessonImportPreviewView: View {
                         let i = pair.offset
                         let r = pair.element
                         LessonRowView(row: r, isPotentialDuplicate: isPotentialDuplicate(row: r), onRemove: {
-                            withAnimation { includedRows.removeSubrange(i...i) }
+                            adaptiveWithAnimation { includedRows.removeSubrange(i...i) }
                         })
                         .padding(10)
                         .background(
@@ -189,7 +189,7 @@ private struct LessonRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(row.name)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.bodySemibold)
                 if isPotentialDuplicate {
                     Label("Potential duplicate", systemImage: "exclamationmark.triangle.fill")
                         .labelStyle(.iconOnly)
@@ -201,7 +201,7 @@ private struct LessonRowView: View {
                     subjectBadge
                     if let order = row.orderInGroup {
                         Text("#\(order)")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -214,7 +214,7 @@ private struct LessonRowView: View {
                         Button(action: onRemove) {
                             Image(systemName: "minus.circle.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(AppColors.destructive)
                         }
                         .buttonStyle(.plain)
                         .help("Exclude this row from import")
@@ -226,14 +226,14 @@ private struct LessonRowView: View {
                 HStack(spacing: 8) {
                     if !row.group.isEmpty {
                         Text(row.group)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .font(AppTheme.ScaledFont.captionSemibold)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Capsule().fill(.tint).opacity(0.12))
                     }
                     if !row.subheading.isEmpty {
                         Text(row.subheading)
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -241,7 +241,7 @@ private struct LessonRowView: View {
 
             if !row.writeUp.isEmpty {
                 Text(row.writeUp)
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                    .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
@@ -252,7 +252,7 @@ private struct LessonRowView: View {
         HStack(spacing: 6) {
             Circle().fill(.tint).frame(width: 6, height: 6)
             Text(row.subject)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.tint)
         }
         .padding(.horizontal, 8)

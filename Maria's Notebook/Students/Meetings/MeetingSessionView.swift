@@ -131,7 +131,7 @@ struct MeetingContextPane: View {
                 // Header
                 if isCompact {
                     Button {
-                        withAnimation { isContextCollapsed.toggle() }
+                        adaptiveWithAnimation { isContextCollapsed.toggle() }
                     } label: {
                         HStack {
                             Text("Student Context")
@@ -198,7 +198,7 @@ struct MeetingContextPane: View {
                         
                         if openWork.count > 5 {
                             Button {
-                                withAnimation {
+                                adaptiveWithAnimation {
                                     showAllOpenWork.toggle()
                                 }
                             } label: {
@@ -224,7 +224,7 @@ struct MeetingContextPane: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Overdue/Stuck")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.warning)
 
                     ForEach(overdueWork.prefix(3)) { work in
                         workRow(work)
@@ -372,7 +372,7 @@ struct MeetingContextPane: View {
                 if meeting.completed {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                 }
 
                 Spacer()

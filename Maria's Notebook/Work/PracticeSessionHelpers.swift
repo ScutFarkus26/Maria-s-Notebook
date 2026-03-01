@@ -217,21 +217,21 @@ struct StudentCategoryRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(StudentFormatter.displayName(for: categorizedStudent.student))
-                        .font(.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded))
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
 
                     // Show work title or status info
                     if let work = categorizedStudent.work {
                         Text(work.title)
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     } else if let days = categorizedStudent.daysSinceCompletion {
                         Text("Completed \(days) day\(days == 1 ? "" : "s") ago")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
-                            .foregroundStyle(.green)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(AppColors.success)
                     } else if let date = categorizedStudent.lastPracticeDate {
                         Text("Last practiced \(date.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.system(size: AppTheme.FontSize.caption, weight: .regular, design: .rounded))
+                            .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -264,7 +264,7 @@ struct StudentCategorySection: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Category header
                 Text(category.label)
-                    .font(.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded))
+                    .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .padding(.top, category == .withInitialStudent ? 0 : 8)

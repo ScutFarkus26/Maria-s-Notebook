@@ -20,7 +20,7 @@ struct DatabaseErrorView: View {
     var body: some View {
         ContentUnavailableView {
             Label("Database Error", systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
+                .foregroundStyle(AppColors.destructive)
         } description: {
             VStack(spacing: 12) {
                 Text("The app could not initialize the database.")
@@ -65,7 +65,7 @@ struct DatabaseErrorView: View {
                 if let resetError = resetError {
                     Text(resetError)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColors.destructive)
                 }
                 
                 Divider()
