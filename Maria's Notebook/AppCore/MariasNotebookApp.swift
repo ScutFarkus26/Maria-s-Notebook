@@ -132,7 +132,16 @@ struct MariasNotebookApp: App {
 
                     // Configure CloudKit sync status monitoring
                     CloudKitSyncStatusService.shared.configure(with: sharedModelContainer)
-                    
+
+                    // Register for remote notifications so CloudKit can push sync events.
+                    // SwiftData's NSPersistentCloudKitContainer handles incoming notifications
+                    // internally — we just need to ensure the app is registered.
+                    #if os(iOS)
+                    UIApplication.shared.registerForRemoteNotifications()
+                    #elseif os(macOS)
+                    NSApplication.shared.registerForRemoteNotifications()
+                    #endif
+
                     // PERFORMANCE: Start memory pressure monitoring
                     // This allows the app to proactively clear caches before being terminated
                     _ = dependencies.memoryPressureMonitor
