@@ -1807,12 +1807,13 @@ struct TodoDetailView: View {
                 }
 
                 // Subtasks
-                if !todo.subtasks.isEmpty {
+                let viewSubs = todo.subtasks ?? []
+                if !viewSubs.isEmpty {
                     detailSection("Checklist", icon: "checklist") {
                         VStack(alignment: .leading, spacing: 2) {
                             // Progress bar
-                            let completed = todo.subtasks.filter(\.isCompleted).count
-                            let total = todo.subtasks.count
+                            let completed = viewSubs.filter(\.isCompleted).count
+                            let total = viewSubs.count
                             HStack(spacing: 8) {
                                 ProgressView(value: Double(completed), total: Double(total))
                                     .tint(completed == total ? .green : .accentColor)
@@ -1822,7 +1823,7 @@ struct TodoDetailView: View {
                             }
                             .padding(.bottom, 8)
 
-                            ForEach(todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })) { subtask in
+                            ForEach(viewSubs.sorted(by: { $0.orderIndex < $1.orderIndex })) { subtask in
                                 HStack(spacing: 10) {
                                     Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                                         .font(.system(size: 16))

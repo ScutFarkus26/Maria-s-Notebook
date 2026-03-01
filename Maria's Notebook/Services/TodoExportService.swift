@@ -62,9 +62,9 @@ class TodoExportService {
                 output += "    Reflection: \(todo.reflectionNotes)\n"
             }
             
-            if !todo.subtasks.isEmpty {
-                output += "    Subtasks (\(todo.subtasks.filter { $0.isCompleted }.count)/\(todo.subtasks.count)):\n"
-                for subtask in todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            if !(todo.subtasks ?? []).isEmpty {
+                output += "    Subtasks (\((todo.subtasks ?? []).filter { $0.isCompleted }.count)/\((todo.subtasks ?? []).count)):\n"
+                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "      \(subtask.isCompleted ? "✓" : "○") \(subtask.title)\n"
                 }
             }
@@ -98,8 +98,8 @@ class TodoExportService {
             let created = dateFormatter.string(from: todo.createdAt)
             let notes = escapeCSV(todo.notes)
             let mood = todo.mood?.rawValue ?? ""
-            let subtasksCompleted = todo.subtasks.filter { $0.isCompleted }.count
-            let subtasksTotal = todo.subtasks.count
+            let subtasksCompleted = (todo.subtasks ?? []).filter { $0.isCompleted }.count
+            let subtasksTotal = (todo.subtasks ?? []).count
             
             output += "\(title),\(status),\(priority),\(tags),\(scheduledDate),\(deadline),\(created),\(notes),\(mood),\(subtasksCompleted),\(subtasksTotal)\n"
         }
@@ -158,9 +158,9 @@ class TodoExportService {
                 output += "> \(todo.notes)\n\n"
             }
             
-            if !todo.subtasks.isEmpty {
+            if !(todo.subtasks ?? []).isEmpty {
                 output += "**Subtasks:**\n\n"
-                for subtask in todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "- [\(subtask.isCompleted ? "x" : " ")] \(subtask.title)\n"
                 }
                 output += "\n"
@@ -215,8 +215,8 @@ class TodoExportService {
                 dict["reflectionNotes"] = todo.reflectionNotes
             }
             
-            if !todo.subtasks.isEmpty {
-                dict["subtasks"] = todo.subtasks.map { subtask in
+            if !(todo.subtasks ?? []).isEmpty {
+                dict["subtasks"] = (todo.subtasks ?? []).map { subtask in
                     [
                         "title": subtask.title,
                         "isCompleted": subtask.isCompleted,

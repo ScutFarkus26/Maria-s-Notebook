@@ -80,7 +80,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .highPriority:
             return todo.priority == .high && !todo.isCompleted
         case .hasSubtasks:
-            return !todo.subtasks.isEmpty
+            return !(todo.subtasks ?? []).isEmpty
         }
     }
 }
@@ -592,14 +592,15 @@ struct TodoRow: View {
         }
         
         // Subtasks
-        if !todo.subtasks.isEmpty {
-            text += "\n✅ Subtasks (\(todo.subtasks.filter { $0.isCompleted }.count)/\(todo.subtasks.count)):\n"
-            for subtask in todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+        let shareSubs = todo.subtasks ?? []
+        if !shareSubs.isEmpty {
+            text += "\n✅ Subtasks (\(shareSubs.filter { $0.isCompleted }.count)/\(shareSubs.count)):\n"
+            for subtask in shareSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
                 let checkbox = subtask.isCompleted ? "☑️" : "☐"
                 text += "  \(checkbox) \(subtask.title)\n"
             }
         }
-        
+
         // Notes
         if !todo.notes.isEmpty {
             text += "\n📝 Notes:\n\(todo.notes)\n"
@@ -1496,12 +1497,12 @@ struct TodoEditSheet: View {
                 
                 Spacer()
                 
-                if !todo.subtasks.isEmpty {
+                if !(todo.subtasks ?? []).isEmpty {
                     Text(todo.subtasksProgressText ?? "")
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 Button {
                     addSubtask()
                 } label: {
@@ -1511,14 +1512,14 @@ struct TodoEditSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            
-            if todo.subtasks.isEmpty {
+
+            if (todo.subtasks ?? []).isEmpty {
                 Text("No checklist items")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
                     .padding(.vertical, 8)
             } else {
-                let sortedSubtasks = todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })
+                let sortedSubtasks = (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
                 VStack(spacing: 6) {
                     ForEach(sortedSubtasks) { subtask in
                         SubtaskRow(
@@ -2242,9 +2243,10 @@ struct TodoEditSheet: View {
     private func addSubtask() {
         let newSubtask = TodoSubtask(
             title: "",
-            orderIndex: todo.subtasks.count
+            orderIndex: (todo.subtasks ?? []).count
         )
-        todo.subtasks.append(newSubtask)
+        if todo.subtasks == nil { todo.subtasks = [] }
+        todo.subtasks?.append(newSubtask)
         if let context = todo.modelContext {
             do {
                 try context.save()
@@ -2293,7 +2295,7 @@ struct TodoEditSheet: View {
     }
 
     private func reorderSubtasks(from source: IndexSet, to destination: Int) {
-        var sorted = todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex })
+        var sorted = (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
         sorted.move(fromOffsets: source, toOffset: destination)
         for (index, subtask) in sorted.enumerated() {
             subtask.orderIndex = index
@@ -2396,9 +2398,10 @@ struct TodoEditSheet: View {
         }
         
         // Subtasks
-        if !todo.subtasks.isEmpty {
-            text += "\n✅ Subtasks (\(todo.subtasks.filter { $0.isCompleted }.count)/\(todo.subtasks.count)):\n"
-            for subtask in todo.subtasks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+        let detailSubs = todo.subtasks ?? []
+        if !detailSubs.isEmpty {
+            text += "\n✅ Subtasks (\(detailSubs.filter { $0.isCompleted }.count)/\(detailSubs.count)):\n"
+            for subtask in detailSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
                 let checkbox = subtask.isCompleted ? "☑️" : "☐"
                 text += "  \(checkbox) \(subtask.title)\n"
             }

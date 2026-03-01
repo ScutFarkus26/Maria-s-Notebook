@@ -153,13 +153,13 @@ enum TodoPriority: String, Codable, CaseIterable, Sendable {
 
 @Model
 final class TodoItem {
-    var id: UUID
-    var title: String
-    var notes: String
-    var isCompleted: Bool
-    var createdAt: Date
+    var id: UUID = UUID()
+    var title: String = ""
+    var notes: String = ""
+    var isCompleted: Bool = false
+    var createdAt: Date = Date()
     var completedAt: Date?
-    var orderIndex: Int
+    var orderIndex: Int = 0
     var dueDate: Date?
     var scheduledDate: Date? // When to work on it (appears in Today view)
     var isSomeday: Bool = false // Deferred — hidden from Inbox/Today/Upcoming
@@ -200,9 +200,9 @@ final class TodoItem {
     // Tags/Labels
     var tags: [String] = [] // Colorful, filterable tags for organization
     
-    // Relationship to subtasks
+    // Relationship to subtasks (optional for CloudKit compatibility)
     @Relationship(deleteRule: .cascade, inverse: \TodoSubtask.todo)
-    var subtasks: [TodoSubtask] = []
+    var subtasks: [TodoSubtask]? = []
     
     var priority: TodoPriority {
         get { TodoPriority(rawValue: priorityRaw) ?? .none }
@@ -283,15 +283,17 @@ final class TodoItem {
     
     /// Get subtasks progress text
     var subtasksProgressText: String? {
-        guard !subtasks.isEmpty else { return nil }
-        let completed = subtasks.filter { $0.isCompleted }.count
-        return "\(completed)/\(subtasks.count)"
+        let items = subtasks ?? []
+        guard !items.isEmpty else { return nil }
+        let completed = items.filter { $0.isCompleted }.count
+        return "\(completed)/\(items.count)"
     }
-    
+
     /// Check if all subtasks are completed
     var allSubtasksCompleted: Bool {
-        guard !subtasks.isEmpty else { return true }
-        return subtasks.allSatisfy { $0.isCompleted }
+        let items = subtasks ?? []
+        guard !items.isEmpty else { return true }
+        return items.allSatisfy { $0.isCompleted }
     }
     
     /// Check if todo has attachments
