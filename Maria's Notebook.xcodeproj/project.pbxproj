@@ -21,17 +21,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		513F2B352F40465F00D54727 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
-		513F2B362F40466000D54727 /* StudentError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentError.swift; sourceTree = "<group>"; };
-		513F2B372F4046AA00D54727 /* LessonError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonError.swift; sourceTree = "<group>"; };
-		513F2B382F4046AB00D54727 /* WorkError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkError.swift; sourceTree = "<group>"; };
-		513F2B392F4046F000D54727 /* AttendanceError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceError.swift; sourceTree = "<group>"; };
-		513F2B3A2F4046F000D54727 /* SyncError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncError.swift; sourceTree = "<group>"; };
-		513F2B3B2F40473100D54727 /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
-		513F2B3C2F40475700D54727 /* ErrorViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorViews.swift; sourceTree = "<group>"; };
-		513F2B3D2F4047AE00D54727 /* DOMAIN_ERRORS_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DOMAIN_ERRORS_GUIDE.md; sourceTree = "<group>"; };
-		513F2B3E2F40482E00D54727 /* StudentRepositoryExample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentRepositoryExample.swift; sourceTree = "<group>"; };
-		513F2B3F2F40488000D54727 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
 		51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
@@ -89,7 +78,6 @@
 				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
 				5193CB042F0B155C0017A069 /* Frameworks */,
 				5141E7F62ED77B0F004F918F /* Products */,
-				51EB8AEC2F37B28A005F1D80 /* BackupTests */,
 				51E891882F399AFD0054B16E /* TECHNICAL_DEBT.md */,
 			);
 			sourceTree = "<group>";
@@ -109,18 +97,6 @@
 				5193CB052F0B155C0017A069 /* FoundationModels.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		51EB8AEC2F37B28A005F1D80 /* BackupTests */ = {
-			isa = PBXGroup;
-			children = (
-				51EB8AED2F37B2A2005F1D80 /* StreamingBackupWriterTests.swift */,
-				51EB8AEE2F37B2BE005F1D80 /* BackupValidationServiceTests.swift */,
-				51EB8AEF2F37B2D5005F1D80 /* ChecksumVerificationServiceTests.swift */,
-				51EB8AF02F37B2FA005F1D80 /* DeltaSyncServiceTests.swift */,
-				51EB8AF12F37B323005F1D80 /* SmartRetentionManagerTests.swift */,
-			);
-			path = BackupTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
