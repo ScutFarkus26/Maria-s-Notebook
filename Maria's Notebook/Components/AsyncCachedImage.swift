@@ -9,7 +9,7 @@ import UIKit
 // MARK: - Image Caching
 
 /// In-memory cache for loaded images
-private class ImageCache {
+final class ImageCache {
     nonisolated(unsafe) static let shared: NSCache<NSString, PlatformImage> = {
         let cache = NSCache<NSString, PlatformImage>()
         // Limit to ~100MB to prevent unbounded memory growth

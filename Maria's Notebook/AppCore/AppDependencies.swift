@@ -62,8 +62,8 @@ final class AppDependencies {
             return monitor
         }
         let monitor = MemoryPressureMonitor()
-        monitor.startMonitoring { [weak self] in
-            self?.handleMemoryPressure()
+        monitor.startMonitoring { [weak self] level in
+            self?.handleMemoryPressure(level: level)
         }
         _memoryPressureMonitor = monitor
         return monitor
@@ -475,16 +475,29 @@ final class AppDependencies {
     }
     
     // MARK: - Memory Pressure Handling
-    
-    /// Called when system memory pressure is detected
-    /// Proactively clears caches to avoid being terminated by the system
-    private func handleMemoryPressure() {
-        // Post notification for ViewModels and other components to clear their caches
-        // ViewModels with cached data should observe this notification and clear non-essential data
+
+    /// Called when system memory pressure is detected.
+    /// Clears caches proportionally to the pressure level to avoid termination.
+    private func handleMemoryPressure(level: MemoryPressureLevel) {
+        // Always: clear the in-memory image cache (NSCache).
+        // NSCache auto-evicts under pressure, but an explicit call ensures it happens now.
+        ImageCache.shared.removeAllObjects()
+
+        // Always: invalidate school day calculation caches (dictionary-based, no auto-eviction)
+        SchoolDayCalculationCache.shared.invalidate()
+        _schoolDayLookupCache?.invalidate()
+
+        // Notify ViewModels and other components so they can drop their own dictionary caches
         NotificationCenter.default.post(
-            name: Notification.Name("MemoryPressureDetected"),
-            object: nil
+            name: .memoryPressureDetected,
+            object: nil,
+            userInfo: ["level": level]
         )
+
+        if level == .critical {
+            // On critical pressure, also clear URLCache
+            URLCache.shared.removeAllCachedResponses()
+        }
     }
 }
 
