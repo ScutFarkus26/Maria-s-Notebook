@@ -42,7 +42,9 @@ struct OnboardingView: View {
                         .tag(index)
                 }
             }
+            #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .always))
+            #endif
 
             // Bottom buttons
             HStack {
