@@ -60,6 +60,76 @@ final class OllamaClient: MCPClientProtocol {
         return result.models
     }
 
+    // MARK: - Model Pull
+
+    /// Pulls (downloads/installs) a model from the Ollama registry.
+    /// Streams progress updates via the `onProgress` callback.
+    ///
+    /// - Parameters:
+    ///   - name: The model identifier (e.g., "llama3.2", "mistral").
+    ///   - onProgress: Called with each progress update during the download.
+    func pullModel(name: String, onProgress: @escaping @Sendable (OllamaPullProgress) -> Void) async throws {
+        let url = baseURL.appendingPathComponent("api/pull")
+
+        let body: [String: Any] = [
+            "name": name,
+            "stream": true
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.timeoutInterval = 3600 // 1 hour — large models take time
+
+        Self.logger.info("Pulling model: \(name)")
+
+        do {
+            let (bytes, response) = try await session.bytes(for: request)
+
+            guard let http = response as? HTTPURLResponse else {
+                throw OllamaError.invalidResponse
+            }
+
+            guard http.statusCode == 200 else {
+                throw OllamaError.serverError(statusCode: http.statusCode)
+            }
+
+            for try await line in bytes.lines {
+                guard !line.isEmpty,
+                      let lineData = line.data(using: .utf8),
+                      let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
+                else { continue }
+
+                let progress = OllamaPullProgress(
+                    status: chunk.status,
+                    completed: chunk.completed,
+                    total: chunk.total
+                )
+                onProgress(progress)
+
+                if chunk.status == "success" {
+                    Self.logger.info("Successfully pulled model: \(name)")
+                    return
+                }
+            }
+
+            // If we exit the loop without "success", something went wrong
+            throw OllamaError.pullFailed(name)
+        } catch let error as OllamaError {
+            throw error
+        } catch let urlError as URLError {
+            switch urlError.code {
+            case .cannotConnectToHost, .cannotFindHost:
+                throw OllamaError.serverUnreachable
+            case .timedOut:
+                throw OllamaError.timeout
+            default:
+                throw OllamaError.networkError(urlError.localizedDescription)
+            }
+        }
+    }
+
     // MARK: - MCPClientProtocol
 
     func generateText(prompt: String, temperature: Double) async throws -> String {
@@ -347,6 +417,78 @@ private struct OllamaChatStreamChunk: Codable {
     let done: Bool
 }
 
+// MARK: - Pull API Types
+
+/// Progress update during an Ollama model pull operation.
+struct OllamaPullProgress: Sendable {
+    let status: String
+    let completed: Int64?
+    let total: Int64?
+
+    /// Fraction completed (0.0 to 1.0), or nil if not in a download phase.
+    var fractionCompleted: Double? {
+        guard let total, total > 0, let completed else { return nil }
+        return Double(completed) / Double(total)
+    }
+}
+
+private struct OllamaPullChunk: Codable {
+    let status: String
+    let digest: String?
+    let total: Int64?
+    let completed: Int64?
+}
+
+// MARK: - Model Catalog
+
+/// Describes a popular Ollama model available for installation.
+struct OllamaModelCatalog: Identifiable {
+    let id: String
+    let name: String
+    let parameterCount: String
+    let sizeGB: Double
+    let description: String
+
+    /// Curated list of recommended models for classroom use.
+    static let recommended: [OllamaModelCatalog] = [
+        OllamaModelCatalog(
+            id: "llama3.2",
+            name: "Llama 3.2",
+            parameterCount: "3B",
+            sizeGB: 2.0,
+            description: "Meta's compact model. Good balance of speed and quality."
+        ),
+        OllamaModelCatalog(
+            id: "llama3.2:1b",
+            name: "Llama 3.2 1B",
+            parameterCount: "1B",
+            sizeGB: 0.7,
+            description: "Ultra-light model. Fastest, works on limited hardware."
+        ),
+        OllamaModelCatalog(
+            id: "phi4-mini",
+            name: "Phi-4 Mini",
+            parameterCount: "3.8B",
+            sizeGB: 2.3,
+            description: "Microsoft's compact model. Strong reasoning for its size."
+        ),
+        OllamaModelCatalog(
+            id: "mistral",
+            name: "Mistral 7B",
+            parameterCount: "7B",
+            sizeGB: 4.1,
+            description: "Versatile 7B model. Needs 8GB+ RAM."
+        ),
+        OllamaModelCatalog(
+            id: "gemma2:9b",
+            name: "Gemma 2 9B",
+            parameterCount: "9B",
+            sizeGB: 5.5,
+            description: "Google's model. Best quality, needs 16GB+ RAM."
+        ),
+    ]
+}
+
 // MARK: - Errors
 
 enum OllamaError: Error, LocalizedError {
@@ -357,6 +499,7 @@ enum OllamaError: Error, LocalizedError {
     case timeout
     case networkError(String)
     case modelNotFound(String)
+    case pullFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -374,6 +517,8 @@ enum OllamaError: Error, LocalizedError {
             return "Network error: \(msg)"
         case .modelNotFound(let name):
             return "Model '\(name)' not found. Run: ollama pull \(name)"
+        case .pullFailed(let name):
+            return "Failed to pull model '\(name)'. The download may have been interrupted."
         }
     }
 }
