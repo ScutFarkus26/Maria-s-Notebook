@@ -470,27 +470,6 @@ struct OllamaModelCatalog: Identifiable {
             description: "Meta's compact model. Good balance of speed and quality."
         ),
         OllamaModelCatalog(
-            id: "llama3.2:1b",
-            name: "Llama 3.2 1B",
-            parameterCount: "1B",
-            sizeGB: 0.7,
-            description: "Ultra-light model. Fastest, works on limited hardware."
-        ),
-        OllamaModelCatalog(
-            id: "phi4-mini",
-            name: "Phi-4 Mini",
-            parameterCount: "3.8B",
-            sizeGB: 2.3,
-            description: "Microsoft's compact model. Strong reasoning for its size."
-        ),
-        OllamaModelCatalog(
-            id: "mistral",
-            name: "Mistral 7B",
-            parameterCount: "7B",
-            sizeGB: 4.1,
-            description: "Versatile 7B model. Needs 8GB+ RAM."
-        ),
-        OllamaModelCatalog(
             id: "gemma2:9b",
             name: "Gemma 2 9B",
             parameterCount: "9B",

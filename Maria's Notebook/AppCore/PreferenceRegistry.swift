@@ -48,9 +48,7 @@ public enum PreferenceRegistry {
         // AI Models (per-area)
         PreferenceDefinition(key: "AI.chatModel", type: .string, defaultValue: .string("local-first-auto")),
         PreferenceDefinition(key: "AI.lessonPlanningModel", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),
-        PreferenceDefinition(key: "AI.noteSuggestionsModel", type: .string, defaultValue: .string("apple-on-device")),
-        PreferenceDefinition(key: "AI.noteDraftingModel", type: .string, defaultValue: .string("apple-on-device")),
-        PreferenceDefinition(key: "AI.databaseAnalysisModel", type: .string, defaultValue: .string("local-first-auto")),
+        PreferenceDefinition(key: "AI.backgroundTasksModel", type: .string, defaultValue: .string("local-first-auto")),
 
         // AI Providers
         PreferenceDefinition(key: "AI.ollamaBaseURL", type: .string, defaultValue: .string("http://localhost:11434")),

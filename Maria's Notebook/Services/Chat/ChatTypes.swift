@@ -9,13 +9,16 @@ struct ChatMessage: Identifiable, Codable {
     let timestamp: Date
     /// The rawValue of the AIModelOption that generated this response (assistant messages only).
     var modelID: String?
+    /// Whether this message is an escalation prompt (special UI card, not a regular bubble).
+    var isEscalationPrompt: Bool
 
-    init(id: UUID = UUID(), role: ChatRole, content: String, timestamp: Date = Date(), modelID: String? = nil) {
+    init(id: UUID = UUID(), role: ChatRole, content: String, timestamp: Date = Date(), modelID: String? = nil, isEscalationPrompt: Bool = false) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
         self.modelID = modelID
+        self.isEscalationPrompt = isEscalationPrompt
     }
 
     enum ChatRole: String, Codable {

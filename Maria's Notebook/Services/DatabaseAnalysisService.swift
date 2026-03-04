@@ -32,14 +32,14 @@ final class DatabaseAnalysisService {
         question: String? = nil,
         onProgress: ((AnalysisProgress) -> Void)? = nil
     ) async throws -> ClassroomAnalysisResult {
-        mcpClient.configureForFeature(.databaseAnalysis)
+        mcpClient.configureForFeature(.backgroundTasks)
 
         // Step 1: Serialize
         onProgress?(.serializing)
         let snapshot = serializeDatabase(timeWindow: timeWindow)
 
         // Step 2: Determine chunk size based on selected model
-        let isLocal = AIFeatureArea.databaseAnalysis.resolvedModel().isLocal
+        let isLocal = AIFeatureArea.backgroundTasks.resolvedModel().isLocal
         let tokenBudget = isLocal ? 3_000 : 100_000
 
         // Step 3: Chunk

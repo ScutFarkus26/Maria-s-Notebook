@@ -9,7 +9,6 @@ enum AIModelOption: String, CaseIterable, Identifiable {
     case ollamaLocal = "ollama-local"
     case claudeSonnet = "claude-sonnet-4-20250514"
     case claudeHaiku = "claude-haiku-4-20250414"
-    case claudeOpus = "claude-opus-4-20250514"
 
     var id: String { rawValue }
 
@@ -20,18 +19,16 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         case .ollamaLocal: return "Ollama"
         case .claudeSonnet: return "Claude Sonnet 4"
         case .claudeHaiku: return "Claude Haiku 4"
-        case .claudeOpus: return "Claude Opus 4"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .localFirstAuto: return "On-device first, Claude if needed"
+        case .localFirstAuto: return "Best local model first, Claude if needed"
         case .appleOnDevice: return "Apple Intelligence, private"
         case .ollamaLocal: return "Local Ollama server"
         case .claudeSonnet: return "Balanced speed & quality"
         case .claudeHaiku: return "Fastest, less nuanced"
-        case .claudeOpus: return "Most capable, slower"
         }
     }
 
@@ -42,14 +39,13 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         case .ollamaLocal: return "server.rack"
         case .claudeSonnet: return "bolt.circle"
         case .claudeHaiku: return "hare"
-        case .claudeOpus: return "brain"
         }
     }
 
     /// Whether this model requires a Claude API key.
     var requiresAPIKey: Bool {
         switch self {
-        case .claudeSonnet, .claudeHaiku, .claudeOpus: return true
+        case .claudeSonnet, .claudeHaiku: return true
         default: return false
         }
     }
@@ -74,9 +70,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 enum AIFeatureArea: String, CaseIterable, Identifiable {
     case chat
     case lessonPlanning
-    case noteSuggestions
-    case noteDrafting
-    case databaseAnalysis
+    case backgroundTasks
 
     var id: String { rawValue }
 
@@ -84,9 +78,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
         switch self {
         case .chat: return "Ask AI"
         case .lessonPlanning: return "Lesson Planning"
-        case .noteSuggestions: return "Note Suggestions"
-        case .noteDrafting: return "Note Drafting"
-        case .databaseAnalysis: return "Database Analysis"
+        case .backgroundTasks: return "Background Tasks"
         }
     }
 
@@ -94,9 +86,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
         switch self {
         case .chat: return "Conversational classroom assistant"
         case .lessonPlanning: return "Curriculum planning recommendations"
-        case .noteSuggestions: return "Tag and scope suggestions for notes"
-        case .noteDrafting: return "Drafting emails, reports, and summaries"
-        case .databaseAnalysis: return "Full classroom data analysis and insights"
+        case .backgroundTasks: return "Note suggestions, drafting, and data analysis"
         }
     }
 
@@ -104,9 +94,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
         switch self {
         case .chat: return "bubble.left.and.text.bubble.right"
         case .lessonPlanning: return "list.clipboard"
-        case .noteSuggestions: return "tag"
-        case .noteDrafting: return "doc.richtext"
-        case .databaseAnalysis: return "cylinder.split.1x2"
+        case .backgroundTasks: return "gearshape.2"
         }
     }
 
@@ -115,9 +103,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
         switch self {
         case .chat: return UserDefaultsKeys.aiModelChat
         case .lessonPlanning: return UserDefaultsKeys.aiModelLessonPlanning
-        case .noteSuggestions: return UserDefaultsKeys.aiModelNoteSuggestions
-        case .noteDrafting: return UserDefaultsKeys.aiModelNoteDrafting
-        case .databaseAnalysis: return UserDefaultsKeys.aiModelDatabaseAnalysis
+        case .backgroundTasks: return UserDefaultsKeys.aiModelBackgroundTasks
         }
     }
 
@@ -126,9 +112,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
         switch self {
         case .chat: return .localFirstAuto
         case .lessonPlanning: return .claudeSonnet
-        case .noteSuggestions: return .appleOnDevice
-        case .noteDrafting: return .appleOnDevice
-        case .databaseAnalysis: return .localFirstAuto
+        case .backgroundTasks: return .localFirstAuto
         }
     }
 }
@@ -144,14 +128,8 @@ struct AIModelSettingsView: View {
     @AppStorage(UserDefaultsKeys.aiModelLessonPlanning)
     private var lessonPlanningModel = AIFeatureArea.lessonPlanning.defaultModel.rawValue
 
-    @AppStorage(UserDefaultsKeys.aiModelNoteSuggestions)
-    private var noteSuggestionsModel = AIFeatureArea.noteSuggestions.defaultModel.rawValue
-
-    @AppStorage(UserDefaultsKeys.aiModelNoteDrafting)
-    private var noteDraftingModel = AIFeatureArea.noteDrafting.defaultModel.rawValue
-
-    @AppStorage(UserDefaultsKeys.aiModelDatabaseAnalysis)
-    private var databaseAnalysisModel = AIFeatureArea.databaseAnalysis.defaultModel.rawValue
+    @AppStorage(UserDefaultsKeys.aiModelBackgroundTasks)
+    private var backgroundTasksModel = AIFeatureArea.backgroundTasks.defaultModel.rawValue
 
     private var hasAPIKey: Bool {
         AnthropicAPIClient.hasAPIKey()
@@ -170,18 +148,8 @@ struct AIModelSettingsView: View {
             )
             Divider()
             areaRow(
-                area: .noteSuggestions,
-                selection: $noteSuggestionsModel
-            )
-            Divider()
-            areaRow(
-                area: .noteDrafting,
-                selection: $noteDraftingModel
-            )
-            Divider()
-            areaRow(
-                area: .databaseAnalysis,
-                selection: $databaseAnalysisModel
+                area: .backgroundTasks,
+                selection: $backgroundTasksModel
             )
 
             if !hasAPIKey {

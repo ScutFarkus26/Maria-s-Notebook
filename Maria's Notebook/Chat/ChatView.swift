@@ -83,8 +83,13 @@ struct ChatView: View {
             ScrollView {
                 LazyVStack(spacing: AppTheme.Spacing.compact) {
                     ForEach(viewModel.messages) { message in
-                        ChatMessageBubble(message: message)
-                            .id(message.id)
+                        if message.isEscalationPrompt {
+                            escalationPromptCard
+                                .id(message.id)
+                        } else {
+                            ChatMessageBubble(message: message)
+                                .id(message.id)
+                        }
                     }
 
                     // Show streaming content or typing indicator
@@ -149,10 +154,11 @@ struct ChatView: View {
     // MARK: - Streaming Model Label
 
     private var streamingModelLabel: some View {
-        HStack(spacing: 3) {
-            Image(systemName: viewModel.currentModel.iconName)
+        let model = viewModel.isEscalating ? AIModelOption.claudeSonnet : viewModel.currentModel
+        return HStack(spacing: 3) {
+            Image(systemName: model.iconName)
                 .font(AppTheme.ScaledFont.captionSmall)
-            Text("Responding with \(viewModel.currentModel.displayName)")
+            Text("Responding with \(model.displayName)")
                 .font(AppTheme.ScaledFont.captionSmall)
         }
         .foregroundStyle(.tertiary)
@@ -250,6 +256,65 @@ struct ChatView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    // MARK: - Escalation Prompt Card
+
+    private var escalationPromptCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                HStack(spacing: AppTheme.Spacing.xsmall) {
+                    Image(systemName: "arrow.up.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.purple)
+                    Text("This answer might be improved with Claude.")
+                        .font(AppTheme.ScaledFont.callout)
+                        .foregroundStyle(.primary)
+                }
+
+                Text("Want me to optimize and retry with a cloud model?")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: AppTheme.Spacing.compact) {
+                    Button {
+                        viewModel.acceptEscalation()
+                    } label: {
+                        Label("Try with Claude", systemImage: "bolt.circle")
+                            .font(AppTheme.ScaledFont.caption)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple)
+                    .controlSize(.small)
+
+                    Button {
+                        viewModel.dismissEscalation()
+                    } label: {
+                        Text("Dismiss")
+                            .font(AppTheme.ScaledFont.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+            .padding(AppTheme.Spacing.compact)
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                    .fill(Color.purple.opacity(UIConstants.OpacityConstants.veryFaint))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                            .stroke(
+                                Color.purple.opacity(UIConstants.OpacityConstants.subtle),
+                                lineWidth: UIConstants.StrokeWidth.thin
+                            )
+                    )
+            )
+            Spacer(minLength: 60)
+        }
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.95).combined(with: .opacity),
+            removal: .opacity
+        ))
     }
 
     // MARK: - API Key Prompt

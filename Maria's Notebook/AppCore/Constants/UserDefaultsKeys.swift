@@ -86,9 +86,7 @@ enum UserDefaultsKeys {
     // MARK: - AI Models (per-area)
     static let aiModelChat = "AI.chatModel"
     static let aiModelLessonPlanning = "AI.lessonPlanningModel"
-    static let aiModelNoteSuggestions = "AI.noteSuggestionsModel"
-    static let aiModelNoteDrafting = "AI.noteDraftingModel"
-    static let aiModelDatabaseAnalysis = "AI.databaseAnalysisModel"
+    static let aiModelBackgroundTasks = "AI.backgroundTasksModel"
 
     // MARK: - AI Providers
     static let ollamaBaseURL = "AI.ollamaBaseURL"

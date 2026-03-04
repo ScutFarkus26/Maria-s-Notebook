@@ -67,7 +67,7 @@ final class AIClientRouter: MCPClientProtocol {
     private func resolveRoute() -> Route {
         let model = activeFeatureArea.resolvedModel()
         switch model {
-        case .claudeSonnet, .claudeHaiku, .claudeOpus:
+        case .claudeSonnet, .claudeHaiku:
             return .claude(model.rawValue)
         case .appleOnDevice:
             return .appleOnDevice
@@ -183,9 +183,21 @@ final class AIClientRouter: MCPClientProtocol {
         }
     }
 
-    /// Tries local providers in order, falls back to Claude.
+    /// Tries local providers in order (best quality first), falls back to Claude.
+    /// For non-chat features, auto-validates and escalates to Claude if the local response is inadequate.
+    /// For chat, returns the local response as-is (escalation is handled by the ChatViewModel UI).
     private func localFirstCascade<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
-        // 1. Apple Intelligence
+        // 1. Ollama (best local quality with 7B+ models)
+        if await ollamaClient.isAvailable {
+            do {
+                Self.logger.debug("Local-first: trying Ollama for \(self.activeFeatureArea.rawValue)")
+                return try await work(ollamaClient)
+            } catch let error as OllamaError {
+                Self.logger.info("Ollama failed (\(error.localizedDescription)), trying next provider")
+            }
+        }
+
+        // 2. Apple Intelligence
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         if #available(macOS 26.0, iOS 26.0, *) {
             if localClient.isAvailable {
@@ -193,21 +205,11 @@ final class AIClientRouter: MCPClientProtocol {
                     Self.logger.debug("Local-first: trying Apple Intelligence for \(self.activeFeatureArea.rawValue)")
                     return try await work(localClient)
                 } catch let error as LocalModelError {
-                    Self.logger.info("Apple Intelligence failed (\(error.localizedDescription)), trying next provider")
+                    Self.logger.info("Apple Intelligence failed (\(error.localizedDescription)), falling back to Claude")
                 }
             }
         }
         #endif
-
-        // 2. Ollama
-        if await ollamaClient.isAvailable {
-            do {
-                Self.logger.debug("Local-first: trying Ollama for \(self.activeFeatureArea.rawValue)")
-                return try await work(ollamaClient)
-            } catch let error as OllamaError {
-                Self.logger.info("Ollama failed (\(error.localizedDescription)), falling back to Claude")
-            }
-        }
 
         // 3. Claude (final fallback)
         Self.logger.debug("Local-first: all local providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)")
