@@ -55,7 +55,6 @@ public enum PreferenceRegistry {
         // AI Providers
         PreferenceDefinition(key: "AI.ollamaBaseURL", type: .string, defaultValue: .string("http://localhost:11434")),
         PreferenceDefinition(key: "AI.ollamaModelName", type: .string, defaultValue: .string("llama3.2")),
-        PreferenceDefinition(key: "AI.mlxSelectedModel", type: .string),
 
         // Lesson Planning
         PreferenceDefinition(key: "LessonPlanning.model", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),

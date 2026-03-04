@@ -6,7 +6,6 @@ import SwiftUI
 enum AIModelOption: String, CaseIterable, Identifiable {
     case localFirstAuto = "local-first-auto"
     case appleOnDevice = "apple-on-device"
-    case mlxLocal = "mlx-local"
     case ollamaLocal = "ollama-local"
     case claudeSonnet = "claude-sonnet-4-20250514"
     case claudeHaiku = "claude-haiku-4-20250414"
@@ -18,7 +17,6 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         switch self {
         case .localFirstAuto: return "Local First (Auto)"
         case .appleOnDevice: return "Apple On-Device"
-        case .mlxLocal: return "MLX Local"
         case .ollamaLocal: return "Ollama"
         case .claudeSonnet: return "Claude Sonnet 4"
         case .claudeHaiku: return "Claude Haiku 4"
@@ -30,7 +28,6 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         switch self {
         case .localFirstAuto: return "On-device first, Claude if needed"
         case .appleOnDevice: return "Apple Intelligence, private"
-        case .mlxLocal: return "Open-source model on Apple Silicon"
         case .ollamaLocal: return "Local Ollama server"
         case .claudeSonnet: return "Balanced speed & quality"
         case .claudeHaiku: return "Fastest, less nuanced"
@@ -42,7 +39,6 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         switch self {
         case .localFirstAuto: return "arrow.triangle.branch"
         case .appleOnDevice: return "apple.logo"
-        case .mlxLocal: return "cpu"
         case .ollamaLocal: return "server.rack"
         case .claudeSonnet: return "bolt.circle"
         case .claudeHaiku: return "hare"
@@ -66,7 +62,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
     /// Whether this is a local-only model option.
     var isLocal: Bool {
         switch self {
-        case .appleOnDevice, .mlxLocal, .ollamaLocal, .localFirstAuto: return true
+        case .appleOnDevice, .ollamaLocal, .localFirstAuto: return true
         default: return false
         }
     }

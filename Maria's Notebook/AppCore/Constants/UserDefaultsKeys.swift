@@ -93,7 +93,6 @@ enum UserDefaultsKeys {
     // MARK: - AI Providers
     static let ollamaBaseURL = "AI.ollamaBaseURL"
     static let ollamaModelName = "AI.ollamaModelName"
-    static let mlxSelectedModel = "AI.mlxSelectedModel"
 
     // MARK: - Lesson Planning
     static let lessonPlanningModel = "LessonPlanning.model"

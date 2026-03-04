@@ -48,7 +48,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .backup: return "backup restore data management export import"
         case .templates: return "templates note meeting"
         case .communication: return "communication attendance email"
-        case .aiFeatures: return "ai features claude api lesson planning assistant model apple on device ollama mlx models download local"
+        case .aiFeatures: return "ai features claude api lesson planning assistant model apple on device ollama download local"
         case .database: return "database statistics records overview storage"
         case .advanced: return "advanced debug test students"
         }
@@ -400,11 +400,6 @@ struct SettingsView: View {
 
             SettingsGroup(title: "Apple Intelligence", systemImage: "apple.logo") {
                 appleIntelligenceStatus
-            }
-
-            SettingsGroup(title: "MLX Models", systemImage: "cpu") {
-                MLXModelSettingsView()
-                    .frame(maxWidth: .infinity)
             }
 
             SettingsGroup(title: "Ollama", systemImage: "server.rack") {

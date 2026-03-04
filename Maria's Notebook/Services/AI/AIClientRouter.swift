@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Routes AI requests to the appropriate provider based on per-feature model selection.
-//  Supports: Apple Intelligence, MLX Swift, Ollama, and Claude API.
+//  Supports: Apple Intelligence, Ollama, and Claude API.
 //  Implements MCPClientProtocol so it can be injected anywhere the protocol is used.
 //
 
@@ -13,7 +13,7 @@ import OSLog
 /// Routes AI requests based on the user's per-feature model selection.
 ///
 /// Supports three routing strategies:
-/// - **Direct**: Route to a specific provider (Claude, Apple Intelligence, MLX, Ollama)
+/// - **Direct**: Route to a specific provider (Claude, Apple Intelligence, Ollama)
 /// - **Local First (Auto)**: Cascade through local providers, fall back to Claude
 ///
 /// Usage:
@@ -43,19 +43,6 @@ final class AIClientRouter: MCPClientProtocol {
     }
     #endif
 
-    #if ENABLE_MLX_MODELS && canImport(MLXLLM)
-    private var _mlxClient: MLXModelClient?
-    var mlxClient: MLXModelClient {
-        if let c = _mlxClient { return c }
-        let c = MLXModelClient(modelManager: mlxModelManager)
-        _mlxClient = c
-        return c
-    }
-    let mlxModelManager: MLXModelManager
-    #else
-    let mlxModelManager: MLXModelManager
-    #endif
-
     /// The feature area currently being served (determines routing).
     /// Set before each call by the calling service via `configureForFeature(_:)`.
     var activeFeatureArea: AIFeatureArea = .chat
@@ -66,8 +53,6 @@ final class AIClientRouter: MCPClientProtocol {
     ) {
         self.anthropicClient = anthropicClient
         self.ollamaClient = ollamaClient
-        self.mlxModelManager = MLXModelManager()
-
     }
 
     // MARK: - Routing
@@ -75,7 +60,6 @@ final class AIClientRouter: MCPClientProtocol {
     private enum Route {
         case claude(String)        // model ID
         case appleOnDevice
-        case mlxLocal
         case ollamaLocal
         case localFirstAuto        // cascade
     }
@@ -87,8 +71,6 @@ final class AIClientRouter: MCPClientProtocol {
             return .claude(model.rawValue)
         case .appleOnDevice:
             return .appleOnDevice
-        case .mlxLocal:
-            return .mlxLocal
         case .ollamaLocal:
             return .ollamaLocal
         case .localFirstAuto:
@@ -192,9 +174,6 @@ final class AIClientRouter: MCPClientProtocol {
         case .appleOnDevice:
             return try await callAppleIntelligence(work)
 
-        case .mlxLocal:
-            return try await callMLX(work)
-
         case .ollamaLocal:
             Self.logger.debug("Routing to Ollama for \(self.activeFeatureArea.rawValue)")
             return try await work(ollamaClient)
@@ -220,19 +199,7 @@ final class AIClientRouter: MCPClientProtocol {
         }
         #endif
 
-        // 2. MLX Swift
-        #if ENABLE_MLX_MODELS && canImport(MLXLLM)
-        if mlxClient.isAvailable {
-            do {
-                Self.logger.debug("Local-first: trying MLX for \(self.activeFeatureArea.rawValue)")
-                return try await work(mlxClient)
-            } catch let error as MLXModelError {
-                Self.logger.info("MLX failed (\(error.localizedDescription)), trying next provider")
-            }
-        }
-        #endif
-
-        // 3. Ollama
+        // 2. Ollama
         if await ollamaClient.isAvailable {
             do {
                 Self.logger.debug("Local-first: trying Ollama for \(self.activeFeatureArea.rawValue)")
@@ -242,7 +209,7 @@ final class AIClientRouter: MCPClientProtocol {
             }
         }
 
-        // 4. Claude (final fallback)
+        // 3. Claude (final fallback)
         Self.logger.debug("Local-first: all local providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)")
         return try await work(anthropicClient)
     }
@@ -259,14 +226,6 @@ final class AIClientRouter: MCPClientProtocol {
         throw LocalModelError.unavailable("Apple Intelligence is not available in this build.")
     }
 
-    private func callMLX<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
-        #if ENABLE_MLX_MODELS && canImport(MLXLLM)
-        Self.logger.debug("Routing to MLX for \(self.activeFeatureArea.rawValue)")
-        return try await work(mlxClient)
-        #else
-        throw MLXModelError.noModelLoaded
-        #endif
-    }
 }
 
 // MARK: - Protocol Extension for Feature Configuration
