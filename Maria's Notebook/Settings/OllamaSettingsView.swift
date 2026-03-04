@@ -167,21 +167,17 @@ struct OllamaSettingsView: View {
                 Divider()
                 customModelPullSection
             }
-
-            if let error = pullError {
-                Text(error)
-                    .font(AppTheme.ScaledFont.captionSmall)
-                    .foregroundStyle(AppColors.destructive)
-                    .lineLimit(2)
-            }
         }
     }
 
+    @ViewBuilder
     private func catalogModelRow(_ model: OllamaModelCatalog) -> some View {
         let isInstalled = availableModels.contains { $0.name.hasPrefix(model.id) }
         let isCurrentlyPulling = isPulling && pullModelName == model.id
+        let hasError = !isPulling && pullError != nil && pullModelName == model.id
 
-        return VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+            // Model info row
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: AppTheme.Spacing.small) {
@@ -220,38 +216,55 @@ struct OllamaSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Progress bar while pulling
             if isCurrentlyPulling {
-                pullProgressView
-            } else if !isInstalled {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                    ProgressView(value: pullProgress)
+                        .progressViewStyle(.linear)
+                        .tint(.accentColor)
+
+                    HStack {
+                        Text(pullStatusText.isEmpty ? "Connecting..." : pullStatusText)
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(Int(pullProgress * 100))%")
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, AppTheme.Spacing.xsmall)
+            }
+
+            // Error message inline on this row
+            if hasError, let error = pullError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(AppColors.destructive)
+                    .lineLimit(2)
+                    .padding(.top, AppTheme.Spacing.xsmall)
+            }
+
+            // Install / Retry button
+            if !isInstalled && !isCurrentlyPulling {
                 Button {
                     Task { await performPull(name: model.id) }
                 } label: {
-                    Label("Install", systemImage: "arrow.down.circle")
-                        .font(AppTheme.ScaledFont.caption)
+                    Label(
+                        hasError ? "Retry" : "Install",
+                        systemImage: hasError ? "arrow.clockwise" : "arrow.down.circle"
+                    )
+                    .font(AppTheme.ScaledFont.captionSemibold)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(hasError ? AppColors.warning : .accentColor)
                 .controlSize(.small)
-                .disabled(isPulling || !isConnected)
+                .disabled(isPulling)
+                .padding(.top, AppTheme.Spacing.xsmall)
             }
         }
         .padding(.vertical, AppTheme.Spacing.xsmall)
-    }
-
-    private var pullProgressView: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-            HStack(spacing: AppTheme.Spacing.small) {
-                ProgressView(value: pullProgress)
-                    .progressViewStyle(.linear)
-                Text("\(Int(pullProgress * 100))%")
-                    .font(AppTheme.ScaledFont.captionSmall)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 36, alignment: .trailing)
-            }
-            Text(pullStatusText)
-                .font(AppTheme.ScaledFont.captionSmall)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-        }
     }
 
     // MARK: - Custom Model Pull
@@ -309,7 +322,22 @@ struct OllamaSettingsView: View {
                 }
 
                 if isPulling && pullModelName == customModelName.trimmingCharacters(in: .whitespaces) {
-                    pullProgressView
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                        ProgressView(value: pullProgress)
+                            .progressViewStyle(.linear)
+                            .tint(.accentColor)
+
+                        HStack {
+                            Text(pullStatusText.isEmpty ? "Connecting..." : pullStatusText)
+                                .font(AppTheme.ScaledFont.captionSmall)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(Int(pullProgress * 100))%")
+                                .font(AppTheme.ScaledFont.captionSmallSemibold)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
@@ -363,36 +391,47 @@ struct OllamaSettingsView: View {
     }
 
     private func performPull(name: String) async {
+        // Reset state for this pull
         isPulling = true
         pullModelName = name
         pullProgress = 0
-        pullStatusText = "Starting..."
+        pullStatusText = ""
         pullError = nil
 
+        // Ensure base URL is set before pulling
+        if let url = URL(string: baseURLString) {
+            ollamaClient.updateBaseURL(url)
+        }
+
+        // Iterate the AsyncThrowingStream directly on the main actor
+        // so all @State updates happen synchronously here.
+        let stream = ollamaClient.pullModel(name: name)
+
         do {
-            try await ollamaClient.pullModel(name: name) { progress in
-                Task { @MainActor in
-                    pullStatusText = progress.status
-                    if let fraction = progress.fractionCompleted {
-                        pullProgress = fraction
-                    }
+            for try await progress in stream {
+                pullStatusText = progress.status
+                if let fraction = progress.fractionCompleted {
+                    pullProgress = fraction
                 }
             }
 
-            // Pull succeeded — refresh the model list
-            pullStatusText = "Complete"
+            // Stream finished (success) — refresh the model list
+            pullStatusText = "Complete!"
             pullProgress = 1.0
             await refreshConnection()
 
             // Brief pause to show 100% before clearing
             try? await Task.sleep(nanoseconds: UIConstants.TimingDelay.toast)
 
+            // Clear pull state on success
+            pullModelName = ""
+            pullError = nil
         } catch {
+            // Keep pullModelName set so the error shows on the correct row
             pullError = error.localizedDescription
         }
 
         isPulling = false
-        pullModelName = ""
         pullProgress = 0
         pullStatusText = ""
     }

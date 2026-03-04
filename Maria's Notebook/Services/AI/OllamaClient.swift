@@ -63,69 +63,80 @@ final class OllamaClient: MCPClientProtocol {
     // MARK: - Model Pull
 
     /// Pulls (downloads/installs) a model from the Ollama registry.
-    /// Streams progress updates via the `onProgress` callback.
+    /// Returns an `AsyncThrowingStream` of progress updates that the caller iterates.
+    /// This avoids `@Sendable` callback issues — the caller reads progress on their own actor.
     ///
-    /// - Parameters:
-    ///   - name: The model identifier (e.g., "llama3.2", "mistral").
-    ///   - onProgress: Called with each progress update during the download.
-    func pullModel(name: String, onProgress: @escaping @Sendable (OllamaPullProgress) -> Void) async throws {
-        let url = baseURL.appendingPathComponent("api/pull")
+    /// - Parameter name: The model identifier (e.g., "llama3.2", "mistral").
+    /// - Returns: A stream of `OllamaPullProgress` values, ending on success or throwing on failure.
+    func pullModel(name: String) -> AsyncThrowingStream<OllamaPullProgress, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task { [baseURL, session] in
+                let url = baseURL.appendingPathComponent("api/pull")
 
-        let body: [String: Any] = [
-            "name": name,
-            "stream": true
-        ]
+                let body: [String: Any] = [
+                    "name": name,
+                    "stream": true
+                ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 3600 // 1 hour — large models take time
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                request.timeoutInterval = 3600 // 1 hour — large models take time
 
-        Self.logger.info("Pulling model: \(name)")
+                Self.logger.info("Pulling model: \(name)")
 
-        do {
-            let (bytes, response) = try await session.bytes(for: request)
+                do {
+                    let (bytes, response) = try await session.bytes(for: request)
 
-            guard let http = response as? HTTPURLResponse else {
-                throw OllamaError.invalidResponse
-            }
+                    guard let http = response as? HTTPURLResponse else {
+                        throw OllamaError.invalidResponse
+                    }
 
-            guard http.statusCode == 200 else {
-                throw OllamaError.serverError(statusCode: http.statusCode)
-            }
+                    guard http.statusCode == 200 else {
+                        throw OllamaError.serverError(statusCode: http.statusCode)
+                    }
 
-            for try await line in bytes.lines {
-                guard !line.isEmpty,
-                      let lineData = line.data(using: .utf8),
-                      let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
-                else { continue }
+                    for try await line in bytes.lines {
+                        guard !line.isEmpty,
+                              let lineData = line.data(using: .utf8),
+                              let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
+                        else { continue }
 
-                let progress = OllamaPullProgress(
-                    status: chunk.status,
-                    completed: chunk.completed,
-                    total: chunk.total
-                )
-                onProgress(progress)
+                        let progress = OllamaPullProgress(
+                            status: chunk.status,
+                            completed: chunk.completed,
+                            total: chunk.total
+                        )
+                        continuation.yield(progress)
 
-                if chunk.status == "success" {
-                    Self.logger.info("Successfully pulled model: \(name)")
-                    return
+                        if chunk.status == "success" {
+                            Self.logger.info("Successfully pulled model: \(name)")
+                            continuation.finish()
+                            return
+                        }
+                    }
+
+                    // If we exit the loop without "success", something went wrong
+                    continuation.finish(throwing: OllamaError.pullFailed(name))
+                } catch let error as OllamaError {
+                    continuation.finish(throwing: error)
+                } catch let urlError as URLError {
+                    switch urlError.code {
+                    case .cannotConnectToHost, .cannotFindHost:
+                        continuation.finish(throwing: OllamaError.serverUnreachable)
+                    case .timedOut:
+                        continuation.finish(throwing: OllamaError.timeout)
+                    default:
+                        continuation.finish(throwing: OllamaError.networkError(urlError.localizedDescription))
+                    }
+                } catch {
+                    continuation.finish(throwing: error)
                 }
             }
 
-            // If we exit the loop without "success", something went wrong
-            throw OllamaError.pullFailed(name)
-        } catch let error as OllamaError {
-            throw error
-        } catch let urlError as URLError {
-            switch urlError.code {
-            case .cannotConnectToHost, .cannotFindHost:
-                throw OllamaError.serverUnreachable
-            case .timedOut:
-                throw OllamaError.timeout
-            default:
-                throw OllamaError.networkError(urlError.localizedDescription)
+            continuation.onTermination = { _ in
+                task.cancel()
             }
         }
     }
