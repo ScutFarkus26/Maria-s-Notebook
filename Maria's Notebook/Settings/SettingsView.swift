@@ -46,7 +46,7 @@ struct SettingsView: View {
                         if matchesSearch("communication attendance email") {
                             communicationSection
                         }
-                        if matchesSearch("ai features claude api lesson planning assistant model apple on device") {
+                        if matchesSearch("ai features claude api lesson planning assistant model apple on device ollama mlx models download local") {
                             aiFeaturesSection
                         }
                         if matchesSearch("database statistics records overview storage") {
@@ -252,6 +252,20 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                 }
 
+                SettingsGroup(title: "Apple Intelligence", systemImage: "apple.logo") {
+                    appleIntelligenceStatus
+                }
+
+                SettingsGroup(title: "MLX Models", systemImage: "cpu") {
+                    MLXModelSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+
+                SettingsGroup(title: "Ollama", systemImage: "server.rack") {
+                    OllamaSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+
                 SettingsGroup(title: "Claude API Key", systemImage: "key.fill") {
                     VStack(spacing: 12) {
                         HStack {
@@ -392,6 +406,39 @@ struct SettingsView: View {
     }
     #endif
     
+    // MARK: - Apple Intelligence Status
+
+    @ViewBuilder
+    private var appleIntelligenceStatus: some View {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        if #available(macOS 26.0, iOS 26.0, *) {
+            AppleIntelligenceStatusRow()
+        } else {
+            appleIntelligenceUnavailableView
+        }
+        #else
+        appleIntelligenceUnavailableView
+        #endif
+    }
+
+    private var appleIntelligenceUnavailableView: some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(AppColors.warning)
+                .font(.subheadline)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Not Available")
+                    .font(AppTheme.ScaledFont.bodySemibold)
+                    .foregroundStyle(AppColors.warning)
+                Text("Requires macOS 26 or iOS 26 with Apple Intelligence enabled")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
     // iCloud Backup Toggle (extracted from DataManagementGrid)
     @AppStorage(UserDefaultsKeys.cloudBackupScheduleEnabled) private var cloudBackupEnabled = false
     
@@ -404,6 +451,38 @@ struct SettingsView: View {
         )
     }
 }
+
+// MARK: - Apple Intelligence Status Row
+
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+import FoundationModels
+
+@available(macOS 26.0, iOS 26.0, *)
+private struct AppleIntelligenceStatusRow: View {
+    private let client = LocalModelClient()
+
+    var body: some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            Image(systemName: client.isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(client.isAvailable ? AppColors.success : AppColors.warning)
+                .font(.subheadline)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(client.isAvailable ? "Available" : "Not Available")
+                    .font(AppTheme.ScaledFont.bodySemibold)
+                    .foregroundStyle(client.isAvailable ? AppColors.success : AppColors.warning)
+
+                if !client.isAvailable {
+                    Text(client.unavailabilityReason)
+                        .font(AppTheme.ScaledFont.captionSmall)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+        }
+    }
+}
+#endif
 
 #Preview {
     SettingsView()
