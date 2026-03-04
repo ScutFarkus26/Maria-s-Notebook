@@ -29,9 +29,31 @@ protocol MCPClientProtocol {
     
     /// Analyzes text and extracts patterns
     func analyzePatterns(text: String, context: String) async throws -> [String]
-    
+
     /// Searches external knowledge bases (e.g., educational standards, curriculum frameworks)
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult]
+
+    /// Sends a multi-turn conversation and returns the assistant's response text.
+    func sendConversation(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        model: String?,
+        timeout: TimeInterval?
+    ) async throws -> String
+
+    /// Sends a multi-turn conversation with streaming, calling onDelta for each text chunk.
+    /// Returns the full response text when complete.
+    func streamConversation(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        model: String?,
+        timeout: TimeInterval?,
+        onDelta: @escaping @Sendable (String) -> Void
+    ) async throws -> String
 }
 
 // MARK: - Default Implementations
@@ -51,6 +73,50 @@ extension MCPClientProtocol {
     
     func generateStructuredJSON(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int? = nil, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
         try await generateStructuredJSON(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens)
+    }
+
+    func sendConversation(
+        messages: [[String: String]],
+        systemMessage: String? = nil,
+        temperature: Double = 0.7,
+        maxTokens: Int = 2048,
+        model: String? = nil,
+        timeout: TimeInterval? = nil
+    ) async throws -> String {
+        // Flatten multi-turn messages into a single prompt for clients
+        // that don't support native multi-turn conversation.
+        let flatPrompt = messages.map { "\($0["role"] ?? "user"): \($0["content"] ?? "")" }
+            .joined(separator: "\n\n")
+        return try await generateText(
+            prompt: flatPrompt,
+            systemMessage: systemMessage,
+            temperature: temperature,
+            maxTokens: maxTokens,
+            model: model,
+            timeout: timeout
+        )
+    }
+
+    func streamConversation(
+        messages: [[String: String]],
+        systemMessage: String? = nil,
+        temperature: Double = 0.7,
+        maxTokens: Int = 2048,
+        model: String? = nil,
+        timeout: TimeInterval? = nil,
+        onDelta: @escaping @Sendable (String) -> Void
+    ) async throws -> String {
+        // Non-streaming fallback: generate full text, emit as single delta.
+        let result = try await sendConversation(
+            messages: messages,
+            systemMessage: systemMessage,
+            temperature: temperature,
+            maxTokens: maxTokens,
+            model: model,
+            timeout: timeout
+        )
+        onDelta(result)
+        return result
     }
 }
 

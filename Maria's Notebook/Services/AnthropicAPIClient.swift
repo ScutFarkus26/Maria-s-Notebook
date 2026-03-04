@@ -395,7 +395,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         maxTokens: Int = 2048,
         model: String? = nil,
         timeout: TimeInterval? = nil,
-        onDelta: @escaping (String) -> Void
+        onDelta: @escaping @Sendable (String) -> Void
     ) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey

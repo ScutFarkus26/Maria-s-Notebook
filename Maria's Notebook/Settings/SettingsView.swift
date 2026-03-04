@@ -46,7 +46,7 @@ struct SettingsView: View {
                         if matchesSearch("communication attendance email") {
                             communicationSection
                         }
-                        if matchesSearch("ai features claude api lesson planning assistant") {
+                        if matchesSearch("ai features claude api lesson planning assistant model apple on device") {
                             aiFeaturesSection
                         }
                         if matchesSearch("database statistics records overview storage") {
@@ -247,29 +247,34 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsCategoryHeader(title: "AI Features", systemImage: "brain.head.profile")
             VStack(spacing: 12) {
-                SettingsGroup(title: "Development Insights", systemImage: "sparkles") {
+                SettingsGroup(title: "AI Models", systemImage: "cpu") {
+                    AIModelSettingsView()
+                        .frame(maxWidth: .infinity)
+                }
+
+                SettingsGroup(title: "Claude API Key", systemImage: "key.fill") {
                     VStack(spacing: 12) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Claude AI Integration")
+                                Text("Anthropic API")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
-                                
+
                                 if AnthropicAPIClient.hasAPIKey() {
                                     Label("API key configured", systemImage: "checkmark.circle.fill")
                                         .font(.caption)
                                         .foregroundStyle(AppColors.success)
                                 } else {
-                                    Label("API key required", systemImage: "exclamationmark.triangle")
+                                    Label("API key required for Claude models", systemImage: "exclamationmark.triangle")
                                         .font(.caption)
                                         .foregroundStyle(AppColors.warning)
                                 }
                             }
                             Spacer()
                         }
-                        
+
                         Divider()
-                        
+
                         NavigationLink {
                             APIKeySettingsView()
                         } label: {
@@ -284,7 +289,7 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                
+
                 SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard") {
                     LessonPlanningSettingsView()
                         .frame(maxWidth: .infinity)

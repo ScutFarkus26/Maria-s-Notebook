@@ -1,20 +1,14 @@
 import SwiftUI
 
 /// Settings view for configuring the AI lesson planning assistant.
+/// Model selection has moved to the AI Models section above.
 struct LessonPlanningSettingsView: View {
-    @AppStorage(UserDefaultsKeys.lessonPlanningModel) private var model = "claude-sonnet-4-20250514"
     @AppStorage(UserDefaultsKeys.lessonPlanningTimeout) private var timeout = 120
     @AppStorage(UserDefaultsKeys.lessonPlanningDefaultDepth) private var defaultDepth = "standard"
     @AppStorage(UserDefaultsKeys.lessonPlanningTemperature) private var temperature = 0.3
     @AppStorage(UserDefaultsKeys.lessonPlanningSystemPrompt) private var customSystemPrompt = ""
 
     @State private var isPromptExpanded = false
-
-    private let availableModels = [
-        ("claude-sonnet-4-20250514", "Claude Sonnet 4 (Recommended)"),
-        ("claude-haiku-4-20250414", "Claude Haiku 4 (Fastest)"),
-        ("claude-opus-4-20250514", "Claude Opus 4 (Most capable)")
-    ]
 
     private let depthOptions = [
         ("quick", "Quick", "Fast suggestions based on readiness"),
@@ -24,32 +18,10 @@ struct LessonPlanningSettingsView: View {
 
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
-            modelSection
             planningSection
             promptSection
             advancedSection
             resetSection
-        }
-    }
-
-    // MARK: - Model Selection
-
-    private var modelSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("AI Model")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Picker("Model", selection: $model) {
-                ForEach(availableModels, id: \.0) { value, label in
-                    Text(label).tag(value)
-                }
-            }
-            .pickerStyle(.menu)
-
-            Text("Sonnet balances speed and quality. Haiku is fastest but less nuanced. Opus is most capable but slower and more expensive.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
         }
     }
 
@@ -186,7 +158,6 @@ struct LessonPlanningSettingsView: View {
         HStack {
             Spacer()
             Button("Reset to Defaults") {
-                model = "claude-sonnet-4-20250514"
                 timeout = 120
                 defaultDepth = "standard"
                 temperature = 0.3

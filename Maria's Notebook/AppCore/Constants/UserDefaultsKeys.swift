@@ -83,6 +83,18 @@ enum UserDefaultsKeys {
     // MARK: - Todos
     static let todoTagOrder = "Todo.tagOrder"
 
+    // MARK: - AI Models (per-area)
+    static let aiModelChat = "AI.chatModel"
+    static let aiModelLessonPlanning = "AI.lessonPlanningModel"
+    static let aiModelNoteSuggestions = "AI.noteSuggestionsModel"
+    static let aiModelNoteDrafting = "AI.noteDraftingModel"
+    static let aiModelDatabaseAnalysis = "AI.databaseAnalysisModel"
+
+    // MARK: - AI Providers
+    static let ollamaBaseURL = "AI.ollamaBaseURL"
+    static let ollamaModelName = "AI.ollamaModelName"
+    static let mlxSelectedModel = "AI.mlxSelectedModel"
+
     // MARK: - Lesson Planning
     static let lessonPlanningModel = "LessonPlanning.model"
     static let lessonPlanningTimeout = "LessonPlanning.timeout"

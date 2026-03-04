@@ -68,16 +68,16 @@ final class ChatService {
         // Build messages array for API (keep within token budget)
         let apiMessages = buildAPIMessages(from: session.messages)
 
-        // Call the API
-        guard let client = mcpClient as? AnthropicAPIClient else {
-            throw ChatError.serviceNotConfigured
-        }
+        // Configure router for chat feature area and call through protocol
+        mcpClient.configureForFeature(.chat)
+        let chatModelID = AIFeatureArea.chat.resolvedClaudeModelID()
 
-        let responseText = try await client.sendConversation(
+        let responseText = try await mcpClient.sendConversation(
             messages: apiMessages,
             systemMessage: systemMessage,
             temperature: 0.7,
-            maxTokens: 2048
+            maxTokens: 2048,
+            model: chatModelID
         )
 
         // Add assistant response to session
@@ -96,7 +96,7 @@ final class ChatService {
     func sendMessageStreaming(
         _ question: String,
         session: inout ChatSession,
-        onDelta: @escaping (String) -> Void
+        onDelta: @escaping @Sendable (String) -> Void
     ) async throws -> String {
         // Refresh snapshot if stale
         if session.isSnapshotStale {
@@ -124,16 +124,16 @@ final class ChatService {
         // Build messages array for API (keep within token budget)
         let apiMessages = buildAPIMessages(from: session.messages)
 
-        // Call the streaming API
-        guard let client = mcpClient as? AnthropicAPIClient else {
-            throw ChatError.serviceNotConfigured
-        }
+        // Configure router for chat feature area and stream through protocol
+        mcpClient.configureForFeature(.chat)
+        let chatModelID = AIFeatureArea.chat.resolvedClaudeModelID()
 
-        let fullResponse = try await client.streamConversation(
+        let fullResponse = try await mcpClient.streamConversation(
             messages: apiMessages,
             systemMessage: systemMessage,
             temperature: 0.7,
             maxTokens: 2048,
+            model: chatModelID,
             onDelta: onDelta
         )
 

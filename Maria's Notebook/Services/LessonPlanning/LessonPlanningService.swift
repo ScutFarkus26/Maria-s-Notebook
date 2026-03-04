@@ -23,7 +23,9 @@ final class LessonPlanningService {
         self.mcpClient = mcpClient
         
         let defaults = UserDefaults.standard
-        self.resolvedModel = defaults.string(forKey: UserDefaultsKeys.lessonPlanningModel).flatMap({ $0.isEmpty ? nil : $0 })
+        // Read from per-area AI model setting; fall back to legacy key, then default.
+        self.resolvedModel = AIFeatureArea.lessonPlanning.resolvedClaudeModelID()
+            ?? defaults.string(forKey: UserDefaultsKeys.lessonPlanningModel).flatMap({ $0.isEmpty ? nil : $0 })
             ?? "claude-sonnet-4-20250514"
         let storedTimeout = defaults.integer(forKey: UserDefaultsKeys.lessonPlanningTimeout)
         self.resolvedTimeout = storedTimeout > 0 ? TimeInterval(storedTimeout) : 120
@@ -43,8 +45,9 @@ final class LessonPlanningService {
         subjectFilter: String? = nil,
         preferences: String? = nil
     ) async throws -> (recommendations: [LessonRecommendation], session: PlanningSession) {
+        mcpClient.configureForFeature(.lessonPlanning)
         var session = PlanningSession(mode: .singleStudent(student.id), depth: depth)
-        
+
         // Step 1: Local readiness assessment
         let profile = StudentReadinessAssessor.assessReadiness(for: student, modelContext: modelContext)
         session.readinessProfiles = [profile]
@@ -116,9 +119,10 @@ final class LessonPlanningService {
         weekStartDate: Date? = nil,
         preferences: String? = nil
     ) async throws -> (weekPlan: WeekPlan?, session: PlanningSession) {
+        mcpClient.configureForFeature(.lessonPlanning)
         var session = PlanningSession(mode: .wholeClass, depth: .deep)
         let weekStart = weekStartDate ?? nextWeekStart()
-        
+
         // Step 1: Assess readiness for all students
         let profiles = StudentReadinessAssessor.assessReadiness(for: students, modelContext: modelContext)
         session.readinessProfiles = profiles
@@ -213,6 +217,7 @@ final class LessonPlanningService {
         _ question: String,
         inSession session: inout PlanningSession
     ) async throws -> [LessonRecommendation] {
+        mcpClient.configureForFeature(.lessonPlanning)
         // Add teacher message
         session.messages.append(PlanningMessage(role: .teacher, content: question))
         

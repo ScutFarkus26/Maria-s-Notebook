@@ -254,17 +254,22 @@ final class AppDependencies {
         return engine
     }
     
-    // MARK: - MCP Services
-    
-    private var _mcpClient: MCPClientProtocol?
+    // MARK: - AI Services
+
+    private var _aiRouter: AIClientRouter?
+    /// The AI client router that handles local-first routing with Claude fallback.
+    /// All AI services should use this (via `mcpClient`) for inference.
+    var aiRouter: AIClientRouter {
+        if let router = _aiRouter { return router }
+        let router = AIClientRouter()
+        _aiRouter = router
+        return router
+    }
+
+    /// Protocol-typed client for injection into services.
+    /// Points to the router, which handles local/Claude routing transparently.
     var mcpClient: MCPClientProtocol {
-        if let client = _mcpClient {
-            return client
-        }
-        // Use direct Anthropic API client
-        let client = AnthropicAPIClient()
-        _mcpClient = client
-        return client
+        aiRouter
     }
     
     private var _chatService: ChatService?
@@ -303,6 +308,14 @@ final class AppDependencies {
         return service
     }
     
+    private var _databaseAnalysisService: DatabaseAnalysisService?
+    var databaseAnalysisService: DatabaseAnalysisService {
+        if let service = _databaseAnalysisService { return service }
+        let service = DatabaseAnalysisService(modelContext: modelContext, mcpClient: mcpClient)
+        _databaseAnalysisService = service
+        return service
+    }
+
     private var _reportGeneratorService: ReportGeneratorService?
     var reportGeneratorService: ReportGeneratorService {
         if let service = _reportGeneratorService {

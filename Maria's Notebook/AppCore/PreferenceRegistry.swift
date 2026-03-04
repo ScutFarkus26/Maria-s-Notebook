@@ -45,6 +45,18 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "WorkAgenda.hideScheduled", type: .bool, defaultValue: .bool(false)),
         // Attendance locks handled dynamically: keys "Attendance.locked.<yyyy-MM-dd>"
 
+        // AI Models (per-area)
+        PreferenceDefinition(key: "AI.chatModel", type: .string, defaultValue: .string("local-first-auto")),
+        PreferenceDefinition(key: "AI.lessonPlanningModel", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),
+        PreferenceDefinition(key: "AI.noteSuggestionsModel", type: .string, defaultValue: .string("apple-on-device")),
+        PreferenceDefinition(key: "AI.noteDraftingModel", type: .string, defaultValue: .string("apple-on-device")),
+        PreferenceDefinition(key: "AI.databaseAnalysisModel", type: .string, defaultValue: .string("local-first-auto")),
+
+        // AI Providers
+        PreferenceDefinition(key: "AI.ollamaBaseURL", type: .string, defaultValue: .string("http://localhost:11434")),
+        PreferenceDefinition(key: "AI.ollamaModelName", type: .string, defaultValue: .string("llama3.2")),
+        PreferenceDefinition(key: "AI.mlxSelectedModel", type: .string),
+
         // Lesson Planning
         PreferenceDefinition(key: "LessonPlanning.model", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),
         PreferenceDefinition(key: "LessonPlanning.timeout", type: .int, defaultValue: .int(120)),
@@ -56,6 +68,7 @@ public enum PreferenceRegistry {
     public static let byKey: [String: PreferenceDefinition] = definitions.toDictionary(by: \.key)
 
     public static let knownPrefixes: [String] = [
+        "AI.",
         "General.",
         "PlanningInbox.",
         "AttendanceEmail.",
