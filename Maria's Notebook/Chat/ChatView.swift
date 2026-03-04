@@ -9,6 +9,8 @@ struct ChatView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel = ChatViewModel()
     @State private var iconPulse = false
+    @State private var iconRotation: Double = 0
+    @State private var cardsAppeared = false
 
     var body: some View {
         NavigationStack {
@@ -143,10 +145,27 @@ struct ChatView: View {
     private var typingIndicatorBubble: some View {
         HStack {
             TypingIndicatorView()
-                .padding(.horizontal, AppTheme.Spacing.compact)
-                .padding(.vertical, AppTheme.Spacing.small + 4)
-                .background(Color.secondary.opacity(UIConstants.OpacityConstants.faint))
-                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
+                .padding(.horizontal, AppTheme.Spacing.medium)
+                .padding(.vertical, AppTheme.Spacing.compact)
+                .background(
+                    LinearGradient(
+                        colors: [Color.purple.opacity(0.06), Color.blue.opacity(0.04)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+                .overlay(
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.purple.opacity(0.15), Color.blue.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                )
             Spacer(minLength: 60)
         }
     }
@@ -170,35 +189,60 @@ struct ChatView: View {
     private var emptyState: some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.large) {
-                Spacer(minLength: AppTheme.Spacing.xxlarge)
+                Spacer(minLength: AppTheme.Spacing.xlarge)
 
-                // Gradient-tinted animated icon
-                Image(systemName: SFSymbol.Tool.wand)
-                    .font(.system(size: 56))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.accentColor, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                // Large animated gradient icon with glow
+                ZStack {
+                    // Glow effect behind icon
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.purple.opacity(0.2), Color.blue.opacity(0.1), Color.clear],
+                                center: .center,
+                                startRadius: 20,
+                                endRadius: 80
+                            )
                         )
-                    )
-                    .scaleEffect(iconPulse ? 1.05 : 1.0)
-                    .onAppear {
-                        guard !reduceMotion else { return }
-                        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                            iconPulse = true
-                        }
-                    }
+                        .frame(width: 160, height: 160)
+                        .scaleEffect(iconPulse ? 1.1 : 0.9)
 
-                // Fun greeting
+                    Image(systemName: SFSymbol.Tool.wand)
+                        .font(.system(size: 72, weight: .medium))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.pink, .purple, .blue],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .scaleEffect(iconPulse ? 1.08 : 1.0)
+                        .rotationEffect(.degrees(iconRotation))
+                }
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
+                        iconPulse = true
+                    }
+                    withAnimation(.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) {
+                        iconRotation = 8
+                    }
+                }
+
+                // Vibrant greeting
                 VStack(spacing: AppTheme.Spacing.small) {
                     Text("Hello! I know your classroom inside and out.")
-                        .font(AppTheme.ScaledFont.header)
-                        .foregroundStyle(.primary)
+                        .font(AppTheme.ScaledFont.titleLarge)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.purple, .blue],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         .multilineTextAlignment(.center)
 
                     Text("Ask me anything about your students, lessons, or schedule.")
-                        .font(AppTheme.ScaledFont.body)
+                        .font(AppTheme.ScaledFont.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -206,8 +250,17 @@ struct ChatView: View {
                 // Model badge
                 ModelBadgeView(model: viewModel.currentModel, style: .standard)
 
-                // Suggestion cards
+                // Suggestion cards with staggered animation
                 suggestionCards
+                    .onAppear {
+                        guard !reduceMotion else {
+                            cardsAppeared = true
+                            return
+                        }
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3)) {
+                            cardsAppeared = true
+                        }
+                    }
             }
             .padding(.horizontal, AppTheme.Spacing.large)
         }
@@ -215,45 +268,72 @@ struct ChatView: View {
 
     // MARK: - Suggestion Cards
 
-    private var suggestionCards: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-            Text("Try asking...")
-                .font(AppTheme.ScaledFont.callout)
-                .foregroundStyle(.secondary)
+    /// Colors used for suggestion card accents
+    private static let cardColors: [Color] = [.pink, .purple, .blue, .teal]
 
-            ForEach(viewModel.suggestedQuestions, id: \.self) { question in
+    private var suggestionCards: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
+            Text("Try asking...")
+                .font(AppTheme.ScaledFont.titleSmall)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.purple, .pink],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+
+            ForEach(Array(viewModel.suggestedQuestions.enumerated()), id: \.element) { index, question in
+                let cardColor = Self.cardColors[index % Self.cardColors.count]
                 Button {
                     viewModel.inputText = question
                     viewModel.sendMessage()
                 } label: {
-                    HStack {
-                        Image(systemName: "sparkle")
-                            .font(.caption)
-                            .foregroundStyle(Color.accentColor)
+                    HStack(spacing: AppTheme.Spacing.small) {
+                        Image(systemName: "sparkles")
+                            .font(.callout)
+                            .foregroundStyle(cardColor)
                         Text(question)
-                            .font(AppTheme.ScaledFont.body)
+                            .font(AppTheme.ScaledFont.callout)
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
                         Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        Image(systemName: "arrow.up.right.circle.fill")
+                            .font(.callout)
+                            .foregroundStyle(cardColor.opacity(0.5))
                     }
-                    .padding(.horizontal, AppTheme.Spacing.compact)
-                    .padding(.vertical, AppTheme.Spacing.small + 2)
+                    .padding(.horizontal, AppTheme.Spacing.medium)
+                    .padding(.vertical, AppTheme.Spacing.compact)
                     .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint))
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                            .fill(
+                                LinearGradient(
+                                    colors: [cardColor.opacity(0.08), cardColor.opacity(0.03)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
                             .overlay(
-                                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                                     .stroke(
-                                        Color.accentColor.opacity(UIConstants.OpacityConstants.subtle),
-                                        lineWidth: UIConstants.StrokeWidth.thin
+                                        LinearGradient(
+                                            colors: [cardColor.opacity(0.25), cardColor.opacity(0.1)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        lineWidth: UIConstants.StrokeWidth.regular
                                     )
                             )
                     )
+                    .shadow(color: cardColor.opacity(0.08), radius: 6, x: 0, y: 3)
                 }
                 .buttonStyle(.plain)
+                .opacity(cardsAppeared ? 1 : 0)
+                .offset(y: cardsAppeared ? 0 : 15)
+                .animation(
+                    reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.7).delay(Double(index) * 0.1),
+                    value: cardsAppeared
+                )
             }
         }
     }

@@ -1,10 +1,12 @@
 import SwiftUI
 
 /// A single chat message bubble with role-appropriate styling.
-/// User messages use a gradient; assistant messages render Markdown with a model badge.
+/// User messages use a vibrant gradient; assistant messages render Markdown with a colorful accent.
 struct ChatMessageBubble: View {
     let message: ChatMessage
     let isStreaming: Bool
+
+    @State private var appeared = false
 
     init(message: ChatMessage, isStreaming: Bool = false) {
         self.message = message
@@ -23,33 +25,45 @@ struct ChatMessageBubble: View {
                 Group {
                     if isUser {
                         Text(message.content)
-                            .font(AppTheme.ScaledFont.body)
+                            .font(AppTheme.ScaledFont.callout)
+                            .fontWeight(.medium)
                             .foregroundStyle(.white)
                     } else {
                         // Render Markdown for assistant messages
                         Text(LocalizedStringKey(message.content))
-                            .font(AppTheme.ScaledFont.body)
+                            .font(AppTheme.ScaledFont.callout)
                             .foregroundStyle(.primary)
                     }
                 }
                 .textSelection(.enabled)
-                .padding(.horizontal, AppTheme.Spacing.compact)
-                .padding(.vertical, AppTheme.Spacing.small)
+                .padding(.horizontal, AppTheme.Spacing.medium)
+                .padding(.vertical, AppTheme.Spacing.compact)
                 .background(bubbleBackground)
-                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
-                .shadow(isUser ? AppTheme.ShadowStyle.subtle : clearShadow)
+                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+                .overlay(
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                        .stroke(bubbleBorderGradient, lineWidth: isUser ? 0 : 1.5)
+                )
+                .shadow(isUser ? AppTheme.ShadowStyle.medium : assistantShadow)
 
                 if !isStreaming {
                     messageFooter
                 }
             }
+            .scaleEffect(appeared ? 1.0 : 0.85)
+            .opacity(appeared ? 1.0 : 0)
 
             if !isUser { Spacer(minLength: 60) }
         }
         .transition(.asymmetric(
-            insertion: .scale(scale: 0.95).combined(with: .opacity),
+            insertion: .scale(scale: 0.9).combined(with: .opacity),
             removal: .identity
         ))
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                appeared = true
+            }
+        }
     }
 
     // MARK: - Bubble Background
@@ -58,13 +72,36 @@ struct ChatMessageBubble: View {
     private var bubbleBackground: some View {
         if isUser {
             LinearGradient(
-                colors: [Color.accentColor, Color.accentColor.opacity(0.8)],
+                colors: [Color.blue, Color.purple, Color.pink.opacity(0.85)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         } else {
-            Color.secondary.opacity(UIConstants.OpacityConstants.faint)
+            LinearGradient(
+                colors: [
+                    Color.purple.opacity(0.06),
+                    Color.blue.opacity(0.04)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
+    }
+
+    /// Subtle gradient border for assistant bubbles
+    private var bubbleBorderGradient: some ShapeStyle {
+        LinearGradient(
+            colors: isUser
+                ? [Color.clear]
+                : [Color.purple.opacity(0.15), Color.blue.opacity(0.1)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// Soft colored shadow for assistant bubbles
+    private var assistantShadow: AppTheme.ShadowStyle {
+        AppTheme.ShadowStyle(color: .purple.opacity(0.06), radius: 8, x: 0, y: 3)
     }
 
     // MARK: - Footer (timestamp + model badge)
@@ -82,10 +119,5 @@ struct ChatMessageBubble: View {
                 ModelBadgeView(model: model, style: .compact)
             }
         }
-    }
-
-    /// A clear shadow style for assistant bubbles (no visual shadow).
-    private var clearShadow: AppTheme.ShadowStyle {
-        AppTheme.ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
     }
 }

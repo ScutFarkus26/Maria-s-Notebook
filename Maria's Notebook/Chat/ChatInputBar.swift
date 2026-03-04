@@ -8,22 +8,43 @@ struct ChatInputBar: View {
     let onSend: () -> Void
 
     @State private var sendButtonScale: CGFloat = 1.0
+    @State private var sendButtonRotation: Double = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            // Subtle top divider
+            // Gradient top divider
             Rectangle()
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
-                .frame(height: UIConstants.StrokeWidth.thin)
+                .fill(
+                    LinearGradient(
+                        colors: [.purple.opacity(0.3), .blue.opacity(0.2), .pink.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1.5)
 
-            HStack(alignment: .bottom, spacing: AppTheme.Spacing.small) {
+            HStack(alignment: .bottom, spacing: AppTheme.Spacing.compact) {
                 TextField("Ask about your classroom...", text: $text, axis: .vertical)
+                    .font(AppTheme.ScaledFont.callout)
                     .textFieldStyle(.plain)
                     .lineLimit(1...5)
-                    .padding(.horizontal, AppTheme.Spacing.compact)
-                    .padding(.vertical, AppTheme.Spacing.small)
-                    .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint))
-                    .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
+                    .padding(.horizontal, AppTheme.Spacing.medium)
+                    .padding(.vertical, AppTheme.Spacing.compact)
+                    .background(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                            .fill(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.purple.opacity(0.15), .blue.opacity(0.15)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
                     .onSubmit {
                         if canSend { onSend() }
                     }
@@ -35,37 +56,45 @@ struct ChatInputBar: View {
                                 .controlSize(.small)
                         } else {
                             Image(systemName: SFSymbol.Arrow.upCircleFill)
-                                .font(.title2)
+                                .font(.title)
                         }
                     }
-                    .frame(width: 32, height: 32)
+                    .frame(width: 40, height: 40)
                 }
                 .disabled(!canSend)
                 .scaleEffect(sendButtonScale)
+                .rotationEffect(.degrees(sendButtonRotation))
                 .foregroundStyle(
                     canSend && !isLoading
                         ? AnyShapeStyle(LinearGradient(
-                            colors: [Color.accentColor, Color.indigo],
+                            colors: [Color.pink, Color.purple, Color.blue],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ))
-                        : AnyShapeStyle(Color.gray.opacity(0.4))
+                        : AnyShapeStyle(Color.gray.opacity(0.3))
                 )
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, AppTheme.Spacing.small)
+            .padding(.vertical, AppTheme.Spacing.compact)
         }
     }
 
-    // MARK: - Send Action with Bounce
+    // MARK: - Send Action with Bounce + Spin
 
     private func triggerSend() {
-        // Bounce animation
-        adaptiveWithAnimation(UIConstants.SpringAnimation.bouncy) {
-            sendButtonScale = 0.8
+        // Bounce + spin animation
+        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+            sendButtonScale = 0.7
+            sendButtonRotation = -30
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            adaptiveWithAnimation(UIConstants.SpringAnimation.bouncy) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                sendButtonScale = 1.1
+                sendButtonRotation = 0
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            adaptiveWithAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                 sendButtonScale = 1.0
             }
         }
