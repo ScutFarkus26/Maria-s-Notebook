@@ -156,28 +156,23 @@ struct OllamaSettingsView: View {
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
+            ForEach(OllamaModelCatalog.recommended) { model in
+                catalogModelRow(model)
+                if model.id != OllamaModelCatalog.recommended.last?.id {
+                    Divider()
+                }
+            }
+
             if isConnected {
-                ForEach(OllamaModelCatalog.recommended) { model in
-                    catalogModelRow(model)
-                    if model.id != OllamaModelCatalog.recommended.last?.id {
-                        Divider()
-                    }
-                }
-
                 Divider()
-
                 customModelPullSection
+            }
 
-                if let error = pullError {
-                    Text(error)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(AppColors.destructive)
-                        .lineLimit(2)
-                }
-            } else {
-                Text("Connect to Ollama to install models")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.tertiary)
+            if let error = pullError {
+                Text(error)
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(AppColors.destructive)
+                    .lineLimit(2)
             }
         }
     }
@@ -236,7 +231,7 @@ struct OllamaSettingsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .disabled(isPulling)
+                .disabled(isPulling || !isConnected)
             }
         }
         .padding(.vertical, AppTheme.Spacing.xsmall)
