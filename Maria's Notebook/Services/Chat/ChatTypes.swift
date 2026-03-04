@@ -7,12 +7,15 @@ struct ChatMessage: Identifiable, Codable {
     let role: ChatRole
     var content: String
     let timestamp: Date
+    /// The rawValue of the AIModelOption that generated this response (assistant messages only).
+    var modelID: String?
 
-    init(id: UUID = UUID(), role: ChatRole, content: String, timestamp: Date = Date()) {
+    init(id: UUID = UUID(), role: ChatRole, content: String, timestamp: Date = Date(), modelID: String? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
+        self.modelID = modelID
     }
 
     enum ChatRole: String, Codable {

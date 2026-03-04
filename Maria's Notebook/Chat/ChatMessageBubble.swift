@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A single chat message bubble with role-appropriate styling.
-/// Assistant messages render Markdown; user messages display plain text.
+/// User messages use a gradient; assistant messages render Markdown with a model badge.
 struct ChatMessageBubble: View {
     let message: ChatMessage
     let isStreaming: Bool
@@ -35,21 +35,57 @@ struct ChatMessageBubble: View {
                 .textSelection(.enabled)
                 .padding(.horizontal, AppTheme.Spacing.compact)
                 .padding(.vertical, AppTheme.Spacing.small)
-                .background(
-                    isUser
-                        ? AnyShapeStyle(Color.accentColor)
-                        : AnyShapeStyle(Color.secondary.opacity(UIConstants.OpacityConstants.faint))
-                )
+                .background(bubbleBackground)
                 .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
+                .shadow(isUser ? AppTheme.ShadowStyle.subtle : clearShadow)
 
                 if !isStreaming {
-                    Text(message.timestamp, style: .time)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(.secondary)
+                    messageFooter
                 }
             }
 
             if !isUser { Spacer(minLength: 60) }
         }
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.95).combined(with: .opacity),
+            removal: .identity
+        ))
+    }
+
+    // MARK: - Bubble Background
+
+    @ViewBuilder
+    private var bubbleBackground: some View {
+        if isUser {
+            LinearGradient(
+                colors: [Color.accentColor, Color.accentColor.opacity(0.8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            Color.secondary.opacity(UIConstants.OpacityConstants.faint)
+        }
+    }
+
+    // MARK: - Footer (timestamp + model badge)
+
+    @ViewBuilder
+    private var messageFooter: some View {
+        HStack(spacing: AppTheme.Spacing.xsmall) {
+            Text(message.timestamp, style: .time)
+                .font(AppTheme.ScaledFont.captionSmall)
+                .foregroundStyle(.secondary)
+
+            // Model badge for assistant messages
+            if !isUser, let modelID = message.modelID,
+               let model = AIModelOption(rawValue: modelID) {
+                ModelBadgeView(model: model, style: .compact)
+            }
+        }
+    }
+
+    /// A clear shadow style for assistant bubbles (no visual shadow).
+    private var clearShadow: AppTheme.ShadowStyle {
+        AppTheme.ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
     }
 }

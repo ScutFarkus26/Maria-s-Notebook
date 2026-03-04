@@ -34,6 +34,16 @@ final class ChatViewModel {
         !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
     }
 
+    /// The currently configured AI model for the chat feature area.
+    var currentModel: AIModelOption {
+        AIFeatureArea.chat.resolvedModel()
+    }
+
+    /// Whether the current model needs an API key and one is configured.
+    var needsAPIKey: Bool {
+        currentModel.requiresAPIKey && !AnthropicAPIClient.hasAPIKey()
+    }
+
     var hasAPIKey: Bool {
         AnthropicAPIClient.hasAPIKey()
     }
@@ -104,6 +114,9 @@ final class ChatViewModel {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, var currentSession = session, let service = chatService else { return }
 
+        // Capture the model before sending so we know which model was used
+        let resolvedModelID = AIFeatureArea.chat.resolvedModel().rawValue
+
         inputText = ""
         isLoading = true
         errorMessage = nil
@@ -115,6 +128,11 @@ final class ChatViewModel {
                     Task { @MainActor in
                         self?.streamingContent = (self?.streamingContent ?? "") + delta
                     }
+                }
+                // Tag the last assistant message with the model that generated it
+                if let lastIndex = currentSession.messages.indices.last,
+                   currentSession.messages[lastIndex].role == .assistant {
+                    currentSession.messages[lastIndex].modelID = resolvedModelID
                 }
                 self.session = currentSession
                 self.streamingContent = nil

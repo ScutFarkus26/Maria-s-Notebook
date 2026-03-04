@@ -2,16 +2,18 @@ import SwiftUI
 import SwiftData
 
 /// Main chat view for the Ask AI feature.
-/// Provides a conversational interface for teachers to ask questions about classroom data.
+/// Provides a whimsical, conversational interface for teachers to ask questions about classroom data.
 struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dependencies) private var dependencies
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel = ChatViewModel()
+    @State private var iconPulse = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if !viewModel.hasAPIKey {
+                if viewModel.needsAPIKey {
                     apiKeyPrompt
                 } else {
                     chatContent
@@ -22,7 +24,18 @@ struct ChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                if viewModel.hasAPIKey && viewModel.session != nil {
+                // Model indicator in toolbar
+                #if os(macOS)
+                ToolbarItem(placement: .navigation) {
+                    ModelBadgeView(model: viewModel.currentModel, style: .toolbar)
+                }
+                #else
+                ToolbarItem(placement: .topBarLeading) {
+                    ModelBadgeView(model: viewModel.currentModel, style: .toolbar)
+                }
+                #endif
+
+                if !viewModel.needsAPIKey && viewModel.session != nil {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             viewModel.resetSession()
@@ -74,20 +87,34 @@ struct ChatView: View {
                             .id(message.id)
                     }
 
-                    // Show streaming content as a live-updating bubble
+                    // Show streaming content or typing indicator
                     if let streaming = viewModel.streamingContent {
-                        ChatMessageBubble(
-                            message: ChatMessage(
-                                role: .assistant,
-                                content: streaming.isEmpty ? "..." : streaming
-                            ),
-                            isStreaming: true
-                        )
-                        .id("streaming")
+                        if streaming.isEmpty {
+                            // Animated typing indicator while waiting for first token
+                            typingIndicatorBubble
+                                .id("streaming")
+                        } else {
+                            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                                ChatMessageBubble(
+                                    message: ChatMessage(
+                                        role: .assistant,
+                                        content: streaming
+                                    ),
+                                    isStreaming: true
+                                )
+
+                                streamingModelLabel
+                            }
+                            .id("streaming")
+                        }
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.medium)
                 .padding(.vertical, AppTheme.Spacing.small)
+                .animation(
+                    reduceMotion ? nil : UIConstants.SpringAnimation.standard,
+                    value: viewModel.messages.count
+                )
             }
             .onChange(of: viewModel.messages.count) {
                 if let last = viewModel.messages.last {
@@ -106,6 +133,32 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - Typing Indicator Bubble
+
+    private var typingIndicatorBubble: some View {
+        HStack {
+            TypingIndicatorView()
+                .padding(.horizontal, AppTheme.Spacing.compact)
+                .padding(.vertical, AppTheme.Spacing.small + 4)
+                .background(Color.secondary.opacity(UIConstants.OpacityConstants.faint))
+                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
+            Spacer(minLength: 60)
+        }
+    }
+
+    // MARK: - Streaming Model Label
+
+    private var streamingModelLabel: some View {
+        HStack(spacing: 3) {
+            Image(systemName: viewModel.currentModel.iconName)
+                .font(AppTheme.ScaledFont.captionSmall)
+            Text("Responding with \(viewModel.currentModel.displayName)")
+                .font(AppTheme.ScaledFont.captionSmall)
+        }
+        .foregroundStyle(.tertiary)
+        .padding(.leading, AppTheme.Spacing.xsmall)
+    }
+
     // MARK: - Empty State
 
     private var emptyState: some View {
@@ -113,43 +166,88 @@ struct ChatView: View {
             VStack(spacing: AppTheme.Spacing.large) {
                 Spacer(minLength: AppTheme.Spacing.xxlarge)
 
-                Image(systemName: "bubble.left.and.text.bubble.right")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tertiary)
-
-                Text("Ask about your classroom")
-                    .font(AppTheme.ScaledFont.header)
-                    .foregroundStyle(.secondary)
-
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                    Text("Try asking...")
-                        .font(AppTheme.ScaledFont.callout)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(viewModel.suggestedQuestions, id: \.self) { question in
-                        Button {
-                            viewModel.inputText = question
-                            viewModel.sendMessage()
-                        } label: {
-                            HStack {
-                                Text(question)
-                                    .font(AppTheme.ScaledFont.body)
-                                    .foregroundStyle(.primary)
-                                    .multilineTextAlignment(.leading)
-                                Spacer()
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, AppTheme.Spacing.compact)
-                            .padding(.vertical, AppTheme.Spacing.small)
-                            .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint))
-                            .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
+                // Gradient-tinted animated icon
+                Image(systemName: SFSymbol.Tool.wand)
+                    .font(.system(size: 56))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.accentColor, .purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .scaleEffect(iconPulse ? 1.05 : 1.0)
+                    .onAppear {
+                        guard !reduceMotion else { return }
+                        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                            iconPulse = true
                         }
-                        .buttonStyle(.plain)
                     }
+
+                // Fun greeting
+                VStack(spacing: AppTheme.Spacing.small) {
+                    Text("Hello! I know your classroom inside and out.")
+                        .font(AppTheme.ScaledFont.header)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+
+                    Text("Ask me anything about your students, lessons, or schedule.")
+                        .font(AppTheme.ScaledFont.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.horizontal, AppTheme.Spacing.large)
+
+                // Model badge
+                ModelBadgeView(model: viewModel.currentModel, style: .standard)
+
+                // Suggestion cards
+                suggestionCards
+            }
+            .padding(.horizontal, AppTheme.Spacing.large)
+        }
+    }
+
+    // MARK: - Suggestion Cards
+
+    private var suggestionCards: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+            Text("Try asking...")
+                .font(AppTheme.ScaledFont.callout)
+                .foregroundStyle(.secondary)
+
+            ForEach(viewModel.suggestedQuestions, id: \.self) { question in
+                Button {
+                    viewModel.inputText = question
+                    viewModel.sendMessage()
+                } label: {
+                    HStack {
+                        Image(systemName: "sparkle")
+                            .font(.caption)
+                            .foregroundStyle(Color.accentColor)
+                        Text(question)
+                            .font(AppTheme.ScaledFont.body)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, AppTheme.Spacing.compact)
+                    .padding(.vertical, AppTheme.Spacing.small + 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                                    .stroke(
+                                        Color.accentColor.opacity(UIConstants.OpacityConstants.subtle),
+                                        lineWidth: UIConstants.StrokeWidth.thin
+                                    )
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -164,7 +262,7 @@ struct ChatView: View {
                 .foregroundStyle(.tertiary)
             Text("API Key Required")
                 .font(AppTheme.ScaledFont.header)
-            Text("Add your Anthropic API key in Settings to use Ask AI.")
+            Text("The selected model (\(viewModel.currentModel.displayName)) requires an Anthropic API key. Add one in Settings, or switch to a local model.")
                 .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
