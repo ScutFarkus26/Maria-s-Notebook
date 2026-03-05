@@ -13,7 +13,13 @@ enum PlanningActions {
         Task { @MainActor in context.safeSave() }
     }
 
-    static func planNextLesson(for la: LessonAssignment, lessons: [Lesson], students: [Student], lessonAssignments: [LessonAssignment], context: ModelContext) {
+    static func planNextLesson(
+        for la: LessonAssignment,
+        lessons: [Lesson],
+        students: [Student],
+        lessonAssignments: [LessonAssignment],
+        context: ModelContext
+    ) {
         let result = PlanNextLessonService.planNextLesson(
             for: la,
             allLessons: lessons,
@@ -71,7 +77,12 @@ enum PlanningActions {
 
             let nextDay = await SchoolCalendar.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
-            if let newDate = calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: comps.second ?? 0, of: nextDay) {
+            if let newDate = calendar.date(
+                bySettingHour: comps.hour ?? 9,
+                minute: comps.minute ?? 0,
+                second: comps.second ?? 0,
+                of: nextDay
+            ) {
                 la.scheduledFor = newDate
                 la.modifiedAt = Date()
                 changed = true
@@ -101,7 +112,12 @@ enum PlanningActions {
             let day = calendar.startOfDay(for: when)
             let nextDay = await SchoolCalendar.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
-            if let newDate = calendar.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: comps.second ?? 0, of: nextDay) {
+            if let newDate = calendar.date(
+                bySettingHour: comps.hour ?? 9,
+                minute: comps.minute ?? 0,
+                second: comps.second ?? 0,
+                of: nextDay
+            ) {
                 la.scheduledFor = newDate
                 la.modifiedAt = Date()
                 changed = true

@@ -229,8 +229,14 @@ enum WorkAgingDebug {
         notes: [Note]? = nil
     ) -> String {
         let last = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
-        let days = WorkAgingPolicy.daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
-        let bucket = WorkAgingPolicy.agingBucket(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
+        let days = WorkAgingPolicy.daysSinceLastTouch(
+            for: work, modelContext: modelContext,
+            checkIns: checkIns, notes: notes
+        )
+        let bucket = WorkAgingPolicy.agingBucket(
+            for: work, modelContext: modelContext,
+            checkIns: checkIns, notes: notes
+        )
         let overdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns, lastTouch: last)
         let df = DateFormatter(); df.dateStyle = .medium
         return "[school-days] last=\(df.string(from: last)) days=\(days) bucket=\(bucket) overdue=\(overdue)"

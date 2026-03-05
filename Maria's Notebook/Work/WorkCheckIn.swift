@@ -73,7 +73,12 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
     // Inverse relationship for Note.workCheckIn
     @Relationship(deleteRule: .cascade, inverse: \Note.workCheckIn) var notes: [Note]? = []
     
-    init(id: UUID = UUID(), workID: UUID, date: Date = Date(), status: WorkCheckInStatus = .scheduled, purpose: String = "", work: WorkModel? = nil) {
+    init(
+        id: UUID = UUID(), workID: UUID,
+        date: Date = Date(),
+        status: WorkCheckInStatus = .scheduled,
+        purpose: String = "", work: WorkModel? = nil
+    ) {
         self.id = id
         // CloudKit compatibility: Store UUID as string
         self.workID = workID.uuidString
@@ -119,8 +124,15 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
 }
 
 extension WorkModel {
-    @MainActor func addCheckIn(date: Date, status: WorkCheckInStatus = .scheduled, purpose: String = "", note: String = "", in context: ModelContext) {
-        let ci = WorkCheckIn(workID: self.id, date: date, status: status, purpose: purpose, work: self)
+    @MainActor func addCheckIn(
+        date: Date, status: WorkCheckInStatus = .scheduled,
+        purpose: String = "", note: String = "",
+        in context: ModelContext
+    ) {
+        let ci = WorkCheckIn(
+            workID: self.id, date: date,
+            status: status, purpose: purpose, work: self
+        )
         context.insert(ci)
         if self.checkIns == nil { self.checkIns = [] }
         self.checkIns = (self.checkIns ?? []) + [ci]
@@ -130,8 +142,14 @@ extension WorkModel {
     }
 
     @MainActor @discardableResult
-    func scheduleCheckIn(on date: Date, purpose: String = "", note: String = "", in context: ModelContext) -> WorkCheckIn {
-        let ci = WorkCheckIn(workID: self.id, date: date, status: .scheduled, purpose: purpose, work: self)
+    func scheduleCheckIn(
+        on date: Date, purpose: String = "",
+        note: String = "", in context: ModelContext
+    ) -> WorkCheckIn {
+        let ci = WorkCheckIn(
+            workID: self.id, date: date,
+            status: .scheduled, purpose: purpose, work: self
+        )
         context.insert(ci)
         if self.checkIns == nil { self.checkIns = [] }
         self.checkIns = (self.checkIns ?? []) + [ci]
@@ -141,7 +159,10 @@ extension WorkModel {
         return ci
     }
 
-    @MainActor func markCheckInCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date(), in context: ModelContext) {
+    @MainActor func markCheckInCompleted(
+        _ checkIn: WorkCheckIn, note: String? = nil,
+        at date: Date = Date(), in context: ModelContext
+    ) {
         checkIn.markCompleted(note: note, at: date, in: context)
     }
 }

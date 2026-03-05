@@ -5,7 +5,9 @@ import SwiftData
 struct StudentsImportCoordinator {
     static func startHeaderScan(
         from url: URL,
-        onParsed: @MainActor @Sendable @escaping (_ headers: [String], _ suggestedMapping: StudentCSVImporter.Mapping) -> Void,
+        onParsed: @MainActor @Sendable @escaping (
+            _ headers: [String], _ suggestedMapping: StudentCSVImporter.Mapping
+        ) -> Void,
         onError: @MainActor @Sendable @escaping (Error) -> Void,
         onFinally: @MainActor @Sendable @escaping () -> Void
     ) -> Task<Void, Never> {

@@ -116,9 +116,13 @@ struct ProcedureEditorSheet: View {
                 HStack(spacing: AppTheme.Spacing.compact) {
                     // Current icon preview
                     ZStack {
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                            .frame(width: UIConstants.CardSize.studentAvatar / 2, height: UIConstants.CardSize.studentAvatar / 2)
+                        let avatarHalf = UIConstants.CardSize.studentAvatar / 2
+                        RoundedRectangle(
+                            cornerRadius: UIConstants.CornerRadius.medium,
+                            style: .continuous
+                        )
+                        .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
+                        .frame(width: avatarHalf, height: avatarHalf)
 
                         Image(systemName: icon.isEmpty ? category.icon : icon)
                             .font(.system(size: 20))
@@ -169,7 +173,11 @@ struct ProcedureEditorSheet: View {
                             }
                             .padding(.horizontal, AppTheme.Spacing.compact)
                             .padding(.vertical, AppTheme.Spacing.small)
-                            .background(category == cat ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                            .background(
+                                category == cat
+                                    ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                                    : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                            )
                             .foregroundStyle(category == cat ? Color.accentColor : .primary)
                             .clipShape(Capsule())
                         }
@@ -211,9 +219,15 @@ struct ProcedureEditorSheet: View {
                         aiTriggerCounter += 1
                     } label: {
                         Image(systemName: "sparkles")
-                            .font(.system(size: UIConstants.CardSize.iconSize, weight: .semibold))
+                            .font(.system(
+                                size: UIConstants.CardSize.iconSize,
+                                weight: .semibold
+                            ))
                             .foregroundStyle(.white)
-                            .frame(width: UIConstants.CardSize.iconSizeLarge + 8, height: UIConstants.CardSize.iconSizeLarge + 8)
+                            .frame(
+                                width: UIConstants.CardSize.iconSizeLarge + 8,
+                                height: UIConstants.CardSize.iconSizeLarge + 8
+                            )
                             .background(
                                 LinearGradient(
                                     colors: [Color.purple, Color.blue],
@@ -222,7 +236,11 @@ struct ProcedureEditorSheet: View {
                                 )
                             )
                             .clipShape(Circle())
-                            .shadow(color: .black.opacity(UIConstants.OpacityConstants.accent), radius: AppTheme.Spacing.compact, y: AppTheme.Spacing.xxsmall)
+                            .shadow(
+                                color: .black.opacity(UIConstants.OpacityConstants.accent),
+                                radius: AppTheme.Spacing.compact,
+                                y: AppTheme.Spacing.xxsmall
+                            )
                     }
                     .buttonStyle(.plain)
                     .padding(AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
@@ -303,9 +321,17 @@ struct IconPickerSheet: View {
                             dismiss()
                         } label: {
                             ZStack {
-                                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
-                                    .fill(selectedIcon == iconName ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent + 0.05) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                                    .frame(width: UIConstants.CardSize.studentAvatar * 0.75, height: UIConstants.CardSize.studentAvatar * 0.75)
+                                let avatarSize = UIConstants.CardSize.studentAvatar * 0.75
+                                RoundedRectangle(
+                                    cornerRadius: UIConstants.CornerRadius.large,
+                                    style: .continuous
+                                )
+                                .fill(
+                                    selectedIcon == iconName
+                                        ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent + 0.05)
+                                        : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                                )
+                                .frame(width: avatarSize, height: avatarSize)
 
                                 Image(systemName: iconName)
                                     .font(.system(size: UIConstants.CardSize.iconSizeLarge))

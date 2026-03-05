@@ -100,7 +100,8 @@ struct PracticeSessionCard: View {
         duration: 1800, // 30 minutes
         studentIDs: [danny.id.uuidString, mary.id.uuidString],
         workItemIDs: [work1.id.uuidString, work2.id.uuidString],
-        sharedNotes: "Both students struggled with remainders but showed improvement by the end. Need more practice with manipulatives.",
+        sharedNotes: "Both students struggled with remainders but showed improvement " +
+            "by the end. Need more practice with manipulatives.",
         location: "Small table"
     )
     

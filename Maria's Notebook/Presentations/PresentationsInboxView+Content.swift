@@ -34,7 +34,10 @@ extension PresentationsInboxView {
                 // 2. READY SECTION
                 if filteredAndSortedReadyLessons.isEmpty {
                     if filteredAndSortedBlockedLessons.isEmpty {
-                        ContentUnavailableView("All Caught Up", systemImage: "checkmark.circle", description: Text("No unscheduled presentations."))
+                        ContentUnavailableView(
+                            "All Caught Up", systemImage: "checkmark.circle",
+                            description: Text("No unscheduled presentations.")
+                        )
                             .padding(.top, AppTheme.Spacing.large + AppTheme.Spacing.medium)
                     } else {
                         Text("All planned presentations are waiting on work.")

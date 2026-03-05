@@ -43,7 +43,11 @@ struct StudentNotesTimelineView: View {
         }
         .onAppear {
             if viewModel == nil {
-                let newViewModel = StudentNotesViewModel(student: student, modelContext: modelContext, saveCoordinator: saveCoordinator)
+                let newViewModel = StudentNotesViewModel(
+                    student: student,
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
+                )
                 // Set up the note lookup function
                 newViewModel.itemsNoteLookup = { id in
                     newViewModel.note(by: id)
@@ -274,7 +278,10 @@ struct StudentNotesTimelineList: View {
                         let usedTags = Set(selectedItems.flatMap { $0.tags })
                         if !usedTags.isEmpty {
                             Menu {
-                                ForEach(usedTags.sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }, id: \.self) { tag in
+                                ForEach(
+                                    usedTags.sorted { TagHelper.tagName($0) < TagHelper.tagName($1) },
+                                    id: \.self
+                                ) { tag in
                                     Button {
                                         batchRemoveTag(tag)
                                     } label: {

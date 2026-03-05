@@ -277,7 +277,11 @@ final class TodoItem {
     var isDueThisWeek: Bool {
         guard let dueDate = dueDate else { return false }
         let now = Date()
-        guard let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: AppCalendar.startOfDay(now)) else { return false }
+        guard let weekEnd = Calendar.current.date(
+            byAdding: .day,
+            value: 7,
+            to: AppCalendar.startOfDay(now)
+        ) else { return false }
         return dueDate >= AppCalendar.startOfDay(now) && dueDate < weekEnd
     }
     

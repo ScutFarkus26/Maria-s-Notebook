@@ -35,7 +35,8 @@ extension AppBootstrapping {
 
             let container = try AppBootstrapping.createModelContainer()
 
-            logger.info("ModelContainer: Creation completed in \(String(format: "%.3f", Date().timeIntervalSince(containerStart)))s")
+            let elapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
+            logger.info("ModelContainer: Creation completed in \(elapsed)s")
 
             // Configure SQLite to suppress detached signature errors
             AppBootstrapping.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
@@ -49,7 +50,8 @@ extension AppBootstrapping {
             // Reset state to idle so bootstrap can start
             AppBootstrapper.shared.setState(.idle)
 
-            logger.info("ModelContainer: Total initialization time: \(String(format: "%.3f", Date().timeIntervalSince(containerStart)))s")
+            let totalElapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
+            logger.info("ModelContainer: Total initialization time: \(totalElapsed)s")
             return container
         } catch {
             // This should never be reached if createModelContainer handles all errors properly,
@@ -71,7 +73,10 @@ extension AppBootstrapping {
                 let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
                 let fallbackContainer = try ModelContainer(for: fallbackSchema, configurations: fallbackConfig)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-                UserDefaults.standard.set(unexpectedError.localizedDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
+                UserDefaults.standard.set(
+                    unexpectedError.localizedDescription,
+                    forKey: UserDefaultsKeys.lastStoreErrorDescription
+                )
                 return fallbackContainer
             } catch {
                 // If even this fails, we have no choice but to crash

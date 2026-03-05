@@ -33,7 +33,8 @@ struct PresentationsView: View {
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     // The ViewModel handles all actual data loading with targeted fetches
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)]) private var lessonAssignmentsForChangeDetection: [LessonAssignment]
+    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
+    private var lessonAssignmentsForChangeDetection: [LessonAssignment]
     @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
     @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
     @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workModelsForChangeDetection: [WorkModel]
@@ -123,7 +124,8 @@ struct PresentationsView: View {
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) private var startDateRaw: Double = 0
 
-    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
+    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
+    private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
     @AppStorage(UserDefaultsKeys.planningRecentWindowDays) private var recentWindowDays: Int = 1
 
     private var missWindow: PresentationsMissWindow { PresentationsMissWindow(rawValue: missWindowRaw) ?? .all }
@@ -138,7 +140,8 @@ struct PresentationsView: View {
     }
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @State private var startDate: Date = Date()
     @State private var mobileViewSelection: MobileViewMode = .inbox
@@ -441,7 +444,9 @@ struct PresentationsView: View {
         let snap = la.snapshot()
         // Use ViewModel's cached students (avoids redundant fetching)
         let allStudents = viewModel.cachedStudents
-        let hiddenIDs = TestStudentsFilter.hiddenIDs(from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        let hiddenIDs = TestStudentsFilter.hiddenIDs(
+            from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw
+        )
         let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
         return LessonAssignmentSnapshot(
             id: snap.id,

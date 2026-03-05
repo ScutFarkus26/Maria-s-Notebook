@@ -120,7 +120,8 @@ extension UnifiedPresentationWorkflowPanel {
                     workDrafts[student.id]?[firstIndex].title = trimmed
 
                     // Apply default dates if enabled and not already set
-                    if presentationViewModel.defaultCheckInEnabled && workDrafts[student.id]?[firstIndex].checkInDate == nil {
+                    if presentationViewModel.defaultCheckInEnabled
+                        && workDrafts[student.id]?[firstIndex].checkInDate == nil {
                         workDrafts[student.id]?[firstIndex].checkInDate = presentationViewModel.defaultCheckInDate
                     }
                     if presentationViewModel.defaultDueEnabled && workDrafts[student.id]?[firstIndex].dueDate == nil {
@@ -218,7 +219,11 @@ extension UnifiedPresentationWorkflowPanel {
                     label: "Title",
                     text: Binding(
                         get: { draft.title },
-                        set: { newValue in updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.title = newValue } }
+                        set: { newValue in
+                            updateWorkDraft(studentID: studentID, draftID: draft.id) {
+                                $0.title = newValue
+                            }
+                        }
                     ),
                     placeholder: "Work Title"
                 )
@@ -262,11 +267,19 @@ extension UnifiedPresentationWorkflowPanel {
                 WorkDatesRow(
                     checkInDate: Binding(
                         get: { draft.checkInDate },
-                        set: { newValue in updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.checkInDate = newValue } }
+                        set: { newValue in
+                            updateWorkDraft(studentID: studentID, draftID: draft.id) {
+                                $0.checkInDate = newValue
+                            }
+                        }
                     ),
                     dueDate: Binding(
                         get: { draft.dueDate },
-                        set: { newValue in updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.dueDate = newValue } }
+                        set: { newValue in
+                            updateWorkDraft(studentID: studentID, draftID: draft.id) {
+                                $0.dueDate = newValue
+                            }
+                        }
                     ),
                     defaultCheckInDate: presentationViewModel.defaultCheckInDate,
                     defaultDueDate: presentationViewModel.defaultDueDate
@@ -277,7 +290,11 @@ extension UnifiedPresentationWorkflowPanel {
                     label: "Notes",
                     text: Binding(
                         get: { draft.notes },
-                        set: { newValue in updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.notes = newValue } }
+                        set: { newValue in
+                            updateWorkDraft(studentID: studentID, draftID: draft.id) {
+                                $0.notes = newValue
+                            }
+                        }
                     ),
                     placeholder: "Add notes...",
                     axis: .vertical,
@@ -329,7 +346,9 @@ extension UnifiedPresentationWorkflowPanel {
                                 label: { $0.displayName },
                                 isSelected: { $0 == draft.completionOutcome },
                                 onSelect: { outcome in
-                                    updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionOutcome = outcome }
+                                    updateWorkDraft(studentID: studentID, draftID: draft.id) {
+                                        $0.completionOutcome = outcome
+                                    }
                                 }
                             )
                         }
@@ -340,7 +359,11 @@ extension UnifiedPresentationWorkflowPanel {
                         label: "Completion Note",
                         text: Binding(
                             get: { draft.completionNote },
-                            set: { newValue in updateWorkDraft(studentID: studentID, draftID: draft.id) { $0.completionNote = newValue } }
+                            set: { newValue in
+                                updateWorkDraft(studentID: studentID, draftID: draft.id) {
+                                    $0.completionNote = newValue
+                                }
+                            }
                         ),
                         placeholder: "Add completion note...",
                         axis: .vertical,
@@ -414,8 +437,16 @@ extension UnifiedPresentationWorkflowPanel {
         workDrafts[studentID, default: []].append(draft)
     }
 
-    func createWorkDraft(for studentID: UUID, title: String = "", kind: WorkKind = .followUpAssignment, applyDefaultDates: Bool = false) -> WorkItemDraft {
-        var draft = WorkItemDraft(studentID: studentID, title: title.isEmpty ? "" : title, kind: kind, checkInStyle: bulkCheckInStyle)
+    func createWorkDraft(
+        for studentID: UUID, title: String = "",
+        kind: WorkKind = .followUpAssignment,
+        applyDefaultDates: Bool = false
+    ) -> WorkItemDraft {
+        var draft = WorkItemDraft(
+            studentID: studentID,
+            title: title.isEmpty ? "" : title,
+            kind: kind, checkInStyle: bulkCheckInStyle
+        )
 
         if applyDefaultDates {
             if presentationViewModel.defaultCheckInEnabled {

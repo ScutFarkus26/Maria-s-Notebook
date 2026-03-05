@@ -100,7 +100,10 @@ final class StudentDetailViewModel {
     func updateData(lessons: [Lesson], lessonAssignments: [LessonAssignment]) {
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         lessonsByID = Dictionary(lessons.uniqueByID.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        lessonAssignmentsByID = Dictionary(lessonAssignments.uniqueByID.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        lessonAssignmentsByID = Dictionary(
+            lessonAssignments.uniqueByID.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         // Next lessons for this student (not yet presented)
         let upcoming = lessonAssignments.filter { $0.resolvedStudentIDs.contains(student.id) && !$0.isPresented }
@@ -118,7 +121,11 @@ final class StudentDetailViewModel {
         }
         nextLessonsForStudent = sorted.map { $0.snapshot() }
 
-        presentedLessonIDs = Set(lessonAssignments.filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }.map { $0.resolvedLessonID })
+        presentedLessonIDs = Set(
+            lessonAssignments
+                .filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }
+                .map { $0.resolvedLessonID }
+        )
         plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
     }
 
@@ -150,11 +157,17 @@ final class StudentDetailViewModel {
 
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: ModelContext, functionName: String = #function) -> [T] {
+    private func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>,
+        context: ModelContext,
+        functionName: String = #function
+    ) -> [T] {
         do {
             return try context.fetch(descriptor)
         } catch {
-            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)")
+            Self.logger.warning(
+                "Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)"
+            )
             return []
         }
     }
@@ -179,7 +192,9 @@ final class StudentDetailViewModel {
     }
 
     func latestLessonAssignment(for lessonID: UUID, studentID: UUID) -> LessonAssignment? {
-        let matches = lessonAssignmentsByID.values.filter { $0.resolvedLessonID == lessonID && $0.resolvedStudentIDs.contains(studentID) }
+        let matches = lessonAssignmentsByID.values.filter {
+            $0.resolvedLessonID == lessonID && $0.resolvedStudentIDs.contains(studentID)
+        }
         return matches.sorted { lhs, rhs in
             let lDate = lhs.presentedAt ?? lhs.scheduledFor ?? lhs.createdAt
             let rDate = rhs.presentedAt ?? rhs.scheduledFor ?? rhs.createdAt
@@ -188,7 +203,11 @@ final class StudentDetailViewModel {
     }
 
     func upcomingLessonAssignment(for lessonID: UUID, studentID: UUID) -> LessonAssignment? {
-        let matches = lessonAssignmentsByID.values.filter { $0.resolvedLessonID == lessonID && $0.resolvedStudentIDs.contains(studentID) && !$0.isPresented }
+        let matches = lessonAssignmentsByID.values.filter {
+            $0.resolvedLessonID == lessonID
+                && $0.resolvedStudentIDs.contains(studentID)
+                && !$0.isPresented
+        }
         return matches.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?):
@@ -203,7 +222,10 @@ final class StudentDetailViewModel {
         }.first
     }
 
-    func ensureLessonAssignment(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> LessonAssignment {
+    func ensureLessonAssignment(
+        for lesson: Lesson, modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
+    ) -> LessonAssignment {
         if let existing = latestLessonAssignment(for: lesson.id, studentID: student.id) {
             return existing
         }
@@ -295,7 +317,10 @@ final class StudentDetailViewModel {
     }
 
     /// Create a draft lesson assignment, reusing existing if available
-    func createDraftLessonAssignment(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> LessonAssignment {
+    func createDraftLessonAssignment(
+        for lesson: Lesson, modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
+    ) -> LessonAssignment {
         // Reuse an existing unscheduled entry for this lesson+student if it exists
         if let existing = lessonAssignments.first(where: {
             $0.resolvedLessonID == lesson.id &&
@@ -338,7 +363,10 @@ final class StudentDetailViewModel {
     }
 
     /// Create or reuse a non-presented lesson assignment
-    func createOrReuseUpcomingLessonAssignment(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> LessonAssignment {
+    func createOrReuseUpcomingLessonAssignment(
+        for lesson: Lesson, modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
+    ) -> LessonAssignment {
         if let existing = lessonAssignments.first(where: {
             $0.resolvedLessonID == lesson.id &&
             !$0.isPresented &&
@@ -357,7 +385,10 @@ final class StudentDetailViewModel {
     }
 
     /// Log a presentation for a lesson
-    func logPresentation(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) -> LessonAssignment {
+    func logPresentation(
+        for lesson: Lesson, modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator
+    ) -> LessonAssignment {
         let presentedDate = AppCalendar.startOfDay(Date())
         let newLA = PresentationFactory.makePresented(
             lessonID: lesson.id,

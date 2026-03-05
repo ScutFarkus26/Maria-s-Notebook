@@ -27,7 +27,9 @@ struct DaysSinceLastLessonView: View {
     private var lastLessonDate: Date? {
         let studentIDString = student.id.uuidString
         let relevant = allLessonAssignments.filter { la in
-            la.isPresented && la.studentIDs.contains(studentIDString) && !excludedLessonIDs.contains(la.resolvedLessonID)
+            la.isPresented
+                && la.studentIDs.contains(studentIDString)
+                && !excludedLessonIDs.contains(la.resolvedLessonID)
         }
         var latest: Date?
         for la in relevant {
@@ -43,7 +45,9 @@ struct DaysSinceLastLessonView: View {
 
     private var daysSince: Int? {
         guard let last = lastLessonDate else { return nil }
-        return LessonAgeHelper.schoolDaysSinceCreation(createdAt: last, asOf: Date(), using: modelContext, calendar: calendar)
+        return LessonAgeHelper.schoolDaysSinceCreation(
+            createdAt: last, asOf: Date(), using: modelContext, calendar: calendar
+        )
     }
 
     var body: some View {

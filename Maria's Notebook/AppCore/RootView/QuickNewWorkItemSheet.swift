@@ -14,7 +14,8 @@ struct QuickNewWorkItemSheet: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
     private var allLessons: [Lesson]
@@ -24,7 +25,11 @@ struct QuickNewWorkItemSheet: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var allStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            allStudentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     @State private var selectedLessonID: UUID?
@@ -139,7 +144,10 @@ struct QuickNewWorkItemSheet: View {
                 .onSubmit {
                     // If user typed an exact lesson name, select it
                     let trimmed = lessonSearchText.trimmed()
-                    if let match = filteredLessons.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+                    let isMatch: (Lesson) -> Bool = {
+                        $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
+                    }
+                    if let match = filteredLessons.first(where: isMatch) {
                         selectLesson(match)
                     }
                 }
@@ -327,7 +335,10 @@ struct QuickNewWorkItemSheet: View {
                 kindButton(.research, "Project")
                 kindButton(.report, "Report")
             }
-            .background(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.light)))
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
+            )
 
             // Due date toggle and picker
             Toggle("Set due date", isOn: $hasDueDate)

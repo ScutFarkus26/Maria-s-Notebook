@@ -12,7 +12,9 @@ extension TodayView {
 
     var remindersListSection: some View {
         Section {
-            if viewModel.overdueReminders.isEmpty && viewModel.todaysReminders.isEmpty && viewModel.anytimeReminders.isEmpty {
+            if viewModel.overdueReminders.isEmpty
+                && viewModel.todaysReminders.isEmpty
+                && viewModel.anytimeReminders.isEmpty {
                 emptyStateText("No reminders")
             } else {
                 // Overdue reminders (with visual indicator)

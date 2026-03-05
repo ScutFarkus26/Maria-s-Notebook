@@ -123,18 +123,22 @@ struct CloudKitStatusSettingsView: View {
         } else if isCloudKitEnabled {
             if let errorDescription = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription),
                !errorDescription.isEmpty {
-                return "CloudKit sync failed to initialize. Your data is stored locally and will NOT sync across devices. Check your iCloud account and network connection, then restart the app."
+                return "CloudKit sync failed to initialize."
+                    + " Your data is stored locally and will NOT sync across devices."
+                    + " Check your iCloud account and network connection, then restart the app."
             } else {
                 return "iCloud sync is enabled but requires an app restart to take effect."
             }
         } else {
-            return "Your data is stored locally on this device only. Enable iCloud sync to keep your data synchronized across devices."
+            return "Your data is stored locally on this device only."
+                + " Enable iCloud sync to keep your data synchronized across devices."
         }
     }
 
     private var offlineDescription: String {
         if !syncService.isNetworkAvailable && !syncService.isICloudAvailable {
-            return "No network connection and iCloud account unavailable. Changes are saved locally and will sync when both are restored."
+            return "No network connection and iCloud account unavailable."
+                + " Changes are saved locally and will sync when both are restored."
         } else if !syncService.isNetworkAvailable {
             return "No network connection. Changes are saved locally and will sync when you're back online."
         } else if !syncService.isICloudAvailable {

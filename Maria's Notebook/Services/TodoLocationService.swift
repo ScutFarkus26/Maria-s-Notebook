@@ -109,7 +109,9 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
         
         // Send notification
         let content = UNMutableNotificationContent()
-        content.title = isEntry ? "Arrived at \(todo.locationName ?? "location")" : "Leaving \(todo.locationName ?? "location")"
+        let locName = todo.locationName ?? "location"
+        content.title = isEntry
+            ? "Arrived at \(locName)" : "Leaving \(locName)"
         content.body = todo.title
         content.sound = .default
         content.userInfo = ["todoID": todo.id.uuidString]

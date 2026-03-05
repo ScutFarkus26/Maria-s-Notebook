@@ -67,10 +67,16 @@ struct StudentInfoRows: View {
             InfoRowView(icon: "person", title: "Nickname", value: student.nickname ?? "-")
             InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
             if let ds = student.dateStarted {
-                InfoRowView(icon: "calendar.badge.clock", title: "Start Date", value: Self.birthdayFormatter.string(from: ds))
+                InfoRowView(
+                    icon: "calendar.badge.clock", title: "Start Date",
+                    value: Self.birthdayFormatter.string(from: ds)
+                )
             }
             InfoRowView(icon: "gift", title: "Age", value: ageDescription)
-            InfoRowView(icon: "graduationcap", title: "Florida Grade Equivalent", value: FloridaGradeCalculator.grade(for: student.birthday).displayString)
+            InfoRowView(
+                icon: "graduationcap", title: "Florida Grade Equivalent",
+                value: FloridaGradeCalculator.grade(for: student.birthday).displayString
+            )
             DaysSinceLastLessonView(student: student)
             attendanceInfoRow
         }

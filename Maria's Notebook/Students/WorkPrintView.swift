@@ -63,7 +63,10 @@ struct WorkPrintView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("\(workItems.count) work item\(workItems.count == 1 ? "" : "s") \u{2022} \(groupedWork.count) student\(groupedWork.count == 1 ? "" : "s")")
+            Text(
+                "\(workItems.count) work item\(workItems.count == 1 ? "" : "s")" +
+                " \u{2022} \(groupedWork.count) student\(groupedWork.count == 1 ? "" : "s")"
+            )
                 .font(AppTheme.ScaledFont.captionSmall)
                 .foregroundStyle(.secondary)
         }

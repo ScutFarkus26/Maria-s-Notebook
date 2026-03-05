@@ -241,7 +241,10 @@ struct LessonJourneyTimeline: View {
     
     private func loadData() async {
         presentations = lesson.fetchAllPresentations(from: modelContext)
-            .sorted { ($0.presentedAt ?? $0.scheduledFor ?? Date.distantPast) > ($1.presentedAt ?? $1.scheduledFor ?? Date.distantPast) }
+            .sorted {
+                ($0.presentedAt ?? $0.scheduledFor ?? Date.distantPast)
+                    > ($1.presentedAt ?? $1.scheduledFor ?? Date.distantPast)
+            }
         
         allWork = lesson.fetchAllWork(from: modelContext)
         allSessions = lesson.fetchAllPracticeSessions(from: modelContext)

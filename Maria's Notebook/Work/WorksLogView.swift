@@ -4,7 +4,8 @@ import SwiftData
 struct WorksLogView: View {
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
     private var allWorks: [WorkModel]

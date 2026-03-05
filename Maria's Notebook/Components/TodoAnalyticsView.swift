@@ -169,7 +169,8 @@ struct TodoAnalyticsView: View {
                                 .font(AppTheme.ScaledFont.calloutSemibold)
                                 .foregroundStyle(AppColors.warning)
 
-                            Text("You complete the most \(TodoTagHelper.tagName(topTag.tag)) tasks (\(topTag.count) total)")
+                            let tagName = TodoTagHelper.tagName(topTag.tag)
+                            Text("You complete the most \(tagName) tasks (\(topTag.count) total)")
                                 .font(AppTheme.ScaledFont.body)
                                 .foregroundStyle(.secondary)
                         }

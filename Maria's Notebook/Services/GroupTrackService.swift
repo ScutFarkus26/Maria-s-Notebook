@@ -9,7 +9,11 @@ struct GroupTrackService {
 
     // MARK: - Helper Methods
 
-    private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, modelContext: ModelContext, context: String = #function) -> [T] {
+    private static func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>,
+        modelContext: ModelContext,
+        context: String = #function
+    ) -> [T] {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
@@ -253,7 +257,10 @@ struct GroupTrackService {
         
         // Check if this group should be a track
         guard isTrack(subject: trimmedSubject, group: trimmedGroup, modelContext: modelContext) else {
-            throw NSError(domain: "GroupTrackService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Group is explicitly disabled as a track"])
+            throw NSError(
+                domain: "GroupTrackService", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Group is explicitly disabled as a track"]
+            )
         }
         
         // Fetch all Tracks to find existing one by title
@@ -262,7 +269,10 @@ struct GroupTrackService {
         
         if let existingTrack = allTracks.first(where: { $0.title.trimmed() == trackTitle }) {
             // Track exists - ensure TrackSteps are up to date
-            try ensureTrackSteps(for: existingTrack, subject: trimmedSubject, group: trimmedGroup, modelContext: modelContext)
+            try ensureTrackSteps(
+                for: existingTrack, subject: trimmedSubject,
+                group: trimmedGroup, modelContext: modelContext
+            )
             return existingTrack
         }
         
@@ -392,7 +402,11 @@ struct GroupTrackService {
         let trackID = track.id.uuidString
         
         // Fetch all existing enrollments for these students
-        let allEnrollments = safeFetch(FetchDescriptor<StudentTrackEnrollment>(), modelContext: modelContext, context: "autoEnrollInTrackIfNeeded")
+        let allEnrollments = safeFetch(
+            FetchDescriptor<StudentTrackEnrollment>(),
+            modelContext: modelContext,
+            context: "autoEnrollInTrackIfNeeded"
+        )
         
         // Enroll each student if not already enrolled
         for studentID in studentIDs {
@@ -452,7 +466,10 @@ struct GroupTrackService {
         // Get the Track object
         let track: Track
         do {
-            guard let fetchedTrack = try getTrack(subject: lesson.subject, group: lesson.group, modelContext: modelContext) else {
+            guard let fetchedTrack = try getTrack(
+                subject: lesson.subject, group: lesson.group,
+                modelContext: modelContext
+            ) else {
                 return
             }
             track = fetchedTrack
@@ -462,7 +479,10 @@ struct GroupTrackService {
         }
 
         // Get all lessons in this track
-        let allLessons = safeFetch(FetchDescriptor<Lesson>(), modelContext: modelContext, context: "checkAndCompleteTrackIfNeeded")
+        let allLessons = safeFetch(
+            FetchDescriptor<Lesson>(), modelContext: modelContext,
+            context: "checkAndCompleteTrackIfNeeded"
+        )
         let trackLessons = allLessons.filter { l in
             l.subject.trimmed().caseInsensitiveCompare(lesson.subject.trimmed()) == .orderedSame &&
             l.group.trimmed().caseInsensitiveCompare(lesson.group.trimmed()) == .orderedSame
@@ -471,7 +491,11 @@ struct GroupTrackService {
         guard !trackLessons.isEmpty else { return }
 
         // Get all LessonPresentation records for this student
-        let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>(), modelContext: modelContext, context: "checkAndCompleteTrackIfNeeded")
+        let allLessonPresentations = safeFetch(
+            FetchDescriptor<LessonPresentation>(),
+            modelContext: modelContext,
+            context: "checkAndCompleteTrackIfNeeded"
+        )
         let studentPresentations = allLessonPresentations.filter { $0.studentID == studentID }
 
         // Check if all lessons in the track are mastered
@@ -486,9 +510,15 @@ struct GroupTrackService {
 
         // All lessons mastered - mark enrollment as inactive (completed)
         let trackID = track.id.uuidString
-        let allEnrollments = safeFetch(FetchDescriptor<StudentTrackEnrollment>(), modelContext: modelContext, context: "checkAndCompleteTrackIfNeeded")
+        let allEnrollments = safeFetch(
+            FetchDescriptor<StudentTrackEnrollment>(),
+            modelContext: modelContext,
+            context: "checkAndCompleteTrackIfNeeded"
+        )
 
-        if let enrollment = allEnrollments.first(where: { $0.studentID == studentID && $0.trackID == trackID && $0.isActive }) {
+        if let enrollment = allEnrollments.first(where: {
+            $0.studentID == studentID && $0.trackID == trackID && $0.isActive
+        }) {
             enrollment.isActive = false
             if let coordinator = saveCoordinator {
                 coordinator.save(modelContext, reason: "Completing track enrollment")

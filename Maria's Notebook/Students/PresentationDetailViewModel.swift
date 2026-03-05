@@ -55,7 +55,12 @@ final class PresentationDetailViewModel {
     private var notesAutosaveTask: Task<Void, Never>?
 
     // MARK: - Initialization
-    init(lessonAssignment: LessonAssignment, modelContext: ModelContext, saveCoordinator: SaveCoordinator, autoFocusLessonPicker: Bool = false) {
+    init(
+        lessonAssignment: LessonAssignment,
+        modelContext: ModelContext,
+        saveCoordinator: SaveCoordinator,
+        autoFocusLessonPicker: Bool = false
+    ) {
         self.lessonAssignment = lessonAssignment
         self.modelContext = modelContext
         self.saveCoordinator = saveCoordinator
@@ -434,7 +439,9 @@ final class PresentationDetailViewModel {
         let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>())
 
         for studentID in studentIDs {
-            if let existing = allLessonPresentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentID }) {
+            if let existing = allLessonPresentations.first(where: {
+                $0.lessonID == lessonID && $0.studentID == studentID
+            }) {
                 existing.state = state
                 existing.lastObservedAt = Date()
                 if state == .proficient && existing.masteredAt == nil {

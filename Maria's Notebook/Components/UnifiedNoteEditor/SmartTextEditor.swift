@@ -78,7 +78,9 @@ struct SmartTextEditor: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
-        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: .greatestFiniteMagnitude)
+        textView.textContainer?.containerSize = NSSize(
+            width: scrollView.contentSize.width, height: .greatestFiniteMagnitude
+        )
         textView.textContainer?.widthTracksTextView = true
 
         // Enable Apple Intelligence

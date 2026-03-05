@@ -407,7 +407,14 @@ struct ChatView: View {
                 .foregroundStyle(.tertiary)
             Text("API Key Required")
                 .font(AppTheme.ScaledFont.header)
-            Text("The selected model (\(viewModel.currentModel.displayName)) requires an Anthropic API key. Add one in Settings, or switch to a local model.")
+            let modelName = viewModel.currentModel.displayName
+            Text(
+                """
+                The selected model (\(modelName)) requires \
+                an Anthropic API key. Add one in Settings, \
+                or switch to a local model.
+                """
+            )
                 .font(AppTheme.ScaledFont.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -8,7 +8,8 @@ struct DayColumn: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use shared week lesson assignments and filter for this day in memory
     // This avoids making separate database queries for each day
@@ -17,7 +18,11 @@ struct DayColumn: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var allStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            allStudentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     let day: Date
@@ -26,7 +31,14 @@ struct DayColumn: View {
     let onQuickActions: (LessonAssignment) -> Void
     let onPlanNext: (LessonAssignment) -> Void
 
-    init(day: Date, weekLessonAssignments: [LessonAssignment], availableHeight: CGFloat, onSelectLesson: @escaping (LessonAssignment) -> Void, onQuickActions: @escaping (LessonAssignment) -> Void, onPlanNext: @escaping (LessonAssignment) -> Void) {
+    init(
+        day: Date,
+        weekLessonAssignments: [LessonAssignment],
+        availableHeight: CGFloat,
+        onSelectLesson: @escaping (LessonAssignment) -> Void,
+        onQuickActions: @escaping (LessonAssignment) -> Void,
+        onPlanNext: @escaping (LessonAssignment) -> Void
+    ) {
         self.day = day
         self.weekLessonAssignments = weekLessonAssignments
         self.availableHeight = availableHeight
@@ -90,14 +102,28 @@ struct DayColumn: View {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 0) {
                         periodChip(title: "Morning", tint: .blue)
-                        DropZone(allLessonAssignments: dayLessonAssignments, day: day, period: PlanningDayPeriod.morning, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                        DropZone(
+                            allLessonAssignments: dayLessonAssignments,
+                            day: day,
+                            period: PlanningDayPeriod.morning,
+                            onSelectLesson: onSelectLesson,
+                            onQuickActions: onQuickActions,
+                            onPlanNext: onPlanNext
+                        )
                             .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     periodChip(title: "Afternoon", tint: .orange)
                         .padding(.top, UIConstants.dayColumnSpacing)
-                    DropZone(allLessonAssignments: dayLessonAssignments, day: day, period: PlanningDayPeriod.afternoon, onSelectLesson: onSelectLesson, onQuickActions: onQuickActions, onPlanNext: onPlanNext)
+                    DropZone(
+                        allLessonAssignments: dayLessonAssignments,
+                        day: day,
+                        period: PlanningDayPeriod.afternoon,
+                        onSelectLesson: onSelectLesson,
+                        onQuickActions: onQuickActions,
+                        onPlanNext: onPlanNext
+                    )
                         .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                         .fixedSize(horizontal: false, vertical: true)
 

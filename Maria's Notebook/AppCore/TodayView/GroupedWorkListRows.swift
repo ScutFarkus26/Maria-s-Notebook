@@ -67,7 +67,11 @@ struct GroupedScheduledWorkListRow: View {
             }
             .buttonStyle(.subtleRow)
             .accessibilityLabel(accessibilityLabelText)
-            .accessibilityHint(isFlexible ? "Double tap to expand individual students" : "Double tap to view group check-in")
+            .accessibilityHint(
+                isFlexible
+                    ? "Double tap to expand individual students"
+                    : "Double tap to view group check-in"
+            )
 
             // Expanded individual rows (flexible mode only)
             if isFlexible && isExpanded {
@@ -162,7 +166,11 @@ struct GroupedFollowUpWorkListRow: View {
             }
             .buttonStyle(.subtleRow)
             .accessibilityLabel(accessibilityLabelText)
-            .accessibilityHint(isFlexible ? "Double tap to expand individual students" : "Double tap to view group follow-up")
+            .accessibilityHint(
+                isFlexible
+                    ? "Double tap to expand individual students"
+                    : "Double tap to view group follow-up"
+            )
 
             if isFlexible && isExpanded {
                 VStack(spacing: 4) {

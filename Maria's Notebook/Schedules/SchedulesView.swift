@@ -103,6 +103,7 @@ struct SchedulesView: View {
             Text("No Schedules Yet")
                 .font(.title2.weight(.semibold))
 
+            // swiftlint:disable:next line_length
             Text("Create recurring schedules for activities like reading support, special lessons, or other regular sessions.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

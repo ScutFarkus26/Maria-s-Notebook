@@ -14,8 +14,10 @@ struct PresentationPill: View {
     @SyncedAppStorage("LessonAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @SyncedAppStorage("LessonAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
     @SyncedAppStorage("LessonAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
-    @SyncedAppStorage("LessonAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
-    @SyncedAppStorage("LessonAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
+    @SyncedAppStorage("LessonAge.warningColorHex")
+    private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
+    @SyncedAppStorage("LessonAge.overdueColorHex")
+    private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
     @AppStorage(UserDefaultsKeys.planningRecentWindowDays) private var recentWindowDays: Int = 1
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = "all"
@@ -247,7 +249,10 @@ struct PresentationPill: View {
                     blockingWork: blockingWork[id]
                 ))
             } else {
-                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true, status: nil, hasHad: true, blockingWork: nil))
+                chips.append(StudentChip(
+                    id: id, label: "(Removed)", isMissing: true,
+                    status: nil, hasHad: true, blockingWork: nil
+                ))
             }
         }
         return chips
@@ -260,7 +265,9 @@ struct PresentationPill: View {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
-    private var ageSchoolDays: Int { snapshot.schoolDaysSinceCreation(asOf: Date(), using: modelContext, calendar: calendar) }
+    private var ageSchoolDays: Int {
+        snapshot.schoolDaysSinceCreation(asOf: Date(), using: modelContext, calendar: calendar)
+    }
 
     private var ageStatus: LessonAgeStatus {
         if ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }
@@ -291,8 +298,9 @@ struct PresentationPill: View {
                 HStack(spacing: 6) {
                     ForEach(studentChips, id: \.id) { chip in
                         let isAbsent = (chip.status == .absent)
-                        // Removed !isAllSelected check here so that individuals are highlighted even if the whole group is in the lesson.
-                        let highlight = (!chip.hasHad && !suppressHighlighting)
+                        // Removed !isAllSelected check here so that individuals
+                        // are highlighted even if the whole group is in the lesson.
+                        let highlight = !chip.hasHad && !suppressHighlighting
                         ChipView(
                             label: chip.label,
                             isMissing: chip.isMissing,
@@ -431,7 +439,9 @@ struct PresentationPill: View {
         .task(id: day) {
             // Populate cache once on appear, not during scroll
             let currentDay = day ?? Date()
-            guard lastCacheDay == nil || !AppCalendar.shared.isDate(lastCacheDay!, inSameDayAs: currentDay) else { return }
+            guard lastCacheDay == nil
+                  || !AppCalendar.shared.isDate(lastCacheDay!, inSameDayAs: currentDay)
+            else { return }
             
             // Defer state updates to avoid multiple updates per frame when many pills render simultaneously
             await Task.yield()

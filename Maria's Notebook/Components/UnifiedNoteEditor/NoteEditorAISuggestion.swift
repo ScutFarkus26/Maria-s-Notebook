@@ -69,7 +69,8 @@ extension UnifiedNoteEditor {
         } catch let error as LanguageModelSession.GenerationError {
             switch error {
             case .assetsUnavailable:
-                self.suggestionError = "Apple Intelligence model is not available. It may be downloading — please try again later."
+                self.suggestionError = "Apple Intelligence model is not available."
+                    + " It may be downloading — please try again later."
             case .rateLimited:
                 self.suggestionError = "Too many requests. Please wait a moment and try again."
             case .exceededContextWindowSize:

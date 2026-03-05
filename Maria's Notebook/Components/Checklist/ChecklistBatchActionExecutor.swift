@@ -99,10 +99,14 @@ enum ChecklistBatchActionExecutor {
         let lessonIDString = lesson.id.uuidString
         let studentIDString = student.cloudKitKey
 
-        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(
+            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
+        )
 
         // Check if student is already in an unscheduled lesson
-        if let existing = allLAs.first(where: { !$0.isPresented && $0.studentIDs.contains(studentIDString) }) {
+        if let existing = allLAs.first(where: {
+            !$0.isPresented && $0.studentIDs.contains(studentIDString)
+        }) {
             // Remove student from lesson
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentIDString }
@@ -131,10 +135,14 @@ enum ChecklistBatchActionExecutor {
         let studentIDString = student.cloudKitKey
         let lessonIDString = lesson.id.uuidString
 
-        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(
+            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
+        )
 
         // Check if student is already in a presented lesson
-        if let existing = allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) {
+        if let existing = allLAs.first(where: {
+            $0.isPresented && $0.studentIDs.contains(studentIDString)
+        }) {
             // Remove student from lesson
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentIDString }
@@ -147,9 +155,15 @@ enum ChecklistBatchActionExecutor {
             deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
         } else {
             // Add to presented lesson
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
+            addStudentToGivenLesson(
+                student: student, studentIDString: studentIDString,
+                lesson: lesson, in: allLAs, context: context
+            )
             // Create LessonPresentation
-            upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .presented, context: context)
+            upsertLessonPresentation(
+                studentID: studentIDString, lessonID: lessonIDString,
+                state: .presented, context: context
+            )
         }
     }
 
@@ -158,9 +172,14 @@ enum ChecklistBatchActionExecutor {
         let lessonIDString = lesson.id.uuidString
 
         // First, ensure the lesson is marked as presented
-        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let allLAs = context.safeFetch(
+            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
+        )
         if allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) == nil {
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
+            addStudentToGivenLesson(
+                student: student, studentIDString: studentIDString,
+                lesson: lesson, in: allLAs, context: context
+            )
         }
 
         // Optionally create/update WorkModel if one exists
@@ -170,13 +189,20 @@ enum ChecklistBatchActionExecutor {
         }
 
         // Create/update LessonPresentation with mastered state
-        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .proficient, context: context)
+        upsertLessonPresentation(
+            studentID: studentIDString, lessonID: lessonIDString,
+            state: .proficient, context: context
+        )
 
         // Auto-enroll in track if lesson belongs to a track
-        GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
+        GroupTrackService.autoEnrollInTrackIfNeeded(
+            lesson: lesson, studentIDs: [studentIDString], modelContext: context
+        )
 
         // Check if track is now complete
-        GroupTrackService.checkAndCompleteTrackIfNeeded(lesson: lesson, studentID: studentIDString, modelContext: context)
+        GroupTrackService.checkAndCompleteTrackIfNeeded(
+            lesson: lesson, studentID: studentIDString, modelContext: context
+        )
     }
 
     private static func clearStatusNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
@@ -184,7 +210,9 @@ enum ChecklistBatchActionExecutor {
         let sidString = student.cloudKitKey
         let lidString = lid.uuidString
 
-        let las = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString }))
+        let las = context.safeFetch(
+            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString })
+        )
         for la in las where la.studentIDs.contains(sidString) {
             var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
@@ -210,12 +238,22 @@ enum ChecklistBatchActionExecutor {
         deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
     }
 
-    private static func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allLAs: [LessonAssignment], context: ModelContext) {
+    private static func addStudentToGivenLesson(
+        student: Student,
+        studentIDString: String,
+        lesson: Lesson,
+        in allLAs: [LessonAssignment],
+        context: ModelContext
+    ) {
         let today = Date()
-        if let group = allLAs.first(where: { $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today) }) {
+        if let group = allLAs.first(where: {
+            $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today)
+        }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
-                GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                )
             }
         } else {
             _ = PresentationFactory.insertPresented(
@@ -223,7 +261,9 @@ enum ChecklistBatchActionExecutor {
                 studentIDs: [student.id],
                 context: context
             )
-            GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+            )
         }
     }
 
@@ -259,7 +299,12 @@ enum ChecklistBatchActionExecutor {
         }
     }
 
-    private static func upsertLessonPresentation(studentID: String, lessonID: String, state: LessonPresentationState, context: ModelContext) {
+    private static func upsertLessonPresentation(
+        studentID: String,
+        lessonID: String,
+        state: LessonPresentationState,
+        context: ModelContext
+    ) {
         let allLessonPresentations = context.safeFetch(FetchDescriptor<LessonPresentation>())
         let existing = allLessonPresentations.first { lp in
             lp.studentID == studentID && lp.lessonID == lessonID

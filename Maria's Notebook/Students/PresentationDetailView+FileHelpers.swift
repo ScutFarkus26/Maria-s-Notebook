@@ -90,9 +90,19 @@ extension PresentationDetailContentView {
         var stale = false
         do {
 #if os(macOS)
-            let url = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
 #else
-            let url = try URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
 #endif
             _ = url.startAccessingSecurityScopedResource()
             return url
@@ -116,7 +126,12 @@ extension PresentationDetailContentView {
         if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
-            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+            NSWorkspace.shared.open(
+                [url],
+                withApplicationAt: pagesAppURL,
+                configuration: config,
+                completionHandler: nil
+            )
         } else {
             NSWorkspace.shared.open(url)
         }

@@ -115,7 +115,9 @@ struct AddLessonToInboxSheet: View {
                 .onSubmit {
                     // If user typed an exact lesson name, select it
                     let trimmed = lessonSearchText.trimmed()
-                    if let match = filteredLessons.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+                    if let match = filteredLessons.first(where: {
+                        $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
+                    }) {
                         selectLesson(match)
                     }
                 }

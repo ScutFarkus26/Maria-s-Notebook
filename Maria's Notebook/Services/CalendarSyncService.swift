@@ -85,7 +85,8 @@ final class CalendarSyncService {
     /// Request access to Calendar
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            let granted = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestFullAccessToEvents { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -103,7 +104,8 @@ final class CalendarSyncService {
             
             return granted
         } else {
-            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            let granted = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestAccess(to: .event) { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -230,7 +232,10 @@ final class CalendarSyncService {
                 updateCalendarEvent(existing, from: data)
             } else {
                 // Find which calendar this event belongs to
-                let calendarID = ekEvents.first { $0.eventIdentifier == data.eventIdentifier }?.calendar.calendarIdentifier ?? targetCalendars.first?.calendarIdentifier ?? ""
+                let calendarID = ekEvents
+                    .first { $0.eventIdentifier == data.eventIdentifier }?
+                    .calendar.calendarIdentifier
+                    ?? targetCalendars.first?.calendarIdentifier ?? ""
                 let newEvent = createCalendarEvent(from: data, calendarID: calendarID)
                 modelContext.insert(newEvent)
             }

@@ -40,7 +40,11 @@ struct TopicDetailView: View, Identifiable {
 
                     TagsSection(tags: vm.topic?.tags ?? [], tagsDraft: $vm.tagsDraft)
 
-                    ResolutionSection(addressed: $vm.addressed, addressedDate: $vm.addressedDate, resolution: $vm.resolution)
+                    ResolutionSection(
+                        addressed: $vm.addressed,
+                        addressedDate: $vm.addressedDate,
+                        resolution: $vm.resolution
+                    )
 
                     ProposedSolutionsSection(
                         solutions: vm.proposedSolutions,
@@ -59,7 +63,12 @@ struct TopicDetailView: View, Identifiable {
                             let title = newSolutionTitle.trimmed()
                             let details = newSolutionDetails.trimmed()
                             let proposedBy = newSolutionProposedBy.trimmed()
-                            vm.addSolution(context: modelContext, title: title, details: details, proposedBy: proposedBy)
+                            vm.addSolution(
+                                context: modelContext,
+                                title: title,
+                                details: details,
+                                proposedBy: proposedBy
+                            )
                             saveCoordinator.save(modelContext, reason: "Add proposed solution")
                             newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
                         }
@@ -226,10 +235,16 @@ private struct ProposedSolutionsSection: View {
                                 Text(s.title.trimmed().isEmpty ? "Untitled" : s.title)
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
-                                if s.isAdopted { Label("Adopted", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon).font(.caption).foregroundStyle(AppColors.success) }
+                                if s.isAdopted {
+                                    Label("Adopted", systemImage: "checkmark.circle.fill")
+                                        .labelStyle(.titleAndIcon)
+                                        .font(.caption)
+                                        .foregroundStyle(AppColors.success)
+                                }
                                 Spacer()
                                 Menu {
-                                    Button(s.isAdopted ? "Unmark Adopted" : "Mark Adopted", systemImage: "checkmark.circle") {
+                                    let adoptLabel = s.isAdopted ? "Unmark Adopted" : "Mark Adopted"
+                                    Button(adoptLabel, systemImage: "checkmark.circle") {
                                         onToggleAdopted(s)
                                     }
                                     Button("Delete", systemImage: "trash", role: .destructive) {

@@ -221,7 +221,11 @@ private struct WorkloadContentView: View {
         let countsMap = counts
         return studentsByID.values.map { s in
             let c = countsMap[s.id, default: (0, 0, 0)]
-            return StudentWorkSummary(id: s.id, student: s, practiceOpen: c.practice, followUpOpen: c.follow, researchOpen: c.research)
+            return StudentWorkSummary(
+                id: s.id, student: s,
+                practiceOpen: c.practice, followUpOpen: c.follow,
+                researchOpen: c.research
+            )
         }
         .sorted { lhs, rhs in
             lhs.student.fullName.localizedCaseInsensitiveCompare(rhs.student.fullName) == .orderedAscending

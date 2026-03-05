@@ -44,7 +44,13 @@ struct DataManagementGrid: View {
             }
 
             // Compact 2x2 grid
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: SettingsStyle.groupSpacing), GridItem(.flexible(), spacing: SettingsStyle.groupSpacing)], spacing: SettingsStyle.groupSpacing) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: SettingsStyle.groupSpacing),
+                    GridItem(.flexible(), spacing: SettingsStyle.groupSpacing)
+                ],
+                spacing: SettingsStyle.groupSpacing
+            ) {
                 backupCard
                 restoreCard
                 storageCard

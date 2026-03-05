@@ -67,7 +67,10 @@ struct AttendanceRepository: SavingRepository {
     /// Load or create attendance records for a date, ensuring one record per student
     /// - Returns: Tuple of (records, didInsertNew)
     @discardableResult
-    func loadOrCreateRecords(forDate date: Date, students: [Student]) -> (records: [AttendanceRecord], didInsert: Bool) {
+    func loadOrCreateRecords(
+        forDate date: Date,
+        students: [Student]
+    ) -> (records: [AttendanceRecord], didInsert: Bool) {
         do {
             return try store.loadOrCreateRecords(for: date, students: students)
         } catch {

@@ -38,7 +38,9 @@ final class CacheCoordinator {
     private(set) var lastInvalidation: CacheInvalidationEvent?
     
     /// AsyncStream continuations for invalidation events with unique IDs
-    private var invalidationContinuations: [(id: UUID, continuation: AsyncStream<CacheInvalidationEvent>.Continuation)] = []
+    private var invalidationContinuations: [
+        (id: UUID, continuation: AsyncStream<CacheInvalidationEvent>.Continuation)
+    ] = []
     
     // MARK: - Registration
     

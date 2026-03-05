@@ -55,7 +55,10 @@ struct DefaultStudentCard: View {
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.cardBackground)
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                )
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
         .drawingGroup()

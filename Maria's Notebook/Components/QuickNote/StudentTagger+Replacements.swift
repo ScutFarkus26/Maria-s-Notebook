@@ -44,7 +44,10 @@ extension StudentTagger {
             do {
                 let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
                 let range = NSRange(resultText.startIndex..<resultText.endIndex, in: resultText)
-                resultText = regex.stringByReplacingMatches(in: resultText, options: [], range: range, withTemplate: searchTerm.replacement)
+                resultText = regex.stringByReplacingMatches(
+                    in: resultText, options: [], range: range,
+                    withTemplate: searchTerm.replacement
+                )
             } catch {
                 print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex for term '\(searchTerm.term)': \(error)")
             }
@@ -112,7 +115,7 @@ extension StudentTagger {
                             return true
                         }
                     } catch {
-                        print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex for pattern '\(expectedPattern)': \(error)")
+                        print("[\(#function)] Failed to create regex for '\(expectedPattern)': \(error)")
                     }
                 }
 
@@ -120,11 +123,15 @@ extension StudentTagger {
             }
 
             // 1. Full name: "Ora Pardo"
-            let fullNamePattern = "\\b\(NSRegularExpression.escapedPattern(for: firstLower))\\s+\(NSRegularExpression.escapedPattern(for: lastLower))\\b"
+            let escapedFirst = NSRegularExpression.escapedPattern(for: firstLower)
+            let escapedLast = NSRegularExpression.escapedPattern(for: lastLower)
+            let fullNamePattern = "\\b\(escapedFirst)\\s+\(escapedLast)\\b"
             do {
                 let regex = try NSRegularExpression(pattern: fullNamePattern, options: .caseInsensitive)
                 let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-                for match in matches where !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                for match in matches where !processedRanges.contains(where: {
+                    NSIntersectionRange($0, match.range).length > 0
+                }) {
                     if let range = Range(match.range, in: text) {
                         let matchedText = String(text[range])
                         // Skip if already in replacement format
@@ -143,11 +150,14 @@ extension StudentTagger {
             // If replacement format is "FirstName LastInitial.", don't match text that already ends with period
             // FIX: Use (?:\\.|\\b) instead of \\.?\\b to ensure we consume the period if present,
             // preventing partial matches on "Sarah M." (which would otherwise match "Sarah M" and cause double periods)
-            let firstLastInitialPattern = "\\b\(NSRegularExpression.escapedPattern(for: firstLower))\\s+\(NSRegularExpression.escapedPattern(for: firstInitial))(?:\\.|\\b)"
+            let escapedInit = NSRegularExpression.escapedPattern(for: firstInitial)
+            let firstLastInitialPattern = "\\b\(escapedFirst)\\s+\(escapedInit)(?:\\.|\\b)"
             do {
                 let regex = try NSRegularExpression(pattern: firstLastInitialPattern, options: .caseInsensitive)
                 let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-                for match in matches where !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                for match in matches where !processedRanges.contains(where: {
+                    NSIntersectionRange($0, match.range).length > 0
+                }) {
                     if let range = Range(match.range, in: text) {
                         let matchedText = String(text[range]).trimmed()
 
@@ -177,11 +187,15 @@ extension StudentTagger {
                             let replacementTrimmed = replacement.trimmed()
 
                             // Skip if original text already matches replacement (case-insensitive)
-                            if originalTrimmed.lowercased() != replacementTrimmed.lowercased() {
-                                // Create a key to avoid duplicate replacements for the same text
-                                let replacementKey = "\(originalTrimmed.lowercased())->\(replacementTrimmed.lowercased())"
+                            let origLower = originalTrimmed.lowercased()
+                            let replLower = replacementTrimmed.lowercased()
+                            if origLower != replLower {
+                                // Create a key to avoid duplicate replacements
+                                let replacementKey = "\(origLower)->\(replLower)"
                                 if !seenReplacements.contains(replacementKey) {
-                                    replacements.append(TextReplacement(originalText: originalText, replacement: replacement))
+                                    replacements.append(
+                                        TextReplacement(originalText: originalText, replacement: replacement)
+                                    )
                                     processedRanges.append(match.range)
                                     seenReplacements.insert(replacementKey)
                                 }
@@ -208,10 +222,14 @@ extension StudentTagger {
                         if let range = Range(match.range, in: text) {
                             let matchedText = String(text[range])
                             if matchedText == matchedText.uppercased() && matchedText.count == 2 {
-                                if !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                                if !processedRanges.contains(where: {
+                        NSIntersectionRange($0, match.range).length > 0
+                    }) {
                                     // Skip if already in replacement format
                                     if !isAlreadyReplaced(matchedText) {
-                                        replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                        replacements.append(
+                                    TextReplacement(originalText: matchedText, replacement: replacement)
+                                )
                                         processedRanges.append(match.range)
                                     }
                                 }
@@ -224,16 +242,22 @@ extension StudentTagger {
 
                 // Separated initials: "O.P.", "O P", "O P."
                 // FIX: Same fix as above: use (?:\\.|\\b) to ensure we match the trailing period if present
-                let separatedPattern = "\\b\(NSRegularExpression.escapedPattern(for: fiLower))\\.?\\s+\(NSRegularExpression.escapedPattern(for: liLower))(?:\\.|\\b)"
+                let escFi = NSRegularExpression.escapedPattern(for: fiLower)
+                let escLi = NSRegularExpression.escapedPattern(for: liLower)
+                let separatedPattern = "\\b\(escFi)\\.?\\s+\(escLi)(?:\\.|\\b)"
                 do {
                     let regex = try NSRegularExpression(pattern: separatedPattern, options: .caseInsensitive)
                     let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-                    for match in matches where !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                    for match in matches where !processedRanges.contains(where: {
+                    NSIntersectionRange($0, match.range).length > 0
+                }) {
                         if let range = Range(match.range, in: text) {
                             let matchedText = String(text[range])
                             // Skip if already in replacement format
                             if !isAlreadyReplaced(matchedText) {
-                                replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                replacements.append(
+                                    TextReplacement(originalText: matchedText, replacement: replacement)
+                                )
                                 processedRanges.append(match.range)
                             }
                         }
@@ -249,12 +273,16 @@ extension StudentTagger {
                 do {
                     let regex = try NSRegularExpression(pattern: firstNamePattern, options: .caseInsensitive)
                     let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-                    for match in matches where !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                    for match in matches where !processedRanges.contains(where: {
+                    NSIntersectionRange($0, match.range).length > 0
+                }) {
                         if let range = Range(match.range, in: text) {
                             let matchedText = String(text[range])
                             // Skip if already in replacement format
                             if !isAlreadyReplaced(matchedText) {
-                                replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                replacements.append(
+                                    TextReplacement(originalText: matchedText, replacement: replacement)
+                                )
                                 processedRanges.append(match.range)
                             }
                         }
@@ -271,12 +299,16 @@ extension StudentTagger {
                 do {
                     let regex = try NSRegularExpression(pattern: nicknamePattern, options: .caseInsensitive)
                     let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-                    for match in matches where !processedRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) {
+                    for match in matches where !processedRanges.contains(where: {
+                    NSIntersectionRange($0, match.range).length > 0
+                }) {
                         if let range = Range(match.range, in: text) {
                             let matchedText = String(text[range])
                             // Skip if already in replacement format
                             if !isAlreadyReplaced(matchedText) {
-                                replacements.append(TextReplacement(originalText: matchedText, replacement: replacement))
+                                replacements.append(
+                                    TextReplacement(originalText: matchedText, replacement: replacement)
+                                )
                                 processedRanges.append(match.range)
                             }
                         }

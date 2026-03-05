@@ -9,7 +9,8 @@ struct MeetingsLogView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
     private var allMeetings: [StudentMeeting]
@@ -194,7 +195,14 @@ struct MeetingsLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selectedAgeRanges.isEmpty ? Color.primary.opacity(0.05) : Color.accentColor.opacity(0.12)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(
+                            selectedAgeRanges.isEmpty
+                                ? Color.primary.opacity(0.05)
+                                : Color.accentColor.opacity(0.12)
+                        )
+                )
                 .foregroundStyle(selectedAgeRanges.isEmpty ? Color.primary : Color.accentColor)
             }
 

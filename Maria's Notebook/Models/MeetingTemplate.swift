@@ -94,7 +94,13 @@ final class MeetingTemplate: Identifiable {
         guideNotesPrompt: "Weekly summary notes…"
     )
 
-    static let builtInTemplates: [(name: String, reflectionPrompt: String, focusPrompt: String, requestsPrompt: String, guideNotesPrompt: String)] = [
+    static let builtInTemplates: [(
+        name: String,
+        reflectionPrompt: String,
+        focusPrompt: String,
+        requestsPrompt: String,
+        guideNotesPrompt: String
+    )] = [
         defaultTemplate,
         goalSettingTemplate,
         endOfWeekTemplate

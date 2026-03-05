@@ -74,7 +74,11 @@ extension CloudKitSyncStatusService {
             let succeeded = event.succeeded
             let errorDesc = event.error?.localizedDescription
             Task { @MainActor [weak self] in
-                self?.handleCloudKitEvent(type: type, isFinished: isFinished, succeeded: succeeded, errorDescription: errorDesc)
+                self?.handleCloudKitEvent(
+                    type: type, isFinished: isFinished,
+                    succeeded: succeeded,
+                    errorDescription: errorDesc
+                )
             }
         }
     }

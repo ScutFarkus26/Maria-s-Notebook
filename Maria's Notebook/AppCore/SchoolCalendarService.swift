@@ -188,7 +188,9 @@ public final class SchoolCalendarService {
     }
 
     /// Coerces the provided date to the nearest school day.
-    /// If the date is already a school day, it is returned unchanged. Otherwise, the closer of the previous/next school day is chosen (ties prefer the next day).
+    /// If the date is already a school day, it is returned unchanged.
+    /// Otherwise, the closer of the previous/next school day is chosen
+    /// (ties prefer the next day).
     public func nearestSchoolDay(to date: Date, using context: ModelContext) async -> Date {
         let day = cal.startOfDay(for: date)
         if !(await isNonSchoolDay(day, using: context)) { return day }

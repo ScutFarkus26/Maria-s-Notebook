@@ -17,7 +17,11 @@ public enum PrintUtils {
     ///   - preferredSize: Optional preferred size. Pass width with height 0 (or <= 0) to allow natural height.
     ///   - scale: Rendering scale (iOS only). Defaults to 2.0 for a crisper print/share image.
     /// - Returns: A platform image (NSImage/UIImage) or nil if rendering failed.
-    @MainActor public static func renderImage<V: View>(from view: V, preferredSize: CGSize? = nil, scale: CGFloat = 2.0) -> PlatformImage? {
+    @MainActor public static func renderImage<V: View>(
+        from view: V,
+        preferredSize: CGSize? = nil,
+        scale: CGFloat = 2.0
+    ) -> PlatformImage? {
         let renderer = ImageRenderer(content: view)
         if let preferredSize {
             let w: CGFloat? = preferredSize.width > 0 ? preferredSize.width : nil

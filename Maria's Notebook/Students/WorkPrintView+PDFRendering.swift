@@ -16,7 +16,12 @@ struct PDFRenderer {
 
         // CRITICAL: The hosting controller's view must be in the view hierarchy for SwiftUI to render.
         // Add it to a temporary window positioned offscreen.
-        let tempWindow = UIWindow(frame: CGRect(x: TimeoutConstants.offscreenCoordinate, y: TimeoutConstants.offscreenCoordinate, width: size.width, height: size.height))
+        let tempWindow = UIWindow(frame: CGRect(
+            x: TimeoutConstants.offscreenCoordinate,
+            y: TimeoutConstants.offscreenCoordinate,
+            width: size.width,
+            height: size.height
+        ))
         tempWindow.rootViewController = hostingController
         tempWindow.isHidden = false
         tempWindow.layoutIfNeeded()
@@ -100,7 +105,11 @@ struct WorkPrintController: NSViewRepresentable {
         hostingView.appearance = NSAppearance(named: .aqua)
 
         let tempWindow = NSWindow(
-            contentRect: NSRect(x: TimeoutConstants.offscreenCoordinate, y: TimeoutConstants.offscreenCoordinate, width: width, height: 2000),
+            contentRect: NSRect(
+                x: TimeoutConstants.offscreenCoordinate,
+                y: TimeoutConstants.offscreenCoordinate,
+                width: width, height: 2000
+            ),
             styleMask: [.titled],
             backing: .buffered,
             defer: false

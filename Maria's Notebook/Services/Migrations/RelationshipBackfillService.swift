@@ -71,6 +71,7 @@ enum RelationshipBackfillService {
                 }
             }
 
+            // swiftlint:disable:next line_length
             logger.info("WorkCompletionBackfill complete: \(totalBackfilled, privacy: .public) records created, \(totalSkipped, privacy: .public) already existed")
         }
     }

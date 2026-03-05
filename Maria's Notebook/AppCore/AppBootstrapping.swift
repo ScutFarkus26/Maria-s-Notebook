@@ -51,7 +51,9 @@ final class AppBootstrapping {
     static func requestResetLocalDatabaseWithConfirmation() {
         let alert = NSAlert()
         alert.messageText = "Reset Local Database?"
-        alert.informativeText = "This deletes local data on this device. CloudKit data is preserved and will re-sync after restart. The app will restart automatically."
+        alert.informativeText = "This deletes local data on this device."
+            + " CloudKit data is preserved and will re-sync after restart."
+            + " The app will restart automatically."
         alert.alertStyle = .critical
         alert.addButton(withTitle: "Cancel")
         alert.addButton(withTitle: "Delete").hasDestructiveAction = true
@@ -156,11 +158,16 @@ final class AppBootstrapping {
                 domain: "MariasNotebook",
                 code: 9999,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "DEBUG: Simulated database initialization failure. This is a test error to verify the recovery UI. Clear the 'DEBUG_SimulateDatabaseInitFailure' UserDefaults flag to restore normal operation."
+                    NSLocalizedDescriptionKey: "DEBUG: Simulated database initialization failure."
+                        + " This is a test error to verify the recovery UI."
+                        + " Clear the 'DEBUG_SimulateDatabaseInitFailure' UserDefaults flag to restore normal operation."
                 ]
             )
             AppBootstrapping.initError = testError
-            DatabaseErrorCoordinator.shared.setError(testError, details: "This is a simulated error for testing purposes.")
+            DatabaseErrorCoordinator.shared.setError(
+                testError,
+                details: "This is a simulated error for testing purposes."
+            )
         }
         #endif
     }

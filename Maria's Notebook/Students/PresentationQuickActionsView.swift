@@ -12,7 +12,8 @@ struct PresentationQuickActionsView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: \Lesson.name, animation: .default)
     private var lessons: [Lesson]
@@ -22,7 +23,10 @@ struct PresentationQuickActionsView: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var studentsAll: [Student] {
-        TestStudentsFilter.filterVisible(studentsAllRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsAllRaw.uniqueByID, show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     @Query(sort: \LessonAssignment.createdAt, animation: .default)
@@ -118,7 +122,9 @@ struct PresentationQuickActionsView: View {
                         guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }
                         let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
                         let exists = lessonAssignmentsAll.contains { la in
-                            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
+                            la.resolvedLessonID == next.id
+                                && Set(la.resolvedStudentIDs) == sameStudents
+                                && !la.isPresented
                         }
                         if !exists {
                             let newLA = PresentationFactory.makeDraft(
@@ -317,7 +323,8 @@ struct PresentationQuickActionsView: View {
                 )
                 PresentationFactory.attachRelationships(
                     to: newLA,
-                    lesson: UUID(uuidString: lessonAssignment.lessonID).flatMap { lid in lessons.first(where: { $0.id == lid }) },
+                    lesson: UUID(uuidString: lessonAssignment.lessonID)
+                        .flatMap { lid in lessons.first(where: { $0.id == lid }) },
                     students: studentsAll.filter { lessonAssignment.resolvedStudentIDs.contains($0.id) }
                 )
                 modelContext.insert(newLA)

@@ -67,7 +67,8 @@ struct PresentationNotesSectionUnified: View {
         presentationNotesForThisLesson
     }
     
-    // Get all unified notes (lesson-attached + work-attached + presentation-attached), merged, de-duplicated, and sorted
+    // Get all unified notes (lesson + work + presentation),
+    // merged, de-duplicated, and sorted
     private var allUnifiedNotes: [Note] {
         let lessonNotes = self.lessonNotes
         let workNotes = workNotesForThisPresentation

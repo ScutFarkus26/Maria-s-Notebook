@@ -10,20 +10,30 @@ struct ProjectEditorSheet: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: Student.sortByName) private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     @State private var title: String = ""
     @State private var bookTitle: String = ""
     @State private var selectedMemberIDs: Set<String> = []
 
-    struct TemplateDraft: Identifiable, Hashable { var id = UUID(); var title: String = ""; var instructions: String = ""; var defaultLinkedLessonID: String? }
+    struct TemplateDraft: Identifiable, Hashable {
+        var id = UUID()
+        var title: String = ""
+        var instructions: String = ""
+        var defaultLinkedLessonID: String?
+    }
     @State private var sharedTemplates: [TemplateDraft] = []
 
     init(club: Project?) {
@@ -32,7 +42,15 @@ struct ProjectEditorSheet: View {
         _bookTitle = State(initialValue: club?.bookTitle ?? "")
         _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDs ?? []))
         if let club {
-            let drafts = (club.sharedTemplates ?? []).filter { $0.isShared }.map { t in TemplateDraft(title: t.title, instructions: t.instructions, defaultLinkedLessonID: t.defaultLinkedLessonID) }
+            let drafts = (club.sharedTemplates ?? [])
+                .filter { $0.isShared }
+                .map { t in
+                    TemplateDraft(
+                        title: t.title,
+                        instructions: t.instructions,
+                        defaultLinkedLessonID: t.defaultLinkedLessonID
+                    )
+                }
             _sharedTemplates = State(initialValue: drafts.isEmpty ? [TemplateDraft(), TemplateDraft()] : drafts)
         } else {
             _sharedTemplates = State(initialValue: [TemplateDraft(), TemplateDraft()])
@@ -59,7 +77,10 @@ struct ProjectEditorSheet: View {
                         ForEach(students) { s in
                             let sid = s.id.uuidString
                             HStack {
-                                Toggle(isOn: Binding(get: { selectedMemberIDs.contains(sid) }, set: { v in toggleMember(sid, v) })) {
+                                Toggle(isOn: Binding(
+                                get: { selectedMemberIDs.contains(sid) },
+                                set: { v in toggleMember(sid, v) }
+                            )) {
                                     Text(StudentFormatter.displayName(for: s))
                                 }
                                 .toggleStyle(.checkboxOrSwitch)
@@ -83,7 +104,13 @@ struct ProjectEditorSheet: View {
                         VStack(alignment: .leading, spacing: 6) {
                             TextField("Title", text: $tpl.title)
                             TextField("Instructions", text: $tpl.instructions, axis: .vertical)
-                            TextField("Default Linked Lesson ID (optional)", text: Binding(get: { tpl.defaultLinkedLessonID ?? "" }, set: { tpl.defaultLinkedLessonID = $0.isEmpty ? nil : $0 }))
+                            TextField(
+                                "Default Linked Lesson ID (optional)",
+                                text: Binding(
+                                    get: { tpl.defaultLinkedLessonID ?? "" },
+                                    set: { tpl.defaultLinkedLessonID = $0.isEmpty ? nil : $0 }
+                                )
+                            )
                                 .textFieldStyle(.roundedBorder)
                         }
                         .textFieldStyle(.roundedBorder)
@@ -136,16 +163,32 @@ struct ProjectEditorSheet: View {
             let existingNonShared = (club.sharedTemplates ?? []).filter { !$0.isShared }
             club.sharedTemplates = existingNonShared
             for draft in sharedTemplates.prefix(2) {
-                let tpl = ProjectAssignmentTemplate(projectID: club.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
+                let tpl = ProjectAssignmentTemplate(
+                    projectID: club.id,
+                    title: draft.title,
+                    instructions: draft.instructions,
+                    isShared: true,
+                    defaultLinkedLessonID: draft.defaultLinkedLessonID
+                )
                 club.sharedTemplates = (club.sharedTemplates ?? []) + [tpl]
             }
         } else {
             // Create new
-            let newClub = Project(title: trimmedTitle, bookTitle: bt.isEmpty ? nil : bt, memberStudentIDs: Array(selectedMemberIDs))
+            let newClub = Project(
+                title: trimmedTitle,
+                bookTitle: bt.isEmpty ? nil : bt,
+                memberStudentIDs: Array(selectedMemberIDs)
+            )
             // Two shared templates (allow fewer if user left blank; still create placeholders)
             var templates: [ProjectAssignmentTemplate] = []
             for draft in sharedTemplates.prefix(2) {
-                let tpl = ProjectAssignmentTemplate(projectID: newClub.id, title: draft.title, instructions: draft.instructions, isShared: true, defaultLinkedLessonID: draft.defaultLinkedLessonID)
+                let tpl = ProjectAssignmentTemplate(
+                    projectID: newClub.id,
+                    title: draft.title,
+                    instructions: draft.instructions,
+                    isShared: true,
+                    defaultLinkedLessonID: draft.defaultLinkedLessonID
+                )
                 templates.append(tpl)
             }
             newClub.sharedTemplates = templates

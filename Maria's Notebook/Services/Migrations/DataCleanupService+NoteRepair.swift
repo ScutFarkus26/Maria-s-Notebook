@@ -68,7 +68,9 @@ extension DataCleanupService {
                 do {
                     try PhotoStorageService.deleteImage(filename: filename)
                 } catch {
-                    logger.warning("Failed to delete orphaned image \(filename, privacy: .public): \(error.localizedDescription)")
+                    logger.warning(
+                        "Failed to delete orphaned image \(filename, privacy: .public): \(error.localizedDescription)"
+                    )
                 }
             }
         } catch {

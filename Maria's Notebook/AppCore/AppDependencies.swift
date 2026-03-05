@@ -86,7 +86,8 @@ final class AppDependencies {
     // MARK: - Data Services
 
     // Work-related services
-    // Note: WorkCompletionService is an enum with static methods, access directly (e.g., WorkCompletionService.someMethod())
+    // Note: WorkCompletionService is an enum with static methods,
+    // access directly (e.g., WorkCompletionService.someMethod())
 
     // MARK: - Protocol-Based Services
 

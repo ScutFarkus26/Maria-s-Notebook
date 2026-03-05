@@ -16,7 +16,8 @@ struct StudentDetailBottomBar: View {
     let onDone: () -> Void
     
     var body: some View {
-        // Hide the bar if we're not editing and not on overview (only "Done" would show, which is redundant on iPad/Mac)
+        // Hide the bar if we're not editing and not on overview
+        // (only "Done" would show, which is redundant on iPad/Mac)
         if isEditing || selectedTab == .overview {
             VStack(spacing: 0) {
                 Divider()

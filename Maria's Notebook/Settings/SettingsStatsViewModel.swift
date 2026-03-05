@@ -48,14 +48,38 @@ class SettingsStatsViewModel {
 
     var isLoading: Bool = false
 
+    /// Total count for Teaching section
+    var teachingTotal: Int {
+        studentsCount + lessonsCount + presentationsCount
+            + notesCount + meetingsCount + workModelsCount
+            + practiceSessionsCount
+    }
+
+    /// Total count for Planning section
+    var planningTotal: Int {
+        todoItemsCount + remindersCount + tracksCount
+            + calendarEventsCount + projectsCount
+    }
+
+    /// Total count for Classroom section
+    var classroomTotal: Int {
+        attendanceRecordsCount + suppliesCount + issuesCount
+            + communityTopicsCount + proceduresCount
+            + nonSchoolDaysCount
+    }
+
+    /// Total count for Storage & Templates section
+    var storageTotal: Int {
+        documentsCount + lessonAttachmentsCount
+            + communityAttachmentsCount + noteTemplatesCount
+            + meetingTemplatesCount + todoTemplatesCount
+            + developmentSnapshotsCount
+    }
+
     /// Total count of all records across all entities
     var totalRecordsCount: Int {
-        studentsCount + lessonsCount + plannedCount + givenCount +
-        workModelsCount + presentationsCount + notesCount + meetingsCount + practiceSessionsCount +
-        todoItemsCount + remindersCount + tracksCount + trackEnrollmentsCount + calendarEventsCount + projectsCount +
-        attendanceRecordsCount + suppliesCount + issuesCount + communityTopicsCount + proceduresCount + nonSchoolDaysCount +
-        documentsCount + lessonAttachmentsCount + communityAttachmentsCount +
-        noteTemplatesCount + meetingTemplatesCount + todoTemplatesCount + developmentSnapshotsCount
+        teachingTotal + planningTotal + classroomTotal + storageTotal
+            + plannedCount + givenCount + trackEnrollmentsCount
     }
     
     private var lastLoadDate: Date?

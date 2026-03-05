@@ -60,7 +60,8 @@ enum MeetingSummaryGenerator {
         }
 
         // Don't burn AI tokens if the content is very short
-        let totalLength = meeting.reflection.count + meeting.guideNotes.count + meeting.focus.count + meeting.requests.count
+        let totalLength = meeting.reflection.count + meeting.guideNotes.count
+            + meeting.focus.count + meeting.requests.count
         guard totalLength > 30 else {
             await MainActor.run { onSummaryGenerated(manualSummary, false) }
             return
@@ -73,7 +74,8 @@ enum MeetingSummaryGenerator {
         Guide Notes: \(meeting.guideNotes)
         """
 
-        let instructions = "You are a Montessori guide assistant. Summarize this student meeting outcomes and sentiment in 2 sentences."
+        let instructions = "You are a Montessori guide assistant."
+            + " Summarize this student meeting outcomes and sentiment in 2 sentences."
         let session = LanguageModelSession(instructions: instructions)
 
         do {

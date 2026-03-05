@@ -298,7 +298,12 @@ struct AIPlanningAssistantView: View {
     
     private var applyButton: some View {
         Button(action: { vm.applyPlan() }, label: {
-            Label("Apply \(vm.acceptedRecommendations.count) Lesson\(vm.acceptedRecommendations.count == 1 ? "" : "s")", systemImage: "checkmark.circle")
+            let count = vm.acceptedRecommendations.count
+            let suffix = count == 1 ? "" : "s"
+            Label(
+                "Apply \(count) Lesson\(suffix)",
+                systemImage: "checkmark.circle"
+            )
         })
         .buttonStyle(.borderedProminent)
         .disabled(vm.isLoading)

@@ -158,7 +158,11 @@ struct GroupProgressionView: View {
                 Toggle(isOn: Binding(
                     get: { viewModel.selectedStudentIDs.contains(student.id) },
                     set: { isOn in
-                        if isOn { viewModel.selectedStudentIDs.insert(student.id) } else { viewModel.selectedStudentIDs.remove(student.id) }
+                        if isOn {
+                            viewModel.selectedStudentIDs.insert(student.id)
+                        } else {
+                            viewModel.selectedStudentIDs.remove(student.id)
+                        }
                     }
                 )) {
                     EmptyView()

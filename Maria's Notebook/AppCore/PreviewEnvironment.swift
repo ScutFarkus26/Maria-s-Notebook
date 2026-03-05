@@ -28,7 +28,10 @@ extension ModelContainer {
             return container
         } catch {
             logger.warning("Failed to create preview ModelContainer for schema: \(error)")
-            fatalError("Failed to create preview ModelContainer for schema - this should never happen for in-memory containers")
+            fatalError(
+                "Failed to create preview ModelContainer for schema"
+                + " - this should never happen for in-memory containers"
+            )
         }
     }
 }

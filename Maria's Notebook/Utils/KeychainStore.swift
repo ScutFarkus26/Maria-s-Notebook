@@ -60,7 +60,9 @@ public struct KeychainStore {
             kSecAttrAccount as String: account
         ]
         let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainError.unexpectedStatus(status) }
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unexpectedStatus(status)
+        }
     }
 
     public static func generateSymmetricKeyBytes(length: Int = 32) -> Data {

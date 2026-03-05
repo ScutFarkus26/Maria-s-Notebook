@@ -76,10 +76,14 @@ struct StudentReadinessAssessor {
         
         // Compute practice quality averages
         let practiceQualities = studentSessions.compactMap { $0.practiceQuality }
-        let practiceQualityAvg = practiceQualities.isEmpty ? nil : Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
+        let practiceQualityAvg = practiceQualities.isEmpty
+            ? nil
+            : Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
         
         let independenceLevels = studentSessions.compactMap { $0.independenceLevel }
-        let independenceAvg = independenceLevels.isEmpty ? nil : Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
+        let independenceAvg = independenceLevels.isEmpty
+            ? nil
+            : Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
         
         // Days since last presentation
         let lastPresentedDate = studentPresentations
@@ -181,7 +185,9 @@ struct StudentReadinessAssessor {
                     
                     // Determine mastery for current lesson
                     let completedWork = lessonWork.filter { $0.status == .complete }
-                    if let latest = completedWork.max(by: { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }) {
+                    if let latest = completedWork.max(by: {
+                        ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast)
+                    }) {
                         if let outcome = latest.completionOutcome {
                             switch outcome {
                             case .proficient: proficiency = .proficient
@@ -265,10 +271,13 @@ struct StudentReadinessAssessor {
             lines.append(studentLine)
             
             // Only show subjects with a next lesson available (frontier)
-            let frontierSubjects = profile.subjectReadiness.filter { $0.nextLessonID != nil }
+            let frontierSubjects = profile.subjectReadiness
+                .filter { $0.nextLessonID != nil }
             for sr in frontierSubjects.prefix(8) {
                 let progress = "\(sr.completedInGroup)/\(sr.totalInGroup)"
-                let current = sr.currentLessonName.map { "current: \($0) (\(sr.proficiencySignal.shortCode))" } ?? "not started"
+                let current = sr.currentLessonName
+                    .map { "current: \($0) (\(sr.proficiencySignal.shortCode))" }
+                    ?? "not started"
                 let next = sr.nextLessonName.map { "next: \($0)" } ?? ""
                 lines.append("  \(sr.subject)/\(sr.group) \(progress) \(current) \(next)")
             }

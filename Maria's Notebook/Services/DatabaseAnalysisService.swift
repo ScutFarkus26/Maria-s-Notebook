@@ -108,7 +108,8 @@ final class DatabaseAnalysisService {
             let age = Calendar.current.dateComponents([.year, .month], from: s.birthday, to: Date())
             let ageStr = "\(age.year ?? 0)y\(age.month ?? 0)m"
             let started = s.dateStarted?.formatted(date: .numeric, time: .omitted) ?? "?"
-            lines.append("\(s.firstName) \(s.lastName.prefix(1))|lv:\(s.level.rawValue)|age:\(ageStr)|started:\(started)")
+            let name = "\(s.firstName) \(s.lastName.prefix(1))"
+            lines.append("\(name)|lv:\(s.level.rawValue)|age:\(ageStr)|started:\(started)")
         }
         return lines.joined(separator: "\n")
     }
@@ -221,7 +222,9 @@ final class DatabaseAnalysisService {
 
     private func buildSynthesisPrompt(partials: [String], question: String?) -> String {
         let questionLine = question.map { "\nTeacher's question: \($0)" } ?? ""
-        let combined = partials.enumerated().map { "--- Chunk \($0.offset + 1) ---\n\($0.element)" }.joined(separator: "\n\n")
+        let combined = partials.enumerated()
+            .map { "--- Chunk \($0.offset + 1) ---\n\($0.element)" }
+            .joined(separator: "\n\n")
         return """
         You are synthesizing a classroom analysis from \(partials.count) partial analyses.
         \(questionLine)

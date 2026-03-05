@@ -33,9 +33,15 @@ extension UnifiedNoteEditor {
             .fill(cardBackgroundColor)
             .overlay(
                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
-                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: UIConstants.StrokeWidth.thin)
+                    .stroke(
+                        Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+                        lineWidth: UIConstants.StrokeWidth.thin
+                    )
             )
-            .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.veryFaint), radius: AppTheme.Spacing.verySmall, x: 0, y: AppTheme.Spacing.xsmall)
+            .shadow(
+                color: Color.black.opacity(UIConstants.OpacityConstants.veryFaint),
+                radius: AppTheme.Spacing.verySmall, x: 0, y: AppTheme.Spacing.xsmall
+            )
     }
 
     // MARK: - Tag Selection Section
@@ -122,7 +128,10 @@ extension UnifiedNoteEditor {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                        .stroke(
+                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                            lineWidth: UIConstants.StrokeWidth.thin
+                        )
                 )
 
             HStack {
@@ -189,7 +198,10 @@ extension UnifiedNoteEditor {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                        .stroke(
+                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                            lineWidth: UIConstants.StrokeWidth.thin
+                        )
                 )
         }
     }
@@ -208,7 +220,10 @@ extension UnifiedNoteEditor {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                        .stroke(
+                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                            lineWidth: UIConstants.StrokeWidth.thin
+                        )
                 )
         }
     }
@@ -228,7 +243,10 @@ extension UnifiedNoteEditor {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                        .stroke(
+                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                            lineWidth: UIConstants.StrokeWidth.thin
+                        )
                 )
         }
     }

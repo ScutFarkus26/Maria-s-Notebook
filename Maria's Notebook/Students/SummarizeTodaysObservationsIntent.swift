@@ -54,7 +54,9 @@ struct SummarizeTodaysObservationsIntent: AppIntent, SnippetIntent {
     /// from the system's intent infrastructure, which operates outside our actor isolation.
     /// Safe because these are immutable static properties initialized at compile time.
     nonisolated(unsafe) static var title: LocalizedStringResource = "Summarize Today's Observations"
-    nonisolated(unsafe) static var description = IntentDescription("Provides a summary snippet of today's observations.")
+    nonisolated(unsafe) static var description = IntentDescription(
+        "Provides a summary snippet of today's observations."
+    )
     nonisolated(unsafe) static var openAppWhenRun: Bool = false
 
     func perform() async throws -> some IntentResult & ShowsSnippetView {

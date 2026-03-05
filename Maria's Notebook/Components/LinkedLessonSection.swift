@@ -68,7 +68,8 @@ struct LinkedLessonSection: View {
         .sheet(isPresented: $showingLinkPicker) {
             NavigationStack {
                 List {
-                    let sorted = presentationSnapshotsByID.values.sorted(by: { (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
+                    let sorted = presentationSnapshotsByID.values.sorted(by: {
+                        (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
                         let ld = lhs.scheduledFor ?? lhs.presentedAt ?? lhs.createdAt
                         let rd = rhs.scheduledFor ?? rhs.presentedAt ?? rhs.createdAt
                         return ld > rd
@@ -84,7 +85,8 @@ struct LinkedLessonSection: View {
                         ForEach(filtered, id: \.id) { snap in
                             let lesson = lessonsByID[snap.lessonID]
                             let name = lesson?.name ?? "Lesson"
-                            let date = createdDateOnlyFormatter.string(from: snap.scheduledFor ?? snap.presentedAt ?? snap.createdAt)
+                            let snapDate = snap.scheduledFor ?? snap.presentedAt ?? snap.createdAt
+                            let date = createdDateOnlyFormatter.string(from: snapDate)
                             Button {
                                 selectedPresentationID = snap.id
                                 showingLinkPicker = false

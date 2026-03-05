@@ -6,7 +6,8 @@ struct TodoListPanel: View {
     @Query(sort: \TodoItem.orderIndex) var todos: [TodoItem]
     @Query(sort: \Student.firstName) private var studentsRaw: [Student]
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     @Environment(\.modelContext) var modelContext
 
     private var students: [Student] {

@@ -64,7 +64,8 @@ struct BirthdayStudentCard: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .accessibilityLabel(daysUntil == 0 ?
                     "\(student.fullName) turns \(turningAge) today." :
-                    "\(daysUntil) \(daysUntil == 1 ? "day" : "days") until \(student.fullName) turns \(turningAge) on \(dateLabel)."
+                    "\(daysUntil) \(daysUntil == 1 ? "day" : "days") until" +
+                    " \(student.fullName) turns \(turningAge) on \(dateLabel)."
                 )
 
                 Spacer(minLength: 0)
@@ -171,7 +172,10 @@ struct BirthdayStudentCard: View {
         ZStack {
             ForEach(0..<16, id: \.self) { _ in
                 Circle()
-                    .fill([Color.white.opacity(0.35), .yellow.opacity(0.35), .mint.opacity(0.35), .cyan.opacity(0.35)].randomElement()!)
+                    .fill(
+                        [Color.white.opacity(0.35), .yellow.opacity(0.35),
+                         .mint.opacity(0.35), .cyan.opacity(0.35)].randomElement()!
+                    )
                     .frame(width: CGFloat(Int.random(in: 4...8)), height: CGFloat(Int.random(in: 4...8)))
                     .offset(x: CGFloat(Int.random(in: -140...140)), y: CGFloat(Int.random(in: -60...60)))
             }

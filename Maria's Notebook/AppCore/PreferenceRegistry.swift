@@ -8,7 +8,12 @@ public struct PreferenceDefinition: Sendable {
     public let defaultValue: PreferenceValueDTO?
     public let allowStringCoercion: Bool
 
-    public init(key: String, type: PreferenceType, defaultValue: PreferenceValueDTO? = nil, allowStringCoercion: Bool = true) {
+    public init(
+        key: String,
+        type: PreferenceType,
+        defaultValue: PreferenceValueDTO? = nil,
+        allowStringCoercion: Bool = true
+    ) {
         self.key = key
         self.type = type
         self.defaultValue = defaultValue
@@ -36,7 +41,11 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "lastBackupTimeInterval", type: .double),
         PreferenceDefinition(key: "Backup.encrypt", type: .bool),
         PreferenceDefinition(key: "General.showTestStudents", type: .bool, defaultValue: .bool(false)),
-        PreferenceDefinition(key: "General.testStudentNames", type: .string, defaultValue: .string("Danny De Berry,Lil Dan D")),
+        PreferenceDefinition(
+            key: "General.testStudentNames",
+            type: .string,
+            defaultValue: .string("Danny De Berry,Lil Dan D")
+        ),
         PreferenceDefinition(key: "ReminderSync.syncListName", type: .string),
         PreferenceDefinition(key: "Backup.allowChecksumBypass", type: .bool),
         PreferenceDefinition(key: "PlanningRootView.mode", type: .string),
@@ -47,7 +56,11 @@ public enum PreferenceRegistry {
 
         // AI Models (per-area)
         PreferenceDefinition(key: "AI.chatModel", type: .string, defaultValue: .string("local-first-auto")),
-        PreferenceDefinition(key: "AI.lessonPlanningModel", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),
+        PreferenceDefinition(
+            key: "AI.lessonPlanningModel",
+            type: .string,
+            defaultValue: .string("claude-sonnet-4-20250514")
+        ),
         PreferenceDefinition(key: "AI.backgroundTasksModel", type: .string, defaultValue: .string("local-first-auto")),
 
         // AI Providers
@@ -55,7 +68,11 @@ public enum PreferenceRegistry {
         PreferenceDefinition(key: "AI.ollamaModelName", type: .string, defaultValue: .string("llama3.2")),
 
         // Lesson Planning
-        PreferenceDefinition(key: "LessonPlanning.model", type: .string, defaultValue: .string("claude-sonnet-4-20250514")),
+        PreferenceDefinition(
+            key: "LessonPlanning.model",
+            type: .string,
+            defaultValue: .string("claude-sonnet-4-20250514")
+        ),
         PreferenceDefinition(key: "LessonPlanning.timeout", type: .int, defaultValue: .int(120)),
         PreferenceDefinition(key: "LessonPlanning.systemPrompt", type: .string),
         PreferenceDefinition(key: "LessonPlanning.defaultDepth", type: .string, defaultValue: .string("standard")),

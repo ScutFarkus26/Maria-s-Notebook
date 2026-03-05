@@ -44,7 +44,13 @@ struct WorkCompletionHistoryView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(AppColors.success)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("\(record.completedAt.formatted(date: .abbreviated, time: .omitted)) • \(record.completedAt.formatted(date: .omitted, time: .shortened))")
+                                let dateStr = record.completedAt.formatted(
+                                    date: .abbreviated, time: .omitted
+                                )
+                                let timeStr = record.completedAt.formatted(
+                                    date: .omitted, time: .shortened
+                                )
+                                Text("\(dateStr) • \(timeStr)")
                                 let noteText = record.latestUnifiedNoteText.trimmed()
                                 if !noteText.isEmpty {
                                     Text(noteText)
@@ -55,7 +61,9 @@ struct WorkCompletionHistoryView: View {
                             Spacer()
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Completed on \(record.completedAt.formatted(date: .numeric, time: .shortened))")
+                        .accessibilityLabel(
+                            "Completed on \(record.completedAt.formatted(date: .numeric, time: .shortened))"
+                        )
                         .contextMenu {
                             Button(role: .destructive) {
                                 delete(record: record)
@@ -158,9 +166,18 @@ struct WorkCompletionHistoryView: View {
                         // Seed some sample records in memory
                         let now = Date()
                         let items: [WorkCompletionRecord] = [
-                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-3600)),
-                            WorkCompletionRecord(workID: workID, studentID: studentB, completedAt: now.addingTimeInterval(-1800)),
-                            WorkCompletionRecord(workID: workID, studentID: studentA, completedAt: now.addingTimeInterval(-600))
+                            WorkCompletionRecord(
+                                workID: workID, studentID: studentA,
+                                completedAt: now.addingTimeInterval(-3600)
+                            ),
+                            WorkCompletionRecord(
+                                workID: workID, studentID: studentB,
+                                completedAt: now.addingTimeInterval(-1800)
+                            ),
+                            WorkCompletionRecord(
+                                workID: workID, studentID: studentA,
+                                completedAt: now.addingTimeInterval(-600)
+                            )
                         ]
                         let noteTexts = ["First try", "Assisted", "Independent"]
                         for (record, text) in zip(items, noteTexts) {

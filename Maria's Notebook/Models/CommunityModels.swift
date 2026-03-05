@@ -31,7 +31,8 @@ final class CommunityTopic: Identifiable {
 
     // Children
     // CloudKit compatibility: Relationship arrays must be optional
-    @Relationship(deleteRule: .cascade, inverse: \ProposedSolution.topic) var proposedSolutions: [ProposedSolution]? = []
+    @Relationship(deleteRule: .cascade, inverse: \ProposedSolution.topic)
+    var proposedSolutions: [ProposedSolution]? = []
     // Inverse relationship for Note.communityTopic
     @Relationship(deleteRule: .cascade, inverse: \Note.communityTopic) var unifiedNotes: [Note]? = []
 
@@ -83,7 +84,8 @@ final class CommunityTopic: Identifiable {
     }
 
     /// Attachments associated with this topic (photos, documents)
-    @Relationship(deleteRule: .cascade, inverse: \CommunityAttachment.topic) var attachments: [CommunityAttachment]? = []
+    @Relationship(deleteRule: .cascade, inverse: \CommunityAttachment.topic)
+    var attachments: [CommunityAttachment]? = []
 
     init(
         id: UUID = UUID(),

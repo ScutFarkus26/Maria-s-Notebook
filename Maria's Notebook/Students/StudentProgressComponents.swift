@@ -59,8 +59,14 @@ struct StatusBadge: View {
             Circle()
                 .fill(
                     showCheck
-                        ? LinearGradient(colors: [Color.green, Color.green.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [Color.secondary.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        ? LinearGradient(
+                            colors: [Color.green, Color.green.opacity(0.7)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                        : LinearGradient(
+                            colors: [Color.secondary.opacity(0.15)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
                 )
                 .frame(width: 36, height: 36)
 

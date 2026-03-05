@@ -150,11 +150,21 @@ enum DatabaseInitializationService {
 
         let errorMessage: String
         if emptyContainerError != nil {
-            errorMessage = "Critical database initialization failure. Failed to create even an empty container. This indicates a severe system issue. Original: \(originalDesc). Final: \(finalDesc). Empty container error: \(emptyErrorDesc). Please try resetting the database or reinstalling the app."
+            let base = "Critical database initialization failure."
+            let reset = "Please try resetting the database or reinstalling the app."
+            errorMessage = "\(base) Failed to create even an empty container."
+                + " This indicates a severe system issue."
+                + " Original: \(originalDesc). Final: \(finalDesc)."
+                + " Empty container error: \(emptyErrorDesc). \(reset)"
         } else if finalError != nil {
-            errorMessage = "Critical database initialization failure. The app cannot create a database container. Original: \(originalDesc). Final: \(finalDesc). Please try resetting the database or reinstalling the app."
+            let base = "Critical database initialization failure."
+            let reset = "Please try resetting the database or reinstalling the app."
+            errorMessage = "\(base) The app cannot create a database container."
+                + " Original: \(originalDesc). Final: \(finalDesc). \(reset)"
         } else {
-            errorMessage = "Critical database initialization failure. Original: \(originalDesc). Please try resetting the database or reinstalling the app."
+            let base = "Critical database initialization failure."
+            let reset = "Please try resetting the database or reinstalling the app."
+            errorMessage = "\(base) Original: \(originalDesc). \(reset)"
         }
 
         let criticalError = NSError(
@@ -169,6 +179,9 @@ enum DatabaseInitializationService {
             : "Original: \(originalDesc). Final: \(finalDesc)"
         DatabaseErrorCoordinator.shared.setError(criticalError, details: details)
         UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-        UserDefaults.standard.set(criticalError.localizedDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
+        UserDefaults.standard.set(
+            criticalError.localizedDescription,
+            forKey: UserDefaultsKeys.lastStoreErrorDescription
+        )
     }
 }

@@ -6,7 +6,13 @@ import SwiftUI
     // Modern compound indexes for 2026 - optimized for common query patterns
     // Multiple indexes defined in one #Index macro (SwiftData limitation)
     // Compound indexes improve query performance for multi-field lookups
-    #Index<WorkModel>([\.studentID, \.statusRaw], [\.statusRaw, \.dueAt], [\.statusRaw, \.assignedAt], [\.presentationID], [\.completedAt])
+    #Index<WorkModel>(
+        [\.studentID, \.statusRaw],
+        [\.statusRaw, \.dueAt],
+        [\.statusRaw, \.assignedAt],
+        [\.presentationID],
+        [\.completedAt]
+    )
     
     @available(*, deprecated, message: "Use WorkKind instead. WorkType is maintained for backwards compatibility only.")
     enum WorkType: String, CaseIterable, Codable, Sendable {
@@ -24,7 +30,8 @@ import SwiftUI
     var studentLessonID: UUID?
     var createdAt: Date = Date()
     var completedAt: Date?
-    @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work)
+    var participants: [WorkParticipantEntity]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkStep.work) var steps: [WorkStep]? = []
     // CloudKit compatibility: Relationship arrays must be optional
@@ -137,6 +144,7 @@ import SwiftUI
 
     /// DEPRECATED: Use `kind` instead. This property is maintained for backwards compatibility.
     /// After data migration, workType reads from kind and converts to the legacy enum format.
+    // swiftlint:disable:next line_length
     @available(*, deprecated, message: "Use 'kind' (WorkKind) instead. WorkType is maintained for backwards compatibility only.")
     var workType: WorkType {
         get {

@@ -36,7 +36,10 @@ final class ChatContextAssembler {
             let age = ageString(for: student.birthday)
             let nick = student.nickname.map { " (\($0))" } ?? ""
             let bday = formattedDate(student.birthday)
-            lines.append("• \(student.firstName) \(student.lastName.prefix(1))\(nick) — \(student.level.rawValue), age \(age), born \(bday)")
+            let nameStr = "\(student.firstName) \(student.lastName.prefix(1))\(nick)"
+            lines.append(
+                "• \(nameStr) — \(student.level.rawValue), age \(age), born \(bday)"
+            )
         }
         lines.append("")
 
@@ -53,7 +56,12 @@ final class ChatContextAssembler {
 
         // Presentations this week (modern LessonAssignment model)
         let recentPresentations = fetchPresentations(from: weekStart, to: Date(), state: .presented)
-        let scheduledPresentations = fetchPresentations(from: Date(), to: Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date(), state: .scheduled)
+        let nextWeek = Calendar.current.date(
+            byAdding: .day, value: 7, to: Date()
+        ) ?? Date()
+        let scheduledPresentations = fetchPresentations(
+            from: Date(), to: nextWeek, state: .scheduled
+        )
 
         lines.append("--- This Week ---")
         lines.append("Presentations given: \(recentPresentations.count)")
@@ -165,7 +173,10 @@ final class ChatContextAssembler {
 
     /// Builds additional context for students mentioned in the question.
     /// Returns the context string and the set of matched student IDs.
-    func buildQuestionContext(question: String, existingMentionedIDs: Set<UUID>) -> (context: String, mentionedIDs: Set<UUID>) {
+    func buildQuestionContext(
+        question: String,
+        existingMentionedIDs: Set<UUID>
+    ) -> (context: String, mentionedIDs: Set<UUID>) {
         let queryService = DataQueryService(context: context)
         let allStudents = queryService.fetchAllStudents(excludeTest: true)
 
@@ -201,7 +212,9 @@ final class ChatContextAssembler {
             if !studentPresentations.isEmpty {
                 lines.append("Recent presentations (last \(studentPresentations.count)):")
                 for pres in studentPresentations {
-                    let lessonName = pres.lessonTitleSnapshot ?? lessonsDict[pres.lessonIDUUID ?? UUID()]?.name ?? "Unknown"
+                    let fallbackLesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
+                    let lessonName = pres.lessonTitleSnapshot
+                        ?? fallbackLesson?.name ?? "Unknown"
                     let lesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
                     let subject = lesson?.subject ?? ""
                     let subjectStr = subject.isEmpty ? "" : " (\(subject))"
@@ -262,7 +275,8 @@ final class ChatContextAssembler {
             if !completedWork.isEmpty {
                 lines.append("Completed work (last 30 days):")
                 for work in completedWork.prefix(5) {
-                    let outcome = work.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
+                    let outcome = work.completionOutcomeRaw
+                        .flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
                     let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
                     let date = work.completedAt.map { formattedDate($0) } ?? ""
                     lines.append("  • \(work.title)\(outcomeStr) — \(date)")
@@ -290,7 +304,11 @@ final class ChatContextAssembler {
             let tardyCount = attendance.filter { $0.status == .tardy }.count
             let totalRecords = attendance.filter { $0.status != .unmarked }.count
             if totalRecords > 0 {
-                lines.append("Attendance (30 days): \(presentCount) present, \(absentCount) absent, \(tardyCount) tardy out of \(totalRecords) days")
+                lines.append(
+                    "Attendance (30 days): \(presentCount) present, " +
+                    "\(absentCount) absent, \(tardyCount) tardy " +
+                    "out of \(totalRecords) days"
+                )
             }
 
             // Todos linked to this student
@@ -359,7 +377,10 @@ final class ChatContextAssembler {
 
     // MARK: - Data Fetching Helpers
 
-    private func fetchPresentations(from startDate: Date, to endDate: Date, state: LessonAssignmentState) -> [LessonAssignment] {
+    private func fetchPresentations(
+        from startDate: Date, to endDate: Date,
+        state: LessonAssignmentState
+    ) -> [LessonAssignment] {
         let stateRaw = state.rawValue
         if state == .presented {
             let descriptor = FetchDescriptor<LessonAssignment>(

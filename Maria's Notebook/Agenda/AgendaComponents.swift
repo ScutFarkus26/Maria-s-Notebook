@@ -99,7 +99,14 @@ struct AgendaWeekHeaderView<Actions: View>: View {
     
     let actions: () -> Actions
     
-    init(startDate: Date, days: [Date], onPrev: @escaping () -> Void, onNext: @escaping () -> Void, onToday: @escaping () -> Void, @ViewBuilder actions: @escaping () -> Actions) {
+    init(
+        startDate: Date,
+        days: [Date],
+        onPrev: @escaping () -> Void,
+        onNext: @escaping () -> Void,
+        onToday: @escaping () -> Void,
+        @ViewBuilder actions: @escaping () -> Actions
+    ) {
         self.startDate = startDate
         self.days = days
         self.onPrev = onPrev
@@ -231,8 +238,18 @@ struct AgendaSchoolDayRules {
         return PlanningEngine.firstSchoolDay(onOrAfter: today, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 
-    static func movedStart(bySchoolDays delta: Int, from start: Date, calendar: Calendar, isNonSchoolDay: (Date) -> Bool) -> Date {
+    static func movedStart(
+        bySchoolDays delta: Int,
+        from start: Date,
+        calendar: Calendar,
+        isNonSchoolDay: (Date) -> Bool
+    ) -> Date {
         let startDay = AppCalendar.startOfDay(start)
-        return PlanningEngine.moveBySchoolDays(from: startDay, days: delta, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
+        return PlanningEngine.moveBySchoolDays(
+            from: startDay,
+            days: delta,
+            calendar: calendar,
+            isNonSchoolDay: isNonSchoolDay
+        )
     }
 }

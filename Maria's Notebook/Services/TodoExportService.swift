@@ -63,7 +63,9 @@ class TodoExportService {
             }
             
             if !(todo.subtasks ?? []).isEmpty {
-                output += "    Subtasks (\((todo.subtasks ?? []).filter { $0.isCompleted }.count)/\((todo.subtasks ?? []).count)):\n"
+                let completedCount = (todo.subtasks ?? []).filter { $0.isCompleted }.count
+                let totalCount = (todo.subtasks ?? []).count
+                output += "    Subtasks (\(completedCount)/\(totalCount)):\n"
                 for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "      \(subtask.isCompleted ? "✓" : "○") \(subtask.title)\n"
                 }
@@ -78,7 +80,8 @@ class TodoExportService {
     // MARK: - CSV Export
     
     static func exportAsCSV(todos: [TodoItem]) -> String {
-        var output = "Title,Status,Priority,Tags,Scheduled Date,Deadline,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
+        var output = "Title,Status,Priority,Tags,Scheduled Date," +
+            "Deadline,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .short
@@ -101,7 +104,10 @@ class TodoExportService {
             let subtasksCompleted = (todo.subtasks ?? []).filter { $0.isCompleted }.count
             let subtasksTotal = (todo.subtasks ?? []).count
             
-            output += "\(title),\(status),\(priority),\(tags),\(scheduledDate),\(deadline),\(created),\(notes),\(mood),\(subtasksCompleted),\(subtasksTotal)\n"
+            output += "\(title),\(status),\(priority),\(tags)," +
+                "\(scheduledDate),\(deadline),\(created)," +
+                "\(notes),\(mood),\(subtasksCompleted)," +
+                "\(subtasksTotal)\n"
         }
         
         return output

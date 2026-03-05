@@ -230,11 +230,20 @@ struct UnifiedPostPresentationSheet: View {
             .foregroundStyle(s.tint)
             .background(
                 Capsule(style: .continuous)
-                    .fill(s.tint.opacity(viewModel.status == s ? (UIConstants.OpacityConstants.accent + 0.05) : UIConstants.OpacityConstants.light))
+                    .fill(s.tint.opacity(
+                        viewModel.status == s
+                            ? (UIConstants.OpacityConstants.accent + 0.05)
+                            : UIConstants.OpacityConstants.light
+                    ))
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(s.tint.opacity(viewModel.status == s ? 0.5 : 0.25), lineWidth: viewModel.status == s ? UIConstants.StrokeWidth.thick : UIConstants.StrokeWidth.thin)
+                    .strokeBorder(
+                        s.tint.opacity(viewModel.status == s ? 0.5 : 0.25),
+                        lineWidth: viewModel.status == s
+                            ? UIConstants.StrokeWidth.thick
+                            : UIConstants.StrokeWidth.thin
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -351,7 +360,9 @@ struct UnifiedPostPresentationSheet: View {
                 Spacer()
 
                 // Completion indicator
-                let completed = viewModel.entries.values.filter { !$0.observation.isEmpty || !$0.assignment.isEmpty }.count
+                let completed = viewModel.entries.values.filter {
+                    !$0.observation.isEmpty || !$0.assignment.isEmpty
+                }.count
                 Text("\(completed)/\(viewModel.entries.count)")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.tertiary)
@@ -368,18 +379,27 @@ struct UnifiedPostPresentationSheet: View {
         PresentationStudentRow(
             student: student,
             entry: Binding(
-                get: { viewModel.entries[student.id] ?? StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student)) },
+                get: {
+                    viewModel.entries[student.id]
+                        ?? StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student))
+                },
                 set: { viewModel.entries[student.id] = $0 }
             ),
             isExpanded: Binding(
                 get: { viewModel.expandedStudentIDs.contains(student.id) },
-                set: { if $0 { viewModel.expandedStudentIDs.insert(student.id) } else { viewModel.expandedStudentIDs.remove(student.id) } }
+                set: {
+                    if $0 { viewModel.expandedStudentIDs.insert(student.id) }
+                    else { viewModel.expandedStudentIDs.remove(student.id) }
+                }
             ),
             suggestedWorkItems: suggestedWorkItems,
             nextLesson: findNextLesson(for: student.id),
             isUnlockSelected: Binding(
                 get: { viewModel.studentsToUnlock.contains(student.id) },
-                set: { if $0 { viewModel.studentsToUnlock.insert(student.id) } else { viewModel.studentsToUnlock.remove(student.id) } }
+                set: {
+                    if $0 { viewModel.studentsToUnlock.insert(student.id) }
+                    else { viewModel.studentsToUnlock.remove(student.id) }
+                }
             ),
             defaultCheckInDate: viewModel.defaultCheckInDate,
             defaultDueDate: viewModel.defaultDueDate

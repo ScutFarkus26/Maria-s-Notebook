@@ -84,7 +84,10 @@ public struct CalendarSyncSettingsView: View {
                         StatusMessageView(message: status)
                     }
 
-                    Text("Events from selected calendars will appear in your Today view. Events sync automatically when changes are detected.")
+                    Text(
+                        "Events from selected calendars will appear in your Today view."
+                        + " Events sync automatically when changes are detected."
+                    )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -123,7 +126,8 @@ public struct CalendarSyncSettingsView: View {
                 }
                 isRefreshing = false
             } else {
-                lastSyncStatus = "Access was denied. Please enable it in System Settings > Privacy & Security > Calendars."
+                lastSyncStatus = "Access was denied."
+                    + " Please enable it in System Settings > Privacy & Security > Calendars."
                 isRefreshing = false
             }
         } catch {

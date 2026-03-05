@@ -38,7 +38,8 @@ struct QuickNoteGlassButton: View {
         .offset(offset)
         .padding(.trailing, AppTheme.Spacing.large)
         #if os(iOS)
-        .padding(.bottom, AppTheme.Spacing.xlarge + AppTheme.Spacing.medium) // 32 + 16 = 48pt base, plus 37pt for safe area
+        // 32 + 16 = 48pt base, plus 37pt for safe area
+        .padding(.bottom, AppTheme.Spacing.xlarge + AppTheme.Spacing.medium)
         #else
         .padding(.bottom, AppTheme.Spacing.medium + AppTheme.Spacing.small) // 16 + 8 = 24pt base
         #endif
@@ -53,7 +54,10 @@ struct QuickNoteGlassButton: View {
             longPressTask?.cancel()
         }
         .accessibilityLabel("Add quick note")
-        .accessibilityHint("Double tap to open note editor, hold for presentation, work, and todo actions, or drag to reposition")
+        .accessibilityHint(
+            "Double tap to open note editor, hold for presentation,"
+            + " work, and todo actions, or drag to reposition"
+        )
         .accessibilityAddTraits(.isButton)
     }
 
@@ -98,7 +102,10 @@ struct QuickNoteGlassButton: View {
         .background(
             Circle()
                 .fill(.ultraThinMaterial)
-                .frame(width: pieMenuRadius * 2 + AppTheme.Spacing.large, height: pieMenuRadius * 2 + AppTheme.Spacing.large)
+                .frame(
+                    width: pieMenuRadius * 2 + AppTheme.Spacing.large,
+                    height: pieMenuRadius * 2 + AppTheme.Spacing.large
+                )
                 .opacity(isPieMenuExpanded ? 1.0 : 0.0)
         )
     }
@@ -124,10 +131,18 @@ struct QuickNoteGlassButton: View {
                 )
                 .overlay(
                     Circle()
-                        .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                        .strokeBorder(
+                            Color.white.opacity(UIConstants.OpacityConstants.light),
+                            lineWidth: UIConstants.StrokeWidth.thin
+                        )
                 )
                 .clipShape(Circle())
-                .shadow(color: .black.opacity(UIConstants.OpacityConstants.statusBg), radius: AppTheme.Spacing.xsmall, x: 0, y: AppTheme.Spacing.xxsmall)
+                .shadow(
+                    color: .black.opacity(UIConstants.OpacityConstants.statusBg),
+                    radius: AppTheme.Spacing.xsmall,
+                    x: 0,
+                    y: AppTheme.Spacing.xxsmall
+                )
                 .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
             #else
             Image(systemName: isPieMenuExpanded ? "xmark" : "plus")
@@ -147,7 +162,12 @@ struct QuickNoteGlassButton: View {
                         )
                 )
                 .clipShape(Circle())
-                .shadow(color: .black.opacity(UIConstants.OpacityConstants.statusBg), radius: AppTheme.Spacing.xsmall, x: 0, y: AppTheme.Spacing.xxsmall)
+                .shadow(
+                    color: .black.opacity(UIConstants.OpacityConstants.statusBg),
+                    radius: AppTheme.Spacing.xsmall,
+                    x: 0,
+                    y: AppTheme.Spacing.xxsmall
+                )
                 .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
             #endif
         }

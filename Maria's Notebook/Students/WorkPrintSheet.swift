@@ -158,7 +158,11 @@ struct WorkPrintSheet: View {
         hostingView.appearance = NSAppearance(named: .aqua)
 
         let tempWindow = NSWindow(
-            contentRect: NSRect(x: TimeoutConstants.offscreenCoordinate, y: TimeoutConstants.offscreenCoordinate, width: width, height: 2000),
+            contentRect: NSRect(
+                x: TimeoutConstants.offscreenCoordinate,
+                y: TimeoutConstants.offscreenCoordinate,
+                width: width, height: 2000
+            ),
             styleMask: [.titled],
             backing: .buffered,
             defer: false

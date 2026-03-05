@@ -305,7 +305,10 @@ struct StudentTrackDetailView: View {
             // Step number or checkmark
             ZStack {
                 Circle()
-                    .fill(isProficient ? Color.green : (isPresented ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1)))
+                    .fill(
+                        isProficient ? Color.green
+                            : (isPresented ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1))
+                    )
                     .frame(width: 32, height: 32)
 
                 if isProficient {

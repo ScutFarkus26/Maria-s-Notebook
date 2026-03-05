@@ -11,25 +11,29 @@ struct OnboardingView: View {
         OnboardingPage(
             icon: "book.and.wrench.fill",
             title: "Welcome to Maria's Notebook",
-            description: "A comprehensive planning tool for Montessori and classroom educators. Manage students, lessons, work tracking, and observations — all in one place.",
+            description: "A comprehensive planning tool for Montessori and classroom educators."
+                + " Manage students, lessons, work tracking, and observations — all in one place.",
             accentColor: .blue
         ),
         OnboardingPage(
             icon: "person.3.fill",
             title: "Add Your Students",
-            description: "Start by adding students to your roster. You can organize them by level, track birthdays, and view their lesson history at a glance.",
+            description: "Start by adding students to your roster."
+                + " You can organize them by level, track birthdays, and view their lesson history at a glance.",
             accentColor: .pink
         ),
         OnboardingPage(
             icon: "text.book.closed.fill",
             title: "Plan Your Lessons",
-            description: "Build your lesson library, assign lessons to students, and track progress through the work lifecycle: active, review, and complete.",
+            description: "Build your lesson library, assign lessons to students,"
+                + " and track progress through the work lifecycle: active, review, and complete.",
             accentColor: .purple
         ),
         OnboardingPage(
             icon: "sparkles",
             title: "Quick Notes & More",
-            description: "Long-press the floating button for quick access to notes, presentations, work items, and to-dos. Use the Today view for your daily overview.",
+            description: "Long-press the floating button for quick access to notes,"
+                + " presentations, work items, and to-dos. Use the Today view for your daily overview.",
             accentColor: .orange
         )
     ]

@@ -22,7 +22,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query private var lessons: [Lesson]
     @Query private var studentsRaw: [Student]
@@ -30,7 +31,10 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID, show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     @State var assignment: LessonAssignment?
@@ -46,8 +50,12 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
-    private var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    private var lessonsByID: [UUID: Lesson] {
+        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+    private var studentsByID: [UUID: Student] {
+        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -168,7 +176,10 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 }
 
                                 if la.needsAnotherPresentation {
-                                    Label("Needs Another Presentation", systemImage: SFSymbol.Action.arrowCounterclockwise)
+                                    Label(
+                                        "Needs Another Presentation",
+                                        systemImage: SFSymbol.Action.arrowCounterclockwise
+                                    )
                                         .font(.subheadline)
                                         .foregroundStyle(AppColors.warning)
                                 }
@@ -212,7 +223,10 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                             } else {
                                 VStack(alignment: .leading, spacing: 8) {
                                     // Show unified notes
-                                    ForEach(unifiedNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                                    ForEach(
+                                        unifiedNotes.sorted(by: { $0.createdAt > $1.createdAt }),
+                                        id: \.id
+                                    ) { note in
                                         unifiedNoteRow(note)
                                     }
                                 }
@@ -361,7 +375,11 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     }
     
     @MainActor
-    private func updatePresentation(status: UnifiedPostPresentationSheet.PresentationStatus, entries: [UnifiedPostPresentationSheet.StudentEntry], groupObservation: String) {
+    private func updatePresentation(
+        status: UnifiedPostPresentationSheet.PresentationStatus,
+        entries: [UnifiedPostPresentationSheet.StudentEntry],
+        groupObservation: String
+    ) {
         guard let la = assignment else { return }
         
         // Update presentation state

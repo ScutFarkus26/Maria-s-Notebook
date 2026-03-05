@@ -63,18 +63,30 @@ enum WorkPDFRenderer {
         var yPosition = pageHeight - margin
 
         // Header
-        yPosition -= drawText("Open Work", at: CGPoint(x: margin, y: yPosition), font: titleFont, color: blackColor, maxWidth: contentWidth, in: context)
+        yPosition -= drawText(
+            "Open Work", at: CGPoint(x: margin, y: yPosition),
+            font: titleFont, color: blackColor,
+            maxWidth: contentWidth, in: context
+        )
 
         // Metadata
         var metaText = "\(dateFormatter.string(from: Date())) • \(sortMode.rawValue) • \(items.count) items"
         if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
             metaText += " • Filter: \(searchText)"
         }
-        yPosition -= drawText(metaText, at: CGPoint(x: margin, y: yPosition), font: smallFont, color: grayColor, maxWidth: contentWidth, in: context)
+        yPosition -= drawText(
+            metaText, at: CGPoint(x: margin, y: yPosition),
+            font: smallFont, color: grayColor,
+            maxWidth: contentWidth, in: context
+        )
         yPosition -= 8
 
         // Separator
-        drawLine(from: CGPoint(x: margin, y: yPosition), to: CGPoint(x: pageWidth - margin, y: yPosition), color: lightGrayColor, in: context)
+        drawLine(
+            from: CGPoint(x: margin, y: yPosition),
+            to: CGPoint(x: pageWidth - margin, y: yPosition),
+            color: lightGrayColor, in: context
+        )
         yPosition -= 6
 
         // Draw groups
@@ -93,7 +105,11 @@ enum WorkPDFRenderer {
             context.setFillColor(NSColor(white: 0.92, alpha: 1.0).cgColor)
             context.fill(CGRect(x: margin, y: yPosition - headerHeight, width: contentWidth, height: headerHeight))
 
-            drawSingleLine("\(groupName) (\(groupItems.count))", at: CGPoint(x: margin + 4, y: yPosition - headerHeight + 3), font: headerFont, color: blackColor, in: context)
+            drawSingleLine(
+                "\(groupName) (\(groupItems.count))",
+                at: CGPoint(x: margin + 4, y: yPosition - headerHeight + 3),
+                font: headerFont, color: blackColor, in: context
+            )
             yPosition -= headerHeight + 2
 
             // Items
@@ -107,12 +123,22 @@ enum WorkPDFRenderer {
                 let itemText = buildItemText(item, sortMode: sortMode)
                 let detailsText = buildDetailsText(item, dateFormatter: dateFormatter)
 
-                drawSingleLine(itemText, at: CGPoint(x: margin + 6, y: yPosition - 9), font: bodyFont, color: blackColor, in: context)
+                drawSingleLine(
+                    itemText, at: CGPoint(x: margin + 6, y: yPosition - 9),
+                    font: bodyFont, color: blackColor, in: context
+                )
 
                 // Right-align details
                 let detailsAttr: [NSAttributedString.Key: Any] = [.font: smallFont, .foregroundColor: grayColor]
                 let detailsSize = (detailsText as NSString).size(withAttributes: detailsAttr)
-                drawSingleLine(detailsText, at: CGPoint(x: pageWidth - margin - detailsSize.width, y: yPosition - 9), font: smallFont, color: grayColor, in: context)
+                drawSingleLine(
+                    detailsText,
+                    at: CGPoint(
+                        x: pageWidth - margin - detailsSize.width,
+                        y: yPosition - 9
+                    ),
+                    font: smallFont, color: grayColor, in: context
+                )
 
                 yPosition -= 12
             }
@@ -121,7 +147,12 @@ enum WorkPDFRenderer {
         }
 
         if items.isEmpty {
-            yPosition -= drawText("No open work items.", at: CGPoint(x: margin, y: yPosition), font: bodyFont, color: grayColor, maxWidth: contentWidth, in: context)
+            yPosition -= drawText(
+                "No open work items.",
+                at: CGPoint(x: margin, y: yPosition),
+                font: bodyFont, color: grayColor,
+                maxWidth: contentWidth, in: context
+            )
         }
 
         context.endPDFPage()
@@ -132,7 +163,10 @@ enum WorkPDFRenderer {
 
     // MARK: - Helpers
 
-    private static func groupItems(_ items: [PrintItem], by sortMode: WorkAgendaSortMode) -> ([PrintItem], [String: [PrintItem]], [String]) {
+    private static func groupItems(
+        _ items: [PrintItem],
+        by sortMode: WorkAgendaSortMode
+    ) -> ([PrintItem], [String: [PrintItem]], [String]) {
         let sorted = items.sorted { lhs, rhs in
             switch sortMode {
             case .lesson: return lhs.lessonTitle.localizedCaseInsensitiveCompare(rhs.lessonTitle) == .orderedAscending
@@ -165,7 +199,12 @@ enum WorkPDFRenderer {
         case .student: return item.studentName
         case .age:
             let days = item.ageDays
-            if days <= 0 { return "Today" } else if days <= 3 { return "1-3 days" } else if days <= 7 { return "4-7 days" } else if days <= 14 { return "8-14 days" } else if days <= 30 { return "15-30 days" } else { return "30+ days" }
+            if days <= 0 { return "Today" }
+            else if days <= 3 { return "1-3 days" }
+            else if days <= 7 { return "4-7 days" }
+            else if days <= 14 { return "8-14 days" }
+            else if days <= 30 { return "15-30 days" }
+            else { return "30+ days" }
         case .needsAttention:
             return item.needsAttention ? "Needs Attention" : "Other"
         }
@@ -192,7 +231,11 @@ enum WorkPDFRenderer {
         return details.joined(separator: " • ")
     }
 
-    private static func drawText(_ text: String, at point: CGPoint, font: NSFont, color: NSColor, maxWidth: CGFloat, in context: CGContext) -> CGFloat {
+    private static func drawText(
+        _ text: String, at point: CGPoint,
+        font: NSFont, color: NSColor,
+        maxWidth: CGFloat, in context: CGContext
+    ) -> CGFloat {
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let attrString = NSAttributedString(string: text, attributes: attributes)
         let framesetter = CTFramesetterCreateWithAttributedString(attrString)
@@ -201,14 +244,23 @@ enum WorkPDFRenderer {
             nil, CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude), nil
         )
 
-        let path = CGPath(rect: CGRect(x: point.x, y: point.y - suggestedSize.height, width: maxWidth, height: suggestedSize.height + 2), transform: nil)
+        let path = CGPath(
+            rect: CGRect(
+                x: point.x, y: point.y - suggestedSize.height,
+                width: maxWidth, height: suggestedSize.height + 2
+            ), transform: nil
+        )
         let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: attrString.length), path, nil)
         CTFrameDraw(frame, context)
 
         return suggestedSize.height
     }
 
-    private static func drawSingleLine(_ text: String, at point: CGPoint, font: NSFont, color: NSColor, in context: CGContext) {
+    private static func drawSingleLine(
+        _ text: String, at point: CGPoint,
+        font: NSFont, color: NSColor,
+        in context: CGContext
+    ) {
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let attrString = NSAttributedString(string: text, attributes: attributes)
         let line = CTLineCreateWithAttributedString(attrString)

@@ -47,7 +47,11 @@ extension UnifiedNoteEditor {
                                 .foregroundStyle(isSelected ? Color.accentColor : .primary)
                                 .background(
                                     Capsule()
-                                        .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
+                                        .fill(
+                                            isSelected
+                                                ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                                                : Color.secondary.opacity(UIConstants.OpacityConstants.light)
+                                        )
                                 )
                             }
                             .buttonStyle(.plain)

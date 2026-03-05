@@ -9,7 +9,11 @@ struct StudentImportPreviewView: View {
     @State private var showWarnings: Bool = true
     @State private var includedRows: [StudentCSVImporter.Row] = []
 
-    init(parsed: StudentCSVImporter.Parsed, onCancel: @escaping () -> Void, onConfirm: @escaping (StudentCSVImporter.Parsed) -> Void) {
+    init(
+        parsed: StudentCSVImporter.Parsed,
+        onCancel: @escaping () -> Void,
+        onConfirm: @escaping (StudentCSVImporter.Parsed) -> Void
+    ) {
         self.parsed = parsed
         self.onCancel = onCancel
         self.onConfirm = onConfirm
@@ -174,7 +178,11 @@ struct StudentImportPreviewView: View {
             let name = "\(row.firstName) \(row.lastName)"
             return parsed.potentialDuplicates.contains(name) ? name : nil
         }
-        return StudentCSVImporter.Parsed(rows: includedRows, totalRows: includedRows.count, potentialDuplicates: filteredDuplicateNames, warnings: parsed.warnings)
+        return StudentCSVImporter.Parsed(
+            rows: includedRows, totalRows: includedRows.count,
+            potentialDuplicates: filteredDuplicateNames,
+            warnings: parsed.warnings
+        )
     }
 }
 
@@ -245,9 +253,17 @@ private struct StudentRowView: View {
 }
 #Preview {
     let rows = [
-        StudentCSVImporter.Row(firstName: "Alex", lastName: "Rivera", birthday: Date(timeIntervalSince1970: 0), dateStarted: Date(timeIntervalSince1970: 100000), level: .upper),
+        StudentCSVImporter.Row(
+            firstName: "Alex", lastName: "Rivera",
+            birthday: Date(timeIntervalSince1970: 0),
+            dateStarted: Date(timeIntervalSince1970: 100000), level: .upper
+        ),
         StudentCSVImporter.Row(firstName: "Blair", lastName: "Chen", birthday: nil, dateStarted: nil, level: .lower)
     ]
-    let parsed = StudentCSVImporter.Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: ["Alex Rivera"], warnings: ["Row 4: Missing first or last name; row skipped."])
+    let parsed = StudentCSVImporter.Parsed(
+        rows: rows, totalRows: rows.count,
+        potentialDuplicates: ["Alex Rivera"],
+        warnings: ["Row 4: Missing first or last name; row skipped."]
+    )
     return StudentImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
 }

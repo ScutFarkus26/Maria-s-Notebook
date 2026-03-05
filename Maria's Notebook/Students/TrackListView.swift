@@ -42,7 +42,9 @@ struct TrackListView: View {
                 } else {
                     List {
                         ForEach(groupTracks, id: \.id) { groupTrack in
-                            NavigationLink(value: GroupTrackRoute(subject: groupTrack.subject, group: groupTrack.group)) {
+                            NavigationLink(
+                                value: GroupTrackRoute(subject: groupTrack.subject, group: groupTrack.group)
+                            ) {
                                 GroupTrackRow(groupTrack: groupTrack, allLessons: allLessons)
                             }
                             .contextMenu {

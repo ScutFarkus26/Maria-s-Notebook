@@ -230,7 +230,9 @@ struct WorkDetailView: View {
                     Button("Not Yet", role: .cancel) { }
                 } message: {
                     if let nextLesson = viewModel.nextLessonToUnlock {
-                        Text("Ready to unlock \(nextLesson.name) for \(viewModel.relatedStudent?.firstName ?? "this student")?")
+                        let studentName = viewModel.relatedStudent?.firstName
+                            ?? "this student"
+                        Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
                     }
                 }
                 .sheet(isPresented: $viewModel.showAddStepSheet) {

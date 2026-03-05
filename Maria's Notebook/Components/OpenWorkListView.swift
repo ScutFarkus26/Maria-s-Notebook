@@ -131,7 +131,8 @@ struct OpenWorkListView: View {
                 pagination.updateTotal(openWorks.count)
             }
         }
-        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        // Fix: Use 'isPresented' to avoid ambiguity between standard
+        // 'sheet(item:)' and 'SheetPresentationHelpers' extension
         .sheet(isPresented: Binding(
             get: { selectedWork != nil },
             set: { if !$0 { selectedWork = nil } }

@@ -110,7 +110,8 @@ struct PracticeSessionsListView: View {
                                     
                                     Spacer()
                                     
-                                    Text("\(dateGroup.sessions.count) session\(dateGroup.sessions.count == 1 ? "" : "s")")
+                                    let suffix = dateGroup.sessions.count == 1 ? "" : "s"
+                                    Text("\(dateGroup.sessions.count) session\(suffix)")
                                         .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.tertiary)
                                 }

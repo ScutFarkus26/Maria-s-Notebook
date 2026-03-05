@@ -41,7 +41,10 @@ struct StudentCSVMappingView: View {
                 .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 16) {
-                Text("Choose which CSV columns map to student fields. You must provide either First + Last, or a Full Name column.")
+                Text(
+                    "Choose which CSV columns map to student fields." +
+                    " You must provide either First + Last, or a Full Name column."
+                )
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
 

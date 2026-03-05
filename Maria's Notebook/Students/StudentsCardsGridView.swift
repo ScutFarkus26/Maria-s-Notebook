@@ -201,7 +201,10 @@ struct StudentsCardsGridView: View {
                         if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                     }
                     guard let startCenter = centers[student.id] else { return }
-                    let endCenter = CGPoint(x: startCenter.x + drag.translation.width, y: startCenter.y + drag.translation.height)
+                    let endCenter = CGPoint(
+                        x: startCenter.x + drag.translation.width,
+                        y: startCenter.y + drag.translation.height
+                    )
                     if let targetID = centers.min(by: { lhs, rhs in
                         let dl = hypot(lhs.value.x - endCenter.x, lhs.value.y - endCenter.y)
                         let dr = hypot(rhs.value.x - endCenter.x, rhs.value.y - endCenter.y)

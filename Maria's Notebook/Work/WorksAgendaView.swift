@@ -15,7 +15,10 @@ struct WorksAgendaView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
 
-    @Query(filter: #Predicate<WorkModel> { $0.statusRaw != "complete" }, sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
+    @Query(
+        filter: #Predicate<WorkModel> { $0.statusRaw != "complete" },
+        sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
+    )
     private var openWork: [WorkModel]
     
     @Query(
@@ -43,7 +46,8 @@ struct WorksAgendaView: View {
     @State private var studentsByIDCache: [UUID: Student] = [:]
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) private var hideScheduled: Bool = false
 
     @State private var sortMode: WorkAgendaSortMode = .lesson
@@ -120,7 +124,10 @@ struct WorksAgendaView: View {
             }
             let filtered = all.filter { neededStudentIDs.contains($0.id) }
             // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-            let visible = TestStudentsFilter.filterVisible(filtered, show: showTestStudents, namesRaw: testStudentNamesRaw).uniqueByID
+            let visible = TestStudentsFilter.filterVisible(
+                filtered, show: showTestStudents,
+                namesRaw: testStudentNamesRaw
+            ).uniqueByID
             studentsByIDCache = Dictionary(visible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         } else {
             studentsByIDCache = [:]
@@ -335,7 +342,9 @@ struct WorksAgendaView: View {
     private func makePrintItems(from works: [WorkModel]) -> [WorkPDFRenderer.PrintItem] {
         works.map { w in
             let title = lessonTitle(forLessonID: w.lessonID)
-            let student = (UUID(uuidString: w.studentID)).flatMap { studentsByID[$0] }.map(studentPrintName(for:)) ?? "Student"
+            let student = (UUID(uuidString: w.studentID))
+                .flatMap { studentsByID[$0] }
+                .map(studentPrintName(for:)) ?? "Student"
             return WorkPDFRenderer.PrintItem(
                 id: w.id,
                 lessonTitle: title,
@@ -365,16 +374,31 @@ struct WorksAgendaView: View {
     }
 
     private func ageDays(for w: WorkModel) -> Int {
-        AppCalendar.shared.dateComponents([.day], from: AppCalendar.startOfDay(w.createdAt), to: AppCalendar.startOfDay(Date())).day ?? 0
+        let start = AppCalendar.startOfDay(w.createdAt)
+        let end = AppCalendar.startOfDay(Date())
+        return AppCalendar.shared.dateComponents(
+            [.day], from: start, to: end
+        ).day ?? 0
     }
 
     private func needsAttention(for w: WorkModel) -> Bool {
-        if let due = w.dueAt, AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) { return true }
-        if let lastNoteDate = (w.unifiedNotes ?? []).map({ max($0.updatedAt, $0.createdAt) }).max() {
-            let days = AppCalendar.shared.dateComponents([.day], from: AppCalendar.startOfDay(lastNoteDate), to: AppCalendar.startOfDay(Date())).day ?? 0
+        if let due = w.dueAt,
+           AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) {
+            return true
+        }
+        if let lastNoteDate = (w.unifiedNotes ?? [])
+            .map({ max($0.updatedAt, $0.createdAt) }).max() {
+            let days = AppCalendar.shared.dateComponents(
+                [.day],
+                from: AppCalendar.startOfDay(lastNoteDate),
+                to: AppCalendar.startOfDay(Date())
+            ).day ?? 0
             if days >= 10 { return true }
         }
-        return LessonAgeHelper.schoolDaysSinceCreation(createdAt: w.createdAt, asOf: Date(), using: modelContext, calendar: calendar) >= 10
+        return LessonAgeHelper.schoolDaysSinceCreation(
+            createdAt: w.createdAt, asOf: Date(),
+            using: modelContext, calendar: calendar
+        ) >= 10
     }
 
     // MARK: - Calendar Navigation
@@ -427,13 +451,21 @@ struct WorksAgendaView: View {
             if let first = try modelContext.fetch(fetch).first {
                 first.date = today
             } else {
-                let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck")
+                let item = WorkCheckIn(
+                    id: UUID(), workID: workID,
+                    date: today, status: .scheduled,
+                    purpose: "progressCheck"
+                )
                 modelContext.insert(item)
             }
         } catch {
             Self.logger.warning("Failed to fetch WorkCheckIn: \(error)")
             // Create new check-in as fallback
-            let item = WorkCheckIn(id: UUID(), workID: workID, date: today, status: .scheduled, purpose: "progressCheck")
+            let item = WorkCheckIn(
+                id: UUID(), workID: workID,
+                date: today, status: .scheduled,
+                purpose: "progressCheck"
+            )
             modelContext.insert(item)
         }
         w.dueAt = today
@@ -444,7 +476,10 @@ struct WorksAgendaView: View {
     private func printWorkView() {
         let works = openWorksFiltered()
         let items = makePrintItems(from: works)
-        guard let pdfData = WorkPDFRenderer.renderPDF(items: items, sortMode: sortMode, searchText: debouncedSearchText) else {
+        guard let pdfData = WorkPDFRenderer.renderPDF(
+            items: items, sortMode: sortMode,
+            searchText: debouncedSearchText
+        ) else {
             NSSound.beep()
             return
         }
@@ -471,7 +506,11 @@ struct WorksAgendaView: View {
         panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            guard let pdfData = WorkPDFRenderer.renderPDF(items: items, sortMode: currentSortMode, searchText: currentSearchText) else {
+            guard let pdfData = WorkPDFRenderer.renderPDF(
+                items: items,
+                sortMode: currentSortMode,
+                searchText: currentSearchText
+            ) else {
                 NSSound.beep()
                 return
             }

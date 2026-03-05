@@ -68,7 +68,10 @@ struct TodoMainView: View {
                         if !isSelectMode { selectedTodoIDs.removeAll() }
                     }
                 } label: {
-                    Label(isSelectMode ? "Done" : "Select", systemImage: isSelectMode ? "checkmark.circle" : "checklist.unchecked")
+                    Label(
+                        isSelectMode ? "Done" : "Select",
+                        systemImage: isSelectMode ? "checkmark.circle" : "checklist.unchecked"
+                    )
                 }
 
                 Menu {

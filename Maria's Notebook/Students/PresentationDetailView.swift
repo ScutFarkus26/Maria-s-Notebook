@@ -10,7 +10,8 @@ struct PresentationDetailView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Live Queries
     @Query private var lessons: [Lesson]
@@ -25,7 +26,10 @@ struct PresentationDetailView: View {
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
     // Filter out test students when setting is disabled
     private var studentsAll: [Student] {
-        TestStudentsFilter.filterVisible(studentsAllRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsAllRaw.uniqueByID, show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     let lessonAssignment: LessonAssignment

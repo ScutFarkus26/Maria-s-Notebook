@@ -374,7 +374,10 @@ struct PlanningPanelHeader: View {
 // MARK: - Section Content Helpers
 
 /// Shared planning content sections layout
-struct PlanningContentSections<LessonHeader: View, LessonPicker: View, StudentPills: View, InboxStatus: View, Notes: View>: View {
+struct PlanningContentSections<
+    LessonHeader: View, LessonPicker: View,
+    StudentPills: View, InboxStatus: View, Notes: View
+>: View {
     let horizontalPadding: CGFloat
     let lessonHeader: () -> LessonHeader
     let lessonPicker: () -> LessonPicker

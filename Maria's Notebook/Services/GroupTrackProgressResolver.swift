@@ -27,7 +27,8 @@ struct GroupTrackProgressResolver {
         }.count
     }
     
-    /// Returns the first unmastered lesson in the track (for sequential tracks), or nil if all are mastered or track is unordered.
+    /// Returns the first unmastered lesson in the track (for sequential tracks),
+    /// or nil if all are mastered or track is unordered.
     static func currentLesson(
         track: GroupTrack,
         studentID: String,
@@ -44,7 +45,10 @@ struct GroupTrackProgressResolver {
     }
     
     /// Helper function to determine if a lesson is mastered.
-    private static func isLessonProficient(lesson: Lesson, studentID: String, lessonPresentations: [LessonPresentation]) -> Bool {
+    private static func isLessonProficient(
+        lesson: Lesson, studentID: String,
+        lessonPresentations: [LessonPresentation]
+    ) -> Bool {
         let lessonIDStr = lesson.id.uuidString
         return lessonPresentations.contains { lp in
             // Check student ID matches

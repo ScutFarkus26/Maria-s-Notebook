@@ -253,7 +253,10 @@ final class LessonPlanningViewModel {
         }
         
         currentStep = .assessingReadiness
-        messages.append(PlanningMessage(role: .system, content: "Assessing readiness for \(students.count) students..."))
+        messages.append(PlanningMessage(
+            role: .system,
+            content: "Assessing readiness for \(students.count) students..."
+        ))
         
         currentStep = .generatingPlan
         
@@ -266,7 +269,11 @@ final class LessonPlanningViewModel {
         self.currentStep = .presentingPlan
     }
     
-    private func quickSuggest(_ studentIDs: [UUID], service: LessonPlanningService, context: ModelContext) async throws {
+    private func quickSuggest(
+        _ studentIDs: [UUID],
+        service: LessonPlanningService,
+        context: ModelContext
+    ) async throws {
         let students = fetchStudents(context: context)
         let filtered = students.filter { studentIDs.contains($0.id) }
         guard !filtered.isEmpty else {

@@ -153,7 +153,10 @@ struct AttendanceStore {
     /// For any students without a record, creates an unmarked record but does not save immediately.
     /// - Returns: The full set of records for the date, one per student, and a flag indicating if any inserts occurred.
     @discardableResult
-    func loadOrCreateRecords(for date: Date, students: [Student]) throws -> (records: [AttendanceRecord], didInsert: Bool) {
+    func loadOrCreateRecords(
+        for date: Date,
+        students: [Student]
+    ) throws -> (records: [AttendanceRecord], didInsert: Bool) {
         let day = date.normalizedDay(using: calendar)
         var existing = try fetchRecords(for: day)
         // Build dictionary safely, handling potential duplicates by keeping the first occurrence

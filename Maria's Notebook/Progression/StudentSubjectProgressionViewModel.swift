@@ -188,7 +188,11 @@ final class StudentSubjectProgressionViewModel {
 
     private func fetchAllLessons(context: ModelContext) -> [Lesson] {
         let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)]
+            sortBy: [
+                SortDescriptor(\Lesson.subject),
+                SortDescriptor(\Lesson.group),
+                SortDescriptor(\Lesson.orderInGroup)
+            ]
         )
         return context.safeFetch(descriptor)
     }

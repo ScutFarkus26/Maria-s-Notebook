@@ -67,6 +67,7 @@ final class NoteTemplate: Identifiable {
 
     // MARK: - Built-in Templates
 
+    // swiftlint:disable line_length
     static let builtInTemplates: [(title: String, body: String, tags: [String])] = [
         // Academic
         ("Completed independently", "Completed work independently with confidence.", [TagHelper.tagFromNoteCategory("academic")]),
@@ -97,6 +98,7 @@ final class NoteTemplate: Identifiable {
         ("Parent request", "Per parent request: ", [TagHelper.tagFromNoteCategory("general")]),
         ("Follow up needed", "Requires follow-up: ", [TagHelper.tagFromNoteCategory("general")])
     ]
+    // swiftlint:enable line_length
 
     /// Seeds the built-in templates into the database if they don't exist.
     static func seedBuiltInTemplates(in context: ModelContext) {

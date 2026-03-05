@@ -7,7 +7,11 @@ enum PresentationMergeService {
     private static let logger = Logger.students
 
     @discardableResult
-    static func merge(sourceID: UUID, targetID: UUID, context: ModelContext, toastService: ToastService = ToastService.shared) -> Bool {
+    static func merge(
+        sourceID: UUID, targetID: UUID,
+        context: ModelContext,
+        toastService: ToastService = ToastService.shared
+    ) -> Bool {
         guard sourceID != targetID else { return false }
 
         guard let source = fetchLessonAssignment(id: sourceID, context: context),

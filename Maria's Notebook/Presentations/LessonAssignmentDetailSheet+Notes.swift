@@ -71,7 +71,9 @@ extension LessonAssignmentDetailSheet {
         // Load unified Note objects from relationship
         // Refresh the assignment object to get updated relationships
         let targetID = assignment.id
-        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate<LessonAssignment> { $0.id == targetID })
+        var descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate<LessonAssignment> { $0.id == targetID }
+        )
         descriptor.fetchLimit = 1
         do {
             if let refreshed = try modelContext.fetch(descriptor).first {

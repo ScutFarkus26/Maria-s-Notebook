@@ -31,7 +31,11 @@ extension PresentationsListView {
                                 }
                                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                     ForEach(hiddenUndated, id: \.id) { sl in
-                                        PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                        PresentationCard(
+                                                    snapshot: sl.snapshot(),
+                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    students: students
+                                                )
                                             .onTapGesture { selectedLessonID = sl.id }
                                             .contextMenu {
                                                 Button {
@@ -76,7 +80,11 @@ extension PresentationsListView {
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                             ForEach(up, id: \.id) { sl in
-                                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                                PresentationCard(
+                                                    snapshot: sl.snapshot(),
+                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    students: students
+                                                )
                                                     .onTapGesture { selectedLessonID = sl.id }
                                                     .contextMenu {
                                                         Button {
@@ -100,7 +108,11 @@ extension PresentationsListView {
                                         }
                                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                                             ForEach(gv, id: \.id) { sl in
-                                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                                PresentationCard(
+                                                    snapshot: sl.snapshot(),
+                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    students: students
+                                                )
                                                     .onTapGesture { selectedLessonID = sl.id }
                                                     .contextMenu {
                                                         Button {
@@ -133,7 +145,11 @@ extension PresentationsListView {
                     ScrollView {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                             ForEach(sortedAssignments, id: \.id) { sl in
-                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
+                                PresentationCard(
+                                                    snapshot: sl.snapshot(),
+                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    students: students
+                                                )
                                     .onTapGesture { selectedLessonID = sl.id }
                                     .contextMenu {
                                         Button {

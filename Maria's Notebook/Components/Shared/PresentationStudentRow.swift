@@ -70,7 +70,10 @@ struct PresentationStudentRow: View {
         HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { i in
                 Circle()
-                    .fill(understandingColor(for: entry.understandingLevel).opacity(i <= entry.understandingLevel ? 1.0 : 0.2))
+                    .fill(
+                        understandingColor(for: entry.understandingLevel)
+                            .opacity(i <= entry.understandingLevel ? 1.0 : 0.2)
+                    )
                     .frame(width: 8, height: 8)
             }
         }

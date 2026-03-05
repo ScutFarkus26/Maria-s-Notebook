@@ -115,9 +115,16 @@ struct StudentMeetingsTab: View {
     var overdueWorkModelsForStudent: [WorkModel] { workStats.overdue }
     var recentCompletedWorkModelsForStudent: [WorkModel] { workStats.recentCompleted }
 
-    var openWorkCountText: String { openWorkModelsForStudent.isEmpty ? "\u{2014}" : "\(openWorkModelsForStudent.count)" }
-    var overdueWorkCountText: String { overdueWorkModelsForStudent.isEmpty ? "\u{2014}" : "\(overdueWorkModelsForStudent.count)" }
-    var recentlyCompletedWorkCountText: String { recentCompletedWorkModelsForStudent.isEmpty ? "\u{2014}" : "\(recentCompletedWorkModelsForStudent.count)" }
+    var openWorkCountText: String {
+        openWorkModelsForStudent.isEmpty ? "\u{2014}" : "\(openWorkModelsForStudent.count)"
+    }
+    var overdueWorkCountText: String {
+        overdueWorkModelsForStudent.isEmpty ? "\u{2014}" : "\(overdueWorkModelsForStudent.count)"
+    }
+    var recentlyCompletedWorkCountText: String {
+        recentCompletedWorkModelsForStudent.isEmpty
+            ? "\u{2014}" : "\(recentCompletedWorkModelsForStudent.count)"
+    }
 
     // MARK: - Lessons since last meeting (delegated to MeetingWorkSnapshotHelper)
 
@@ -412,7 +419,10 @@ struct StudentMeetingsTab: View {
 #Preview {
     let container = ModelContainer.preview
     let context = container.mainContext
-    let student = Student(firstName: "Alan", lastName: "Turing", birthday: Date(timeIntervalSince1970: 0), level: .upper)
+    let student = Student(
+        firstName: "Alan", lastName: "Turing",
+        birthday: Date(timeIntervalSince1970: 0), level: .upper
+    )
     context.insert(student)
     return StudentMeetingsTab(student: student)
         .previewEnvironment(using: container)

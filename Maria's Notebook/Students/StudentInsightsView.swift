@@ -92,7 +92,8 @@ struct StudentInsightsView: View {
 
             // Check if API key is configured
             if !AnthropicAPIClient.hasAPIKey() {
-                errorMessage = "Please configure your Anthropic API key in Settings \u{2192} AI Features to use Development Insights."
+                errorMessage = "Please configure your Anthropic API key in Settings"
+                    + " \u{2192} AI Features to use Development Insights."
                 isGenerating = false
                 return
             }
@@ -155,7 +156,8 @@ struct StudentInsightsView: View {
         studentID: student.id.uuidString,
         generatedAt: Date(),
         lookbackDays: 30,
-        overallProgress: "Emma shows steady progress across academic and social domains. Notable growth in independence and peer collaboration.",
+        overallProgress: "Emma shows steady progress across academic and social domains." +
+            " Notable growth in independence and peer collaboration.",
         keyStrengths: ["Strong focus during practice", "Helps peers frequently", "Growing independence"],
         areasForGrowth: ["Building confidence with new materials", "Managing frustration"],
         developmentalMilestones: ["Consistent 3-period retention", "Age-appropriate fine motor control"],

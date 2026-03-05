@@ -14,7 +14,8 @@ class TodoNotificationService {
     /// Request notification permissions
     func requestAuthorization() async -> Bool {
         do {
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+            let granted = try await UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .badge, .sound])
             return granted
         } catch {
             Self.logger.error("Failed to request notification authorization: \(error, privacy: .public)")

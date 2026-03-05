@@ -94,7 +94,9 @@ extension TodayView {
             if viewModel.recentNoteStudentsByID[id] != nil { return displayNameForID(id) }
             return ""
         case .students(let ids):
-            let names = ids.compactMap { sid in viewModel.recentNoteStudentsByID[sid].map { _ in displayNameForID(sid) } }
+            let names = ids.compactMap { sid in
+                viewModel.recentNoteStudentsByID[sid].map { _ in displayNameForID(sid) }
+            }
             return names.prefix(3).joined(separator: ", ")
         }
     }

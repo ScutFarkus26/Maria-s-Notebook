@@ -41,7 +41,11 @@ extension LifecycleService {
                     )
                     lessonAssignment.trackID = track.id.uuidString
                     if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                        let allSteps = safeFetch(FetchDescriptor<TrackStep>(), using: modelContext, caller: "recordPresentation")
+                        let allSteps = safeFetch(
+                            FetchDescriptor<TrackStep>(),
+                            using: modelContext,
+                            caller: "recordPresentation"
+                        )
                         if let step = allSteps.first(where: {
                             $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                         }) {
@@ -94,7 +98,10 @@ extension LifecycleService {
         var skippedCount = 0
         for sid in studentIDStrs {
             // Check for existing WorkModel first
-            if let existing = try fetchWorkModel(presentationID: la.id.uuidString, studentID: sid, context: modelContext) {
+            if let existing = try fetchWorkModel(
+                presentationID: la.id.uuidString,
+                studentID: sid, context: modelContext
+            ) {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
@@ -136,7 +143,10 @@ extension LifecycleService {
                     workForPresentation.append(workModel)
                     createdCount += 1
                 } catch {
-                    logger.warning("Failed to create WorkModel for LessonAssignment \(la.id.uuidString, privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)")
+                    logger.warning(
+                        // swiftlint:disable:next line_length
+                        "Failed to create WorkModel for LessonAssignment \(la.id.uuidString, privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)"
+                    )
                 }
             }
         }

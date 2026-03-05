@@ -114,9 +114,24 @@ private struct StudentWorkCard: View {
                     .onTapGesture { onTapStudent(summary.student) }
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
-                    CountBadge(count: summary.practiceOpen, color: monochrome ? .primary : WorkKind.practiceLesson.color, monochrome: monochrome, dense: dense || ultraDense)
-                    CountBadge(count: summary.followUpOpen, color: monochrome ? .primary : WorkKind.followUpAssignment.color, monochrome: monochrome, dense: dense || ultraDense)
-                    CountBadge(count: summary.researchOpen, color: monochrome ? .primary : WorkKind.research.color, monochrome: monochrome, dense: dense || ultraDense)
+                    CountBadge(
+                        count: summary.practiceOpen,
+                        color: monochrome ? .primary : WorkKind.practiceLesson.color,
+                        monochrome: monochrome,
+                        dense: dense || ultraDense
+                    )
+                    CountBadge(
+                        count: summary.followUpOpen,
+                        color: monochrome ? .primary : WorkKind.followUpAssignment.color,
+                        monochrome: monochrome,
+                        dense: dense || ultraDense
+                    )
+                    CountBadge(
+                        count: summary.researchOpen,
+                        color: monochrome ? .primary : WorkKind.research.color,
+                        monochrome: monochrome,
+                        dense: dense || ultraDense
+                    )
                 }
             }
 

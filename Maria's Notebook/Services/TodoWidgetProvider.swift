@@ -131,7 +131,11 @@ struct SmallWidgetView: View {
                                 .font(.caption)
                                 .lineLimit(1)
                         }
-                        .foregroundStyle(todo.isOverdue ? AppColors.destructive : (todo.isDueToday ? AppColors.warning : .primary))
+                        .foregroundStyle(
+                            todo.isOverdue
+                                ? AppColors.destructive
+                                : (todo.isDueToday ? AppColors.warning : .primary)
+                        )
                     }
                 }
             }
@@ -180,7 +184,11 @@ struct MediumWidgetView: View {
                                 .lineLimit(1)
                             Spacer()
                         }
-                        .foregroundStyle(todo.isOverdue ? AppColors.destructive : (todo.isDueToday ? AppColors.warning : .primary))
+                        .foregroundStyle(
+                            todo.isOverdue
+                                ? AppColors.destructive
+                                : (todo.isDueToday ? AppColors.warning : .primary)
+                        )
                     }
                 }
             }

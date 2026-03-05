@@ -81,7 +81,10 @@ struct DocumentImportSheet: View {
 #Preview {
     let container = ModelContainer.preview
     let context = container.mainContext
-    let student = Student(firstName: "Alan", lastName: "Turing", birthday: Date(timeIntervalSince1970: 0), level: .upper)
+    let student = Student(
+        firstName: "Alan", lastName: "Turing",
+        birthday: Date(timeIntervalSince1970: 0), level: .upper
+    )
     context.insert(student)
     
     // Create dummy data

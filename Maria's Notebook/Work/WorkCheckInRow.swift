@@ -43,7 +43,11 @@ struct WorkCheckInRow: View {
                     Button {
                         onSetStatus(checkIn.id, status)
                     } label: {
-                        Label(status.menuActionLabel, systemImage: checkIn.status == status ? "checkmark" : status.iconName)
+                        Label(
+                            status.menuActionLabel,
+                            systemImage: checkIn.status == status
+                                ? "checkmark" : status.iconName
+                        )
                     }
                     .disabled(checkIn.status == status)
                 }

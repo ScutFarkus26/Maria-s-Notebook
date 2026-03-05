@@ -34,7 +34,9 @@ struct MarkCompletionButton: View {
         isWorking = true
         let note = noteProvider?() ?? ""
         do {
-            _ = try WorkCompletionService.markCompleted(workID: workID, studentID: studentID, note: note, in: modelContext)
+            _ = try WorkCompletionService.markCompleted(
+                workID: workID, studentID: studentID, note: note, in: modelContext
+            )
             #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             #endif

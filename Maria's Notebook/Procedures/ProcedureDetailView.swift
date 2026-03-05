@@ -101,7 +101,10 @@ struct ProcedureDetailView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                         .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                        .frame(width: UIConstants.CardSize.studentAvatar * 0.7, height: UIConstants.CardSize.studentAvatar * 0.7)
+                        .frame(
+                            width: UIConstants.CardSize.studentAvatar * 0.7,
+                            height: UIConstants.CardSize.studentAvatar * 0.7
+                        )
 
                     Image(systemName: procedure.displayIcon)
                         .font(.system(size: UIConstants.CardSize.iconSizeLarge))
@@ -125,8 +128,16 @@ struct ProcedureDetailView: View {
 
             // Metadata
             HStack(spacing: AppTheme.Spacing.medium) {
-                metadataItem(icon: "calendar", label: "Created", value: procedure.createdAt.formatted(date: .abbreviated, time: .omitted))
-                metadataItem(icon: "clock.arrow.circlepath", label: "Updated", value: procedure.modifiedAt.formatted(date: .abbreviated, time: .omitted))
+                metadataItem(
+                    icon: "calendar",
+                    label: "Created",
+                    value: procedure.createdAt.formatted(date: .abbreviated, time: .omitted)
+                )
+                metadataItem(
+                    icon: "clock.arrow.circlepath",
+                    label: "Updated",
+                    value: procedure.modifiedAt.formatted(date: .abbreviated, time: .omitted)
+                )
             }
         }
     }
@@ -254,7 +265,8 @@ struct ProcedureDetailView: View {
             content: """
             ## Overview
 
-            This procedure outlines the steps for welcoming students each morning and establishing a calm start to the day.
+            This procedure outlines the steps for welcoming students each morning \
+            and establishing a calm start to the day.
 
             ## Steps
 

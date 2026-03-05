@@ -89,7 +89,11 @@ final class InboxSheetViewModel {
                 // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
                 // so we fetch all and filter in memory
                 let remainingSet = Set(remainingIDs)
-                let allStudents = safeFetch(FetchDescriptor<Student>(), modelContext: modelContext, context: "consolidateSelected")
+                let allStudents = safeFetch(
+                    FetchDescriptor<Student>(),
+                    modelContext: modelContext,
+                    context: "consolidateSelected"
+                )
                 let fetched = allStudents.filter { remainingSet.contains($0.id) }
                 target.students = fetched
             }
@@ -221,8 +225,16 @@ final class InboxSheetViewModel {
             lessonFetch.fetchLimit = 1
             var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
             studentFetch.fetchLimit = 1
-            let lessonObj = safeFetchFirst(lessonFetch, modelContext: modelContext, context: "handleStudentToInboxDrop-lesson")
-            let studentObj = safeFetchFirst(studentFetch, modelContext: modelContext, context: "handleStudentToInboxDrop-student")
+            let lessonObj = safeFetchFirst(
+                lessonFetch,
+                modelContext: modelContext,
+                context: "handleStudentToInboxDrop-lesson"
+            )
+            let studentObj = safeFetchFirst(
+                studentFetch,
+                modelContext: modelContext,
+                context: "handleStudentToInboxDrop-student"
+            )
 
             let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
             PresentationFactory.attachRelationships(
@@ -272,8 +284,12 @@ final class InboxSheetViewModel {
         modelContext: ModelContext,
         saveCoordinator: SaveCoordinator
     ) {
-        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == droppedId })
-        guard let la = modelContext.safeFetchFirst(descriptor) ?? lessonAssignments.first(where: { $0.id == droppedId }) else { return }
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.id == droppedId }
+        )
+        guard let la = modelContext.safeFetchFirst(descriptor)
+                ?? lessonAssignments.first(where: { $0.id == droppedId })
+        else { return }
 
         let currentOrder = orderedUnscheduledLessons.map(\.id)
         var framesByID: [UUID: CGRect] = [:]
@@ -304,7 +320,11 @@ final class InboxSheetViewModel {
 
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, modelContext: ModelContext, context: String = #function) -> [T] {
+    private func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>,
+        modelContext: ModelContext,
+        context: String = #function
+    ) -> [T] {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
@@ -313,7 +333,11 @@ final class InboxSheetViewModel {
         }
     }
 
-    private func safeFetchFirst<T>(_ descriptor: FetchDescriptor<T>, modelContext: ModelContext, context: String = #function) -> T? {
+    private func safeFetchFirst<T>(
+        _ descriptor: FetchDescriptor<T>,
+        modelContext: ModelContext,
+        context: String = #function
+    ) -> T? {
         do {
             return try modelContext.fetch(descriptor).first
         } catch {

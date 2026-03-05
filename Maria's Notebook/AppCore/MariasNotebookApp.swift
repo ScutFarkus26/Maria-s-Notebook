@@ -69,8 +69,11 @@ struct MariasNotebookApp: App {
     var body: some Scene {
         WindowGroup("", id: "mainWindow") {
             let logger = Logger.app(category: "App")
-            let _ = logger.info("App body: Starting scene body evaluation") // swiftlint:disable:this redundant_discardable_let — required in @ViewBuilder
-            let _ = logger.info("App body: Inside WindowGroup closure, bootstrapper state: \(String(describing: bootstrapper.state))") // swiftlint:disable:this redundant_discardable_let — required in @ViewBuilder
+            // swiftlint:disable:next redundant_discardable_let
+            let _ = logger.info("App body: Starting scene body evaluation")
+            let stateDesc = String(describing: bootstrapper.state)
+            // swiftlint:disable:next redundant_discardable_let
+            let _ = logger.info("App body: bootstrapper state: \(stateDesc)")
             
             Group {
                 // Show database error view if there's an initialization error

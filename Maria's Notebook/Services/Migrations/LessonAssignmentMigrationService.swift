@@ -71,6 +71,8 @@ struct LessonAssignmentMigrationResult {
 
 extension LessonAssignmentMigrationResult: CustomStringConvertible {
     var description: String {
-        "LessonAssignmentMigrationResult(legacy: \(legacyMigrated) migrated / \(legacySkipped) skipped, presentations: \(presentationsMigrated) migrated / \(presentationsSkipped) skipped)"
+        "LessonAssignmentMigrationResult(legacy: \(legacyMigrated) migrated / " +
+        "\(legacySkipped) skipped, presentations: \(presentationsMigrated) " +
+        "migrated / \(presentationsSkipped) skipped)"
     }
 }

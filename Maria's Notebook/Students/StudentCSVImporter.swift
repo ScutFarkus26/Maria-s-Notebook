@@ -94,7 +94,9 @@ enum StudentCSVImporter {
     static func parse(data: Data, mapping: Mapping?, existingStudents: [Student]) throws -> Parsed {
         // Existing keys for duplicate detection
         let existingKeys: Set<String> = Set(existingStudents.map { duplicateKey(for: $0) })
-        let existingNameKeys: Set<String> = Set(existingStudents.map { ("\($0.firstName) \($0.lastName)".normalizedNameKey()) })
+        let existingNameKeys: Set<String> = Set(existingStudents.map {
+            ("\($0.firstName) \($0.lastName)".normalizedNameKey())
+        })
         
         return try parse(
             data: data,
@@ -106,7 +108,11 @@ enum StudentCSVImporter {
 
     /// Parse CSV into rows and detect potential duplicates using precomputed keys.
     /// This overload avoids referencing SwiftData model values so it can be used from a background task safely.
-    static func parse(data: Data, mapping: Mapping?, existingFullKeys: Set<String>, existingNameKeys: Set<String>) throws -> Parsed {
+    static func parse(
+        data: Data, mapping: Mapping?,
+        existingFullKeys: Set<String>,
+        existingNameKeys: Set<String>
+    ) throws -> Parsed {
         guard let csv = CSVParser.parse(data: data) else {
             throw ImportError.encoding("Unsupported text encoding; please use UTF-8.")
         }
@@ -155,7 +161,11 @@ enum StudentCSVImporter {
             rows.append(row)
 
             // Check for duplicates
-            if isDuplicate(first: first, last: last, birthday: bday, existingFullKeys: existingFullKeys, existingNameKeys: existingNameKeys) {
+            if isDuplicate(
+                first: first, last: last, birthday: bday,
+                existingFullKeys: existingFullKeys,
+                existingNameKeys: existingNameKeys
+            ) {
                 potentialDupNames.append("\(first) \(last)")
             }
         }
@@ -234,9 +244,15 @@ enum StudentCSVImporter {
                 let key = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday)
                 if let existing = byFullKey[key] {
                     var didChange = false
-                    if let b = r.birthday, existing.birthday != b { existing.birthday = b; didChange = true }
-                    if existing.dateStarted == nil, let ds = r.dateStarted { existing.dateStarted = ds; didChange = true }
-                    if let lvl = r.level, existing.level != lvl { existing.level = lvl; didChange = true }
+                    if let b = r.birthday, existing.birthday != b {
+                        existing.birthday = b; didChange = true
+                    }
+                    if existing.dateStarted == nil, let ds = r.dateStarted {
+                        existing.dateStarted = ds; didChange = true
+                    }
+                    if let lvl = r.level, existing.level != lvl {
+                        existing.level = lvl; didChange = true
+                    }
                     if didChange { updated += 1 }
                     continue
                 }
@@ -244,9 +260,15 @@ enum StudentCSVImporter {
                 let nameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
                 if let existing = byNameKey[nameKey] {
                     var didChange = false
-                    if let b = r.birthday, existing.birthday != b { existing.birthday = b; didChange = true }
-                    if existing.dateStarted == nil, let ds = r.dateStarted { existing.dateStarted = ds; didChange = true }
-                    if let lvl = r.level, existing.level != lvl { existing.level = lvl; didChange = true }
+                    if let b = r.birthday, existing.birthday != b {
+                        existing.birthday = b; didChange = true
+                    }
+                    if existing.dateStarted == nil, let ds = r.dateStarted {
+                        existing.dateStarted = ds; didChange = true
+                    }
+                    if let lvl = r.level, existing.level != lvl {
+                        existing.level = lvl; didChange = true
+                    }
                     if didChange { updated += 1 }
                     continue
                 }
@@ -264,13 +286,22 @@ enum StudentCSVImporter {
             inserted += 1
 
             // Update indexes so subsequent rows can merge into this newly created student
-            let newFullKey = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday ?? student.birthday)
+            let newFullKey = duplicateKey(
+                first: r.firstName, last: r.lastName,
+                birthday: r.birthday ?? student.birthday
+            )
             byFullKey[newFullKey] = student
             let newNameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
             if byNameKey[newNameKey] == nil { byNameKey[newNameKey] = student }
         }
         try context.save()
-        return Summary(totalRows: parsed.totalRows, insertedCount: inserted, updatedCount: updated, potentialDuplicates: parsed.potentialDuplicates, warnings: parsed.warnings)
+        return Summary(
+            totalRows: parsed.totalRows,
+            insertedCount: inserted,
+            updatedCount: updated,
+            potentialDuplicates: parsed.potentialDuplicates,
+            warnings: parsed.warnings
+        )
     }
 
     // MARK: - Helpers

@@ -157,7 +157,9 @@ struct TodoExportView: View {
     
     private func shareExport() {
         let filename = "todos_export_\(Date().timeIntervalSince1970)"
-        guard let url = TodoExportService.saveToFile(content: exportedContent, filename: filename, format: selectedFormat) else {
+        guard let url = TodoExportService.saveToFile(
+            content: exportedContent, filename: filename, format: selectedFormat
+        ) else {
             return
         }
         

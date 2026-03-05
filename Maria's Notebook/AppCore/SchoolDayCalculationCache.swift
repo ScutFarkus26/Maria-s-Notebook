@@ -28,7 +28,12 @@ final class SchoolDayCalculationCache {
     }
     
     /// Preload non-school days for a date range to enable fast lookups
-    func preloadNonSchoolDays(from start: Date, to end: Date, using context: ModelContext, calendar: Calendar = .current) {
+    func preloadNonSchoolDays(
+        from start: Date,
+        to end: Date,
+        using context: ModelContext,
+        calendar: Calendar = .current
+    ) {
         // Check if cache needs refresh
         if let lastRefresh = lastCacheRefresh, Date().timeIntervalSince(lastRefresh) < cacheValidityDuration {
             return // Cache is still valid
@@ -131,7 +136,12 @@ final class SchoolDayCalculationCache {
     }
     
     /// Convenience method matching the existing API
-    func schoolDaysSinceCreation(createdAt: Date, asOf today: Date = Date(), using context: ModelContext, calendar: Calendar = .current) -> Int {
+    func schoolDaysSinceCreation(
+        createdAt: Date,
+        asOf today: Date = Date(),
+        using context: ModelContext,
+        calendar: Calendar = .current
+    ) -> Int {
         return schoolDaysBetween(start: createdAt, end: today, using: context, calendar: calendar)
     }
 }

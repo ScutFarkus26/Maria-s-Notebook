@@ -29,7 +29,8 @@ struct PresentationsListView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use lightweight query for change detection only
     @Query(sort: [SortDescriptor(\LessonAssignment.id)]) private var allLessonAssignments: [LessonAssignment]
@@ -267,7 +268,10 @@ struct PresentationsListView: View {
                     }
             }
         }
-        .sheet(isPresented: Binding(get: { quickActionsLessonID != nil }, set: { if !$0 { quickActionsLessonID = nil } })) {
+        .sheet(isPresented: Binding(
+            get: { quickActionsLessonID != nil },
+            set: { if !$0 { quickActionsLessonID = nil } }
+        )) {
             if let id = quickActionsLessonID, let sl = filteredAssignments.first(where: { $0.id == id }) {
                 PresentationQuickActionsView(lessonAssignment: sl) {
                     quickActionsLessonID = nil

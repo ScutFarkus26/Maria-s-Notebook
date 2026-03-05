@@ -28,7 +28,10 @@ extension StudentMeetingsTab {
                                     Text(Self.dateFormatter.string(from: item.date))
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
-                                    if item.completed { Image(systemName: "checkmark.circle.fill").foregroundStyle(AppColors.success) }
+                                    if item.completed {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(AppColors.success)
+                                    }
                                     Text("\u{2022}")
                                         .foregroundStyle(.secondary)
 

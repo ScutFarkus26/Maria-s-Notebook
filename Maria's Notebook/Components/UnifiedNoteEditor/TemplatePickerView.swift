@@ -23,7 +23,10 @@ struct TemplatePickerView: View {
         for template in templates {
             for tag in template.tags { tagSet.insert(tag) }
         }
-        return tagSet.sorted { TagHelper.tagName($0).localizedCaseInsensitiveCompare(TagHelper.tagName($1)) == .orderedAscending }
+        return tagSet.sorted {
+            TagHelper.tagName($0)
+                .localizedCaseInsensitiveCompare(TagHelper.tagName($1)) == .orderedAscending
+        }
     }
 
     var filteredTemplates: [NoteTemplate] {
@@ -88,7 +91,11 @@ struct TemplatePickerView: View {
                         .padding(.vertical, AppTheme.Spacing.xsmall)
                         .background(
                             Capsule()
-                                .fill(selectedFilterTag == nil ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
+                                .fill(
+                                    selectedFilterTag == nil
+                                        ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                                        : Color.secondary.opacity(UIConstants.OpacityConstants.light)
+                                )
                         )
                         .foregroundStyle(selectedFilterTag == nil ? Color.accentColor : .secondary)
                 }
@@ -110,7 +117,11 @@ struct TemplatePickerView: View {
                                 .padding(.vertical, AppTheme.Spacing.xsmall)
                                 .background(
                                     Capsule()
-                                        .fill(selectedFilterTag == tag ? tagColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
+                                        .fill(
+                                            selectedFilterTag == tag
+                                                ? tagColor.opacity(UIConstants.OpacityConstants.accent)
+                                                : Color.secondary.opacity(UIConstants.OpacityConstants.light)
+                                        )
                                 )
                                 .foregroundStyle(selectedFilterTag == tag ? tagColor : .secondary)
                         }

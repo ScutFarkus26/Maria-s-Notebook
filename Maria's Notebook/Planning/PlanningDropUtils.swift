@@ -31,7 +31,12 @@ enum PlanningDropUtils {
     }
     
     // MARK: - Time Assignment
-    @MainActor static func assignSequentialTimes(ids: [UUID], base: Date, calendar: Calendar, spacingSeconds: Int) -> [UUID: Date] {
+    @MainActor static func assignSequentialTimes(
+        ids: [UUID],
+        base: Date,
+        calendar: Calendar,
+        spacingSeconds: Int
+    ) -> [UUID: Date] {
         var result: [UUID: Date] = [:]
         for (idx, id) in ids.enumerated() {
             if let date = calendar.date(byAdding: .second, value: idx * spacingSeconds, to: base) {

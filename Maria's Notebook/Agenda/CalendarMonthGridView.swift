@@ -84,11 +84,18 @@ struct CalendarMonthGridView: View {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: 8) {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, date in
-                            DayCell(date: date, calendar: calendar, nonSchoolDates: nonSchoolDates ?? computedNonSchoolDates) { d in
+                            DayCell(
+                                date: date,
+                                calendar: calendar,
+                                nonSchoolDates: nonSchoolDates ?? computedNonSchoolDates
+                            ) { d in
                                 Task {
                                     let toggleResult: Bool?
                                     do {
-                                        toggleResult = try await SchoolCalendar.toggleNonSchoolDay(d, using: modelContext)
+                                        toggleResult = try await SchoolCalendar.toggleNonSchoolDay(
+                                            d,
+                                            using: modelContext
+                                        )
                                     } catch {
                                         Self.logger.warning("Failed to toggle non-school day: \(error)")
                                         toggleResult = nil
@@ -112,7 +119,10 @@ struct CalendarMonthGridView: View {
                                     if nonSchoolDates == nil {
                                         let start = startOfMonth
                                         let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
-                                        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
+                                        let set = await SchoolCalendar.nonSchoolDays(
+                                            in: start..<end,
+                                            using: modelContext
+                                        )
                                         await MainActor.run { computedNonSchoolDates = set }
                                     }
                                 }
@@ -171,7 +181,11 @@ private struct DayCell: View {
                         .frame(maxWidth: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(isNS ? Color.red.opacity(0.15) : (isToday(d) ? Color.primary.opacity(0.06) : Color.clear))
+                                .fill(
+                                    isNS
+                                        ? Color.red.opacity(0.15)
+                                        : (isToday(d) ? Color.primary.opacity(0.06) : Color.clear)
+                                )
                         )
                 })
                 .buttonStyle(.plain)

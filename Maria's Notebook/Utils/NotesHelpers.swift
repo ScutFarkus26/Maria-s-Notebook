@@ -8,7 +8,9 @@ import Foundation
 #endif
 private var studentsAll: [Student] {
     #if DEBUG
-    assertionFailure("NotesHelpers: 'studentsAll' is unavailable in this scope. Pass [Student] explicitly into the helper (Option A).")
+    assertionFailure(
+        "NotesHelpers: 'studentsAll' is unavailable. Pass [Student] explicitly into the helper (Option A)."
+    )
     #endif
     return []
 }

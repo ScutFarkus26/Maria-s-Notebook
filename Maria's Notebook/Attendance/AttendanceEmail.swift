@@ -32,12 +32,22 @@ public struct AttendanceEmailReport {
         return df
     }()
 
-    public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
+    public static func makeSubject(
+        for date: Date,
+        calendar: Calendar = .current
+    ) -> String {
         let df = subjectDateFormatter
-        return "Attendance • \(df.string(from: calendar.startOfDay(for: date)))"
+        let dayStr = df.string(from: calendar.startOfDay(for: date))
+        return "Attendance \u{2022} \(dayStr)"
     }
 
-    public static func makeBody(present: [String], tardy: [String], absent: [String], date: Date, calendar: Calendar = .current) -> String {
+    public static func makeBody(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date,
+        calendar: Calendar = .current
+    ) -> String {
         let df = bodyDateFormatter
         var lines: [String] = []
         lines.append("Attendance Report")
@@ -89,10 +99,14 @@ public enum AttendanceEmail {
     #endif
     }
 
-    /// Parses a user-entered recipients string into an array of email addresses by splitting on commas/semicolons and trimming whitespace.
-    /// - Parameter string: A raw recipients string, e.g., "a@example.com, b@example.com".
+    /// Parses a user-entered recipients string into an array of
+    /// email addresses by splitting on commas/semicolons and trimming
+    /// whitespace.
+    /// - Parameter string: A raw recipients string,
+    ///   e.g., "a@example.com, b@example.com".
     /// - Returns: An array of non-empty email strings.
-    /// - Note: Multi-recipient support is implemented and used in all composer/send flows.
+    /// - Note: Multi-recipient support is implemented and used in
+    ///   all composer/send flows.
     public static func parseRecipients(from string: String?) -> [String] {
         guard let string = string, !string.trimmed().isEmpty else { return [] }
         let separators = CharacterSet(charactersIn: ",;")
@@ -106,8 +120,20 @@ public enum AttendanceEmail {
         AttendanceEmailReport.makeSubject(for: date, calendar: calendar)
     }
 
-    public static func makeBody(present: [String], tardy: [String], absent: [String], date: Date, calendar: Calendar = .current) -> String {
-        AttendanceEmailReport.makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+    public static func makeBody(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date,
+        calendar: Calendar = .current
+    ) -> String {
+        AttendanceEmailReport.makeBody(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: date,
+            calendar: calendar
+        )
     }
 
     /// Builds a mailto: URL with the provided recipients, subject, and body.
@@ -123,51 +149,144 @@ public enum AttendanceEmail {
         return components.url
     }
 
-    /// Convenience to build a mailto: URL using current preferences and a generated subject/body.
-    public static func mailtoURLForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current) -> URL? {
+    /// Convenience to build a mailto: URL using current
+    /// preferences and a generated subject/body.
+    public static func mailtoURLForCurrentPrefs(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date = Date(),
+        calendar: Calendar = .current
+    ) -> URL? {
         let to = parseRecipients(from: storedToAddress())
         let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+        let body = makeBody(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: date,
+            calendar: calendar
+        )
         return makeMailtoURL(to: to, subject: subject, body: body)
     }
 
     #if os(iOS)
     /// Creates a prefilled mail composer using current preferences.
-    /// - Important: Check `AttendanceEmail.isAvailable` before presenting. If unavailable, consider using `mailtoURLForCurrentPrefs(...)` as a fallback.
-    public static func composerForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current, onComplete: @escaping (MFMailComposeResult, Error?) -> Void) -> MailComposerView {
+    /// - Important: Check `AttendanceEmail.isAvailable` before
+    ///   presenting. If unavailable, consider using
+    ///   `mailtoURLForCurrentPrefs(...)` as a fallback.
+    public static func composerForCurrentPrefs(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date = Date(),
+        calendar: Calendar = .current,
+        onComplete: @escaping (MFMailComposeResult, Error?) -> Void
+    ) -> MailComposerView {
         let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+        let body = makeBody(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: date,
+            calendar: calendar
+        )
         let to = parseRecipients(from: storedToAddress())
         let from = storedFromAddress()
-        return MailComposerView(toRecipients: to, subject: subject, body: body, preferredSender: from, onComplete: onComplete)
+        return MailComposerView(
+            toRecipients: to,
+            subject: subject,
+            body: body,
+            preferredSender: from,
+            onComplete: onComplete
+        )
     }
     #endif
 
     #if os(macOS)
-    public static func sendUsingMailAppForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current, completion: @escaping (Bool) -> Void) {
+    public static func sendUsingMailAppForCurrentPrefs(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date = Date(),
+        calendar: Calendar = .current,
+        completion: @escaping (Bool) -> Void
+    ) {
         let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
-        MacOSMailSender.send(to: storedToAddress(), subject: subject, body: body, completion: completion)
+        let body = makeBody(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: date,
+            calendar: calendar
+        )
+        MacOSMailSender.send(
+            to: storedToAddress(),
+            subject: subject,
+            body: body,
+            completion: completion
+        )
     }
 
-    /// Attempts to open a mailto: URL using current preferences. Returns true if the URL was opened successfully.
-    /// - Note: Use this as a fallback when NSSharingService(.composeEmail) is unavailable.
-    public static func openMailtoFallbackForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current) -> Bool {
+    /// Attempts to open a mailto: URL using current preferences.
+    /// Returns true if the URL was opened successfully.
+    /// - Note: Use this as a fallback when
+    ///   NSSharingService(.composeEmail) is unavailable.
+    public static func openMailtoFallbackForCurrentPrefs(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Bool {
         let to = parseRecipients(from: storedToAddress())
         let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
-        guard let url = makeMailtoURL(to: to, subject: subject, body: body) else { return false }
+        let body = makeBody(
+            present: present,
+            tardy: tardy,
+            absent: absent,
+            date: date,
+            calendar: calendar
+        )
+        guard let url = makeMailtoURL(
+            to: to,
+            subject: subject,
+            body: body
+        ) else { return false }
         return NSWorkspace.shared.open(url)
     }
 
-    /// Tries to send via Mail share service; if unavailable, opens a mailto: fallback.
-    /// - Returns: true if either the share service succeeded or the fallback URL was opened; false otherwise.
-    /// - Important: This does not change existing behavior unless you call it from your UI.
-    public static func sendOrFallbackUsingMailAppForCurrentPrefs(present: [String], tardy: [String], absent: [String], date: Date = Date(), calendar: Calendar = .current, completion: @escaping (Bool) -> Void) {
+    /// Tries to send via Mail share service; if unavailable,
+    /// opens a mailto: fallback.
+    /// - Returns: true if either the share service succeeded or
+    ///   the fallback URL was opened; false otherwise.
+    /// - Important: This does not change existing behavior
+    ///   unless you call it from your UI.
+    public static func sendOrFallbackUsingMailAppForCurrentPrefs(
+        present: [String],
+        tardy: [String],
+        absent: [String],
+        date: Date = Date(),
+        calendar: Calendar = .current,
+        completion: @escaping (Bool) -> Void
+    ) {
         if NSSharingService(named: .composeEmail) != nil {
-            sendUsingMailAppForCurrentPrefs(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar, completion: completion)
+            sendUsingMailAppForCurrentPrefs(
+                present: present,
+                tardy: tardy,
+                absent: absent,
+                date: date,
+                calendar: calendar,
+                completion: completion
+            )
         } else {
-            let opened = openMailtoFallbackForCurrentPrefs(present: present, tardy: tardy, absent: absent, date: date, calendar: calendar)
+            let opened = openMailtoFallbackForCurrentPrefs(
+                present: present,
+                tardy: tardy,
+                absent: absent,
+                date: date,
+                calendar: calendar
+            )
             Task { @MainActor in
                 completion(opened)
             }
@@ -179,7 +298,8 @@ public enum AttendanceEmail {
 // MARK: - Settings View
 
 /// Settings form for configuring Attendance Email behavior.
-/// - Note: The "Preferred 'From' Address" applies to iOS only; macOS always uses the default Mail account.
+/// - Note: The "Preferred 'From' Address" applies to iOS only;
+///   macOS always uses the default Mail account.
 public struct AttendanceEmailSettingsView: View {
     @SyncedAppStorage(AttendanceEmailPrefs.enabledKey) private var enabled: Bool = true
     @SyncedAppStorage(AttendanceEmailPrefs.toKey) private var toAddress: String = ""
@@ -239,7 +359,13 @@ public struct MailComposerView: UIViewControllerRepresentable {
     public var preferredSender: String?
     public var onComplete: (MFMailComposeResult, Error?) -> Void
 
-    public init(toRecipients: [String], subject: String, body: String, preferredSender: String?, onComplete: @escaping (MFMailComposeResult, Error?) -> Void) {
+    public init(
+        toRecipients: [String],
+        subject: String,
+        body: String,
+        preferredSender: String?,
+        onComplete: @escaping (MFMailComposeResult, Error?) -> Void
+    ) {
         self.toRecipients = toRecipients
         self.subject = subject
         self.body = body
@@ -265,8 +391,14 @@ public struct MailComposerView: UIViewControllerRepresentable {
 
     public final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
         let onComplete: (MFMailComposeResult, Error?) -> Void
-        init(onComplete: @escaping (MFMailComposeResult, Error?) -> Void) { self.onComplete = onComplete }
-        public func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+        init(onComplete: @escaping (MFMailComposeResult, Error?) -> Void) {
+            self.onComplete = onComplete
+        }
+        public func mailComposeController(
+            _ controller: MFMailComposeViewController,
+            didFinishWith result: MFMailComposeResult,
+            error: Error?
+        ) {
             onComplete(result, error)
             controller.dismiss(animated: true)
         }
@@ -277,12 +409,18 @@ public struct MailComposerView: UIViewControllerRepresentable {
 // MARK: - macOS Mail Sender Helper
 
 /// Helper for composing email via the system Mail service on macOS.
-/// - Note: Uses NSSharingService(.composeEmail). Completion reflects success/failure callbacks provided by the service.
+/// - Note: Uses NSSharingService(.composeEmail). Completion
+///   reflects success/failure callbacks provided by the service.
 #if os(macOS)
 @MainActor
 public enum MacOSMailSender {
     private static let logger = Logger.attendance
-    public static func send(to recipient: String?, subject: String, body: String, completion: @escaping (Bool) -> Void) {
+    public static func send(
+        to recipient: String?,
+        subject: String,
+        body: String,
+        completion: @escaping (Bool) -> Void
+    ) {
         guard let service = NSSharingService(named: .composeEmail) else {
             Task { @MainActor in
                 completion(false)
@@ -322,7 +460,12 @@ public enum MacOSMailSender {
         }
         service.delegate = delegate
         // Keep the delegate alive until completion by retaining it on the service via associated object.
-        objc_setAssociatedObject(service, Unmanaged.passUnretained(delegate).toOpaque(), delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        objc_setAssociatedObject(
+            service,
+            Unmanaged.passUnretained(delegate).toOpaque(),
+            delegate,
+            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        )
         service.perform(withItems: [body])
     }
 

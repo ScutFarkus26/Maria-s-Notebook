@@ -58,7 +58,9 @@ struct PillDropDelegate: DropDelegate {
                         logger.warning("Failed to fetch LessonAssignments on drop: \(error)")
                         return
                     }
-                    guard let source = src, let target = tgt, source.id != target.id, lessonID == targetLessonID else { return }
+                    guard let source = src, let target = tgt,
+                          source.id != target.id,
+                          lessonID == targetLessonID else { return }
                     let studentIDString = studentID.uuidString
                     if !target.studentIDs.contains(studentIDString) {
                         target.studentIDs.append(studentIDString)

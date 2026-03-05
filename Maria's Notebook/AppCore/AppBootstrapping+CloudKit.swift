@@ -45,7 +45,11 @@ extension AppBootstrapping {
         // Helper to create CloudKit-enabled container with fallback handling
         func createCloudKitContainer(schema: Schema, storeURL: URL, containerID: String) throws -> ModelContainer {
             guard #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) else {
-                throw NSError(domain: "MariasNotebook", code: 2002, userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."])
+                throw NSError(
+                    domain: "MariasNotebook",
+                    code: 2002,
+                    userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."]
+                )
             }
 
             do {
@@ -56,7 +60,8 @@ extension AppBootstrapping {
                 let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
                 let container = try ModelContainer(for: schema, configurations: config)
 
-                cloudKitLogger.info("CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(cloudKitStart)))s")
+                let ckElapsed = String(format: "%.3f", Date().timeIntervalSince(cloudKitStart))
+                cloudKitLogger.info("CloudKit container created in \(ckElapsed)s")
 
                 // NOTE: CloudKit schema initialization
                 // SwiftData automatically initializes the CloudKit schema when creating a
@@ -105,15 +110,22 @@ extension AppBootstrapping {
                         throw NSError(
                             domain: "MariasNotebook",
                             code: 2003,
-                            userInfo: [NSLocalizedDescriptionKey: "Invalid store URL: \(storeURL.path). Cannot initialize CloudKit with invalid store location."]
+                            userInfo: [
+                                NSLocalizedDescriptionKey: "Invalid store URL: \(storeURL.path)."
+                                    + " Cannot initialize CloudKit with invalid store location."
+                            ]
                         )
                     }
 
                     // Check if iCloud is available before attempting CloudKit container creation
                     if FileManager.default.ubiquityIdentityToken == nil {
                         // Store error state
-                        let errorMessage = "Not signed into iCloud. Please sign in to System Settings > Apple ID > iCloud to enable sync."
-                        UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                        let errorMessage = "Not signed into iCloud."
+                            + " Please sign in to System Settings > Apple ID > iCloud to enable sync."
+                        UserDefaults.standard.set(
+                            errorMessage,
+                            forKey: UserDefaultsKeys.cloudKitLastErrorDescription
+                        )
                         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
                         // Fall back to local store
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
@@ -122,8 +134,12 @@ extension AppBootstrapping {
                     }
 
                     guard let containerID = CloudKitConfiguration.getCloudKitContainerID() else {
-                        let errorMessage = "Missing CloudKit container identifier. CloudKit sync cannot be initialized."
-                        UserDefaults.standard.set(errorMessage, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
+                        let errorMessage = "Missing CloudKit container identifier."
+                            + " CloudKit sync cannot be initialized."
+                        UserDefaults.standard.set(
+                            errorMessage,
+                            forKey: UserDefaultsKeys.cloudKitLastErrorDescription
+                        )
                         let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                         let container = try ModelContainer(for: schema, configurations: config)
                         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
@@ -152,16 +168,21 @@ extension AppBootstrapping {
             // Attempt migration before opening store (if needed)
             let migrationCheckStart = Date()
             _ = AppBootstrapping.attemptAttendanceRecordMigrationIfNeeded()
-            logger.info("createModelContainer: Migration check completed in \(String(format: "%.3f", Date().timeIntervalSince(migrationCheckStart)))s")
+            let migCheckElapsed = String(format: "%.3f", Date().timeIntervalSince(migrationCheckStart))
+            logger.info("createModelContainer: Migration check completed in \(migCheckElapsed)s")
 
             let ubiquityStart = Date()
             _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
-            logger.info("createModelContainer: Ubiquity check completed in \(String(format: "%.3f", Date().timeIntervalSince(ubiquityStart)))s")
+            let ubiqElapsed = String(format: "%.3f", Date().timeIntervalSince(ubiquityStart))
+            logger.info("createModelContainer: Ubiquity check completed in \(ubiqElapsed)s")
 
             if useInMemory {
                 let container = try makeContainer(inMemory: true)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-                UserDefaults.standard.set("Using temporary in-memory store on next launch.", forKey: UserDefaultsKeys.lastStoreErrorDescription)
+                UserDefaults.standard.set(
+                    "Using temporary in-memory store on next launch.",
+                    forKey: UserDefaultsKeys.lastStoreErrorDescription
+                )
                 UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
                 return container
             } else {
@@ -175,15 +196,21 @@ extension AppBootstrapping {
                         throw NSError(
                             domain: "MariasNotebook",
                             code: 6001,
-                            userInfo: [NSLocalizedDescriptionKey: "Store file exists but is not readable. The database may be corrupted or locked by another process."]
+                            userInfo: [
+                                NSLocalizedDescriptionKey: "Store file exists but is not readable."
+                                    + " The database may be corrupted or locked by another process."
+                            ]
                         )
                     }
                 }
-                logger.info("createModelContainer: Store validation completed in \(String(format: "%.3f", Date().timeIntervalSince(validationStart)))s")
+                let valElapsed = String(format: "%.3f", Date().timeIntervalSince(validationStart))
+                logger.info("createModelContainer: Store validation completed in \(valElapsed)s")
 
                 // CloudKit compatibility: All model fixes are complete. Enable CloudKit by default.
                 // Users can disable it via the settings toggle if needed.
-                let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
+                let enableCloudKit = UserDefaults.standard.object(
+                    forKey: UserDefaultsKeys.enableCloudKitSync
+                ) as? Bool ?? true
 
                 let containerCreateStart = Date()
                 logger.info("createModelContainer: Starting container creation (CloudKit: \(enableCloudKit))...")
@@ -193,16 +220,19 @@ extension AppBootstrapping {
                 if enableCloudKit {
                     do {
                         container = try makeContainer(inMemory: false, cloud: true)
-                        logger.info("createModelContainer: CloudKit container created in \(String(format: "%.3f", Date().timeIntervalSince(containerCreateStart)))s")
+                        let ckCreateElapsed = String(format: "%.3f", Date().timeIntervalSince(containerCreateStart))
+                        logger.info("createModelContainer: CloudKit container created in \(ckCreateElapsed)s")
                     } catch {
-                        logger.warning("createModelContainer: CloudKit initialization failed, falling back to local storage: \(error.localizedDescription)")
+                        logger.warning("createModelContainer: CloudKit init failed, fallback: \(error)")
                         // Fall back to local storage if CloudKit fails
                         container = try makeContainer(inMemory: false, cloud: false)
-                        logger.info("createModelContainer: Local container created as fallback in \(String(format: "%.3f", Date().timeIntervalSince(containerCreateStart)))s")
+                        let fbElapsed = String(format: "%.3f", Date().timeIntervalSince(containerCreateStart))
+                        logger.info("createModelContainer: Local fallback created in \(fbElapsed)s")
                     }
                 } else {
                     container = try makeContainer(inMemory: false, cloud: false)
-                    logger.info("createModelContainer: Local container created in \(String(format: "%.3f", Date().timeIntervalSince(containerCreateStart)))s")
+                    let localElapsed = String(format: "%.3f", Date().timeIntervalSince(containerCreateStart))
+                    logger.info("createModelContainer: Local container created in \(localElapsed)s")
                 }
                 UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
@@ -231,7 +261,9 @@ extension AppBootstrapping {
                             try AppBootstrapping.resetPersistentStore()
                             // Retry creating the container with the fresh store
                             // Preserve CloudKit setting - don't disable it during recovery
-                            let enableCloudKit = UserDefaults.standard.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
+                            let enableCloudKit = UserDefaults.standard.object(
+                                forKey: UserDefaultsKeys.enableCloudKitSync
+                            ) as? Bool ?? true
                             let container = try makeContainer(inMemory: false, cloud: enableCloudKit)
                             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
@@ -242,7 +274,10 @@ extension AppBootstrapping {
                                 domain: "MariasNotebook",
                                 code: 3001,
                                 userInfo: [
-                                    NSLocalizedDescriptionKey: "Database schema migration required. The AttendanceRecord.studentID property needs to be migrated from UUID to String format. Automatic reset failed. Please use 'Reset Local Database' manually to resolve this."
+                                    NSLocalizedDescriptionKey: "Database schema migration required."
+                                        + " The AttendanceRecord.studentID property needs to be migrated"
+                                        + " from UUID to String format. Automatic reset failed."
+                                        + " Please use 'Reset Local Database' manually to resolve this."
                                 ]
                             )
                             DatabaseInitializationService.handleDatabaseInitError(migrationError)
@@ -266,7 +301,13 @@ extension AppBootstrapping {
                 // Use safe string representation
                 let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-                UserDefaults.standard.set("Persistent storage failed. Using temporary in-memory container. Original error: \(errorDesc)", forKey: UserDefaultsKeys.lastStoreErrorDescription)
+                let fallbackMsg = "Persistent storage failed."
+                    + " Using temporary in-memory container."
+                    + " Original error: \(errorDesc)"
+                UserDefaults.standard.set(
+                    fallbackMsg,
+                    forKey: UserDefaultsKeys.lastStoreErrorDescription
+                )
                 return fallbackContainer
             } catch let finalError {
                 // Set the error so the UI can display it

@@ -14,7 +14,12 @@ struct WorkItemDraft: Identifiable {
     var showMoreDetails: Bool
     var checkInStyle: CheckInStyle
 
-    init(studentID: UUID, title: String = "", kind: WorkKind = .practiceLesson, status: WorkStatus = .active, checkInStyle: CheckInStyle = .flexible) {
+    init(
+        studentID: UUID, title: String = "",
+        kind: WorkKind = .practiceLesson,
+        status: WorkStatus = .active,
+        checkInStyle: CheckInStyle = .flexible
+    ) {
         self.id = UUID()
         self.studentID = studentID
         self.title = title

@@ -58,19 +58,27 @@ struct WorkAgendaCalendarPane: View {
                 }
             }
         }
-        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        // Fix: Use 'isPresented' to avoid ambiguity with SheetPresentationHelpers
         .sheet(isPresented: Binding(
             get: { prompt != nil },
             set: { if !$0 { prompt = nil } }
         )) {
             if let p = prompt {
-                PlanPromptSheetView(prompt: p, onCancel: { prompt = nil }, onSave: { reason, note in
-                    savePlan(workID: p.workID, date: p.date, reason: reason, note: note)
-                    prompt = nil
-                })
+                PlanPromptSheetView(
+                    prompt: p,
+                    onCancel: { prompt = nil },
+                    onSave: { reason, note in
+                        savePlan(
+                            workID: p.workID,
+                            date: p.date,
+                            reason: reason, note: note
+                        )
+                        prompt = nil
+                    }
+                )
             }
         }
-        // Fix: Use 'isPresented' to avoid ambiguity between standard 'sheet(item:)' and 'SheetPresentationHelpers' extension
+        // Fix: Use 'isPresented' to avoid ambiguity with SheetPresentationHelpers
         .sheet(isPresented: Binding(
             get: { selected != nil },
             set: { if !$0 { selected = nil } }
@@ -170,7 +178,10 @@ struct WorkAgendaCalendarPane: View {
                     switch legacyPayload {
                     case .work(let id):
                         prompt = PlanPrompt(workID: id, date: normalizedDay)
-                        updateWorkDueDate(workID: id, to: normalizedDay, reason: "Sync work dueDate on drop (prompt pending)")
+                        updateWorkDueDate(
+                            workID: id, to: normalizedDay,
+                            reason: "Sync work dueDate on drop (prompt pending)"
+                        )
                     case .checkIn(let id):
                         rescheduleCheckIn(id: id, to: normalizedDay)
                     }
@@ -253,7 +264,17 @@ struct GroupedCheckInDetailSheet: View {
 
     private var purposeIcon: String {
         let p = group.purpose.lowercased()
-        if p.contains("progress") || p.contains("check") { return "checkmark.circle" } else if p.contains("due") { return "calendar.badge.exclamationmark" } else if p.contains("assessment") { return "chart.bar" } else if p.contains("follow") { return "arrow.turn.down.right" } else { return "calendar" }
+        if p.contains("progress") || p.contains("check") {
+            return "checkmark.circle"
+        } else if p.contains("due") {
+            return "calendar.badge.exclamationmark"
+        } else if p.contains("assessment") {
+            return "chart.bar"
+        } else if p.contains("follow") {
+            return "arrow.turn.down.right"
+        } else {
+            return "calendar"
+        }
     }
 
     var body: some View {
@@ -430,7 +451,11 @@ private struct PlanPromptSheetView: View {
     let onSave: (String, String) -> Void // Phase 6: Changed from WorkPlanItem.Reason to String
     @State private var reason: String = "progressCheck"
     @State private var note: String = ""
-    init(prompt: WorkAgendaCalendarPane.PlanPrompt, onCancel: @escaping () -> Void, onSave: @escaping (String, String) -> Void) {
+    init(
+        prompt: WorkAgendaCalendarPane.PlanPrompt,
+        onCancel: @escaping () -> Void,
+        onSave: @escaping (String, String) -> Void
+    ) {
         self.prompt = prompt
         self.onCancel = onCancel
         self.onSave = onSave
@@ -453,7 +478,12 @@ private struct PlanPromptSheetView: View {
             TextField("Optional note", text: $note)
                 .textFieldStyle(.roundedBorder)
                 .disableAutocorrection(true)
-            HStack { Spacer(); Button("Cancel", action: onCancel); Button("Save") { onSave(reason, note) }.keyboardShortcut(.defaultAction) }
+            HStack {
+                Spacer()
+                Button("Cancel", action: onCancel)
+                Button("Save") { onSave(reason, note) }
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .padding()
         #if os(macOS)

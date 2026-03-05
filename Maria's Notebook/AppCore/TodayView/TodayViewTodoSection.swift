@@ -55,10 +55,14 @@ extension TodayView {
                 }
                 // Scheduled or due on selected day
                 let dueOnDay = todayTodos.filter { todo in
-                    let isOverdue = todo.dueDate.map { $0 < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay) } ?? false
+                    let isOverdue = todo.dueDate.map {
+                        $0 < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay)
+                    } ?? false
                     guard !isOverdue else { return false }
-                    if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay { return true }
-                    if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay { return true }
+                    if let scheduled = todo.scheduledDate,
+                       scheduled >= selectedDay && scheduled < nextDay { return true }
+                    if let dueDate = todo.dueDate,
+                       dueDate >= selectedDay && dueDate < nextDay { return true }
                     return false
                 }
                 if !dueOnDay.isEmpty {

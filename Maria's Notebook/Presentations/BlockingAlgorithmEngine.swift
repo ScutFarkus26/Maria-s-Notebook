@@ -29,7 +29,9 @@ enum BlockingAlgorithmEngine {
             // Pre-compute preceding lessons for all lessons
             var precedingCache: [UUID: Lesson] = [:]
             for lesson in lessons {
-                if let preceding = BlockingAlgorithmEngine.computePrecedingLesson(currentLesson: lesson, lessons: lessons) {
+                if let preceding = BlockingAlgorithmEngine.computePrecedingLesson(
+                    currentLesson: lesson, lessons: lessons
+                ) {
                     precedingCache[lesson.id] = preceding
                 }
             }

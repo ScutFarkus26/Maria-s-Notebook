@@ -12,14 +12,22 @@ enum WorkCompletionBackfill {
             guard let completed = p.completedAt else { continue }
             // CloudKit compatibility: Convert String studentID to UUID for the call
             guard let studentUUID = UUID(uuidString: p.studentID) else { continue }
-            try ensureLatestRecord(for: workID, studentID: studentUUID, completedAt: completed, note: "(backfilled)", in: context)
+            try ensureLatestRecord(
+                for: workID, studentID: studentUUID,
+                completedAt: completed,
+                note: "(backfilled)", in: context
+            )
         }
     }
 
     /// Ensure a record exists for an exact (workID, studentID, completedAt) triple.
     /// If not found, insert a new record with the provided note.
     @discardableResult
-    static func ensureLatestRecord(for workID: UUID, studentID: UUID, completedAt: Date, note: String = "", in context: ModelContext) throws -> WorkCompletionRecord {
+    static func ensureLatestRecord(
+        for workID: UUID, studentID: UUID,
+        completedAt: Date, note: String = "",
+        in context: ModelContext
+    ) throws -> WorkCompletionRecord {
         // CloudKit compatibility: Convert UUIDs to strings for comparison
         let workIDString = workID.uuidString
         let studentIDString = studentID.uuidString

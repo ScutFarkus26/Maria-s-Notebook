@@ -406,9 +406,19 @@ struct QuickAdjustSheet: View {
         case .add:
             SupplyService.addStock(to: supply, amount: adjustmentAmount, reason: adjustmentReason, in: modelContext)
         case .remove:
-            SupplyService.removeStock(from: supply, amount: adjustmentAmount, reason: adjustmentReason, in: modelContext)
+            SupplyService.removeStock(
+                from: supply,
+                amount: adjustmentAmount,
+                reason: adjustmentReason,
+                in: modelContext
+            )
         case .set:
-            SupplyService.updateQuantity(for: supply, newQuantity: adjustmentAmount, reason: adjustmentReason, in: modelContext)
+            SupplyService.updateQuantity(
+                for: supply,
+                newQuantity: adjustmentAmount,
+                reason: adjustmentReason,
+                in: modelContext
+            )
         }
     }
 }

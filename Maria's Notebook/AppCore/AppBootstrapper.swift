@@ -38,12 +38,14 @@ final class AppBootstrapper {
         // 1. Calendar Setup
         let calendarStart = Date()
         AppCalendar.adopt(timeZoneFrom: Calendar.current)
-        Self.logger.info("Bootstrap: Calendar setup completed in \(Self.formatSeconds(Date().timeIntervalSince(calendarStart)))s")
+        let calElapsed = Self.formatSeconds(Date().timeIntervalSince(calendarStart))
+        Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)s")
         
         // 1.5. Migrate lesson files to iCloud Drive (if needed)
         let filesMigrationStart = Date()
         if let migratedCount = LessonFileStorage.migrateToICloudDrive() {
-            Self.logger.info("Bootstrap: Migrated \(migratedCount) lesson files to iCloud Drive in \(Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart)))s")
+            let filesElapsed = Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart))
+            Self.logger.info("Bootstrap: Migrated \(migratedCount) files in \(filesElapsed)s")
         } else {
             Self.logger.info("Bootstrap: No lesson file migration needed")
         }
@@ -55,9 +57,10 @@ final class AppBootstrapper {
         let migrationStart = Date()
         DataMigrations.migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
         
-        // 3.6.5. GroupTrack default behavior migration: All groups are tracks by default (sequential)
+        // 3.6.5. GroupTrack default behavior migration
         DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
-        Self.logger.info("Bootstrap: Quick migrations completed in \(Self.formatSeconds(Date().timeIntervalSince(migrationStart)))s")
+        let migElapsed = Self.formatSeconds(Date().timeIntervalSince(migrationStart))
+        Self.logger.info("Bootstrap: Quick migrations completed in \(migElapsed)s")
 
         // 4. Initialize Reminder Sync Service
         let reminderStart = Date()
@@ -69,18 +72,21 @@ final class AppBootstrapper {
                     try await ReminderSyncService.shared.syncReminders()
                     Self.logger.info("Bootstrap: Initial reminder sync completed")
                 } catch {
-                    Self.logger.error("Bootstrap: Initial reminder sync failed: \(error.localizedDescription)")
+                    Self.logger.error("Bootstrap: Initial reminder sync failed: \(error)")
                 }
             }
         }
-        Self.logger.info("Bootstrap: Reminder service setup completed in \(Self.formatSeconds(Date().timeIntervalSince(reminderStart)))s")
+        let remElapsed = Self.formatSeconds(Date().timeIntervalSince(reminderStart))
+        Self.logger.info("Bootstrap: Reminder setup completed in \(remElapsed)s")
         
         // 5. Signal UI (allow first render; heavy migrations continue in background)
         let routerStart = Date()
         AppRouter.shared.refreshPlanningInbox()
-        Self.logger.info("Bootstrap: Router refresh completed in \(Self.formatSeconds(Date().timeIntervalSince(routerStart)))s")
+        let routerElapsed = Self.formatSeconds(Date().timeIntervalSince(routerStart))
+        Self.logger.info("Bootstrap: Router refresh completed in \(routerElapsed)s")
         
-        Self.logger.info("Bootstrap: Initial phase complete in \(Self.formatSeconds(Date().timeIntervalSince(startTime)))s - transitioning to ready state")
+        let totalElapsed = Self.formatSeconds(Date().timeIntervalSince(startTime))
+        Self.logger.info("Bootstrap: Initial phase complete in \(totalElapsed)s")
         state = .ready
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
@@ -102,38 +108,44 @@ final class AppBootstrapper {
         // 3.1. Schema & Data Normalization (potentially heavy)
         let normalizeStart = Date()
         await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: backgroundContext)
-        logger.info("Post-launch migrations: normalizeGivenAt completed in \(formatSeconds(Date().timeIntervalSince(normalizeStart)))s")
+        let normElapsed = formatSeconds(Date().timeIntervalSince(normalizeStart))
+        logger.info("Post-launch: normalizeGivenAt completed in \(normElapsed)s")
 
         // 3.7. Legacy Backfill Migrations (one-time migrations)
         let backfillStart = Date()
         await DataMigrations.backfillRelationshipsIfNeeded(using: backgroundContext)
         await DataMigrations.backfillIsPresentedIfNeeded(using: backgroundContext)
         await DataMigrations.backfillScheduledForDayIfNeeded(using: backgroundContext)
-        logger.info("Post-launch migrations: backfills completed in \(formatSeconds(Date().timeIntervalSince(backfillStart)))s")
+        let bfElapsed = formatSeconds(Date().timeIntervalSince(backfillStart))
+        logger.info("Post-launch: backfills completed in \(bfElapsed)s")
 
         // 3.7.5. Repair incorrectly scoped notes
         let scopeRepairStart = Date()
         await DataMigrations.repairScopeForContextualNotes(using: backgroundContext)
-        logger.info("Post-launch migrations: note scope repair completed in \(formatSeconds(Date().timeIntervalSince(scopeRepairStart)))s")
+        let scopeElapsed = formatSeconds(Date().timeIntervalSince(scopeRepairStart))
+        logger.info("Post-launch: note scope repair completed in \(scopeElapsed)s")
 
         // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
         let dedupStart = Date()
         DataMigrations.deduplicateAllModels(using: backgroundContext)
-        logger.info("Post-launch migrations: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))s")
+        let dedupElapsed = formatSeconds(Date().timeIntervalSince(dedupStart))
+        logger.info("Post-launch: deduplication completed in \(dedupElapsed)s")
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             let integrityStart = Date()
             await DataMigrations.repairDenormalizedScheduledForDay(using: backgroundContext)
             await DataMigrations.cleanOrphanedStudentIDs(using: backgroundContext)
-            logger.info("Post-launch migrations: integrity repairs completed in \(formatSeconds(Date().timeIntervalSince(integrityStart)))s")
+            let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
+            logger.info("Post-launch: integrity repairs completed in \(intElapsed)s")
         }
 
         // 3.10. LessonAssignment Migration (legacy model consolidation)
         let lessonAssignmentStart = Date()
         await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
         await DataMigrations.migrateLessonAssignmentsV2IfNeeded(using: backgroundContext)
-        logger.info("Post-launch migrations: lesson assignment migration completed in \(formatSeconds(Date().timeIntervalSince(lessonAssignmentStart)))s")
+        let laElapsed = formatSeconds(Date().timeIntervalSince(lessonAssignmentStart))
+        logger.info("Post-launch: lesson assignment migration in \(laElapsed)s")
 
         await MigrationRunner.runIfNeeded(context: backgroundContext)
 

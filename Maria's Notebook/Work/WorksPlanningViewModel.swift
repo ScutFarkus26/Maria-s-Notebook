@@ -54,7 +54,10 @@ final class WorksPlanningViewModel {
     }
 
     func moveStart(bySchoolDays days: Int) {
-        startDate = AgendaSchoolDayRules.movedStart(bySchoolDays: days, from: startDate, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
+        startDate = AgendaSchoolDayRules.movedStart(
+            bySchoolDays: days, from: startDate,
+            calendar: calendar, isNonSchoolDay: isNonSchoolDay
+        )
     }
 
     func resetToFirstSchoolDay(from date: Date) {
@@ -69,7 +72,10 @@ final class WorksPlanningViewModel {
     func dayShortLabel(_ day: Date) -> String { PlanningEngine.dayShortLabel(day) }
     func isNonSchool(_ day: Date) -> Bool { isNonSchoolDay(day) }
 
-    func scheduleCheckIn(for workID: UUID, on date: Date, context: ModelContext, saveCoordinator: SaveCoordinator) throws {
+    func scheduleCheckIn(
+        for workID: UUID, on date: Date,
+        context: ModelContext, saveCoordinator: SaveCoordinator
+    ) throws {
         let service = checkInServiceFactory(context)
         var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
         descriptor.fetchLimit = 1

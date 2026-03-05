@@ -65,7 +65,11 @@ struct FloridaGradeCalculator {
 
     /// Computes the child's age in whole years as of the school year start.
     /// Uses start-of-day normalization to avoid time-of-day issues.
-    static func ageOnSchoolYearStart(birthday: Date, referenceDate: Date = Date(), calendar: Calendar = .current) -> Int {
+    static func ageOnSchoolYearStart(
+        birthday: Date,
+        referenceDate: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Int {
         let start = schoolYearStart(for: referenceDate, calendar: calendar)
         let birthdayStartOfDay = calendar.startOfDay(for: birthday)
         return calendar.dateComponents([.year], from: birthdayStartOfDay, to: start).year ?? 0

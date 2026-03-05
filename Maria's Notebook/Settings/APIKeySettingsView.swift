@@ -194,7 +194,10 @@ struct APIKeyInformationSheet: View {
                         Label("Step 2: Get API Key", systemImage: "2.circle.fill")
                             .font(.headline)
                         
-                        Text("Navigate to 'API Keys' section and click 'Create Key'. Copy the key (starts with 'sk-ant-').")
+                        Text(
+                            "Navigate to 'API Keys' section and click 'Create Key'."
+                            + " Copy the key (starts with 'sk-ant-')."
+                        )
                             .font(.body)
                     }
                     .padding()
@@ -243,7 +246,11 @@ struct APIKeyInformationSheet: View {
                         Label("Privacy & Security", systemImage: "lock.shield")
                             .font(.headline)
                         
-                        Text("Your API key is stored securely on your device. Student data is sent directly to Anthropic's secure servers for analysis and is not stored by Anthropic or any third parties.")
+                        Text(
+                            "Your API key is stored securely on your device."
+                            + " Student data is sent directly to Anthropic's secure servers"
+                            + " for analysis and is not stored by Anthropic or any third parties."
+                        )
                             .font(.body)
                     }
                     .padding()

@@ -268,7 +268,9 @@ extension UnifiedNoteEditor {
             let l2 = String(text[r2]).lowercased()
             let key = l1 + l2
 
-            guard let candidates = initialsMap[key], candidates.count == 1, let student = candidates.first else { return }
+            guard let candidates = initialsMap[key],
+                  candidates.count == 1,
+                  let student = candidates.first else { return }
 
             let first = student.firstName.trimmed()
             let lastInitial = student.lastName.trimmed().first.map { String($0).uppercased() } ?? ""

@@ -192,8 +192,13 @@ struct StudentOverviewTab: View {
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
         for work in workCache {
-            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
-            let age = cache.schoolDaysSinceCreation(createdAt: lastTouch, asOf: today, using: modelContext, calendar: calendar)
+            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
+                for: work, checkIns: work.checkIns, notes: work.unifiedNotes
+            )
+            let age = cache.schoolDaysSinceCreation(
+                createdAt: lastTouch, asOf: today,
+                using: modelContext, calendar: calendar
+            )
             result[work.id] = age
         }
         

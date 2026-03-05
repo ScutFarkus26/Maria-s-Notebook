@@ -179,7 +179,9 @@ extension DataCleanupService {
         if canonical.group.isEmpty { canonical.group = duplicate.group }
         if canonical.subheading.isEmpty { canonical.subheading = duplicate.subheading }
         if canonical.writeUp.isEmpty { canonical.writeUp = duplicate.writeUp }
-        if canonical.orderInGroup == 0 && duplicate.orderInGroup != 0 { canonical.orderInGroup = duplicate.orderInGroup }
+        if canonical.orderInGroup == 0 && duplicate.orderInGroup != 0 {
+            canonical.orderInGroup = duplicate.orderInGroup
+        }
         if canonical.sortIndex == 0 && duplicate.sortIndex != 0 { canonical.sortIndex = duplicate.sortIndex }
         if canonical.pagesFileBookmark == nil { canonical.pagesFileBookmark = duplicate.pagesFileBookmark }
         if canonical.pagesFileRelativePath == nil { canonical.pagesFileRelativePath = duplicate.pagesFileRelativePath }
@@ -188,7 +190,11 @@ extension DataCleanupService {
 
         mergeRelationship(from: duplicate.notes, to: &canonical.notes, setter: { $0.lesson = canonical })
         // Legacy relationship removed -- fully migrated to LessonAssignment
-        mergeRelationship(from: duplicate.lessonAssignments, to: &canonical.lessonAssignments, setter: { $0.lesson = canonical })
+        mergeRelationship(
+            from: duplicate.lessonAssignments,
+            to: &canonical.lessonAssignments,
+            setter: { $0.lesson = canonical }
+        )
     }
 
     private static func mergeLessonPresentation(canonical: LessonPresentation, duplicate: LessonPresentation) {
@@ -224,7 +230,11 @@ extension DataCleanupService {
         if canonical.legacyStudentLessonID == nil { canonical.legacyStudentLessonID = duplicate.legacyStudentLessonID }
 
         mergeRelationship(from: duplicate.participants, to: &canonical.participants, setter: { $0.work = canonical })
-        mergeRelationship(from: duplicate.checkIns, to: &canonical.checkIns, setter: { $0.work = canonical; $0.workID = canonical.id.uuidString })
+        mergeRelationship(
+            from: duplicate.checkIns,
+            to: &canonical.checkIns,
+            setter: { $0.work = canonical; $0.workID = canonical.id.uuidString }
+        )
         mergeRelationship(from: duplicate.steps, to: &canonical.steps, setter: { $0.work = canonical })
         mergeRelationship(from: duplicate.unifiedNotes, to: &canonical.unifiedNotes, setter: { $0.work = canonical })
     }
@@ -233,7 +243,9 @@ extension DataCleanupService {
         if canonical.body.isEmpty { canonical.body = duplicate.body }
         if !canonical.isPinned && duplicate.isPinned { canonical.isPinned = true }
         if !canonical.includeInReport && duplicate.includeInReport { canonical.includeInReport = true }
-        if canonical.imagePath == nil || canonical.imagePath?.isEmpty == true { canonical.imagePath = duplicate.imagePath }
+        if canonical.imagePath == nil || canonical.imagePath?.isEmpty == true {
+            canonical.imagePath = duplicate.imagePath
+        }
         if canonical.reportedBy == nil { canonical.reportedBy = duplicate.reportedBy }
         if canonical.reporterName == nil { canonical.reporterName = duplicate.reporterName }
 
@@ -251,9 +263,15 @@ extension DataCleanupService {
         if canonical.communityTopic == nil { canonical.communityTopic = duplicate.communityTopic }
         if canonical.reminder == nil { canonical.reminder = duplicate.reminder }
         if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }
-        if canonical.studentTrackEnrollment == nil { canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment }
+        if canonical.studentTrackEnrollment == nil {
+            canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment
+        }
 
-        mergeRelationship(from: duplicate.studentLinks, to: &canonical.studentLinks, setter: { $0.note = canonical; $0.noteID = canonical.id.uuidString })
+        mergeRelationship(
+            from: duplicate.studentLinks,
+            to: &canonical.studentLinks,
+            setter: { $0.note = canonical; $0.noteID = canonical.id.uuidString }
+        )
     }
 
     // MARK: - Deduplicate All Models

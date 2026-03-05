@@ -67,7 +67,10 @@ struct LastLessonStudentCard: View {
     private var daysBadge: some View {
         ZStack {
             Circle()
-                .fill(LinearGradient(colors: [.white.opacity(0.3), .white.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(LinearGradient(
+                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
                 .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
                 .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
 
@@ -91,7 +94,10 @@ struct LastLessonStudentCard: View {
             }
         }
         .frame(width: 100, height: 100)
-        .accessibilityLabel(days < 0 ? "New student, no lessons yet" : "\(days) \(days == 1 ? "day" : "days") since last lesson")
+        .accessibilityLabel(
+            days < 0 ? "New student, no lessons yet"
+                : "\(days) \(days == 1 ? "day" : "days") since last lesson"
+        )
     }
 
     private var statusMessage: String {

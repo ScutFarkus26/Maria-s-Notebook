@@ -115,7 +115,11 @@ struct DatabaseErrorView: View {
                 resetLocalDatabase()
             }
         } message: {
-            Text("This deletes local data on this device. CloudKit data is preserved and will re-sync after restart. The app will restart automatically.")
+            Text(
+                "This deletes local data on this device."
+                + " CloudKit data is preserved and will re-sync after restart."
+                + " The app will restart automatically."
+            )
         }
     }
     

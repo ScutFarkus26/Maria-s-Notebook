@@ -94,7 +94,11 @@ struct PresentationCard: View {
                             .padding(.vertical, AppTheme.Spacing.verySmall)
                             .background(
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(chip.isMissing ? Color.primary.opacity(UIConstants.OpacityConstants.faint) : subjectColor.opacity(0.15))
+                                    .fill(
+                                        chip.isMissing
+                                            ? Color.primary.opacity(UIConstants.OpacityConstants.faint)
+                                            : subjectColor.opacity(0.15)
+                                    )
                             )
                         }
                     }
@@ -112,7 +116,10 @@ struct PresentationCard: View {
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(cardBackgroundColor)
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                )
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
         .accessibilityElement(children: .combine)

@@ -56,7 +56,11 @@ struct WorkLifecycleTip: Tip {
     }
 
     var message: Text? {
-        Text("Work items flow through stages: Active (in progress), Review (checking work), and Complete (finished). Tap the status to advance.")
+        Text(
+            "Work items flow through stages: Active (in progress),"
+            + " Review (checking work), and Complete (finished)."
+            + " Tap the status to advance."
+        )
     }
 
     var image: Image? {

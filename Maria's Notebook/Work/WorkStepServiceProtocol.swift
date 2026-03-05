@@ -91,8 +91,14 @@ final class WorkStepServiceAdapter: WorkStepServiceProtocol {
     // MARK: - Creation
     
     @discardableResult
-    func createStep(for work: WorkModel, title: String, instructions: String = "", notes: String = "") throws -> WorkStep {
-        try legacyService.createStep(for: work, title: title, instructions: instructions, notes: notes)
+    func createStep(
+        for work: WorkModel, title: String,
+        instructions: String = "", notes: String = ""
+    ) throws -> WorkStep {
+        try legacyService.createStep(
+            for: work, title: title,
+            instructions: instructions, notes: notes
+        )
     }
     
     // MARK: - Updates
@@ -141,8 +147,15 @@ final class MockWorkStepService: WorkStepServiceProtocol {
     }
     
     @discardableResult
-    func createStep(for work: WorkModel, title: String, instructions: String = "", notes: String = "") throws -> WorkStep {
-        let step = WorkStep(work: work, orderIndex: createdSteps.count, title: title, instructions: instructions, notes: notes)
+    func createStep(
+        for work: WorkModel, title: String,
+        instructions: String = "", notes: String = ""
+    ) throws -> WorkStep {
+        let step = WorkStep(
+            work: work, orderIndex: createdSteps.count,
+            title: title, instructions: instructions,
+            notes: notes
+        )
         createdSteps.append(step)
         return step
     }

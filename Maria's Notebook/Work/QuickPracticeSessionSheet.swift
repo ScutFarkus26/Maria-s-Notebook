@@ -190,7 +190,11 @@ struct QuickPracticeSessionSheet: View {
                                     .padding(.vertical, 8)
                                     .background(
                                         Capsule()
-                                            .fill(durationMinutes == minutes ? Color.accentColor : Color.primary.opacity(0.1))
+                                            .fill(
+                                                durationMinutes == minutes
+                                                    ? Color.accentColor
+                                                    : Color.primary.opacity(0.1)
+                                            )
                                     )
                             }
                             .buttonStyle(.plain)

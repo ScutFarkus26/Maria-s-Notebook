@@ -28,7 +28,14 @@ struct AttendanceGrid: View {
                 availableHeight: availableHeight
             )
 
-            let columns = Array(repeating: GridItem(.fixed(layout.cardWidth), spacing: cardSpacing), count: layout.columns)
+            let gridItem = GridItem(
+                .fixed(layout.cardWidth),
+                spacing: cardSpacing
+            )
+            let columns = Array(
+                repeating: gridItem,
+                count: layout.columns
+            )
 
             // Use ScrollView only when content doesn't fit
             if layout.needsScrolling {
@@ -87,9 +94,19 @@ struct AttendanceGrid: View {
     }
 
     /// Calculate the optimal grid layout to fill available space without scrolling
-    private func calculateLayout(studentCount: Int, availableWidth: CGFloat, availableHeight: CGFloat) -> GridLayout {
+    private func calculateLayout(
+        studentCount: Int,
+        availableWidth: CGFloat,
+        availableHeight: CGFloat
+    ) -> GridLayout {
         guard studentCount > 0, availableWidth > 0, availableHeight > 0 else {
-            return GridLayout(columns: 1, rows: 1, cardWidth: minCardWidth, cardHeight: minCardHeight, needsScrolling: false)
+            return GridLayout(
+                columns: 1,
+                rows: 1,
+                cardWidth: minCardWidth,
+                cardHeight: minCardHeight,
+                needsScrolling: false
+            )
         }
 
         // Try different column counts and find the best fit
@@ -113,7 +130,13 @@ struct AttendanceGrid: View {
             let isValidHeight = cardHeight >= minCardHeight
 
             if isValidWidth && isValidHeight {
-                let layout = GridLayout(columns: cols, rows: rows, cardWidth: cardWidth, cardHeight: cardHeight, needsScrolling: false)
+                let layout = GridLayout(
+                    columns: cols,
+                    rows: rows,
+                    cardWidth: cardWidth,
+                    cardHeight: cardHeight,
+                    needsScrolling: false
+                )
 
                 // Prefer layouts that use more columns (wider cards look better)
                 // but also consider height efficiency
@@ -143,8 +166,17 @@ struct AttendanceGrid: View {
         let cols = max(1, Int((availableWidth + cardSpacing) / (minCardWidth + cardSpacing)))
         let rows = Int(ceil(Double(studentCount) / Double(cols)))
         let totalHorizontalSpacing = cardSpacing * CGFloat(cols - 1)
-        let cardWidth = min(maxCardWidth, max(minCardWidth, (availableWidth - totalHorizontalSpacing) / CGFloat(cols)))
-        return GridLayout(columns: cols, rows: rows, cardWidth: cardWidth, cardHeight: minCardHeight, needsScrolling: true)
+        let cardWidth = min(
+            maxCardWidth,
+            max(minCardWidth, (availableWidth - totalHorizontalSpacing) / CGFloat(cols))
+        )
+        return GridLayout(
+            columns: cols,
+            rows: rows,
+            cardWidth: cardWidth,
+            cardHeight: minCardHeight,
+            needsScrolling: true
+        )
     }
 }
 

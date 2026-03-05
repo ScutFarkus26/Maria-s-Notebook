@@ -91,7 +91,9 @@ enum CloudKitConfigurationService {
         appendErrorLog(logEntry)
 
         // Log to system logger
-        logger.error("CloudKit error [\(category.rawValue)]: \(detailedError) (code: \(nsError.code), domain: \(nsError.domain))")
+        let msg = "CloudKit error [\(category.rawValue)]: "
+            + "\(detailedError) (code: \(nsError.code), domain: \(nsError.domain))"
+        logger.error("\(msg)")
     }
 
     /// Categorizes a CloudKit error for structured logging

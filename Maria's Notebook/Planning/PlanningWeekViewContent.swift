@@ -266,7 +266,11 @@ struct PlanningWeekViewContent: View {
                 Menu {
                     Button {
                         Task {
-                            await PlanningActions.pushLessonsWithAbsentStudents(in: days, calendar: calendar, context: modelContext)
+                            await PlanningActions.pushLessonsWithAbsentStudents(
+                                in: days,
+                                calendar: calendar,
+                                context: modelContext
+                            )
                             onRefreshNeeded?()
                         }
                     } label: {
@@ -274,7 +278,11 @@ struct PlanningWeekViewContent: View {
                     }
                     Button {
                         Task {
-                            await PlanningActions.pushAllLessonsByOneDay(in: days, calendar: calendar, context: modelContext)
+                            await PlanningActions.pushAllLessonsByOneDay(
+                                in: days,
+                                calendar: calendar,
+                                context: modelContext
+                            )
                             onRefreshNeeded?()
                         }
                     } label: {

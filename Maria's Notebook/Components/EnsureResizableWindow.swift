@@ -65,7 +65,10 @@ final class ResizableFlagView: NSView {
     private func apply(to window: NSWindow) {
         // Only update if values changed (idempotent)
         let effectiveMin = minSize ?? .zero
-        let effectiveMax = maxSize ?? NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        let effectiveMax = maxSize ?? NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
         
         guard effectiveMin != lastAppliedMinSize || effectiveMax != lastAppliedMaxSize else {
             return

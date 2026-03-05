@@ -67,8 +67,12 @@ struct StudentFilterView: View {
                             }
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: selectedStudentIDs.contains(s.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedStudentIDs.contains(s.id) ? Color.accentColor : Color.secondary)
+                                Image(systemName: selectedStudentIDs.contains(s.id)
+                                    ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(
+                                        selectedStudentIDs.contains(s.id)
+                                            ? Color.accentColor : Color.secondary
+                                    )
                                 Text(displayName(s))
                                     .foregroundStyle(.primary)
                                 Spacer(minLength: 0)

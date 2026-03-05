@@ -151,7 +151,8 @@ extension WorkDetailView {
                                 .foregroundStyle(.secondary)
                         }
                     case .withOtherStudents(let students):
-                        Text("Waiting area with \(students.count) other \(students.count == 1 ? "student" : "students")")
+                        let label = students.count == 1 ? "student" : "students"
+                        Text("Waiting area with \(students.count) other \(label)")
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     case .notFound:
@@ -191,7 +192,10 @@ extension WorkDetailView {
                         }
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
+                            let statusText = presentation.isPresented
+                                ? "Presented"
+                                : presentation.isScheduled ? "Scheduled" : "Draft"
+                            Text(statusText)
                                 .font(AppTheme.ScaledFont.bodySemibold)
 
                             if let date = presentation.presentedAt ?? presentation.scheduledFor {
@@ -210,7 +214,9 @@ extension WorkDetailView {
                     )
 
                     // Presentation flags
-                    if presentation.needsPractice || presentation.needsAnotherPresentation || !presentation.followUpWork.isEmpty {
+                    if presentation.needsPractice
+                        || presentation.needsAnotherPresentation
+                        || !presentation.followUpWork.isEmpty {
                         VStack(spacing: 8) {
                             if presentation.needsPractice {
                                 FlagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)

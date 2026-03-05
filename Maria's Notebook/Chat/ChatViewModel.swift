@@ -141,7 +141,10 @@ final class ChatViewModel {
 
         Task {
             do {
-                let fullResponse = try await service.sendMessageStreaming(text, session: &currentSession) { [weak self] delta in
+                let fullResponse = try await service.sendMessageStreaming(
+                    text,
+                    session: &currentSession
+                ) { [weak self] delta in
                     Task { @MainActor in
                         self?.streamingContent = (self?.streamingContent ?? "") + delta
                     }
@@ -158,7 +161,8 @@ final class ChatViewModel {
                 if resolvedModel == .localFirstAuto && AnthropicAPIClient.hasAPIKey() {
                     let validation = ResponseQualityValidator.validate(fullResponse, forRequest: text)
                     if !validation.isAdequate {
-                        Self.logger.info("Local response inadequate (\(validation.reason ?? "unknown")), offering cloud escalation")
+                        let reason = validation.reason ?? "unknown"
+                        Self.logger.info("Local response inadequate (\(reason)), offering cloud escalation")
                         self.pendingEscalation = PendingEscalation(
                             originalQuestion: text,
                             localResponse: fullResponse

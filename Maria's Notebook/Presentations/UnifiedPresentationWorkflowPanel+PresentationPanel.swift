@@ -137,7 +137,10 @@ extension UnifiedPresentationWorkflowPanel {
         VStack(alignment: .leading, spacing: 12) {
             WorkflowSectionHeader(title: "Group Observation", icon: "text.bubble.fill")
 
-            TextField("Notes about the presentation overall...", text: $presentationViewModel.groupObservation, axis: .vertical)
+            TextField(
+                "Notes about the presentation overall...",
+                text: $presentationViewModel.groupObservation, axis: .vertical
+            )
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(3...6)
         }
@@ -153,7 +156,9 @@ extension UnifiedPresentationWorkflowPanel {
 
                 Spacer()
 
-                let completed = presentationViewModel.entries.values.filter { !$0.observation.isEmpty || !$0.assignment.isEmpty }.count
+                let completed = presentationViewModel.entries.values.filter {
+                    !$0.observation.isEmpty || !$0.assignment.isEmpty
+                }.count
                 Text("\(completed)/\(presentationViewModel.entries.count)")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.tertiary)
@@ -247,7 +252,8 @@ extension UnifiedPresentationWorkflowPanel {
 
         // Show toast notification
         adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
-            bulkAppliedMessage = "Applied \(UnderstandingLevel.label(for: level)) to \(count) student\(count == 1 ? "" : "s")"
+            bulkAppliedMessage = "Applied \(UnderstandingLevel.label(for: level))"
+                + " to \(count) student\(count == 1 ? "" : "s")"
             showBulkAppliedToast = true
         }
 

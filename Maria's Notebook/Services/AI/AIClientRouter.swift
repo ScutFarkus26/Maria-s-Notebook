@@ -81,7 +81,11 @@ final class AIClientRouter: MCPClientProtocol {
     // MARK: - MCPClientProtocol — generateText
 
     func generateText(prompt: String, temperature: Double) async throws -> String {
-        try await generateText(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil, model: nil, timeout: nil)
+        try await generateText(
+            prompt: prompt, systemMessage: nil,
+            temperature: temperature, maxTokens: nil,
+            model: nil, timeout: nil
+        )
     }
 
     func generateText(
@@ -93,14 +97,22 @@ final class AIClientRouter: MCPClientProtocol {
         timeout: TimeInterval?
     ) async throws -> String {
         try await route { client in
-            try await client.generateText(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: model, timeout: timeout)
+            try await client.generateText(
+                prompt: prompt, systemMessage: systemMessage,
+                temperature: temperature, maxTokens: maxTokens,
+                model: model, timeout: timeout
+            )
         }
     }
 
     // MARK: - MCPClientProtocol — generateStructuredJSON
 
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
-        try await generateStructuredJSON(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil, model: nil, timeout: nil)
+        try await generateStructuredJSON(
+            prompt: prompt, systemMessage: nil,
+            temperature: temperature, maxTokens: nil,
+            model: nil, timeout: nil
+        )
     }
 
     func generateStructuredJSON(
@@ -112,7 +124,11 @@ final class AIClientRouter: MCPClientProtocol {
         timeout: TimeInterval?
     ) async throws -> String {
         try await route { client in
-            try await client.generateStructuredJSON(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: model, timeout: timeout)
+            try await client.generateStructuredJSON(
+                prompt: prompt, systemMessage: systemMessage,
+                temperature: temperature, maxTokens: maxTokens,
+                model: model, timeout: timeout
+            )
         }
     }
 
@@ -142,7 +158,13 @@ final class AIClientRouter: MCPClientProtocol {
         timeout: TimeInterval?
     ) async throws -> String {
         try await route { client in
-            try await client.sendConversation(messages: messages, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: model, timeout: timeout)
+            try await client.sendConversation(
+                messages: messages,
+                systemMessage: systemMessage,
+                temperature: temperature,
+                maxTokens: maxTokens,
+                model: model, timeout: timeout
+            )
         }
     }
 
@@ -158,7 +180,14 @@ final class AIClientRouter: MCPClientProtocol {
         onDelta: @escaping @Sendable (String) -> Void
     ) async throws -> String {
         try await route { client in
-            try await client.streamConversation(messages: messages, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: model, timeout: timeout, onDelta: onDelta)
+            try await client.streamConversation(
+                messages: messages,
+                systemMessage: systemMessage,
+                temperature: temperature,
+                maxTokens: maxTokens,
+                model: model, timeout: timeout,
+                onDelta: onDelta
+            )
         }
     }
 
@@ -205,14 +234,18 @@ final class AIClientRouter: MCPClientProtocol {
                     Self.logger.debug("Local-first: trying Apple Intelligence for \(self.activeFeatureArea.rawValue)")
                     return try await work(localClient)
                 } catch let error as LocalModelError {
-                    Self.logger.info("Apple Intelligence failed (\(error.localizedDescription)), falling back to Claude")
+                    Self.logger.info(
+                        "Apple Intelligence failed (\(error.localizedDescription)), falling back to Claude"
+                    )
                 }
             }
         }
         #endif
 
         // 3. Claude (final fallback)
-        Self.logger.debug("Local-first: all local providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)")
+        Self.logger.debug(
+            "Local-first: all local providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)"
+        )
         return try await work(anthropicClient)
     }
 

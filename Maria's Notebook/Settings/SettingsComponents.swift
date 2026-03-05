@@ -497,8 +497,14 @@ struct OverviewStatsGrid: View {
         LazyVGrid(columns: columns, spacing: 16) {
             StatCard(title: "Students", value: String(studentsCount), subtitle: nil, systemImage: "person.3.fill")
             StatCard(title: "Lessons", value: String(lessonsCount), subtitle: nil, systemImage: "text.book.closed.fill")
-            StatCard(title: "Lessons Planned", value: String(plannedCount), subtitle: nil, systemImage: "books.vertical.fill")
-            StatCard(title: "Lessons Given", value: String(givenCount), subtitle: nil, systemImage: "checkmark.circle.fill")
+            StatCard(
+                title: "Lessons Planned", value: String(plannedCount),
+                subtitle: nil, systemImage: "books.vertical.fill"
+            )
+            StatCard(
+                title: "Lessons Given", value: String(givenCount),
+                subtitle: nil, systemImage: "checkmark.circle.fill"
+            )
         }
     }
 }

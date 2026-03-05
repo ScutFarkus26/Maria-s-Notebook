@@ -328,7 +328,8 @@ enum LessonAssignmentState: String, Codable, CaseIterable, Sendable {
 extension LessonAssignment {
     var debugDescription: String {
         let studentCount = studentIDs.count
-        return "Presentation(id=\(id), state=\(state.rawValue), lessonID=\(lessonID.prefix(8))..., students=\(studentCount))"
+        let prefix = lessonID.prefix(8)
+        return "Presentation(id=\(id), state=\(state.rawValue), lessonID=\(prefix)..., students=\(studentCount))"
     }
 }
 #endif

@@ -77,7 +77,8 @@ enum MeetingPersistenceService {
         let trimmedRequests = data.requestsText.trimmed()
         let trimmedGuide = data.guideNotesText.trimmed()
 
-        guard !(trimmedReflection.isEmpty && trimmedFocus.isEmpty && trimmedRequests.isEmpty && trimmedGuide.isEmpty) else {
+        guard !(trimmedReflection.isEmpty && trimmedFocus.isEmpty
+               && trimmedRequests.isEmpty && trimmedGuide.isEmpty) else {
             return false
         }
 

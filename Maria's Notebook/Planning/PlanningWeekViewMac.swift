@@ -16,7 +16,8 @@ struct PlanningWeekViewMac: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Magic @Query - automatically updates when data changes
     // Migrated to LessonAssignment: fetch draft and unscheduled presentations
@@ -47,7 +48,8 @@ struct PlanningWeekViewMac: View {
         )
         .task {
             #if DEBUG
-            Self.logger.info("PlanningWeekViewMac loaded with \(self.inboxLessons.count) inbox items (Using @Query magic)")
+            let count = self.inboxLessons.count
+            Self.logger.info("PlanningWeekViewMac loaded with \(count) inbox items (Using @Query magic)")
             PerformanceLogger.logScreenLoad(
                 screenName: "PlanningWeekViewMac",
                 itemCounts: [

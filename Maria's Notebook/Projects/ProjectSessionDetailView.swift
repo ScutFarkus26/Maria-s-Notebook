@@ -11,13 +11,19 @@ struct ProjectSessionDetailView: View {
 
     // Test student filtering
     @AppStorage("General.showTestStudents") private var showTestStudents: Bool = false
-    @AppStorage("General.testStudentNames") private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage("General.testStudentNames")
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)]) private var studentsRaw: [Student]
+    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
+    private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
     @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
 
@@ -29,8 +35,18 @@ struct ProjectSessionDetailView: View {
     @State var showAddWorkSheet: Bool = false
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
-    var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    var studentsByID: [UUID: Student] {
+        Dictionary(
+            students.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+    var lessonsByID: [UUID: Lesson] {
+        Dictionary(
+            lessons.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
 
     // Filter work models relevant to this session
     var sessionWorkModels: [WorkModel] {
@@ -116,7 +132,10 @@ struct ProjectSessionDetailView: View {
                         ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, _ in
                             HStack {
                                 TextField("Agenda item", text: Binding(
-                                    get: { session.agendaItems.indices.contains(index) ? session.agendaItems[index] : "" },
+                                    get: {
+                                        session.agendaItems.indices.contains(index)
+                                            ? session.agendaItems[index] : ""
+                                    },
                                     set: {
                                         if session.agendaItems.indices.contains(index) {
                                             session.agendaItems[index] = $0
@@ -171,7 +190,8 @@ struct ProjectSessionDetailView: View {
                         HStack {
                             Label("Student Choice", systemImage: "hand.tap")
                             Spacer()
-                            Text("Pick \(session.minSelections) of \(offeredWorks.count + sessionWorkModels.filter { !$0.isOffered }.count)")
+                            let totalCount = offeredWorks.count + sessionWorkModels.filter { !$0.isOffered }.count
+                            Text("Pick \(session.minSelections) of \(totalCount)")
                                 .foregroundStyle(.secondary)
                         }
                     }

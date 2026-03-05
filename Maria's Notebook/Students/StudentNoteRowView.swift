@@ -189,7 +189,10 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 contextText: "Handwriting Practice",
                 color: .orange,
                 associatedID: nil,
-                tags: [TagHelper.createTag(name: "Academic", color: .blue), TagHelper.createTag(name: "Behavioral", color: .orange)],
+                tags: [
+                    TagHelper.createTag(name: "Academic", color: .blue),
+                    TagHelper.createTag(name: "Behavioral", color: .orange)
+                ],
                 includeInReport: true,
                 needsFollowUp: true,
                 imagePath: nil,

@@ -8,7 +8,10 @@ enum WorkCompletionService {
 
     /// Fetch all completion records for a given work ID.
     /// If `studentID` is provided, the results are filtered to that student.
-    static func records(for workID: UUID, studentID: UUID? = nil, in context: ModelContext) throws -> [WorkCompletionRecord] {
+    static func records(
+        for workID: UUID, studentID: UUID? = nil,
+        in context: ModelContext
+    ) throws -> [WorkCompletionRecord] {
         // CloudKit compatibility: Convert UUIDs to strings for comparison
         let workIDString = workID.uuidString
         if let studentID {
@@ -49,7 +52,11 @@ enum WorkCompletionService {
     /// Record a completion event for a given work + student.
     /// This preserves history by appending a new record each time.
     @discardableResult
-    static func markCompleted(workID: UUID, studentID: UUID, note: String = "", at date: Date = Date(), in context: ModelContext) throws -> WorkCompletionRecord {
+    static func markCompleted(
+        workID: UUID, studentID: UUID,
+        note: String = "", at date: Date = Date(),
+        in context: ModelContext
+    ) throws -> WorkCompletionRecord {
         let record = WorkCompletionRecord(
             workID: workID,
             studentID: studentID,
@@ -65,7 +72,14 @@ enum WorkCompletionService {
 
     /// Convenience overload using instances if the caller has them.
     @discardableResult
-    static func markCompleted(work: WorkModel, student: Student, note: String = "", at date: Date = Date(), in context: ModelContext) throws -> WorkCompletionRecord {
-        try markCompleted(workID: work.id, studentID: student.id, note: note, at: date, in: context)
+    static func markCompleted(
+        work: WorkModel, student: Student,
+        note: String = "", at date: Date = Date(),
+        in context: ModelContext
+    ) throws -> WorkCompletionRecord {
+        try markCompleted(
+            workID: work.id, studentID: student.id,
+            note: note, at: date, in: context
+        )
     }
 }

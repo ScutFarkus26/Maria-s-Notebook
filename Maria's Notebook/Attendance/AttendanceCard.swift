@@ -86,7 +86,10 @@ struct AttendanceCard: View {
             icon: (status == .absent && absenceReason != .none) ? absenceReason.icon : nil
         )
         .id(status)
-        .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .move(edge: .top).combined(with: .opacity)))
+        .transition(.asymmetric(
+            insertion: .move(edge: .bottom).combined(with: .opacity),
+            removal: .move(edge: .top).combined(with: .opacity)
+        ))
         .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
 
         // Clicking the note opens the editor only if editing, otherwise static display
@@ -169,7 +172,10 @@ struct AttendanceCard: View {
                 .foregroundStyle(accentColor)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
-                .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .move(edge: .top).combined(with: .opacity)))
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .top).combined(with: .opacity)
+                ))
             if status == .absent && absenceReason != .none {
                 Image(systemName: absenceReason.icon)
                     .font(.system(size: 10))

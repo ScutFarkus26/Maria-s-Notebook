@@ -152,7 +152,11 @@ extension PresentationsInboxView {
         .padding(.vertical, AppTheme.Spacing.small)
         .background(
             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .fill(isSelected ? Color.orange.opacity(UIConstants.OpacityConstants.accent + 0.05) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                .fill(
+                    isSelected
+                        ? Color.orange.opacity(UIConstants.OpacityConstants.accent + 0.05)
+                        : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)

@@ -237,7 +237,9 @@ struct StudentProgressTab: View {
                     iconName: "list.bullet.rectangle",
                     color: trackColor,
                     title: track.title,
-                    subtitle: enrollment.startedAt.map { "Started \($0.formatted(.relative(presentation: .named)))" } ?? "Enrolled \(enrollment.createdAt.formatted(.relative(presentation: .named)))",
+                    subtitle: enrollment.startedAt.map {
+                        "Started \($0.formatted(.relative(presentation: .named)))"
+                    } ?? "Enrolled \(enrollment.createdAt.formatted(.relative(presentation: .named)))",
                     isComplete: progress.isComplete && progress.totalSteps > 0,
                     isActive: enrollment.isActive
                 )
@@ -246,15 +248,27 @@ struct StudentProgressTab: View {
 
                 if progress.totalSteps > 0 {
                     VStack(alignment: .leading, spacing: 12) {
-                        ProgressStatsSection(completed: progress.proficientCount, total: progress.totalSteps, color: trackColor, completionLabel: "")
-                        StepDotsVisualization(steps: progress.trackSteps, completedStepIDs: progress.completedStepIDs, color: trackColor)
+                        ProgressStatsSection(
+                            completed: progress.proficientCount,
+                            total: progress.totalSteps,
+                            color: trackColor, completionLabel: ""
+                        )
+                        StepDotsVisualization(
+                            steps: progress.trackSteps,
+                            completedStepIDs: progress.completedStepIDs,
+                            color: trackColor
+                        )
                     }
                     .padding(.bottom, AppTheme.Spacing.xsmall)
                 }
 
                 if let lesson = progress.currentLesson, progress.totalSteps > 0 {
                     Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-                    NextItemBanner(iconName: "book.fill", label: "Next Lesson", title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name, subtitle: nil, color: trackColor)
+                    NextItemBanner(
+                        iconName: "book.fill", label: "Next Lesson",
+                        title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name,
+                        subtitle: nil, color: trackColor
+                    )
                 } else if progress.isComplete && progress.totalSteps > 0 {
                     Divider().padding(.vertical, AppTheme.Spacing.xsmall)
                     CompletionTrophyBanner(message: "All lessons mastered!")
@@ -266,19 +280,29 @@ struct StudentProgressTab: View {
                         ActivityStatsRow(totalActivity: stats.totalActivity, color: trackColor)
                         HStack(spacing: 12) {
                             Button { filterSheet = .presentations(enrollment, track) } label: {
-                                ProgressStatBadge(count: stats.presentationCount, label: "Presentations", icon: "person.2.fill", color: .orange)
+                                ProgressStatBadge(
+                                    count: stats.presentationCount,
+                                    label: "Presentations",
+                                    icon: "person.2.fill", color: .orange
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(stats.presentationCount == 0)
 
                             Button { filterSheet = .work(enrollment, track) } label: {
-                                ProgressStatBadge(count: stats.workCount, label: "Work", icon: "briefcase.fill", color: .blue)
+                                ProgressStatBadge(
+                                    count: stats.workCount, label: "Work",
+                                    icon: "briefcase.fill", color: .blue
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(stats.workCount == 0)
 
                             Button { filterSheet = .notes(enrollment, track) } label: {
-                                ProgressStatBadge(count: stats.noteCount, label: "Notes", icon: "note.text", color: .yellow)
+                                ProgressStatBadge(
+                                    count: stats.noteCount, label: "Notes",
+                                    icon: "note.text", color: .yellow
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(stats.noteCount == 0)
@@ -296,7 +320,11 @@ struct StudentProgressTab: View {
                 }
             }
         }
-        .onAppear { viewModel.autoCompleteTrackIfNeeded(enrollment: enrollment, progress: progress, context: modelContext) }
+        .onAppear {
+            viewModel.autoCompleteTrackIfNeeded(
+                enrollment: enrollment, progress: progress, context: modelContext
+            )
+        }
     }
 
     // MARK: - Report Card
@@ -321,10 +349,16 @@ struct StudentProgressTab: View {
 
                 if progress.total > 0 {
                     VStack(alignment: .leading, spacing: 12) {
-                        ProgressStatsSection(completed: progress.completed, total: progress.total, color: .green, completionLabel: "steps")
+                        ProgressStatsSection(
+                            completed: progress.completed, total: progress.total,
+                            color: .green, completionLabel: "steps"
+                        )
                         StepDotsVisualization(
                             steps: orderedSteps,
-                            completedStepIDs: Set(orderedSteps.filter { $0.completedAt != nil }.map { $0.id.uuidString }),
+                            completedStepIDs: Set(
+                                orderedSteps.filter { $0.completedAt != nil }
+                                    .map { $0.id.uuidString }
+                            ),
                             color: .green,
                             maxSteps: 15
                         )

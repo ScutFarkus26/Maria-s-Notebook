@@ -66,7 +66,9 @@ final class StudentNotesViewModel {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
-            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)")
+            Self.logger.warning(
+                "Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)"
+            )
             return []
         }
     }
@@ -262,10 +264,26 @@ final class StudentNotesViewModel {
         
         let meetingItems: [UnifiedNoteItem] = studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
             var items: [UnifiedNoteItem] = []
-            if !meeting.reflection.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.reflection, context: "Meeting - Reflection")) }
-            if !meeting.focus.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.focus, context: "Meeting - Focus")) }
-            if !meeting.requests.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.requests, context: "Meeting - Requests")) }
-            if !meeting.guideNotes.isEmpty { items.append(makeMeetingNote(meeting, body: meeting.guideNotes, context: "Meeting - Guide Notes")) }
+            if !meeting.reflection.isEmpty {
+                items.append(makeMeetingNote(
+                    meeting, body: meeting.reflection, context: "Meeting - Reflection"
+                ))
+            }
+            if !meeting.focus.isEmpty {
+                items.append(makeMeetingNote(
+                    meeting, body: meeting.focus, context: "Meeting - Focus"
+                ))
+            }
+            if !meeting.requests.isEmpty {
+                items.append(makeMeetingNote(
+                    meeting, body: meeting.requests, context: "Meeting - Requests"
+                ))
+            }
+            if !meeting.guideNotes.isEmpty {
+                items.append(makeMeetingNote(
+                    meeting, body: meeting.guideNotes, context: "Meeting - Guide Notes"
+                ))
+            }
             return items
         }
         aggregated.append(contentsOf: meetingItems)

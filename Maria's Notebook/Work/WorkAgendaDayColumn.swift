@@ -19,7 +19,14 @@ struct WorkAgendaDayColumn: View {
     @Query(filter: #Predicate<LessonAssignment> { $0.stateRaw != "presented" })
     private var allLessonAssignments: [LessonAssignment]
 
-    init(day: Date, availableHeight: CGFloat, showPresentations: Bool = true, onPillTap: @escaping (WorkCheckIn) -> Void, onGroupTap: ((CheckInGroup) -> Void)? = nil, onLessonAssignmentSelect: ((LessonAssignment) -> Void)? = nil) {
+    init(
+        day: Date,
+        availableHeight: CGFloat,
+        showPresentations: Bool = true,
+        onPillTap: @escaping (WorkCheckIn) -> Void,
+        onGroupTap: ((CheckInGroup) -> Void)? = nil,
+        onLessonAssignmentSelect: ((LessonAssignment) -> Void)? = nil
+    ) {
         self.day = day
         self.availableHeight = availableHeight
         self.showPresentations = showPresentations
@@ -104,7 +111,13 @@ struct WorkAgendaDayColumn: View {
             let lessonTitle = resolvedLessonTitle(for: work)
             let studentName = resolvedStudentName(for: work)
             let groupKey = "\(work.lessonID)|\(ci.purpose)"
-            resolved.append(Resolved(checkIn: ci, work: work, lessonTitle: lessonTitle, studentName: studentName, groupKey: groupKey, checkInStyle: work.checkInStyle))
+            resolved.append(Resolved(
+                checkIn: ci, work: work,
+                lessonTitle: lessonTitle,
+                studentName: studentName,
+                groupKey: groupKey,
+                checkInStyle: work.checkInStyle
+            ))
         }
 
         // Separate individual-style items from groupable items
@@ -236,9 +249,22 @@ struct WorkAgendaDayColumn: View {
                 }
             }
             .padding(AppTheme.Spacing.small)
-            .frame(minWidth: 260, idealWidth: 260, maxWidth: 260, minHeight: 0, idealHeight: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
-            .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.faint), lineWidth: UIConstants.StrokeWidth.thin))
+            .frame(
+                minWidth: 260, idealWidth: 260, maxWidth: 260,
+                minHeight: 0, idealHeight: .infinity,
+                maxHeight: .infinity, alignment: .topLeading
+            )
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                    .stroke(
+                        Color.primary.opacity(UIConstants.OpacityConstants.faint),
+                        lineWidth: UIConstants.StrokeWidth.thin
+                    )
+            )
         }
         .frame(height: availableHeight, alignment: .topLeading)
     }
@@ -253,7 +279,17 @@ struct GroupedWorkCheckInPill: View {
 
     private var purposeIcon: String {
         let purpose = group.purpose.lowercased()
-        if purpose.contains("progress") || purpose.contains("check") { return "checkmark.circle" } else if purpose.contains("due") { return "calendar.badge.exclamationmark" } else if purpose.contains("assessment") { return "chart.bar" } else if purpose.contains("follow") { return "arrow.turn.down.right" } else { return "calendar" }
+        if purpose.contains("progress") || purpose.contains("check") {
+            return "checkmark.circle"
+        } else if purpose.contains("due") {
+            return "calendar.badge.exclamationmark"
+        } else if purpose.contains("assessment") {
+            return "chart.bar"
+        } else if purpose.contains("follow") {
+            return "arrow.turn.down.right"
+        } else {
+            return "calendar"
+        }
     }
 
     private var studentNamesDisplay: String {
@@ -292,8 +328,17 @@ struct GroupedWorkCheckInPill: View {
         .padding(.horizontal, AppTheme.Spacing.small)
         .padding(.vertical, AppTheme.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large).fill(Color.accentColor.opacity(UIConstants.OpacityConstants.faint)))
-        .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large).stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin))
+        .background(
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.faint))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                .stroke(
+                    Color.accentColor.opacity(UIConstants.OpacityConstants.light),
+                    lineWidth: UIConstants.StrokeWidth.thin
+                )
+        )
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
     }

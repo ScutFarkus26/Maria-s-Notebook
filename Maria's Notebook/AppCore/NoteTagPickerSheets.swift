@@ -21,7 +21,10 @@ struct NoteTagPickerSheet: View {
                 tagSet.insert(tag)
             }
         }
-        return tagSet.sorted { TagHelper.tagName($0).localizedCaseInsensitiveCompare(TagHelper.tagName($1)) == .orderedAscending }
+        return tagSet.sorted {
+            TagHelper.tagName($0)
+                .localizedCaseInsensitiveCompare(TagHelper.tagName($1)) == .orderedAscending
+        }
     }
 
     private var filteredTags: [String] {

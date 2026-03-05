@@ -250,9 +250,15 @@ struct PresentationsInboxView: View {
 
         switch sortMode {
         case .lesson:
-            return matched.sorted { lessonTitle(for: $0, using: lessonsByID).localizedCaseInsensitiveCompare(lessonTitle(for: $1, using: lessonsByID)) == .orderedAscending }
+            return matched.sorted {
+                lessonTitle(for: $0, using: lessonsByID)
+                    .localizedCaseInsensitiveCompare(lessonTitle(for: $1, using: lessonsByID)) == .orderedAscending
+            }
         case .student:
-            return matched.sorted { studentNames(for: $0, using: studentsByID).localizedCaseInsensitiveCompare(studentNames(for: $1, using: studentsByID)) == .orderedAscending }
+            return matched.sorted {
+                studentNames(for: $0, using: studentsByID)
+                    .localizedCaseInsensitiveCompare(studentNames(for: $1, using: studentsByID)) == .orderedAscending
+            }
         case .age:
             // Sort by creation date (older first)
             return matched.sorted { $0.createdAt < $1.createdAt }

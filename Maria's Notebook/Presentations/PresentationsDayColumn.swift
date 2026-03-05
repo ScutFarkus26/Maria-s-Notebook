@@ -109,10 +109,20 @@ struct PresentationsDayColumn: View {
                             ForEach(allItemsForDay) { item in
                                 switch item {
                                 case .lessonAssignment(let la):
-                                    PresentationPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true)
+                                    PresentationPill(
+                                        snapshot: la.snapshot(), day: day,
+                                        targetLessonAssignmentID: la.id,
+                                        showTimeBadge: false, enableMergeDrop: true
+                                    )
                                         .onTapGesture { onSelect(la) }
-                                        .draggable(UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation) {
-                                            PresentationPill(snapshot: la.snapshot(), day: day, targetLessonAssignmentID: la.id, showTimeBadge: false, enableMergeDrop: true).opacity(0.85)
+                                        .draggable(
+                                            UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation
+                                        ) {
+                                            PresentationPill(
+                                                snapshot: la.snapshot(), day: day,
+                                                targetLessonAssignmentID: la.id,
+                                                showTimeBadge: false, enableMergeDrop: true
+                                            ).opacity(0.85)
                                         }
                                         .contextMenu {
                                             Button("Clear Schedule", systemImage: "xmark.circle") {
@@ -193,7 +203,9 @@ struct PresentationsDayColumn: View {
                 },
                 onInsertionIndexChange: { idx in
                     if insertionIndex != idx {
-                        adaptiveWithAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+                        adaptiveWithAnimation(
+                            .interactiveSpring(response: 0.16, dampingFraction: 0.85)
+                        ) { insertionIndex = idx }
                     }
                 }
             ))
@@ -325,7 +337,9 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         let bounded = max(0, min(insertionIndex, ids.count))
         ids.insert(id, at: bounded)
         let baseDate = baseDateForDay(day: day, calendar: calendar)
-        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+        let timeMap = PlanningDropUtils.assignSequentialTimes(
+            ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1
+        )
         do {
             for itemID in ids {
                 if let item = allLessonAssignments.first(where: { $0.id == itemID }) {

@@ -221,7 +221,9 @@ final class PresentationsViewModel {
         lastUpdateDate = Date()
 
         // Filter visible students
-        let visibleStudents = TestStudentsFilter.filterVisible(students, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        let visibleStudents = TestStudentsFilter.filterVisible(
+            students, show: showTestStudents, namesRaw: testStudentNamesRaw
+        )
         cachedStudentsStorage = visibleStudents
 
         // Build openWorkByPresentationID dictionary
@@ -264,7 +266,8 @@ final class PresentationsViewModel {
         )
 
         for la in allUnscheduled {
-            let result = blockingResults[la.id] ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+            let result = blockingResults[la.id]
+                ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
             if result.isBlocked {
                 blocked.append(la)
             } else {

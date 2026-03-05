@@ -79,7 +79,10 @@ public struct ReminderSyncSettingsView: View {
                         StatusMessageView(message: status)
                     }
 
-                    Text("Reminders from the selected list will appear in your Today view. You can manually sync or reminders will sync automatically when changes are detected.")
+                    Text(
+                        "Reminders from the selected list will appear in your Today view."
+                        + " You can manually sync or reminders will sync automatically when changes are detected."
+                    )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -104,7 +107,8 @@ public struct ReminderSyncSettingsView: View {
                 isRefreshing = false
                 await loadAvailableLists()
             } else {
-                lastSyncStatus = "Access was denied. Please enable it in System Settings > Privacy & Security > Reminders."
+                lastSyncStatus = "Access was denied."
+                    + " Please enable it in System Settings > Privacy & Security > Reminders."
                 isRefreshing = false
             }
         } catch {

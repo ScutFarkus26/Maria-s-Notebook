@@ -83,7 +83,9 @@ struct StudentDetailView: View {
 
     @ViewBuilder
     private func lessonGiveSheet(for lesson: Lesson) -> some View {
-        let newLA = vm.createDraftLessonAssignment(for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator)
+        let newLA = vm.createDraftLessonAssignment(
+            for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator
+        )
         PresentationDetailView(lessonAssignment: newLA) {
             vm.selectedLessonForGive = nil
             vm.loadData(modelContext: modelContext)
@@ -242,6 +244,8 @@ struct StudentDetailView: View {
     init(student: Student, onDone: (() -> Void)? = nil) {
         self.student = student
         self.onDone = onDone
-        _vm = State(wrappedValue: StudentDetailViewModel(student: student, dependencies: AppDependenciesKey.defaultValue))
+        _vm = State(wrappedValue: StudentDetailViewModel(
+            student: student, dependencies: AppDependenciesKey.defaultValue
+        ))
     }
 }

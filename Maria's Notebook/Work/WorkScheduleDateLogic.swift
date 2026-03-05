@@ -17,7 +17,10 @@ struct WorkScheduleDates: Equatable {
 
     var hasPrimary: Bool { primaryDate != nil && primaryKind != nil }
 
-    init(primaryDate: Date?, primaryKind: WorkScheduleDateKind?, secondaryDate: Date?, secondaryKind: WorkScheduleDateKind?) {
+    init(
+        primaryDate: Date?, primaryKind: WorkScheduleDateKind?,
+        secondaryDate: Date?, secondaryKind: WorkScheduleDateKind?
+    ) {
         self.primaryDate = primaryDate
         self.primaryKind = primaryKind
         self.secondaryDate = secondaryDate

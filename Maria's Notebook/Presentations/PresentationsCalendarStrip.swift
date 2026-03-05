@@ -50,11 +50,15 @@ struct PresentationsCalendarStrip: View {
         ScrollViewReader { proxy in
             VStack(spacing: 6) {
                 HStack(spacing: 8) {
-                    Button { moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.left") }
+                    Button {
+                        moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
+                    } label: { Image(systemName: "chevron.left") }
                         .buttonStyle(.plain)
                     Spacer()
                     Button("Today") {
-                        let targetDate = AgendaSchoolDayRules.computeInitialStartDate(calendar: calendar, isNonSchoolDay: isNonSchool)
+                        let targetDate = AgendaSchoolDayRules.computeInitialStartDate(
+                            calendar: calendar, isNonSchoolDay: isNonSchool
+                        )
                         
                         // If we are already grounded on the correct start date, just scroll to it.
                         // Otherwise, update startDate, which will trigger the onChange below.
@@ -70,7 +74,9 @@ struct PresentationsCalendarStrip: View {
                     }
                     .buttonStyle(.plain)
                     Spacer()
-                    Button { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) } label: { Image(systemName: "chevron.right") }
+                    Button {
+                        moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
+                    } label: { Image(systemName: "chevron.right") }
                         .buttonStyle(.plain)
                     
                     Button {

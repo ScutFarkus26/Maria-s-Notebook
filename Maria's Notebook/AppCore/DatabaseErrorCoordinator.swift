@@ -118,7 +118,8 @@ final class DatabaseErrorCoordinator {
             do {
                 let attrs = try fileManager.attributesOfItem(atPath: storeURL.path)
                 if let size = attrs[.size] as? Int64 {
-                    diagnostics.append("Store size: \(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))")
+                    let sizeStr = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                    diagnostics.append("Store size: \(sizeStr)")
                 }
             } catch {
                 diagnostics.append("Store size: Unable to get file size (\(error.localizedDescription))")
@@ -129,8 +130,10 @@ final class DatabaseErrorCoordinator {
         diagnostics.append("")
         diagnostics.append("=== UserDefaults Flags ===")
         diagnostics.append("")
-        diagnostics.append("Ephemeral Session: \(UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag))")
-        diagnostics.append("CloudKit Enabled: \(UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync))")
+        let ephemeral = UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        diagnostics.append("Ephemeral Session: \(ephemeral)")
+        let ckEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        diagnostics.append("CloudKit Enabled: \(ckEnabled)")
         diagnostics.append("CloudKit Active: \(UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive))")
         
         if let lastError = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription) {

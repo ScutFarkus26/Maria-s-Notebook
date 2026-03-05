@@ -194,7 +194,10 @@ final class GroupProgressionViewModel {
             }
 
             guard let current = furthestLesson else { continue }
-            guard let nextLesson = PlanNextLessonService.findNextLesson(after: current, in: allLessons) else { continue }
+            guard let nextLesson = PlanNextLessonService.findNextLesson(
+                after: current,
+                in: allLessons
+            ) else { continue }
 
             PlanNextLessonService.planLesson(
                 nextLesson,
@@ -229,7 +232,11 @@ final class GroupProgressionViewModel {
 
     private func fetchAllLessons(context: ModelContext) -> [Lesson] {
         let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)]
+            sortBy: [
+                SortDescriptor(\Lesson.subject),
+                SortDescriptor(\Lesson.group),
+                SortDescriptor(\Lesson.orderInGroup)
+            ]
         )
         return context.safeFetch(descriptor)
     }

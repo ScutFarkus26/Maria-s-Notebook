@@ -12,7 +12,12 @@ struct ChatMessage: Identifiable, Codable {
     /// Whether this message is an escalation prompt (special UI card, not a regular bubble).
     var isEscalationPrompt: Bool
 
-    init(id: UUID = UUID(), role: ChatRole, content: String, timestamp: Date = Date(), modelID: String? = nil, isEscalationPrompt: Bool = false) {
+    init(
+        id: UUID = UUID(), role: ChatRole,
+        content: String, timestamp: Date = Date(),
+        modelID: String? = nil,
+        isEscalationPrompt: Bool = false
+    ) {
         self.id = id
         self.role = role
         self.content = content

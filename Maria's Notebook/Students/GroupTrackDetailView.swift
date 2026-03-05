@@ -31,7 +31,9 @@ struct GroupTrackDetailView: View {
 
     private var effectiveTrackSettings: (isSequential: Bool, isExplicitlyDisabled: Bool) {
         do {
-            return try GroupTrackService.getEffectiveTrackSettings(subject: subject, group: group, modelContext: modelContext)
+            return try GroupTrackService.getEffectiveTrackSettings(
+                subject: subject, group: group, modelContext: modelContext
+            )
         } catch {
             Self.logger.warning("Failed to fetch effective track settings: \(error)")
             return (isSequential: true, isExplicitlyDisabled: false)
@@ -139,8 +141,14 @@ struct GroupTrackDetailView: View {
                     let remaining = summary.total - summary.presented - summary.practicing - summary.proficient
 
                     HStack(spacing: 16) {
-                        progressBadge(count: summary.proficient, label: "Mastered", color: .green, icon: "checkmark.seal.fill")
-                        progressBadge(count: summary.practicing, label: "Practicing", color: .purple, icon: "arrow.triangle.2.circlepath")
+                        progressBadge(
+                            count: summary.proficient, label: "Mastered",
+                            color: .green, icon: "checkmark.seal.fill"
+                        )
+                        progressBadge(
+                            count: summary.practicing, label: "Practicing",
+                            color: .purple, icon: "arrow.triangle.2.circlepath"
+                        )
                         progressBadge(count: summary.presented, label: "Presented", color: .blue, icon: "eye.fill")
                         progressBadge(count: remaining, label: "Remaining", color: .gray, icon: "circle.dashed")
                     }

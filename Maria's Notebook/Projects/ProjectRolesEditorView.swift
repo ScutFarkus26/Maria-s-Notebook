@@ -55,7 +55,8 @@ struct ProjectRolesEditorView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(role.title.isEmpty ? "Untitled" : role.title)
                                         .font(.body.weight(.semibold))
-                                    let firstLine = role.summary.split(separator: "\n").first.map(String.init) ?? role.summary
+                                    let firstLine = role.summary.split(separator: "\n")
+                                        .first.map(String.init) ?? role.summary
                                     if !firstLine.trimmed().isEmpty {
                                         Text(firstLine)
                                             .font(.subheadline)

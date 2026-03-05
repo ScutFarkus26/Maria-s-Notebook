@@ -9,7 +9,8 @@ struct ProjectWeeksEditorView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Performance: Use filtered query instead of loading all weeks
-    @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)]) private var weeks: [ProjectTemplateWeek]
+    @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)])
+    private var weeks: [ProjectTemplateWeek]
 
     @State private var editingWeek: ProjectTemplateWeek?
 
@@ -40,7 +41,11 @@ struct ProjectWeeksEditorView: View {
                 }
             }
             if weeks.isEmpty {
-                ContentUnavailableView("No Weeks", systemImage: "calendar", description: Text("Add Week to start building your template."))
+                ContentUnavailableView(
+                    "No Weeks",
+                    systemImage: "calendar",
+                    description: Text("Add Week to start building your template.")
+                )
             } else {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(weeks, id: \.id) { week in
@@ -99,14 +104,19 @@ struct ProjectWeekEditorView: View, Identifiable {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Performance: Filter students to only club members at query level
     @Query(sort: Student.sortByName) private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     // Performance: Filter roles by projectID at query level
@@ -150,7 +160,11 @@ struct ProjectWeekEditorView: View, Identifiable {
 
     private var clubMembers: [Student] {
         let ids = Set(club.memberStudentIDs.compactMap(UUID.init))
-        return students.filter { ids.contains($0.id) }.sorted { StudentFormatter.displayName(for: $0) < StudentFormatter.displayName(for: $1) }
+        return students
+            .filter { ids.contains($0.id) }
+            .sorted {
+                StudentFormatter.displayName(for: $0) < StudentFormatter.displayName(for: $1)
+            }
     }
 
     // Performance: Pre-compute role assignment lookup dictionary to avoid N+1 searches
@@ -162,7 +176,12 @@ struct ProjectWeekEditorView: View, Identifiable {
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] { Dictionary(allLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    private var lessonsByID: [UUID: Lesson] {
+        Dictionary(
+            allLessons.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
 
     private var linkedLessons: [Lesson] {
         linkedLessonIDs.compactMap { UUID(uuidString: $0) }.compactMap { lessonsByID[$0] }
@@ -395,7 +414,11 @@ struct ProjectWeekEditorView: View, Identifiable {
     }
 
     @ViewBuilder
-    private func sectionCard<Content: View>(_ title: String, systemImage: String, @ViewBuilder content: () -> Content) -> some View {
+    private func sectionCard<Content: View>(
+        _ title: String,
+        systemImage: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: systemImage)
@@ -422,7 +445,11 @@ struct ProjectWeekEditorView: View, Identifiable {
                         set: { binding.wrappedValue[idx] = $0 }
                     ))
                     .textFieldStyle(.roundedBorder)
-                    Button(role: .destructive) { binding.wrappedValue.remove(at: idx) } label: { Image(systemName: "trash") }
+                    Button(role: .destructive) {
+                        binding.wrappedValue.remove(at: idx)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
                         .buttonStyle(.borderless)
                 }
             }

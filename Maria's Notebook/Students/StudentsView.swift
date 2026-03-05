@@ -27,8 +27,10 @@ struct StudentsView<WorkloadContent: View>: View {
 
     // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
-    @Query(sort: [SortDescriptor(\AttendanceRecord.id)]) private var attendanceRecordsForChangeDetection: [AttendanceRecord]
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)]) private var lessonAssignmentsForChangeDetection: [LessonAssignment]
+    @Query(sort: [SortDescriptor(\AttendanceRecord.id)])
+    private var attendanceRecordsForChangeDetection: [AttendanceRecord]
+    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
+    private var lessonAssignmentsForChangeDetection: [LessonAssignment]
     @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
 
     // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects

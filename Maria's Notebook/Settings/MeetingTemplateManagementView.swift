@@ -237,7 +237,11 @@ private struct MeetingTemplateCardRow: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(template.isActive ? AppColors.success.opacity(0.3) : Color.primary.opacity(SettingsStyle.borderOpacity))
+                    .stroke(
+                        template.isActive
+                            ? AppColors.success.opacity(0.3)
+                            : Color.primary.opacity(SettingsStyle.borderOpacity)
+                    )
             )
             .contentShape(Rectangle())
         }
@@ -270,7 +274,11 @@ private struct MeetingTemplatePreviewSheet: View {
                     }
 
                     // Prompts
-                    PromptSection(title: "Reflection Prompt", icon: "bubble.left.and.bubble.right", content: template.reflectionPrompt)
+                    PromptSection(
+                        title: "Reflection Prompt",
+                        icon: "bubble.left.and.bubble.right",
+                        content: template.reflectionPrompt
+                    )
                     PromptSection(title: "Focus Prompt", icon: "target", content: template.focusPrompt)
                     PromptSection(title: "Requests Prompt", icon: "hand.raised", content: template.requestsPrompt)
                     PromptSection(title: "Guide Notes Prompt", icon: "note.text", content: template.guideNotesPrompt)

@@ -284,7 +284,8 @@ public final class SyncedPreferencesStore {
         if synced {
             pendingSyncKeys.removeAll()
         } else {
-            logger.warning("Failed to sync \(self.pendingSyncKeys.count) preferences to iCloud, will retry on next change")
+            let count = self.pendingSyncKeys.count
+            logger.warning("Failed to sync \(count) preferences to iCloud, will retry on next change")
             // Keep pending keys to retry later
         }
     }

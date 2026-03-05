@@ -100,7 +100,19 @@ struct PlanningWeekViewiOS: View {
 
         #if DEBUG
         let loadTime = Date().timeIntervalSince(startTime)
-        Self.logger.debug("PlanningWeekViewiOS loaded \(self.inboxLessons.count, privacy: .public) inbox items, \(self.lessons.count, privacy: .public) lessons, \(self.students.count, privacy: .public) students in \(String(format: "%.3f", loadTime))s (Manual fetch)")
+        let inboxCount = self.inboxLessons.count
+        let lessonCount = self.lessons.count
+        let studentCount = self.students.count
+        let timeStr = String(format: "%.3f", loadTime)
+        Self.logger.debug(
+            """
+            PlanningWeekViewiOS loaded \
+            \(inboxCount, privacy: .public) inbox, \
+            \(lessonCount, privacy: .public) lessons, \
+            \(studentCount, privacy: .public) students \
+            in \(timeStr)s
+            """
+        )
         PerformanceLogger.logScreenLoad(
             screenName: "PlanningWeekViewiOS",
             itemCounts: [

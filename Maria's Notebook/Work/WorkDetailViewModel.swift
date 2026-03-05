@@ -52,7 +52,11 @@ final class WorkDetailViewModel {
 
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: ModelContext, functionName: String = #function) -> [T] {
+    private func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>,
+        context: ModelContext,
+        functionName: String = #function
+    ) -> [T] {
         do {
             return try context.fetch(descriptor)
         } catch {

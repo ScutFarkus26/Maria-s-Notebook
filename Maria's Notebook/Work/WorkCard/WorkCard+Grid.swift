@@ -14,8 +14,10 @@ struct WorkCardGridContent: View {
     @SyncedAppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @SyncedAppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
     @SyncedAppStorage("WorkAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
-    @SyncedAppStorage("WorkAge.warningColorHex") private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
-    @SyncedAppStorage("WorkAge.overdueColorHex") private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
+    @SyncedAppStorage("WorkAge.warningColorHex")
+    private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
+    @SyncedAppStorage("WorkAge.overdueColorHex")
+    private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
 
     private var ageStatus: LessonAgeStatus {
         if config.ageSchoolDays >= max(0, ageOverdueDays) { return .overdue }

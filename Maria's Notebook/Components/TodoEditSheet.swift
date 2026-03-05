@@ -81,7 +81,8 @@ struct TodoEditSheet: View {
 
         // Parse reminder
         _hasReminder = State(initialValue: todo.reminderDate != nil)
-        _reminderDate = State(initialValue: todo.reminderDate ?? Date().addingTimeInterval(3600)) // Default to 1 hour from now
+        // Default to 1 hour from now
+        _reminderDate = State(initialValue: todo.reminderDate ?? Date().addingTimeInterval(3600))
 
         // Parse mood and reflection
         _selectedMood = State(initialValue: todo.mood)
@@ -135,7 +136,12 @@ struct SubtaskRow: View {
     @State private var editingTitle: String
     @FocusState private var isFocused: Bool
 
-    init(subtask: TodoSubtask, onToggle: @escaping () -> Void, onDelete: @escaping () -> Void, onUpdate: @escaping (String) -> Void) {
+    init(
+        subtask: TodoSubtask,
+        onToggle: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        onUpdate: @escaping (String) -> Void
+    ) {
         self.subtask = subtask
         self.onToggle = onToggle
         self.onDelete = onDelete

@@ -9,7 +9,8 @@ struct AttendanceLogView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: [SortDescriptor(\AttendanceRecord.date, order: .reverse)])
     private var allRecords: [AttendanceRecord]
@@ -67,7 +68,8 @@ struct AttendanceLogView: View {
             return (start, thisMonthStart)
         case .custom:
             let start = calendar.startOfDay(for: customStartDate)
-            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEndDate)) ?? customEndDate
+            let endStart = calendar.startOfDay(for: customEndDate)
+            let end = calendar.date(byAdding: .day, value: 1, to: endStart) ?? customEndDate
             return (start, end)
         case .allTime:
             return nil

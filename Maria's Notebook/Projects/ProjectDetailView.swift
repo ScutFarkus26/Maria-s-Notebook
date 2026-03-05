@@ -10,13 +10,18 @@ struct ProjectDetailView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query(sort: Student.sortByName) private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     // Performance: Filter roles by projectID at query level
@@ -37,7 +42,12 @@ struct ProjectDetailView: View {
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var studentsByID: [UUID: Student] { Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    private var studentsByID: [UUID: Student] {
+        Dictionary(
+            students.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
     
     var body: some View {
         ScrollView {
@@ -178,7 +188,9 @@ struct ProjectDetailView: View {
                                 .padding(.top, AppTheme.Spacing.xsmall)
                         } else {
                             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                                ForEach((club.sessions ?? []).sorted(by: { $0.meetingDate > $1.meetingDate })) { session in
+                                let sorted = (club.sessions ?? [])
+                                    .sorted(by: { $0.meetingDate > $1.meetingDate })
+                                ForEach(sorted) { session in
                                     NavigationLink(destination: ProjectSessionDetailView(session: session)) {
                                         // Use subview to correctly query work count
                                         SessionRow(session: session)

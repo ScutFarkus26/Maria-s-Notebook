@@ -117,7 +117,10 @@ struct MoveStudentsSheet: View {
                     Button {
                         onMove()
                     } label: {
-                        Label("Move \(studentsToMove.count) Student\(studentsToMove.count == 1 ? "" : "s")", systemImage: "arrow.right.circle.fill")
+                        Label(
+                            "Move \(studentsToMove.count) Student\(studentsToMove.count == 1 ? "" : "s")",
+                            systemImage: "arrow.right.circle.fill"
+                        )
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(studentsToMove.isEmpty || studentsToMove.count == selectedStudentIDs.count)

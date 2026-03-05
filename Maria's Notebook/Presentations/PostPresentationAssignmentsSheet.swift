@@ -33,7 +33,11 @@ struct PostPresentationAssignmentsSheet: View {
     @State private var entries: [UUID: AssignmentEntry] = [:]
     @State private var bulkText: String = ""
 
-    init(students: [Student], lessonName: String, onCreate: @escaping ([AssignmentEntry]) -> Void, onCancel: @escaping () -> Void) {
+    init(
+        students: [Student], lessonName: String,
+        onCreate: @escaping ([AssignmentEntry]) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
         // DEDUPLICATION: Defensive deduplication in case caller doesn't deduplicate
         let deduped = students.uniqueByID
         self.students = deduped

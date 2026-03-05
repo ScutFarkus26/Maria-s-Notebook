@@ -60,7 +60,10 @@ extension WorkDetailView {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.faint), lineWidth: UIConstants.StrokeWidth.thin)
+                            .stroke(
+                                Color.primary.opacity(UIConstants.OpacityConstants.faint),
+                                lineWidth: UIConstants.StrokeWidth.thin
+                            )
                     )
             }
 
@@ -201,7 +204,11 @@ extension WorkDetailView {
                     )
                 } else {
                     VStack(spacing: 10) {
-                        ForEach(viewModel.workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                        ForEach(
+                        viewModel.workModelNotes
+                            .sorted(by: { $0.createdAt > $1.createdAt }),
+                        id: \.id
+                    ) { note in
                             noteRow(note)
                         }
                     }

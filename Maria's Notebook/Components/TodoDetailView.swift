@@ -11,10 +11,15 @@ struct TodoDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var allStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            allStudentsRaw.uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     let onClose: () -> Void
@@ -68,19 +73,32 @@ struct TodoDetailView: View {
                     detailSection("Schedule", icon: "calendar") {
                         VStack(alignment: .leading, spacing: 10) {
                             if let scheduled = todo.scheduledDate {
-                                metadataRow(icon: "star", label: "Scheduled", value: formatDate(scheduled), valueColor: .blue)
+                                metadataRow(
+                                    icon: "star", label: "Scheduled",
+                                    value: formatDate(scheduled), valueColor: .blue
+                                )
                             }
                             if let dueDate = todo.dueDate {
-                                metadataRow(icon: "flag.fill", label: "Deadline", value: formatDate(dueDate), valueColor: todo.isOverdue ? .red : .orange)
+                                metadataRow(
+                                    icon: "flag.fill", label: "Deadline",
+                                    value: formatDate(dueDate),
+                                    valueColor: todo.isOverdue ? .red : .orange
+                                )
                             }
                             if todo.isSomeday {
                                 metadataRow(icon: "moon.zzz", label: "Status", value: "Someday", valueColor: .secondary)
                             }
                             if todo.recurrence != .none {
-                                metadataRow(icon: todo.recurrence.icon, label: "Repeats", value: todo.recurrence.description, valueColor: .purple)
+                                metadataRow(
+                                    icon: todo.recurrence.icon, label: "Repeats",
+                                    value: todo.recurrence.description, valueColor: .purple
+                                )
                             }
                             if todo.repeatAfterCompletion {
-                                metadataRow(icon: "arrow.clockwise", label: "Mode", value: "After completion", valueColor: .purple)
+                                metadataRow(
+                                    icon: "arrow.clockwise", label: "Mode",
+                                    value: "After completion", valueColor: .purple
+                                )
                             }
                         }
                     }
@@ -147,15 +165,26 @@ struct TodoDetailView: View {
                     detailSection("Time", icon: "clock.fill") {
                         VStack(alignment: .leading, spacing: 8) {
                             if let est = todo.estimatedMinutes {
-                                metadataRow(icon: "hourglass", label: "Estimated", value: formatMinutes(est), valueColor: .secondary)
+                                metadataRow(
+                                    icon: "hourglass", label: "Estimated",
+                                    value: formatMinutes(est), valueColor: .secondary
+                                )
                             }
                             if let actual = todo.actualMinutes {
-                                metadataRow(icon: "stopwatch", label: "Actual", value: formatMinutes(actual), valueColor: .secondary)
+                                metadataRow(
+                                    icon: "stopwatch", label: "Actual",
+                                    value: formatMinutes(actual), valueColor: .secondary
+                                )
                             }
                             if let est = todo.estimatedMinutes, let actual = todo.actualMinutes, est > 0 {
                                 let variance = actual - est
                                 let color: Color = variance > 0 ? .red : (variance < 0 ? .green : .secondary)
-                                metadataRow(icon: "chart.bar", label: "Variance", value: "\(variance > 0 ? "+" : "")\(formatMinutes(abs(variance)))", valueColor: color)
+                                let sign = variance > 0 ? "+" : ""
+                                let val = "\(sign)\(formatMinutes(abs(variance)))"
+                                metadataRow(
+                                    icon: "chart.bar", label: "Variance",
+                                    value: val, valueColor: color
+                                )
                             }
                         }
                     }
@@ -164,7 +193,10 @@ struct TodoDetailView: View {
                 // Reminder
                 if let reminderDate = todo.reminderDate {
                     detailSection("Reminder", icon: "bell.fill") {
-                        metadataRow(icon: "bell", label: "Alert at", value: formatDate(reminderDate), valueColor: .yellow)
+                        metadataRow(
+                            icon: "bell", label: "Alert at",
+                            value: formatDate(reminderDate), valueColor: .yellow
+                        )
                     }
                 }
 
@@ -249,13 +281,19 @@ struct TodoDetailView: View {
                 // Completed timestamp
                 if todo.isCompleted, let completedAt = todo.completedAt {
                     detailSection("Completed", icon: "checkmark.seal.fill") {
-                        metadataRow(icon: "checkmark", label: "Completed", value: formatDate(completedAt), valueColor: .green)
+                        metadataRow(
+                            icon: "checkmark", label: "Completed",
+                            value: formatDate(completedAt), valueColor: .green
+                        )
                     }
                 }
 
                 // Created timestamp
                 detailSection("Created", icon: "clock.arrow.circlepath") {
-                    metadataRow(icon: "plus.circle", label: "Created", value: formatDate(todo.createdAt), valueColor: .secondary)
+                    metadataRow(
+                        icon: "plus.circle", label: "Created",
+                        value: formatDate(todo.createdAt), valueColor: .secondary
+                    )
                 }
             }
             .padding(24)

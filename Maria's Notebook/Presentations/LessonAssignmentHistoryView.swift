@@ -23,7 +23,8 @@ struct LessonAssignmentHistoryView: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // PAGINATION: Load assignments in batches instead of all at once
     static let initialLoadCount = 50
@@ -73,9 +74,14 @@ struct LessonAssignmentHistoryView: View {
     @State var selectedSubjects: Set<String> = []
     @State var searchText: String = ""
 
-    @AppStorage(UserDefaultsKeys.presentationHistoryNameDisplayStyle) private var nameDisplayStyleRaw: String = "firstLastInitial"
-    private enum NameDisplayStyle: String, Sendable { case initials, firstLastInitial }
-    private var nameDisplayStyle: NameDisplayStyle { NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial }
+    @AppStorage(UserDefaultsKeys.presentationHistoryNameDisplayStyle)
+    private var nameDisplayStyleRaw: String = "firstLastInitial"
+    private enum NameDisplayStyle: String, Sendable {
+        case initials, firstLastInitial
+    }
+    private var nameDisplayStyle: NameDisplayStyle {
+        NameDisplayStyle(rawValue: nameDisplayStyleRaw) ?? .firstLastInitial
+    }
 
     func displayName(for s: Student) -> String {
         let first = s.firstName.trimmed()

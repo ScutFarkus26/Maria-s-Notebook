@@ -103,7 +103,13 @@ extension TodayView {
                 if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
-                            ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.absentToday, extractor: { displayNameForID($0) }), id: \.self) { sid in
+                            ForEach(
+                                StringSorting.sortByLocalizedCaseInsensitive(
+                                    items: viewModel.absentToday,
+                                    extractor: { displayNameForID($0) }
+                                ),
+                                id: \.self
+                            ) { sid in
                                 let name = displayNameForID(sid)
                                 if !name.trimmed().isEmpty {
                                     studentPill(name, color: .red)
@@ -121,7 +127,13 @@ extension TodayView {
                             if !viewModel.absentToday.isEmpty && !viewModel.leftEarlyToday.isEmpty {
                                 Color.clear.frame(width: 8)
                             }
-                            ForEach(StringSorting.sortByLocalizedCaseInsensitive(items: viewModel.leftEarlyToday, extractor: { displayNameForID($0) }), id: \.self) { sid in
+                            ForEach(
+                                StringSorting.sortByLocalizedCaseInsensitive(
+                                    items: viewModel.leftEarlyToday,
+                                    extractor: { displayNameForID($0) }
+                                ),
+                                id: \.self
+                            ) { sid in
                                 let name = displayNameForID(sid)
                                 if !name.trimmed().isEmpty {
                                     studentPill(name, color: .purple)

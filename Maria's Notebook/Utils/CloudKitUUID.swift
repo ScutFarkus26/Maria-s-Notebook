@@ -129,7 +129,10 @@ enum CloudKitStringArrayStorage {
         do {
             return try JSONDecoder().decode([String].self, from: data)
         } catch {
-            Logger.database.warning("CloudKitStringArrayStorage: Failed to decode [String] from \(data.count) bytes: \(error.localizedDescription)")
+            let desc = error.localizedDescription
+            Logger.database.warning(
+                "CloudKitStringArrayStorage: Failed to decode [String] from \(data.count) bytes: \(desc)"
+            )
             return []
         }
     }
@@ -140,7 +143,9 @@ enum CloudKitStringArrayStorage {
         do {
             return try JSONEncoder().encode(value)
         } catch {
-            Logger.database.warning("CloudKitStringArrayStorage: Failed to encode \(value.count) strings: \(error.localizedDescription)")
+            Logger.database.warning(
+                "CloudKitStringArrayStorage: Failed to encode \(value.count) strings: \(error.localizedDescription)"
+            )
             return nil
         }
     }

@@ -96,11 +96,32 @@ extension QuickPracticeSessionSheet {
             VStack(spacing: 8) {
                 behaviorToggle("Asked for help", isOn: $askedForHelp, icon: "hand.raised.fill", color: .orange)
                 behaviorToggle("Helped a peer", isOn: $helpedPeer, icon: "hands.sparkles.fill", color: .green)
-                behaviorToggle("Struggled with concept", isOn: $struggledWithConcept, icon: "exclamationmark.triangle.fill", color: .red)
-                behaviorToggle("Made breakthrough", isOn: $madeBreakthrough, icon: "lightbulb.fill", color: .yellow)
-                behaviorToggle("Needs reteaching", isOn: $needsReteaching, icon: "arrow.counterclockwise.circle.fill", color: .purple)
-                behaviorToggle("Ready for check-in", isOn: $readyForCheckIn, icon: "checkmark.circle.fill", color: .blue)
-                behaviorToggle("Ready for assessment", isOn: $readyForAssessment, icon: "checkmark.seal.fill", color: .indigo)
+                behaviorToggle(
+                    "Struggled with concept",
+                    isOn: $struggledWithConcept,
+                    icon: "exclamationmark.triangle.fill", color: .red
+                )
+                behaviorToggle(
+                    "Made breakthrough",
+                    isOn: $madeBreakthrough,
+                    icon: "lightbulb.fill", color: .yellow
+                )
+                behaviorToggle(
+                    "Needs reteaching",
+                    isOn: $needsReteaching,
+                    icon: "arrow.counterclockwise.circle.fill",
+                    color: .purple
+                )
+                behaviorToggle(
+                    "Ready for check-in",
+                    isOn: $readyForCheckIn,
+                    icon: "checkmark.circle.fill", color: .blue
+                )
+                behaviorToggle(
+                    "Ready for assessment",
+                    isOn: $readyForAssessment,
+                    icon: "checkmark.seal.fill", color: .indigo
+                )
             }
         }
     }
@@ -168,7 +189,10 @@ extension QuickPracticeSessionSheet {
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
-                TextField("e.g., 'Reteach borrowing', 'Create scaffolded worksheet'", text: $followUpActions, axis: .vertical)
+                TextField(
+                    "e.g., 'Reteach borrowing', 'Create scaffolded worksheet'",
+                    text: $followUpActions, axis: .vertical
+                )
                     .font(AppTheme.ScaledFont.body)
                     .textFieldStyle(.plain)
                     .padding(10)

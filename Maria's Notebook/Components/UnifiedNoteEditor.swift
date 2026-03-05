@@ -29,6 +29,7 @@ import FoundationModels
 @available(macOS 26.0, *)
 @Generable(description: "Tag suggestions for a classroom note")
 struct NoteTagSuggestion {
+    // swiftlint:disable:next line_length
     @Guide(description: "Suggested tag names, e.g. Academic, Behavioral, Social, Emotional, Health, Attendance, or any relevant custom tag")
     var suggestedTags: [String]
 

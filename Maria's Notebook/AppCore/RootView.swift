@@ -116,7 +116,10 @@ struct RootView: View {
 
         var isInMoreMenu: Bool {
             switch self {
-            case .lessons, .supplies, .procedures, .meetings, .planningChecklist, .planningAgenda, .planningWork, .planningProgression, .planningProjects, .community, .schedules, .askAI, .logs, .settings:
+            case .lessons, .supplies, .procedures, .meetings,
+                .planningChecklist, .planningAgenda, .planningWork,
+                .planningProgression, .planningProjects,
+                .community, .schedules, .askAI, .logs, .settings:
                 return true
             default:
                 return false
@@ -135,7 +138,8 @@ struct RootView: View {
             case .lessons: return .albums
             case .more: return nil
             case .todos: return nil
-            case .planningChecklist, .planningAgenda, .planningWork, .planningProgression, .planningProjects: return .planning
+            case .planningChecklist, .planningAgenda, .planningWork,
+                .planningProgression, .planningProjects: return .planning
             case .community: return .community
             case .schedules: return nil
             case .issues: return nil
@@ -191,9 +195,11 @@ struct RootView: View {
     
     // Preferences for presentations preloading
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
-    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
+    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
+    private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     
     private var missWindow: PresentationsMissWindow {
         PresentationsMissWindow(rawValue: missWindowRaw) ?? .all
@@ -315,7 +321,14 @@ struct RootView: View {
             }
         }
     #if os(macOS)
-        .background(EnsureResizableWindow(minSize: NSSize(width: UIConstants.WindowSize.minWidth, height: UIConstants.WindowSize.minHeight)))
+        .background(
+            EnsureResizableWindow(
+                minSize: NSSize(
+                    width: UIConstants.WindowSize.minWidth,
+                    height: UIConstants.WindowSize.minHeight
+                )
+            )
+        )
     #endif
     }
 
@@ -404,7 +417,10 @@ struct RootView: View {
         }
     }
 
-    private func handleNavigationDestinationChange(_ oldValue: AppRouter.NavigationDestination?, _ destination: AppRouter.NavigationDestination?) {
+    private func handleNavigationDestinationChange(
+        _ oldValue: AppRouter.NavigationDestination?,
+        _ destination: AppRouter.NavigationDestination?
+    ) {
         if case .openAttendance = destination {
             let newValue = RootView.NavigationItem.attendance.rawValue
             if self.selectedNavItemRaw != newValue {

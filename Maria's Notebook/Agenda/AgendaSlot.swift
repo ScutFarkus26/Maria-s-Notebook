@@ -304,7 +304,12 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     let bounded = max(0, min(insertionIndex, ids.count))
                     ids.insert(id, at: bounded)
                     let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                    let timeMap = PlanningDropUtils.assignSequentialTimes(
+                        ids: ids,
+                        base: baseDate,
+                        calendar: calendar,
+                        spacingSeconds: 1
+                    )
                     for id in ids {
                         if let item = allLessonAssignments.first(where: { $0.id == id }) {
                             item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
@@ -363,7 +368,10 @@ struct AgendaSlotDropDelegate: DropDelegate {
                             },
                             uniquingKeysWith: { first, _ in first }
                         )
-                        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
+                        let insertionIndex = PlanningDropUtils.computeInsertionIndex(
+                            locationY: location.y,
+                            frames: dict
+                        )
 
                         let existing = allLessonAssignments.first(where: { la in
                             let matchesLesson = la.resolvedLessonID == lessonID
@@ -401,11 +409,20 @@ struct AgendaSlotDropDelegate: DropDelegate {
                         let boundedIndex = max(0, min(insertionIndex, ids.count))
                         ids.insert(targetLA.id, at: boundedIndex)
                         let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                        let timeMap = PlanningDropUtils.assignSequentialTimes(
+                            ids: ids,
+                            base: baseDate,
+                            calendar: calendar,
+                            spacingSeconds: 1
+                        )
 
                         for id in ids {
-                            if let item = allLessonAssignments.first(where: { $0.id == id }) { item.setScheduledFor(timeMap[id], using: AppCalendar.shared) }
-                            if id == targetLA.id { targetLA.setScheduledFor(timeMap[id], using: AppCalendar.shared) }
+                            if let item = allLessonAssignments.first(where: { $0.id == id }) {
+                                item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                            }
+                            if id == targetLA.id {
+                                targetLA.setScheduledFor(timeMap[id], using: AppCalendar.shared)
+                            }
                         }
 
                         if let src = allLessonAssignments.first(where: { $0.id == srcID }) {
@@ -467,7 +484,12 @@ struct AgendaSlotDropDelegate: DropDelegate {
                     let bounded = max(0, min(insertionIndex, ids.count))
                     ids.insert(id, at: bounded)
                     let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                    let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: 1)
+                    let timeMap = PlanningDropUtils.assignSequentialTimes(
+                        ids: ids,
+                        base: baseDate,
+                        calendar: calendar,
+                        spacingSeconds: 1
+                    )
 
                     for id in ids {
                         if let item = allLessonAssignments.first(where: { $0.id == id }) {

@@ -76,8 +76,18 @@ final class ToastService {
     ///   - type: The type of toast (affects styling)
     ///   - duration: How long to show the toast (default 2 seconds)
     ///   - undoAction: Optional closure to execute if user taps Undo
-    func show(_ message: String, type: ToastType = .info, duration: TimeInterval = 2.0, undoAction: (() -> Void)? = nil) {
-        let toast = ToastMessage(message, type: type, duration: undoAction != nil ? max(duration, 4.0) : duration, undoAction: undoAction)
+    func show(
+        _ message: String, type: ToastType = .info,
+        duration: TimeInterval = 2.0,
+        undoAction: (() -> Void)? = nil
+    ) {
+        let effectiveDuration = undoAction != nil
+            ? max(duration, 4.0) : duration
+        let toast = ToastMessage(
+            message, type: type,
+            duration: effectiveDuration,
+            undoAction: undoAction
+        )
 
         // Trigger haptic feedback based on toast type
         switch type {

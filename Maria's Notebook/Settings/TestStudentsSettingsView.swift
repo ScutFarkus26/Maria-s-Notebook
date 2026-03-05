@@ -3,7 +3,8 @@ import SwiftUI
 
 struct TestStudentsSettingsView: View {
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     @State private var draftNames: String = ""
 
     var body: some View {
@@ -40,7 +41,10 @@ struct TestStudentsSettingsView: View {
                 )
             }
             
-            Text("Enter a comma or semicolon separated list of full names to treat as Test Students. Matching is case-insensitive.")
+            Text(
+                "Enter a comma or semicolon separated list of full names to treat as Test Students."
+                + " Matching is case-insensitive."
+            )
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             TextEditor(text: $draftNames)

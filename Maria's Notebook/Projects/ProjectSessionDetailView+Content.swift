@@ -112,7 +112,11 @@ extension ProjectSessionDetailView {
     @ViewBuilder
     var uniformModeContent: some View {
         if groupedByStudent.isEmpty {
-            ContentUnavailableView("No Work", systemImage: "doc.text", description: Text("No work items are linked to this session."))
+            ContentUnavailableView(
+                "No Work",
+                systemImage: "doc.text",
+                description: Text("No work items are linked to this session.")
+            )
         } else {
             ForEach(groupedByStudent, id: \.id) { bucket in
                 Section(header: Text(studentName(for: bucket.id)).font(.headline)) {

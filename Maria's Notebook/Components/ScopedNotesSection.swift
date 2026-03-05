@@ -35,7 +35,8 @@ struct ScopedNotesSection: View {
         case let .student(id):
             _scopeChoice = State(initialValue: .student(id))
         case .students:
-            // The defaultScope enum is defined as .all, .student, .students but instructions only mention .all and .student tags,
+            // The defaultScope enum is defined as .all, .student, .students but
+            // instructions only mention .all and .student tags,
             // So treat .students as .all for init here for safety as we have no tag for multiple students.
             _scopeChoice = State(initialValue: .all)
         }

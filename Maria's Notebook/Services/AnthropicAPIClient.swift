@@ -34,11 +34,22 @@ final class AnthropicAPIClient: MCPClientProtocol {
         try await generateText(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
     }
     
-    func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String {
-        try await generateText(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: nil, timeout: nil)
+    func generateText(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?
+    ) async throws -> String {
+        try await generateText(
+            prompt: prompt, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            model: nil, timeout: nil
+        )
     }
-    
-    func generateText(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?, model: String?, timeout: TimeInterval?) async throws -> String {
+
+    func generateText(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?,
+        model: String?, timeout: TimeInterval?
+    ) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
@@ -59,20 +70,33 @@ final class AnthropicAPIClient: MCPClientProtocol {
         try await generateStructuredJSON(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
     }
     
-    func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?) async throws -> String {
-        try await generateStructuredJSON(prompt: prompt, systemMessage: systemMessage, temperature: temperature, maxTokens: maxTokens, model: nil, timeout: nil)
+    func generateStructuredJSON(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?
+    ) async throws -> String {
+        try await generateStructuredJSON(
+            prompt: prompt, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            model: nil, timeout: nil
+        )
     }
-    
-    func generateStructuredJSON(prompt: String, systemMessage: String?, temperature: Double, maxTokens: Int?, model: String?, timeout: TimeInterval?) async throws -> String {
+
+    func generateStructuredJSON(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?,
+        model: String?, timeout: TimeInterval?
+    ) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
         
         // Enhance prompt to ensure JSON output
+        // swiftlint:disable:next line_length
+        let jsonInstruction = "IMPORTANT: Return ONLY valid JSON in your response. Do not include any markdown formatting, code blocks, or explanatory text. Just the raw JSON object."
         let enhancedPrompt = """
         \(prompt)
-        
-        IMPORTANT: Return ONLY valid JSON in your response. Do not include any markdown formatting, code blocks, or explanatory text. Just the raw JSON object.
+
+        \(jsonInstruction)
         """
         
         let response = try await sendClaudeRequest(
@@ -152,7 +176,11 @@ final class AnthropicAPIClient: MCPClientProtocol {
     
     // MARK: - Private Helpers
     
-    private func sendClaudeRequest(prompt: String, systemMessage: String? = nil, temperature: Double, maxTokens: Int, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
+    private func sendClaudeRequest(
+        prompt: String, systemMessage: String? = nil,
+        temperature: Double, maxTokens: Int,
+        model: String? = nil, timeout: TimeInterval? = nil
+    ) async throws -> String {
         // Double-check API key
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
@@ -161,8 +189,13 @@ final class AnthropicAPIClient: MCPClientProtocol {
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 60
         
-        Self.logger.debug("Making request to \(self.baseURL, privacy: .public) with model \(resolvedModel, privacy: .public)")
-        Self.logger.debug("API Key length: \(self.apiKey.count, privacy: .public), starts with: \(self.apiKey.prefix(7), privacy: .private)")
+        Self.logger.debug(
+            "Making request to \(self.baseURL, privacy: .public) with model \(resolvedModel, privacy: .public)"
+        )
+        Self.logger.debug(
+            // swiftlint:disable:next line_length
+            "API Key length: \(self.apiKey.count, privacy: .public), starts with: \(self.apiKey.prefix(7), privacy: .private)"
+        )
         
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
@@ -226,21 +259,32 @@ final class AnthropicAPIClient: MCPClientProtocol {
                     case 429:
                         helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
                     case 529:
-                        helpfulMessage = "Claude API is temporarily overloaded. Please try again in a few moments. \(message)"
+                        helpfulMessage = "Claude API is temporarily overloaded. " +
+                            "Please try again in a few moments. \(message)"
                     default:
                         helpfulMessage = message
                     }
-                    throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: helpfulMessage)
+                    throw AnthropicAPIError.apiError(
+                        statusCode: httpResponse.statusCode,
+                        message: helpfulMessage
+                    )
                 }
-                throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: "Unknown error. Response: \(responseString)")
+                throw AnthropicAPIError.apiError(
+                    statusCode: httpResponse.statusCode,
+                    message: "Unknown error. Response: \(responseString)"
+                )
             }
-            
+
             // Parse response
             let responseBody: [String: Any]?
             do {
-                responseBody = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                responseBody = try JSONSerialization.jsonObject(
+                    with: data
+                ) as? [String: Any]
             } catch {
-                Self.logger.warning("Failed to decode API response: \(error.localizedDescription)")
+                Self.logger.warning(
+                    "Failed to decode API response: \(error.localizedDescription)"
+                )
                 throw AnthropicAPIError.invalidResponse
             }
             guard let responseBody = responseBody,
@@ -249,43 +293,75 @@ final class AnthropicAPIClient: MCPClientProtocol {
                   let text = firstContent["text"] as? String else {
                 throw AnthropicAPIError.invalidResponseFormat
             }
-            
+
             return text
         } catch let error as AnthropicAPIError {
             throw error
         } catch let urlError as URLError {
-            // Provide more specific error messages for common network issues
+            // Provide more specific error messages
             switch urlError.code {
             case .notConnectedToInternet:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "No internet connection. Please check your network settings.")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "No internet connection. Please check your network settings."
+                )
             case .cannotFindHost, .cannotConnectToHost:
-                Self.logger.debug("URLError: \(urlError.code.rawValue, privacy: .public) - \(urlError.localizedDescription, privacy: .public)")
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Cannot reach api.anthropic.com. Check your internet connection or firewall settings.")
+                Self.logger.debug(
+                    // swiftlint:disable:next line_length
+                    "URLError: \(urlError.code.rawValue, privacy: .public) - \(urlError.localizedDescription, privacy: .public)"
+                )
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Cannot reach api.anthropic.com. Check your internet connection or firewall settings."
+                )
             case .timedOut:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Request timed out. Please try again.")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Request timed out. Please try again."
+                )
             case .secureConnectionFailed:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Secure connection failed. Check your system date/time settings.")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Secure connection failed. Check your system date/time settings."
+                )
             default:
-                Self.logger.debug("URLError code: \(urlError.code.rawValue, privacy: .public)")
-                Self.logger.debug("URLError: \(urlError.localizedDescription, privacy: .public)")
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Network error: \(urlError.localizedDescription)")
+                Self.logger.debug(
+                    "URLError code: \(urlError.code.rawValue, privacy: .public)"
+                )
+                Self.logger.debug(
+                    "URLError: \(urlError.localizedDescription, privacy: .public)"
+                )
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Network error: \(urlError.localizedDescription)"
+                )
             }
         } catch {
             Self.logger.debug("Unknown error: \(error.localizedDescription)")
-            throw AnthropicAPIError.apiError(statusCode: 0, message: "Network error: \(error.localizedDescription)")
+            throw AnthropicAPIError.apiError(
+                statusCode: 0,
+                message: "Network error: \(error.localizedDescription)"
+            )
         }
     }
-    
+
     // MARK: - Multi-Turn Conversation
-    
+
     /// Send a multi-turn conversation to the Anthropic API.
     /// - Parameters:
-    ///   - messages: Array of role/content pairs (role must be "user" or "assistant").
-    ///   - systemMessage: Optional system message for the conversation.
+    ///   - messages: Array of role/content pairs.
+    ///   - systemMessage: Optional system message.
     ///   - temperature: Sampling temperature.
     ///   - maxTokens: Maximum tokens in the response.
     /// - Returns: The assistant's response text.
-    func sendConversation(messages: [[String: String]], systemMessage: String? = nil, temperature: Double = 0.7, maxTokens: Int = 2048, model: String? = nil, timeout: TimeInterval? = nil) async throws -> String {
+    func sendConversation(
+        messages: [[String: String]],
+        systemMessage: String? = nil,
+        temperature: Double = 0.7,
+        maxTokens: Int = 2048,
+        model: String? = nil,
+        timeout: TimeInterval? = nil
+    ) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
@@ -293,7 +369,9 @@ final class AnthropicAPIClient: MCPClientProtocol {
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 90
         
-        Self.logger.debug("Sending conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)")
+        Self.logger.debug(
+            "Sending conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
+        )
         
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
@@ -342,18 +420,27 @@ final class AnthropicAPIClient: MCPClientProtocol {
                     case 429:
                         helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
                     case 529:
-                        helpfulMessage = "Claude API is temporarily overloaded. Please try again in a few moments. \(message)"
+                        helpfulMessage = "Claude API is temporarily overloaded. " +
+                            "Please try again in a few moments. \(message)"
                     default:
                         helpfulMessage = message
                     }
-                    throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: helpfulMessage)
+                    throw AnthropicAPIError.apiError(
+                        statusCode: httpResponse.statusCode,
+                        message: helpfulMessage
+                    )
                 }
-                throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: "Unknown error. Response: \(responseString)")
+                throw AnthropicAPIError.apiError(
+                    statusCode: httpResponse.statusCode,
+                    message: "Unknown error. Response: \(responseString)"
+                )
             }
-            
+
             let responseBody: [String: Any]?
             do {
-                responseBody = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                responseBody = try JSONSerialization.jsonObject(
+                    with: data
+                ) as? [String: Any]
             } catch {
                 throw AnthropicAPIError.invalidResponse
             }
@@ -363,23 +450,38 @@ final class AnthropicAPIClient: MCPClientProtocol {
                   let text = firstContent["text"] as? String else {
                 throw AnthropicAPIError.invalidResponseFormat
             }
-            
+
             return text
         } catch let error as AnthropicAPIError {
             throw error
         } catch let urlError as URLError {
             switch urlError.code {
             case .notConnectedToInternet:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "No internet connection. Please check your network settings.")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "No internet connection. Please check your network settings."
+                )
             case .cannotFindHost, .cannotConnectToHost:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Cannot reach api.anthropic.com. Check your internet connection.")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Cannot reach api.anthropic.com. Check your internet connection."
+                )
             case .timedOut:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Request timed out. Please try again.")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Request timed out. Please try again."
+                )
             default:
-                throw AnthropicAPIError.apiError(statusCode: 0, message: "Network error: \(urlError.localizedDescription)")
+                throw AnthropicAPIError.apiError(
+                    statusCode: 0,
+                    message: "Network error: \(urlError.localizedDescription)"
+                )
             }
         } catch {
-            throw AnthropicAPIError.apiError(statusCode: 0, message: "Network error: \(error.localizedDescription)")
+            throw AnthropicAPIError.apiError(
+                statusCode: 0,
+                message: "Network error: \(error.localizedDescription)"
+            )
         }
     }
     
@@ -403,7 +505,9 @@ final class AnthropicAPIClient: MCPClientProtocol {
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 120
 
-        Self.logger.debug("Streaming conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)")
+        Self.logger.debug(
+            "Streaming conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
+        )
 
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
@@ -445,14 +549,23 @@ final class AnthropicAPIClient: MCPClientProtocol {
                let message = error["message"] as? String {
                 let helpfulMessage: String
                 switch httpResponse.statusCode {
-                case 401: helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
-                case 429: helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
-                case 529: helpfulMessage = "Claude API is temporarily overloaded. Please try again in a few moments. \(message)"
+                case 401:
+                    helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
+                case 429:
+                    helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
+                case 529:
+                    helpfulMessage = "Claude API is temporarily overloaded. Please try again. \(message)"
                 default: helpfulMessage = message
                 }
-                throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: helpfulMessage)
+                throw AnthropicAPIError.apiError(
+                    statusCode: httpResponse.statusCode,
+                    message: helpfulMessage
+                )
             }
-            throw AnthropicAPIError.apiError(statusCode: httpResponse.statusCode, message: "Unknown error. Response: \(responseString)")
+            throw AnthropicAPIError.apiError(
+                statusCode: httpResponse.statusCode,
+                message: "Unknown error. Response: \(responseString)"
+            )
         }
 
         // Parse SSE stream

@@ -9,7 +9,9 @@ struct StudentsSortFilterMenu: View {
 
     /// Check if current sort is alphabetical
     private var isAlphabetical: Bool {
-        sortOrderRaw == "alphabetical" || (sortOrderRaw != "manual" && sortOrderRaw != "age" && sortOrderRaw != "birthday" && sortOrderRaw != "lastLesson")
+        sortOrderRaw == "alphabetical"
+            || (sortOrderRaw != "manual" && sortOrderRaw != "age"
+                && sortOrderRaw != "birthday" && sortOrderRaw != "lastLesson")
     }
 
     /// Check if current sort is manual
@@ -44,7 +46,9 @@ struct StudentsSortFilterMenu: View {
                     adaptiveWithAnimation { filterRaw = "all" }
                 } label: {
                     Label("All", systemImage: "person.3.fill")
-                    if filterRaw == "all" || (filterRaw != "upper" && filterRaw != "lower" && filterRaw != "presentNow" && filterRaw != "presentToday") {
+                    if filterRaw == "all"
+                        || (filterRaw != "upper" && filterRaw != "lower"
+                            && filterRaw != "presentNow" && filterRaw != "presentToday") {
                         Image(systemName: "checkmark")
                     }
                 }

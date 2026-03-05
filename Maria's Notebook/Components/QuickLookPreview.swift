@@ -15,7 +15,10 @@ public enum PagesOpener {
         if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
-            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+            NSWorkspace.shared.open(
+                [url], withApplicationAt: pagesAppURL,
+                configuration: config, completionHandler: nil
+            )
         } else {
             NSWorkspace.shared.open(url)
         }

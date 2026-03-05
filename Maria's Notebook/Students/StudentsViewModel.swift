@@ -68,7 +68,9 @@ final class StudentsViewModel {
         
         // PERFORMANCE: Combine all in-memory filters into a single pass to avoid creating intermediate arrays
         let query = searchString.trimmed().isEmpty ? nil : searchString.normalizedForComparison()
-        let testFilter = TestStudentsFiltering.buildTestStudentFilter(showTestStudents: showTestStudents, testStudentNames: testStudentNames)
+        let testFilter = TestStudentsFiltering.buildTestStudentFilter(
+            showTestStudents: showTestStudents, testStudentNames: testStudentNames
+        )
         
         fetched = fetched.filter { student in
             // 1. Level filtering (levelRaw is private, so can't be used in predicates)
@@ -173,7 +175,10 @@ final class StudentsViewModel {
         return false
     }
 
-    func mergeReorderedSubsetIntoAll(movingID: UUID, from fromIndex: Int, to toIndex: Int, current: [Student], allStudents: [Student]) -> [UUID] {
+    func mergeReorderedSubsetIntoAll(
+        movingID: UUID, from fromIndex: Int, to toIndex: Int,
+        current: [Student], allStudents: [Student]
+    ) -> [UUID] {
         // Full list ordered by current manualOrder
         let allOrdered = allStudents.sorted { $0.manualOrder < $1.manualOrder }
 
@@ -337,7 +342,8 @@ final class StudentsViewModel {
             self.modelContext = modelContext
 
             // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
-            let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date()) ?? Date().addingTimeInterval(-365*24*3600)
+            let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date())
+                ?? Date().addingTimeInterval(-365 * 24 * 3600)
 
             let descriptor = FetchDescriptor<LessonAssignment>(
                 predicate: #Predicate { la in

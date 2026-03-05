@@ -54,6 +54,7 @@ final class PresentationDetailActions {
         context: ModelContext
     ) {
         #if DEBUG
+        // swiftlint:disable:next line_length
         Self.logger.debug("autoCreateNextIfNeeded: wasGiven=\(wasGiven, privacy: .public), nowGiven=\(nowGiven, privacy: .public), hasNextLesson=\(nextLesson != nil, privacy: .public)")
         #endif
         
@@ -71,7 +72,9 @@ final class PresentationDetailActions {
         }
 
         #if DEBUG
-        Self.logger.debug("Creating next lesson: \(next.name) for \(selectedStudentIDs.count, privacy: .public) students")
+        Self.logger.debug(
+            "Creating next lesson: \(next.name) for \(selectedStudentIDs.count, privacy: .public) students"
+        )
         #endif
 
         // Fetch LessonAssignments for duplicate checking (service now expects LessonAssignment)
@@ -163,7 +166,8 @@ final class PresentationDetailActions {
 
         let targetSet = studentsToMove
         let existing = lessonAssignmentsAll.first(where: { la in
-            la.resolvedLessonID == currentLesson.id && la.scheduledFor == nil && !la.isPresented && Set(la.resolvedStudentIDs) == targetSet
+            la.resolvedLessonID == currentLesson.id && la.scheduledFor == nil
+                && !la.isPresented && Set(la.resolvedStudentIDs) == targetSet
         })
 
         if let ex = existing {

@@ -21,13 +21,29 @@ extension WorkModel {
 
     /// Mark this work as completed by a student. History is preserved.
     @discardableResult
-    func markCompleted(by studentID: UUID, note: String = "", at date: Date = Date(), in context: ModelContext) throws -> WorkCompletionRecord {
-        try WorkCompletionService.markCompleted(workID: self.id, studentID: studentID, note: note, at: date, in: context)
+    func markCompleted(
+        by studentID: UUID,
+        note: String = "",
+        at date: Date = Date(),
+        in context: ModelContext
+    ) throws -> WorkCompletionRecord {
+        try WorkCompletionService.markCompleted(
+            workID: self.id,
+            studentID: studentID,
+            note: note,
+            at: date,
+            in: context
+        )
     }
 
     /// Convenience overload using a `Student` instance.
     @discardableResult
-    func markCompleted(by student: Student, note: String = "", at date: Date = Date(), in context: ModelContext) throws -> WorkCompletionRecord {
+    func markCompleted(
+        by student: Student,
+        note: String = "",
+        at date: Date = Date(),
+        in context: ModelContext
+    ) throws -> WorkCompletionRecord {
         try markCompleted(by: student.id, note: note, at: date, in: context)
     }
 }

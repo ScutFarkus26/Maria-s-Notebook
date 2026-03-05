@@ -36,7 +36,8 @@ struct NewProjectSessionSheet: View {
     }
 
     // Performance: Filter template weeks by projectID at query level
-    @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)]) private var templateWeeks: [ProjectTemplateWeek]
+    @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)])
+    private var templateWeeks: [ProjectTemplateWeek]
     // Performance: Filter roles by projectID at query level
     @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var roles: [ProjectRole]
     @Query private var allLessonAssignments: [LessonAssignment]
@@ -303,7 +304,9 @@ struct NewProjectSessionSheet: View {
     private func createUniformWorks(session: ProjectSession, scheduledDay: Date) {
         let lessonUUID = resolveGenericProjectLessonID(context: modelContext)
         let sharedTemplates = (club.sharedTemplates ?? []).filter { $0.isShared }
-        let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil) ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! }) : nil
+        let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil)
+            ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! })
+            : nil
 
         for sid in club.memberStudentIDs {
             if let week = templateWeek {
@@ -352,7 +355,14 @@ struct NewProjectSessionSheet: View {
         }
     }
     
-    private func createWork(studentID: String, lessonID: UUID, sessionID: UUID, scheduledDate: Date, title: String, instructions: String) {
+    private func createWork(
+        studentID: String,
+        lessonID: UUID,
+        sessionID: UUID,
+        scheduledDate: Date,
+        title: String,
+        instructions: String
+    ) {
         // Create WorkModel
         guard let studentUUID = UUID(uuidString: studentID) else { return }
         

@@ -10,7 +10,12 @@ enum PlanningEngine {
         return d
     }
 
-    static func moveBySchoolDays(from start: Date, days: Int, calendar: Calendar, isNonSchoolDay: (Date) -> Bool) -> Date {
+    static func moveBySchoolDays(
+        from start: Date,
+        days: Int,
+        calendar: Calendar,
+        isNonSchoolDay: (Date) -> Bool
+    ) -> Date {
         var count = abs(days)
         let forward = days >= 0
         var d = start

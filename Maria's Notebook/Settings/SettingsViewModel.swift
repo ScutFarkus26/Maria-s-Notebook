@@ -124,7 +124,8 @@ final class SettingsViewModel {
             panel.canCreateDirectories = true
             panel.isExtensionHidden = false
             panel.allowedContentTypes = [UTType(filenameExtension: BackupFile.fileExtension) ?? .data]
-            let suggested = tmpName.hasSuffix("." + BackupFile.fileExtension) ? tmpName : (tmpName + "." + BackupFile.fileExtension)
+            let ext = BackupFile.fileExtension
+            let suggested = tmpName.hasSuffix("." + ext) ? tmpName : (tmpName + "." + ext)
             panel.nameFieldStringValue = suggested
 
             let response = panel.runModal()
@@ -227,7 +228,9 @@ final class SettingsViewModel {
         do {
             try FileManager.default.removeItem(at: url)
         } catch {
-            Self.logger.warning("Failed to remove item at \(url.lastPathComponent, privacy: .public): \(error, privacy: .public)")
+            Self.logger.warning(
+                "Failed to remove item at \(url.lastPathComponent, privacy: .public): \(error, privacy: .public)"
+            )
         }
     }
 }

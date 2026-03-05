@@ -86,7 +86,14 @@ struct ProjectsRootView: View {
                 clubToDelete = nil
             }
         } message: { club in
-            Text("Are you sure you want to delete \"\(club.title)\"? This will permanently remove all sessions, deliverables, and assignments associated with this project.")
+            Text(
+                """
+                Are you sure you want to delete "\(club.title)"? \
+                This will permanently remove all sessions, \
+                deliverables, and assignments associated with \
+                this project.
+                """
+            )
         }
         .task {
             // Auto-select first if none selected on iPad
@@ -283,7 +290,10 @@ struct ProjectSidebarRow: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [projectColor.opacity(UIConstants.OpacityConstants.faint + 0.72), projectColor]),
+                            gradient: Gradient(colors: [
+                                projectColor.opacity(UIConstants.OpacityConstants.faint + 0.72),
+                                projectColor
+                            ]),
                             center: .center,
                             startRadius: 8,
                             endRadius: 24

@@ -206,15 +206,43 @@ struct CommunityMeetingsView: View {
     let container = ModelContainer.preview
     let ctx = container.mainContext
 
-    let t1 = CommunityTopic(title: "Playground supervision", issueDescription: "We need clearer rotation and visibility for lower elementary.")
-    let s1 = ProposedSolution(title: "Color-coded vests", details: "Assign vests and zones per day.", proposedBy: "Maria", topic: t1)
-    let s2 = ProposedSolution(title: "Student helpers", details: "Older students pair with guides.", proposedBy: "Ami", topic: t1)
+    let t1 = CommunityTopic(
+        title: "Playground supervision",
+        issueDescription: "We need clearer rotation and visibility for lower elementary."
+    )
+    let s1 = ProposedSolution(
+        title: "Color-coded vests",
+        details: "Assign vests and zones per day.",
+        proposedBy: "Maria",
+        topic: t1
+    )
+    let s2 = ProposedSolution(
+        title: "Student helpers",
+        details: "Older students pair with guides.",
+        proposedBy: "Ami",
+        topic: t1
+    )
     t1.proposedSolutions = [s1, s2]
-    let note1 = Note(body: "Safety near swings is the main concern.", scope: .all, communityTopic: t1, reporterName: "John")
+    let note1 = Note(
+        body: "Safety near swings is the main concern.",
+        scope: .all,
+        communityTopic: t1,
+        reporterName: "John"
+    )
     t1.unifiedNotes = [note1]
 
-    let t2 = CommunityTopic(title: "Library noise", issueDescription: "Afternoon work cycle is too loud.", addressedDate: Date(), resolution: "Post visual noise meter and soft music.")
-    let s3 = ProposedSolution(title: "Quiet corners", details: "Add more rugs and dividers.", proposedBy: "Sara", topic: t2)
+    let t2 = CommunityTopic(
+        title: "Library noise",
+        issueDescription: "Afternoon work cycle is too loud.",
+        addressedDate: Date(),
+        resolution: "Post visual noise meter and soft music."
+    )
+    let s3 = ProposedSolution(
+        title: "Quiet corners",
+        details: "Add more rugs and dividers.",
+        proposedBy: "Sara",
+        topic: t2
+    )
     t2.proposedSolutions = [s3]
 
     ctx.insert(t1)

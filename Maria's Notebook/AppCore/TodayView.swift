@@ -54,7 +54,11 @@ struct TodayView: View {
     // MARK: - Todo State
     @State var selectedTodoItem: TodoItem?
     @State var isShowingNewTodo = false
-    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted }, sort: \TodoItem.createdAt, order: .reverse) var todayTodoItems: [TodoItem]
+    @Query(
+        filter: #Predicate<TodoItem> { !$0.isCompleted },
+        sort: \TodoItem.createdAt,
+        order: .reverse
+    ) var todayTodoItems: [TodoItem]
 
     // MARK: - Filtered Query State
     // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
