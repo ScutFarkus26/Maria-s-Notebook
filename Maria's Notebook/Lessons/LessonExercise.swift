@@ -10,7 +10,7 @@ final class LessonExercise: Identifiable {
     var id: UUID = UUID()
 
     /// The lesson this exercise belongs to (inverse defined on Lesson.exercises)
-    var lesson: Lesson? = nil
+    var lesson: Lesson?
 
     /// Order index within the lesson (0-based, lower numbers come first)
     var orderIndex: Int = 0

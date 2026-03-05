@@ -251,4 +251,3 @@ private struct StudentRowView: View {
     let parsed = StudentCSVImporter.Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: ["Alex Rivera"], warnings: ["Row 4: Missing first or last name; row skipped."])
     return StudentImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
 }
-

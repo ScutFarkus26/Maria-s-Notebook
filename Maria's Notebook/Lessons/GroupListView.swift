@@ -120,4 +120,3 @@ private struct GroupListRow: View {
         return .secondary
     }
 }
-

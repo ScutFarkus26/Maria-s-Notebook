@@ -433,4 +433,3 @@ final class StudentsViewModel {
         return result[student.id] ?? -1
     }
 }
-

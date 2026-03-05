@@ -13,7 +13,7 @@ struct ImportTrackFromLessonsSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     // MARK: - Callback
-    var onImport: ((UUID) -> Void)? = nil
+    var onImport: ((UUID) -> Void)?
     
     // MARK: - State
     @State private var allLessons: [Lesson] = []

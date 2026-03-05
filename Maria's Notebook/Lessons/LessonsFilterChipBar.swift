@@ -116,7 +116,7 @@ struct LessonsFilterChipBar: View {
 
 struct FilterChip: View {
     let label: String
-    var icon: String? = nil
+    var icon: String?
     let isActive: Bool
     var activeColor: Color = .accentColor
     let onTap: () -> Void

@@ -105,7 +105,7 @@ struct TodoAnalyticsView: View {
                         }
                         .frame(height: 200)
                         .chartXAxis {
-                            AxisMarks(values: .stride(by: .day)) { value in
+                            AxisMarks(values: .stride(by: .day)) { _ in
                                 AxisValueLabel(format: .dateTime.weekday(.narrow))
                             }
                         }

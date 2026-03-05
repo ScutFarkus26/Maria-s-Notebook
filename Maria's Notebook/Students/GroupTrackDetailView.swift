@@ -13,7 +13,7 @@ struct GroupTrackDetailView: View {
     let subject: String
     let group: String
     /// Optional student to show progress for. If nil, shows track structure only.
-    var student: Student? = nil
+    var student: Student?
 
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.orderInGroup)])
     private var allLessons: [Lesson]

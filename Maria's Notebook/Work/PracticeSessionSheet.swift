@@ -7,7 +7,7 @@ struct PracticeSessionSheet: View {
     private static let logger = Logger.work
 
     let initialWorkItem: WorkModel
-    var onSave: ((PracticeSession) -> Void)? = nil
+    var onSave: ((PracticeSession) -> Void)?
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -47,7 +47,6 @@ struct PracticeSessionSheet: View {
         PracticeSessionRepository(modelContext: modelContext)
     }
     
-
     // Co-learner student IDs (students who had the lesson together)
     private var coLearnerIDs: Set<UUID> {
         StudentCategorizer.getCoLearnerIDs(for: initialWorkItem, allLessonAssignments: allLessonAssignments)

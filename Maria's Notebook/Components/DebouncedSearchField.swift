@@ -12,7 +12,7 @@ public struct DebouncedSearchField: View {
     private let onDebouncedChange: (String) -> Void
 
     @FocusState private var isFocused: Bool
-    @State private var task: Task<Void, Never>? = nil
+    @State private var task: Task<Void, Never>?
 
     public init(
         _ title: String,

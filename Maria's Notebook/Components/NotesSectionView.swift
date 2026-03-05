@@ -39,4 +39,3 @@ struct NotesSectionView: View {
         #endif
     }
 }
-

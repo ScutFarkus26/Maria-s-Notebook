@@ -393,4 +393,3 @@ private struct CompactGridCard<Content: View>: View {
 extension RestorePreview: Identifiable {
     public var id: String { "preview" }
 }
-

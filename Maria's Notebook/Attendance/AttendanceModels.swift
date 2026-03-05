@@ -141,11 +141,6 @@ struct AttendanceStore {
     let context: ModelContext
     var calendar: Calendar = .current
 
-    init(context: ModelContext, calendar: Calendar = .current) {
-        self.context = context
-        self.calendar = calendar
-    }
-
     // Fetch all records for a normalized date.
     private func fetchRecords(for normalizedDate: Date) throws -> [AttendanceRecord] {
         let descriptor = FetchDescriptor<AttendanceRecord>(

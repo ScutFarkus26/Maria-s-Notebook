@@ -83,7 +83,3 @@ struct OptionalStateFromDefaults<T>: DynamicProperty {
         _value = State(initialValue: stored ?? defaultValue)
     }
 }
-
-
-
-

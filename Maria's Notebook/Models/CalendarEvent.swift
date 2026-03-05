@@ -18,23 +18,23 @@ final class CalendarEvent: Identifiable {
     var endDate: Date = Date()
 
     /// Optional location for the event
-    var location: String? = nil
+    var location: String?
 
     /// Optional notes for the event
-    var notes: String? = nil
+    var notes: String?
 
     /// Whether this is an all-day event
     var isAllDay: Bool = false
 
     /// The EventKit event identifier for syncing
     /// This allows us to track which Apple Calendar event this corresponds to
-    var eventKitEventID: String? = nil
+    var eventKitEventID: String?
 
     /// The calendar identifier in EventKit that this event belongs to
-    var eventKitCalendarID: String? = nil
+    var eventKitCalendarID: String?
 
     /// When this event was last synced from EventKit
-    var lastSyncedAt: Date? = nil
+    var lastSyncedAt: Date?
 
     init(
         id: UUID = UUID(),

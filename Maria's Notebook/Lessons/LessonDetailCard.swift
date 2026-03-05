@@ -17,7 +17,7 @@ struct LessonDetailCard: View {
     var lesson: Lesson
     var onSave: (Lesson) -> Void
     var onClose: () -> Void
-    var onGiveLesson: ((Lesson) -> Void)? = nil
+    var onGiveLesson: ((Lesson) -> Void)?
     var initialMode: LessonDetailInitialMode = .normal
 
     @Environment(\.modelContext) var modelContext
@@ -38,7 +38,7 @@ struct LessonDetailCard: View {
     @State var draftAgeRange: String = ""
     @State var draftTeacherNotes: String = ""
     @State var showingExerciseEditor = false
-    @State var editingExercise: LessonExercise? = nil
+    @State var editingExercise: LessonExercise?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?
@@ -426,4 +426,3 @@ struct LessonDetailCard: View {
     return LessonDetailCard(lesson: lesson, onSave: { _ in }, onClose: {})
         .previewEnvironment(using: container)
 }
-

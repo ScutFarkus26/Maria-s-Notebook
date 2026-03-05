@@ -22,14 +22,14 @@ final class Student: Identifiable {
     var id: UUID = UUID()
     var firstName: String = ""
     var lastName: String = ""
-    var nickname: String? = nil
+    var nickname: String?
     var birthday: Date = Date()
     // Store level as raw string for CloudKit compatibility (SwiftData doesn't support enum defaults)
     private var levelRaw: String = Level.lower.rawValue
     // CloudKit compatibility: Store UUIDs as strings
     var nextLessons: [String] = []
     var manualOrder: Int = 0
-    var dateStarted: Date? = nil
+    var dateStarted: Date?
 
     /// Timestamp of when this record was last modified locally.
     /// Used for smarter CloudKit conflict resolution - prefer the most recently modified record.
@@ -93,4 +93,3 @@ extension Student {
         SortDescriptor(\Student.firstName)
     ]
 }
-

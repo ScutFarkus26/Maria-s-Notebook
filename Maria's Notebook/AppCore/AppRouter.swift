@@ -67,19 +67,19 @@ final class AppRouter {
     // MARK: - State
     
     /// Current navigation destination to present
-    var navigationDestination: NavigationDestination? = nil
+    var navigationDestination: NavigationDestination?
     
     /// Plan lesson request
-    var planLessonRequest: PlanLessonRequest? = nil
+    var planLessonRequest: PlanLessonRequest?
     
     /// Navigation item selection for root view (new primary navigation)
-    var selectedNavItem: RootView.NavigationItem? = nil
+    var selectedNavItem: RootView.NavigationItem?
     
     /// Tab selection for root view (legacy - kept for backward compatibility)
-    var selectedTab: RootView.Tab? = nil
+    var selectedTab: RootView.Tab?
     
     /// Students mode selection
-    var studentsMode: String? = nil
+    var studentsMode: String?
     
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
@@ -220,4 +220,3 @@ extension EnvironmentValues {
         set { self[AppRouterKey.self] = newValue }
     }
 }
-

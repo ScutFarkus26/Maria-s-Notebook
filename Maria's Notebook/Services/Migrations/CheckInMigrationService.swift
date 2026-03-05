@@ -21,7 +21,6 @@ import OSLog
 enum CheckInMigrationService {
     private static let logger = Logger.migration
 
-    
     // MARK: - Legacy Check-In Reason Enum
 
     /// Legacy check-in reason enum (preserved for mapping purposes).

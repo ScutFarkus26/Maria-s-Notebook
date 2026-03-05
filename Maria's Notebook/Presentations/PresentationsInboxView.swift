@@ -32,7 +32,7 @@ struct PresentationsInboxView: View {
 
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
-    @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @State private var searchDebounceTask: Task<Void, Never>?
     @State private var showAIPlanning = false
 
     // Default sorting is by age

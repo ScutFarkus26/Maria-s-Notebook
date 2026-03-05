@@ -12,7 +12,7 @@ final class LessonAttachment: Identifiable {
     var fileName: String = ""
     
     /// File bookmark for secure access (stored as external data for CloudKit)
-    @Attribute(.externalStorage) var fileBookmark: Data? = nil
+    @Attribute(.externalStorage) var fileBookmark: Data?
     
     /// Relative path to the file in the managed container
     var fileRelativePath: String = ""
@@ -33,7 +33,7 @@ final class LessonAttachment: Identifiable {
     var notes: String = ""
     
     /// Thumbnail data for preview (stored as external data for CloudKit)
-    @Attribute(.externalStorage) var thumbnailData: Data? = nil
+    @Attribute(.externalStorage) var thumbnailData: Data?
     
     // MARK: - Relationships
     

@@ -112,7 +112,7 @@ enum LessonCSVImporter {
             let writeUp = value("writeup").trimmed()
 
             let groupOrderStr = value("grouporder").trimmed()
-            var orderInGroup: Int? = nil
+            var orderInGroup: Int?
             if !groupOrderStr.isEmpty {
                 if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {
                     orderInGroup = parsedInt
@@ -195,7 +195,7 @@ enum LessonCSVImporter {
             let writeUp = value("writeup").trimmed()
 
             let groupOrderStr = value("grouporder").trimmed()
-            var orderInGroup: Int? = nil
+            var orderInGroup: Int?
             if !groupOrderStr.isEmpty {
                 if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {
                     orderInGroup = parsedInt

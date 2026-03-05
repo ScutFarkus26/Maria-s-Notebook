@@ -14,16 +14,16 @@ final class Reminder: Identifiable {
     var title: String = ""
     
     /// Optional notes for the reminder
-    var notes: String? = nil
+    var notes: String?
     
     /// The due date/time for this reminder (if any)
-    var dueDate: Date? = nil
+    var dueDate: Date?
     
     /// Whether the reminder is completed
     var isCompleted: Bool = false
     
     /// When the reminder was completed (if completed)
-    var completedAt: Date? = nil
+    var completedAt: Date?
     
     /// When this reminder was created
     var createdAt: Date = Date()
@@ -33,13 +33,13 @@ final class Reminder: Identifiable {
     
     /// The EventKit reminder identifier for syncing
     /// This allows us to track which Apple Reminder this corresponds to
-    var eventKitReminderID: String? = nil
+    var eventKitReminderID: String?
     
     /// The calendar identifier in EventKit that this reminder belongs to
-    var eventKitCalendarID: String? = nil
+    var eventKitCalendarID: String?
     
     /// When this reminder was last synced from EventKit
-    var lastSyncedAt: Date? = nil
+    var lastSyncedAt: Date?
     
     // Inverse relationship for Note.reminder
     // Note: 'notes' is a String field, so we use 'noteItems' for the relationship array
@@ -85,5 +85,3 @@ final class Reminder: Identifiable {
         self.updatedAt = Date()
     }
 }
-
-

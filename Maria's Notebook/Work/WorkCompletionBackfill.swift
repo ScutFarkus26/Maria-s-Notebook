@@ -41,4 +41,3 @@ enum WorkCompletionBackfill {
         return record
     }
 }
-

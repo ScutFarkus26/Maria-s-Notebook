@@ -19,4 +19,3 @@ struct PlanningWeekView: View {
     PlanningWeekView()
         .frame(minWidth: 1000, minHeight: 600)
 }
-

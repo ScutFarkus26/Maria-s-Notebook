@@ -165,12 +165,7 @@ enum WorkPDFRenderer {
         case .student: return item.studentName
         case .age:
             let days = item.ageDays
-            if days <= 0 { return "Today" }
-            else if days <= 3 { return "1-3 days" }
-            else if days <= 7 { return "4-7 days" }
-            else if days <= 14 { return "8-14 days" }
-            else if days <= 30 { return "15-30 days" }
-            else { return "30+ days" }
+            if days <= 0 { return "Today" } else if days <= 3 { return "1-3 days" } else if days <= 7 { return "4-7 days" } else if days <= 14 { return "8-14 days" } else if days <= 30 { return "15-30 days" } else { return "30+ days" }
         case .needsAttention:
             return item.needsAttention ? "Needs Attention" : "Other"
         }

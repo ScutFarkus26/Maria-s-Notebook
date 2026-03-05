@@ -10,7 +10,7 @@ struct MeetingFormPane: View {
     let student: Student
     let meetings: [StudentMeeting]
     let meetingTemplates: [MeetingTemplate]
-    var onComplete: (() -> Void)? = nil
+    var onComplete: (() -> Void)?
 
     @Environment(\.modelContext) private var modelContext
 

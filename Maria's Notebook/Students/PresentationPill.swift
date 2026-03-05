@@ -21,9 +21,9 @@ struct PresentationPill: View {
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow) private var missWindowRaw: String = "all"
 
     let snapshot: LessonAssignmentSnapshot
-    var day: Date? = nil
-    var sourceLessonAssignmentID: UUID? = nil
-    var targetLessonAssignmentID: UUID? = nil
+    var day: Date?
+    var sourceLessonAssignmentID: UUID?
+    var targetLessonAssignmentID: UUID?
     var showTimeBadge: Bool = true
     var enableMissHighlight: Bool = false
     var enableMergeDrop: Bool = false
@@ -31,8 +31,8 @@ struct PresentationPill: View {
     var blockingWork: [UUID: WorkModel] = [:]
 
     // PERFORMANCE: Accept cached data instead of using @Query per-pill
-    var cachedLessons: [Lesson]? = nil
-    var cachedStudents: [Student]? = nil
+    var cachedLessons: [Lesson]?
+    var cachedStudents: [Student]?
 
     // Fallback queries only used when cached data isn't provided
     @Query private var lessonsQuery: [Lesson]

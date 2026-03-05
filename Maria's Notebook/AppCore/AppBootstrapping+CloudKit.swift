@@ -155,7 +155,7 @@ extension AppBootstrapping {
             logger.info("createModelContainer: Migration check completed in \(String(format: "%.3f", Date().timeIntervalSince(migrationCheckStart)))s")
 
             let ubiquityStart = Date()
-            let _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
+            _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
             logger.info("createModelContainer: Ubiquity check completed in \(String(format: "%.3f", Date().timeIntervalSince(ubiquityStart)))s")
 
             if useInMemory {

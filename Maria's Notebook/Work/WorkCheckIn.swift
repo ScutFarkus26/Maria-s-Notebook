@@ -145,4 +145,3 @@ extension WorkModel {
         checkIn.markCompleted(note: note, at: date, in: context)
     }
 }
-

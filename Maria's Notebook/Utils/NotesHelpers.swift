@@ -6,7 +6,7 @@ import Foundation
 /// Option A: Pass `[Student]` explicitly into NotesHelpers functions instead of using `studentsAll`.
 /// If you see this assertion, update the caller to pass `students` explicitly.
 #endif
-fileprivate var studentsAll: [Student] {
+private var studentsAll: [Student] {
     #if DEBUG
     assertionFailure("NotesHelpers: 'studentsAll' is unavailable in this scope. Pass [Student] explicitly into the helper (Option A).")
     #endif
@@ -34,7 +34,7 @@ extension Note {
 
 // MARK: - Sorting rule
 @MainActor
-fileprivate func notesSortedNewestFirst(_ notes: [Note]) -> [Note] {
+private func notesSortedNewestFirst(_ notes: [Note]) -> [Note] {
     notes.sorted { lhs, rhs in
         if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
         return lhs.createdAt > rhs.createdAt

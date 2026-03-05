@@ -49,4 +49,3 @@ struct InteractiveCard<Content: View>: View {
     }
     .padding()
 }
-

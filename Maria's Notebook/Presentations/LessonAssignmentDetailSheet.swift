@@ -13,7 +13,7 @@ import OSLog
 struct LessonAssignmentDetailSheet: View, Identifiable {
     static let logger = Logger.presentations
     let assignmentID: UUID
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     var id: UUID { assignmentID }
 

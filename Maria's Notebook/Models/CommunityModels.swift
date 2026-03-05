@@ -42,7 +42,7 @@ final class CommunityTopic: Identifiable {
     /// Using Data instead of String provides better type safety and avoids encoding issues.
     /// The public 'tags' property is computed and marked @Transient so SwiftData doesn't try
     /// to read the old stored property during fetches.
-    @Attribute(.externalStorage) private var _tagsData: Data? = nil
+    @Attribute(.externalStorage) private var _tagsData: Data?
     
     /// Public tags property. Uses JSON encoding to safely handle corrupted data.
     /// Marked as @Transient so SwiftData ignores it completely and doesn't try to read
@@ -184,4 +184,3 @@ final class CommunityAttachment: Identifiable {
         set { kindRaw = newValue.rawValue }
     }
 }
-

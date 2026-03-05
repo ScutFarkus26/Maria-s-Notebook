@@ -11,15 +11,15 @@ final class LessonPresentation: Identifiable {
     // CloudKit compatibility: Store UUIDs as strings
     var studentID: String = ""              // student UUID string
     var lessonID: String = ""               // lesson UUID string (same as Presentation.lessonID)
-    var presentationID: String? = nil       // Presentation.id.uuidString
-    var trackID: String? = nil              // Track.id.uuidString (optional, used later)
-    var trackStepID: String? = nil          // TrackStep.id.uuidString (optional, used later)
+    var presentationID: String?       // Presentation.id.uuidString
+    var trackID: String?              // Track.id.uuidString (optional, used later)
+    var trackStepID: String?          // TrackStep.id.uuidString (optional, used later)
     
     var stateRaw: String = LessonPresentationState.presented.rawValue
     var presentedAt: Date = Date()
-    var lastObservedAt: Date? = nil
-    var masteredAt: Date? = nil
-    var notes: String? = nil
+    var lastObservedAt: Date?
+    var masteredAt: Date?
+    var notes: String?
     
     var state: LessonPresentationState {
         get { LessonPresentationState(rawValue: stateRaw) ?? .presented }
@@ -61,4 +61,3 @@ enum LessonPresentationState: String, Codable, CaseIterable, Sendable {
     case readyForAssessment = "readyForAssessment"
     case mastered = "mastered"
 }
-

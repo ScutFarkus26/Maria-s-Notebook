@@ -81,4 +81,3 @@ struct MarkdownExporter {
     static func presentShare(_ text: String) { }
     #endif
 }
-

@@ -39,4 +39,3 @@ struct SchoolCalendar {
         await SchoolCalendarService.shared.nearestSchoolDay(to: date, using: context)
     }
 }
-

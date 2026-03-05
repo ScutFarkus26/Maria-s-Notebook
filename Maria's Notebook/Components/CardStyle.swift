@@ -68,7 +68,3 @@ extension View {
         modifier(CardStyleModifier(cornerRadius: cornerRadius, padding: padding))
     }
 }
-
-
-
-

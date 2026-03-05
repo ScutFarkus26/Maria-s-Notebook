@@ -9,10 +9,10 @@ final class Document: Identifiable {
     var uploadDate: Date = Date()
     
     @Attribute(.externalStorage)
-    var pdfData: Data? = nil
+    var pdfData: Data?
     
     @Relationship
-    var student: Student? = nil
+    var student: Student?
     
     init(
         id: UUID = UUID(),

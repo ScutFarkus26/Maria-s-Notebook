@@ -122,7 +122,7 @@ struct WorkflowTextField: View {
     @Binding var text: String
     let placeholder: String
     var axis: Axis = .horizontal
-    var lineLimit: PartialRangeFrom<Int>? = nil
+    var lineLimit: PartialRangeFrom<Int>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -363,7 +363,6 @@ struct StudentEntryRowHeader: View {
     }
 }
 
-
 // MARK: - Date Picker Row
 
 struct WorkDatesRow: View {
@@ -396,4 +395,3 @@ struct WorkDatesRow: View {
         }
     }
 }
-

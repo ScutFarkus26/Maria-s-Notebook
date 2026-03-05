@@ -8,7 +8,7 @@ struct QuickPracticeSessionSheet: View {
     static let logger = Logger.work
 
     let workItem: WorkModel
-    var onSave: ((PracticeSession) -> Void)? = nil
+    var onSave: ((PracticeSession) -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) var modelContext

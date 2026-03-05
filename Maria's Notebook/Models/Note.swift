@@ -102,11 +102,11 @@ final class Note: Identifiable {
     var tags: [String] = []
     var includeInReport: Bool = false
     var needsFollowUp: Bool = false
-    var imagePath: String? = nil
+    var imagePath: String?
     
     // Reporter information
-    var reportedBy: String? = nil // e.g., "guide", "assistant", "parent"
-    var reporterName: String? = nil // e.g., "Mom", "Assistant", etc.
+    var reportedBy: String? // e.g., "guide", "assistant", "parent"
+    var reporterName: String? // e.g., "Mom", "Assistant", etc.
     
     // Legacy computed property — reads from categoryRaw for migration; prefer `tags`
     var category: NoteCategory {
@@ -123,7 +123,7 @@ final class Note: Identifiable {
     // Search index attributes for database-level filtering
     // These are maintained automatically when scope changes
     // Indexed for student-specific note queries
-    var searchIndexStudentID: UUID? = nil
+    var searchIndexStudentID: UUID?
     // Indexed for scope-based filtering
     var scopeIsAll: Bool = false
 
@@ -347,4 +347,3 @@ final class Note: Identifiable {
         }
     }
 }
-

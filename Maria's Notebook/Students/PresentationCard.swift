@@ -126,4 +126,3 @@ struct PresentationCard: View {
         #endif
     }
 }
-

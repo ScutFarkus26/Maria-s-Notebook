@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-fileprivate struct InboxPillFramePreference: PreferenceKey {
+private struct InboxPillFramePreference: PreferenceKey {
   nonisolated(unsafe) static var defaultValue: [UUID: CGRect] = [:]
   static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
     value.merge(nextValue(), uniquingKeysWith: { $1 })
@@ -29,7 +29,7 @@ public struct InboxSheetView: View {
   @State private var spaceID = UUID()
   @State private var isTargeted = false
   @State private var insertionIndex: Int?
-  @State private var baseFrames: [UUID: CGRect]? = nil
+  @State private var baseFrames: [UUID: CGRect]?
 
   private static let mediumDateFormatter: DateFormatter = {
     let df = DateFormatter()
@@ -126,7 +126,7 @@ public struct InboxSheetView: View {
 
         ScrollView {
           VStack(spacing: 10) {
-            ForEach(Array(orderedUnscheduledLessons.enumerated()), id: \.element.id) { index, sl in
+            ForEach(Array(orderedUnscheduledLessons.enumerated()), id: \.element.id) { _, sl in
               InboxRow(
                 sl: sl,
                 isSelected: viewModel.selected.contains(sl.id),
@@ -286,7 +286,7 @@ public struct InboxSheetView: View {
 
 }
 
-fileprivate struct InboxRow: View {
+private struct InboxRow: View {
   let sl: LessonAssignment
   let isSelected: Bool
   let isSelectionMode: Bool
@@ -339,7 +339,7 @@ fileprivate struct InboxRow: View {
   }
 }
 
-fileprivate struct InboxDropDelegate: DropDelegate {
+private struct InboxDropDelegate: DropDelegate {
   let getCurrent: () -> [LessonAssignment]
   let itemFramesProvider: () -> [UUID: CGRect]
   let onTargetChange: (Bool) -> Void
@@ -384,4 +384,3 @@ fileprivate struct InboxDropDelegate: DropDelegate {
     return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
   }
 }
-

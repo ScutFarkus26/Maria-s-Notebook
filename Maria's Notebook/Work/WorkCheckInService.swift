@@ -93,4 +93,3 @@ struct WorkCheckInService {
         context.delete(checkIn)
     }
 }
-

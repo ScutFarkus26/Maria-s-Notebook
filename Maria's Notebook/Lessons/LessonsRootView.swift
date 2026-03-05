@@ -63,8 +63,8 @@ struct LessonsRootView: View {
     @State var isOrganizingGroups: Bool = false
 
     // MARK: - Presentation History State
-    @State var statusCounts: [UUID: Int]? = nil
-    @State var lastPresentedDates: [UUID: Date]? = nil
+    @State var statusCounts: [UUID: Int]?
+    @State var lastPresentedDates: [UUID: Date]?
 
     // MARK: - Migration
     @AppStorage(UserDefaultsKeys.lessonsSortIndexMigrated) var sortIndexMigrated: Bool = false

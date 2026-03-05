@@ -193,8 +193,7 @@ struct WorkAgendaDayColumn: View {
                     case .checkInGroup(let group):
                         if group.isGrouped {
                             GroupedWorkCheckInPill(group: group) {
-                                if let onGroupTap { onGroupTap(group) }
-                                else { onPillTap(group.primary) }
+                                if let onGroupTap { onGroupTap(group) } else { onPillTap(group.primary) }
                             }
                             .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
                                 GroupedWorkCheckInPill(group: group)
@@ -250,15 +249,11 @@ struct WorkAgendaDayColumn: View {
 /// A pill that consolidates multiple check-ins for the same lesson and purpose into one row
 struct GroupedWorkCheckInPill: View {
     let group: WorkAgendaDayColumn.CheckInGroup
-    var onTap: (() -> Void)? = nil
+    var onTap: (() -> Void)?
 
     private var purposeIcon: String {
         let purpose = group.purpose.lowercased()
-        if purpose.contains("progress") || purpose.contains("check") { return "checkmark.circle" }
-        else if purpose.contains("due") { return "calendar.badge.exclamationmark" }
-        else if purpose.contains("assessment") { return "chart.bar" }
-        else if purpose.contains("follow") { return "arrow.turn.down.right" }
-        else { return "calendar" }
+        if purpose.contains("progress") || purpose.contains("check") { return "checkmark.circle" } else if purpose.contains("due") { return "calendar.badge.exclamationmark" } else if purpose.contains("assessment") { return "chart.bar" } else if purpose.contains("follow") { return "arrow.turn.down.right" } else { return "calendar" }
     }
 
     private var studentNamesDisplay: String {

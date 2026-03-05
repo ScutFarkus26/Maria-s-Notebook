@@ -195,4 +195,3 @@ private struct InfoRow: View {
 #Preview {
     BackupStatusView()
 }
-

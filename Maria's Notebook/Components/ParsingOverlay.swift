@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct ParsingOverlay: View {
     @Binding var isParsing: Bool
-    var onCancel: (() -> Void)? = nil
+    var onCancel: (() -> Void)?
     
     public var body: some View {
         if isParsing {

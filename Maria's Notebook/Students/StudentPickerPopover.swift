@@ -3,7 +3,7 @@ import SwiftUI
 struct StudentPickerPopover: View {
     let students: [Student]
     @Binding var selectedIDs: Set<UUID>
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     @State private var filterLevel: LevelFilter = .all
     @State private var searchText: String = ""
@@ -51,7 +51,6 @@ struct StudentPickerPopover: View {
         }
     }
     
-
     func displayName(for student: Student) -> String {
         return StudentFormatter.displayName(for: student)
     }

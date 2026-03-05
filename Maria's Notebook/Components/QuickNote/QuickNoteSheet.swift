@@ -438,4 +438,3 @@ struct QuickNoteSheet: View {
         #endif
     }
 }
-

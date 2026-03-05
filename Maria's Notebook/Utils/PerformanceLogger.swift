@@ -102,5 +102,3 @@ enum PerformanceLogger {
         // No-op: Use Xcode Instruments or MetricKit for stutter detection
     }
 }
-
-

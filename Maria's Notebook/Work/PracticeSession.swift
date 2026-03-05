@@ -20,7 +20,7 @@ final class PracticeSession: Identifiable {
     // MARK: - Session Details
     
     /// Duration of the practice session in seconds (optional)
-    var duration: TimeInterval? = nil
+    var duration: TimeInterval?
     
     /// Student IDs who participated in this practice session (CloudKit compatible strings)
     var studentIDs: [String] = []
@@ -32,17 +32,17 @@ final class PracticeSession: Identifiable {
     var sharedNotes: String = ""
 
     /// Location or context where practice occurred (e.g., "Small table", "Outside", "Library corner")
-    var location: String? = nil
+    var location: String?
 
     // MARK: - Practice Quality Metrics
 
     /// Quality of practice engagement (1-5 scale)
     /// 1: Distracted/off-task, 2: Minimal engagement, 3: Adequate focus, 4: Good engagement, 5: Deep focused practice
-    var practiceQuality: Int? = nil
+    var practiceQuality: Int?
 
     /// Level of independence shown (1-5 scale)
     /// 1: Constant help needed, 2: Frequent guidance, 3: Some support, 4: Mostly independent, 5: Fully independent
-    var independenceLevel: Int? = nil
+    var independenceLevel: Int?
 
     // MARK: - Observable Behaviors (Flags)
 
@@ -70,7 +70,7 @@ final class PracticeSession: Identifiable {
     // MARK: - Next Steps
 
     /// Scheduled check-in date (if student needs follow-up support)
-    var checkInScheduledFor: Date? = nil
+    var checkInScheduledFor: Date?
 
     /// Follow-up actions or next steps
     var followUpActions: String = ""

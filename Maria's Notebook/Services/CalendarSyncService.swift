@@ -213,7 +213,7 @@ final class CalendarSyncService {
         // Get existing events from our database
         let existingEvents = try fetchAllCalendarEvents()
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let existingByEKID = Dictionary<String, CalendarEvent>(
+        let existingByEKID = [String: CalendarEvent](
             existingEvents.compactMap { event -> (String, CalendarEvent)? in
                 guard let ekID = event.eventKitEventID else { return nil }
                 return (ekID, event)

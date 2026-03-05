@@ -12,7 +12,6 @@ import OSLog
 final class AnthropicAPIClient: MCPClientProtocol {
     private static let logger = Logger.ai
 
-    
     private let apiKey: String
     private let session: URLSession
     private let baseURL: URL

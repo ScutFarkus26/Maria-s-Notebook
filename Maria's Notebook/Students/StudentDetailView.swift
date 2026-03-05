@@ -9,7 +9,7 @@ struct StudentDetailView: View {
 
     // MARK: - Inputs
     let student: Student
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss

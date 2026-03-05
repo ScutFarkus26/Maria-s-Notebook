@@ -5,7 +5,7 @@ struct PresentationHeaderView: View {
     let subject: String
     let group: String
     let subjectColor: Color
-    var onTapTitle: (() -> Void)? = nil
+    var onTapTitle: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 12) {

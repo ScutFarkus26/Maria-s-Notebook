@@ -6,7 +6,7 @@ import AppKit
 /// ensures the window is resizable and applies optional min/max content sizes.
 struct EnsureResizableWindow: NSViewRepresentable {
     var minSize: NSSize? = NSSize(width: 900, height: 600)
-    var maxSize: NSSize? = nil
+    var maxSize: NSSize?
 
     func makeNSView(context: Context) -> ResizableFlagView {
         let v = ResizableFlagView()
@@ -157,4 +157,3 @@ final class SheetResizeView: NSView {
     }
 }
 #endif
-

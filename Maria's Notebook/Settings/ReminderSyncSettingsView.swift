@@ -143,4 +143,3 @@ public struct ReminderSyncSettingsView: View {
     ReminderSyncSettingsView()
         .previewEnvironment()
 }
-

@@ -197,7 +197,7 @@ struct ObservationHeatmapView: View {
             var observations: [StudentObservation] = []
             
             for student in students {
-                var mostRecentDate: Date? = nil
+                var mostRecentDate: Date?
                 let studentIDString = student.id.uuidString
                 
                 // 1) Check student-scoped notes
@@ -269,7 +269,7 @@ struct ObservationHeatmapView: View {
     }
     
     private func findMostRecentNoteDate(for student: Student) -> Date? {
-        var mostRecentDate: Date? = nil
+        var mostRecentDate: Date?
         
         // 1) Check general Note objects where scope matches .student(student.id)
         let noteSort: [SortDescriptor<Note>] = [
@@ -458,4 +458,3 @@ struct StudentObservationCard: View {
             .previewEnvironment()
     }
 }
-

@@ -16,7 +16,7 @@ public struct BulkLessonsEntryView: View {
 
     let defaultSubject: String?
     let defaultGroup: String?
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

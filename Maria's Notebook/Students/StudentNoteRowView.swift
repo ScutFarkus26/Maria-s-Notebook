@@ -5,7 +5,6 @@
 //  Created by Danny De Berry on 12/27/25.
 //
 
-
 import SwiftUI
 
 struct StudentNoteRowView: View {
@@ -158,7 +157,6 @@ struct StudentNoteRowView: View {
         DateFormatters.mediumDateTimeRelative.string(from: date)
     }
     
-
 }
 
 // MARK: - Preview

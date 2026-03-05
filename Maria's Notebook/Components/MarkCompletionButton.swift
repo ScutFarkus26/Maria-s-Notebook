@@ -5,7 +5,7 @@ struct MarkCompletionButton: View {
     let workID: UUID
     let studentID: UUID
     var label: String = "Mark Completed"
-    var noteProvider: (() -> String)? = nil
+    var noteProvider: (() -> String)?
 
     @Environment(\.modelContext) private var modelContext
     @State private var isWorking = false

@@ -14,5 +14,3 @@ struct AgeModePlaceholderView: View {
 #Preview {
     AgeModePlaceholderView()
 }
-
-

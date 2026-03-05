@@ -384,7 +384,7 @@ struct OllamaSettingsView: View {
         }
     }
 
-    private func testAndApplyURL() async {
+    func testAndApplyURL() async {
         isTesting = true
         await refreshConnection()
         isTesting = false

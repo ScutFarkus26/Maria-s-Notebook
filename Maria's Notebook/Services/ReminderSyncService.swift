@@ -250,7 +250,7 @@ final class ReminderSyncService {
         // Get all existing reminders from our database that were synced from this calendar
         let existingReminders = try fetchAllReminders()
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let existingByEKID = Dictionary<String, Reminder>(
+        let existingByEKID = [String: Reminder](
             existingReminders.compactMap { rem -> (String, Reminder)? in
                 guard let ekID = rem.eventKitReminderID else { return nil }
                 return (ekID, rem)

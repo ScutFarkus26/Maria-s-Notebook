@@ -26,4 +26,3 @@ struct DragPayload {
         return (sourceID, lessonID, studentID)
     }
 }
-

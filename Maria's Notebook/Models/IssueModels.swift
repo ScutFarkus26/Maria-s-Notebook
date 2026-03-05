@@ -120,7 +120,7 @@ final class Issue: Identifiable {
     }
     
     // Related students (stored as UUIDs in string format for CloudKit compatibility)
-    @Attribute(.externalStorage) private var _studentIDsData: Data? = nil
+    @Attribute(.externalStorage) private var _studentIDsData: Data?
     
     @Transient
     var studentIDs: [String] {
@@ -132,11 +132,11 @@ final class Issue: Identifiable {
     }
     
     // Location/context
-    var location: String? = nil
+    var location: String?
     
     // Resolution tracking
-    var resolvedAt: Date? = nil
-    var resolutionSummary: String? = nil
+    var resolvedAt: Date?
+    var resolutionSummary: String?
     
     // Relationships
     @Relationship(deleteRule: .cascade, inverse: \IssueAction.issue)
@@ -193,7 +193,7 @@ final class IssueAction: Identifiable {
     var actionDate: Date = Date()
     
     // Who was involved (stored as UUIDs in string format)
-    @Attribute(.externalStorage) private var _participantIDsData: Data? = nil
+    @Attribute(.externalStorage) private var _participantIDsData: Data?
     
     @Transient
     var participantStudentIDs: [String] {
@@ -205,9 +205,9 @@ final class IssueAction: Identifiable {
     }
     
     // Next steps or agreements
-    var nextSteps: String? = nil
+    var nextSteps: String?
     var followUpRequired: Bool = false
-    var followUpDate: Date? = nil
+    var followUpDate: Date?
     var followUpCompleted: Bool = false
     
     init(

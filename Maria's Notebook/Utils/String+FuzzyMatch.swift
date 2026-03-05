@@ -45,5 +45,3 @@ extension String {
         return self.lowercased().levenshteinDistance(to: target.lowercased()) <= tolerance
     }
 }
-
-

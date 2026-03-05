@@ -105,7 +105,7 @@ struct UnifiedNoteEditor: View {
     @State var aiTriggerCounter: Int = 0
 
     let tagger = StudentTagger()
-    @State private var nameDetectionTask: Task<Void, Never>? = nil
+    @State private var nameDetectionTask: Task<Void, Never>?
 
     // MARK: - Body
 

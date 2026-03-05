@@ -6,7 +6,7 @@ import SwiftData
 
 struct QuickNewWorkItemSheet: View {
     /// Optional callback when work is created and user wants to view details immediately
-    var onCreatedAndOpen: ((UUID) -> Void)? = nil
+    var onCreatedAndOpen: ((UUID) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

@@ -393,6 +393,6 @@ public final class StreamingBackupWriter {
     private func verifyBackupFile(at url: URL) throws {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder.backupConfigured()
-        let _ = try decoder.decode(BackupEnvelope.self, from: data)
+        _ = try decoder.decode(BackupEnvelope.self, from: data)
     }
 }

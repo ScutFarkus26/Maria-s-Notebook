@@ -19,8 +19,8 @@ public struct SubjectDropDelegate: DropDelegate {
         dragState.to = index
     }
     public func performDrop(info: DropInfo) -> Bool {
-        guard let from = dragState.from, let to = dragState.to else { dragState = (nil,nil); return false }
-        dragState = (nil,nil)
+        guard let from = dragState.from, let to = dragState.to else { dragState = (nil, nil); return false }
+        dragState = (nil, nil)
         if from != to { onReorder(from, to) }
         return true
     }
@@ -47,8 +47,8 @@ public struct GroupDropDelegate: DropDelegate {
         dragState.to = index
     }
     public func performDrop(info: DropInfo) -> Bool {
-        guard let from = dragState.from, let to = dragState.to else { dragState = (nil,nil); return false }
-        dragState = (nil,nil)
+        guard let from = dragState.from, let to = dragState.to else { dragState = (nil, nil); return false }
+        dragState = (nil, nil)
         if from != to { onReorder(from, to) }
         return true
     }

@@ -6,7 +6,7 @@ import Foundation
 /// Replaces: WorkModelDetailSheet, WorkDetailWindowContainer, WorkDetailContainerView
 struct WorkDetailView: View {
     let workID: UUID
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
     var showRepresentButton: Bool = false
 
     @Environment(\.dismiss) var dismiss

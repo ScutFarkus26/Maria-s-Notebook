@@ -9,14 +9,14 @@ final class TrackStep: Identifiable {
     var id: UUID = UUID()
     
     /// The track this step belongs to (plain property, relationship defined on Track.steps)
-    var track: Track? = nil
+    var track: Track?
     
     /// Order index within the track (0-based, lower numbers come first)
     /// Used to ensure deterministic ordering of steps
     var orderIndex: Int = 0
     
     /// Reference to the lesson template (Lesson) for this step
-    var lessonTemplateID: UUID? = nil
+    var lessonTemplateID: UUID?
     
     /// Creation timestamp
     var createdAt: Date = Date()
@@ -35,4 +35,3 @@ final class TrackStep: Identifiable {
         self.createdAt = createdAt
     }
 }
-

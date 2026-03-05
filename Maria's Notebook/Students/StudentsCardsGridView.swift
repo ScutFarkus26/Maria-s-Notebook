@@ -256,5 +256,3 @@ private struct ItemFramePreference: PreferenceKey {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }
-
-

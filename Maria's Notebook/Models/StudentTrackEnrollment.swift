@@ -18,7 +18,7 @@ final class StudentTrackEnrollment: Identifiable {
     var trackID: String = ""
     
     /// Optional start date for the enrollment
-    var startedAt: Date? = nil
+    var startedAt: Date?
     
     /// Whether this enrollment is currently active
     var isActive: Bool = true
@@ -42,4 +42,3 @@ final class StudentTrackEnrollment: Identifiable {
         self.richNotes = []
     }
 }
-

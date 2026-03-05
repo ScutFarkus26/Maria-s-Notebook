@@ -215,9 +215,7 @@ struct FollowUpInboxEngine {
 
                 let threshold = constants.lessonFollowUpOverdueDays
                 let bucket: FollowUpInboxItem.Bucket
-                if days > threshold { bucket = .overdue }
-                else if days == threshold { bucket = .dueToday }
-                else {
+                if days > threshold { bucket = .overdue } else if days == threshold { bucket = .dueToday } else {
                     let until = max(0, threshold - days)
                     if (1...2).contains(until) { bucket = .upcoming } else { continue }
                 }
@@ -284,9 +282,7 @@ struct FollowUpInboxEngine {
             
             let threshold = isActive ? constants.workStaleOverdueDays : constants.reviewStaleDays
             let bucket: FollowUpInboxItem.Bucket
-            if days > threshold { bucket = .overdue }
-            else if days == threshold { bucket = .dueToday }
-            else {
+            if days > threshold { bucket = .overdue } else if days == threshold { bucket = .dueToday } else {
                 let until = max(0, threshold - days)
                 if (1...2).contains(until) { bucket = .upcoming } else { continue }
             }

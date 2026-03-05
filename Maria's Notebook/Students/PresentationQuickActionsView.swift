@@ -389,4 +389,3 @@ struct PresentationQuickActionsView: View {
         .frame(minWidth: 360, minHeight: 240)
         .padding()
 }
-

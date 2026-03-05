@@ -41,4 +41,3 @@ enum PlanningDropUtils {
         return result
     }
 }
-

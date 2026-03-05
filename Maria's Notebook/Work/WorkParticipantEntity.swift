@@ -10,13 +10,11 @@ import SwiftData
     var studentID: String = ""
 
     // The timestamp when the student completed the work (nil if not completed)
-    var completedAt: Date? = nil
+    var completedAt: Date?
 
     // Relationship back to the parent work item (inverse specified on WorkModel.participants)
-    @Relationship var work: WorkModel? = nil
+    @Relationship var work: WorkModel?
     
-
-
     // Computed property for backward compatibility with UUID
     var studentIDUUID: UUID? {
         get { UUID(uuidString: studentID) }

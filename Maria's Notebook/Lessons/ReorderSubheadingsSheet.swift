@@ -68,4 +68,3 @@ struct ReorderSubheadingsSheet: View {
         .frame(minWidth: 520, minHeight: 520)
     }
 }
-

@@ -170,7 +170,7 @@ struct AttachmentDropDelegate: DropDelegate {
             return false
         }
         
-        itemProvider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, error in
+        itemProvider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
             guard let data = data as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil) else {
                 return

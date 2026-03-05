@@ -90,7 +90,7 @@ public final class EnhancedBackupService {
                 modelContext: modelContext,
                 to: url,
                 password: password,
-                progress: { prog, msg, count, type in
+                progress: { prog, msg, _, _ in
                     progress(prog, msg)
                 }
             )

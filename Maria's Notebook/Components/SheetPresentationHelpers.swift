@@ -28,6 +28,3 @@ extension View {
         }
     }
 }
-
-
-

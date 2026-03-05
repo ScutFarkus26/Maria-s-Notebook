@@ -366,4 +366,3 @@ final class AutoBackupManager {
         return intervalSeconds
     }
 }
-

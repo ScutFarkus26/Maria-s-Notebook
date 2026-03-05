@@ -108,7 +108,7 @@ extension WorkDetailView {
     func checkInRow(_ item: WorkCheckIn) -> some View {
         WorkCheckInRow(
             checkIn: item,
-            onEditNote: { checkIn in
+            onEditNote: { _ in
                 // TODO: Implement note editing for check-ins
             },
             onSetStatus: { id, status in

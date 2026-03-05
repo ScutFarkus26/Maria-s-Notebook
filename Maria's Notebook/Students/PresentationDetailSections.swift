@@ -284,4 +284,3 @@ struct PresentationNotesSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-

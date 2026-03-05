@@ -66,7 +66,7 @@ struct WorkConsolidationService {
                     if !existingParticipantIDs.contains(participantID),
                        let studentUUID = UUID(uuidString: participantID) {
                         // Collect completion dates from all duplicates for this participant
-                        var completedAt: Date? = nil
+                        var completedAt: Date?
                         for duplicate in duplicates {
                             if let dupParticipants = duplicate.participants,
                                let dupParticipant = dupParticipants.first(where: { $0.studentID == participantID }),

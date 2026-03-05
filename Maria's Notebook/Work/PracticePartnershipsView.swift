@@ -270,7 +270,7 @@ struct PracticePartnershipsSheet: View {
 /// Compact card showing practice summary for embedding in student profile
 struct PracticePartnershipsSummaryCard: View {
     let studentID: UUID
-    var onTapViewAll: (() -> Void)? = nil
+    var onTapViewAll: (() -> Void)?
     
     @Environment(\.modelContext) private var modelContext
     @Query private var allSessions: [PracticeSession]

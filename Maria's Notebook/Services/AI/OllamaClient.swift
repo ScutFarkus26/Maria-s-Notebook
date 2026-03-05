@@ -475,7 +475,7 @@ struct OllamaModelCatalog: Identifiable {
             parameterCount: "9B",
             sizeGB: 5.5,
             description: "Google's model. Best quality, needs 16GB+ RAM."
-        ),
+        )
     ]
 }
 

@@ -15,7 +15,7 @@ struct QuickNoteGlassButton: View {
     @State private var isPieMenuExpanded: Bool = false
     @State private var highlightedAction: PieMenuAction?
     @State private var dragTranslation: CGSize = .zero
-    @State private var longPressTask: Task<Void, Never>? = nil
+    @State private var longPressTask: Task<Void, Never>?
     @State private var sparklePhase: Bool = false
 
     @AppStorage(UserDefaultsKeys.quickNoteButtonOffsetX) private var savedOffsetX: Double = 0

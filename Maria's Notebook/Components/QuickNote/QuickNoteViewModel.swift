@@ -31,30 +31,30 @@ class QuickNoteViewModel {
     var showingTagPicker: Bool = false
 
     // Attachments
-    var selectedPhotoItem: PhotosPickerItem? = nil
-    var attachedImage: PlatformImage? = nil
-    var attachedImagePath: String? = nil
+    var selectedPhotoItem: PhotosPickerItem?
+    var attachedImage: PlatformImage?
+    var attachedImagePath: String?
 
     // AI & Analysis State
     var detectedCandidateIDs: Set<UUID> = []
     var isProcessingAI: Bool = false
-    var aiError: String? = nil
+    var aiError: String?
 
     // UI State
     var isShowingStudentPicker: Bool = false
     var isShowingCamera: Bool = false
 
     // Track Context
-    var selectedEnrollmentID: UUID? = nil
+    var selectedEnrollmentID: UUID?
     
     // MARK: - Dependencies
     private let tagger = StudentTagger()
     let initialStudentID: UUID?
     
     // MARK: - Debouncing
-    private var analysisTask: Task<Void, Never>? = nil
+    private var analysisTask: Task<Void, Never>?
     private var isApplyingReplacements: Bool = false
-    private var lastReplacementText: String? = nil
+    private var lastReplacementText: String?
     
     // MARK: - Initialization
     
@@ -239,7 +239,7 @@ class QuickNoteViewModel {
         }
         
         // Fetch StudentTrackEnrollment if selectedEnrollmentID is set
-        var studentTrackEnrollment: StudentTrackEnrollment? = nil
+        var studentTrackEnrollment: StudentTrackEnrollment?
         if let enrollmentID = selectedEnrollmentID {
             let descriptor = FetchDescriptor<StudentTrackEnrollment>(
                 predicate: #Predicate<StudentTrackEnrollment> { $0.id == enrollmentID }
@@ -383,4 +383,3 @@ class QuickNoteViewModel {
     #endif
     #endif
 }
-

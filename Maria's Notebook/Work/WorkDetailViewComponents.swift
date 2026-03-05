@@ -4,9 +4,9 @@ import SwiftUI
 
 struct PracticeStats {
     var totalSessions: Int = 0
-    var totalDuration: String? = nil
-    var avgQuality: Double? = nil
-    var avgIndependence: Double? = nil
+    var totalDuration: String?
+    var avgQuality: Double?
+    var avgIndependence: Double?
     var topBehaviors: [String] = []
     var needsReteaching: Int = 0
     var upcomingCheckIns: Int = 0

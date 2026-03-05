@@ -8,7 +8,7 @@ struct WorkCompletionHistoryView: View {
     private static let logger = Logger.work
 
     let workID: UUID
-    var studentID: UUID? = nil
+    var studentID: UUID?
 
     @Environment(\.modelContext) private var modelContext
 

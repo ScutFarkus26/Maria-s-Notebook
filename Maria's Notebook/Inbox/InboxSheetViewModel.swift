@@ -11,7 +11,7 @@ final class InboxSheetViewModel {
     private static let logger = Logger.inbox
     // MARK: - State
     var selected: Set<UUID> = []
-    var toastMessage: String? = nil
+    var toastMessage: String?
 
     // MARK: - Dependencies
     private let toastService: ToastService

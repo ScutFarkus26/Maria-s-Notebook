@@ -1144,7 +1144,6 @@ extension TodoEditSheet {
                 TodoNotificationService.shared.cancelNotification(for: todo)
             }
 
-
             if let context = todo.modelContext {
                 do {
                     try context.save()

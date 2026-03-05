@@ -78,21 +78,21 @@ final class ChatViewModel {
                 "How many students do I have?",
                 "What lessons has \(name1) had recently?",
                 "Who was absent this week?",
-                "What can \(name1) and \(name2) work on together?",
+                "What can \(name1) and \(name2) work on together?"
             ]
         } else if let name = names.first {
             return [
                 "How many students do I have?",
                 "What lessons has \(name) had recently?",
                 "Who was absent this week?",
-                "Which students haven't had a presentation recently?",
+                "Which students haven't had a presentation recently?"
             ]
         } else {
             return [
                 "How many students do I have?",
                 "Who was absent this week?",
                 "What lessons have been given this week?",
-                "Which students haven't had a presentation recently?",
+                "Which students haven't had a presentation recently?"
             ]
         }
     }

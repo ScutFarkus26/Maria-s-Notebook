@@ -72,4 +72,3 @@ struct StudentDetailBottomBar: View {
         .buttonStyle(.borderedProminent)
     }
 }
-

@@ -49,7 +49,3 @@ enum LessonFormatter {
         StringFallbacks.trimmedValueOrFallback(name, fallback: fallback)
     }
 }
-
-
-
-

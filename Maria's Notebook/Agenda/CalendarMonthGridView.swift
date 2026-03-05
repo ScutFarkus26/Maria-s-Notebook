@@ -7,9 +7,9 @@ struct CalendarMonthGridView: View {
     @Environment(\.modelContext) private var modelContext
     var month: Date
     var calendar: Calendar = .current
-    var onDateToggled: ((Date, Bool) -> Void)? = nil
-    var nonSchoolDates: Set<Date>? = nil
-    @State private var computedNonSchoolDates: Set<Date>? = nil
+    var onDateToggled: ((Date, Bool) -> Void)?
+    var nonSchoolDates: Set<Date>?
+    @State private var computedNonSchoolDates: Set<Date>?
 
     private var startOfMonth: Date {
         let comps = calendar.dateComponents([.year, .month], from: month)
@@ -182,4 +182,3 @@ private struct DayCell: View {
         }
     }
 }
-

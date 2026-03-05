@@ -26,7 +26,7 @@ struct GroupPracticeHelper {
 /// Badge indicator for group practice availability
 struct GroupPracticeBadge: View {
     let partnerCount: Int
-    var action: (() -> Void)? = nil
+    var action: (() -> Void)?
     
     var body: some View {
         Button(action: { action?() }) {

@@ -340,7 +340,7 @@ final class AppDependencies {
             Student.self,
             Lesson.self,
             WorkModel.self,
-            Note.self,
+            Note.self
             // Add more models as needed for tests
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)

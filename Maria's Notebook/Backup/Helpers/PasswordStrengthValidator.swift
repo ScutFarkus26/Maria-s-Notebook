@@ -210,7 +210,7 @@ public struct PasswordStrengthValidator {
 
         // Determine if acceptable
         let isAcceptable = strength >= minimumAcceptableStrength &&
-            requirements.filter { req in
+            requirements.filter { _ in
                 // Only check configured requirements
                 true
             }.allSatisfy { $0.isMet }

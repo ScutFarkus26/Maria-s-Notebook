@@ -31,4 +31,3 @@ final class Track: Identifiable {
         self.steps = nil
     }
 }
-

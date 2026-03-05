@@ -21,9 +21,9 @@ import SwiftUI
     // DEPRECATED: workTypeRaw is maintained for data migration only
     // New code should use kindRaw. After migration completes, workType reads from kind.
     private(set) var workTypeRaw: String = "Research"
-    var studentLessonID: UUID? = nil
+    var studentLessonID: UUID?
     var createdAt: Date = Date()
-    var completedAt: Date? = nil
+    var completedAt: Date?
     @Relationship(deleteRule: .cascade, inverse: \WorkParticipantEntity.work) var participants: [WorkParticipantEntity]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkCheckIn.work) var checkIns: [WorkCheckIn]? = []
     @Relationship(deleteRule: .cascade, inverse: \WorkStep.work) var steps: [WorkStep]? = []
@@ -32,41 +32,41 @@ import SwiftUI
     
     // MARK: - Core Work Fields
     /// Work kind (practice, follow-up, research)
-    var kindRaw: String? = nil
+    var kindRaw: String?
     /// Work status (active, review, complete) - indexed for frequent filtering
     var statusRaw: String = WorkStatus.active.rawValue
     /// When the work was assigned (defaults to createdAt if not set)
     var assignedAt: Date = Date()
     /// Last meaningful touch date (for aging calculations)
-    var lastTouchedAt: Date? = nil
+    var lastTouchedAt: Date?
     /// Due date for the work - indexed for date range queries
-    var dueAt: Date? = nil
+    var dueAt: Date?
     /// Completion outcome (mastered, needsReview, etc.)
-    var completionOutcomeRaw: String? = nil
+    var completionOutcomeRaw: String?
     /// Legacy contract ID for traceability (from migration)
-    var legacyContractID: UUID? = nil
+    var legacyContractID: UUID?
     /// Student ID (CloudKit compatible string) - indexed for student-specific queries
     var studentID: String = ""
     /// Lesson ID (CloudKit compatible string)
     var lessonID: String = ""
     /// Presentation ID (optional, CloudKit compatible string)
-    var presentationID: String? = nil
+    var presentationID: String?
     /// Track ID (optional, CloudKit compatible string)
-    var trackID: String? = nil
+    var trackID: String?
     /// Track step ID (optional, CloudKit compatible string)
-    var trackStepID: String? = nil
+    var trackStepID: String?
     /// Scheduled note
-    var scheduledNote: String? = nil
+    var scheduledNote: String?
     /// Scheduled reason raw value
-    var scheduledReasonRaw: String? = nil
+    var scheduledReasonRaw: String?
     /// Source context type raw value (e.g., projectSession)
-    var sourceContextTypeRaw: String? = nil
+    var sourceContextTypeRaw: String?
     /// Source context ID (e.g., project session ID)
-    var sourceContextID: String? = nil
+    var sourceContextID: String?
     /// Legacy assignment ID for traceability
-    var legacyStudentLessonID: String? = nil
+    var legacyStudentLessonID: String?
     /// Check-in style: how multi-student work check-ins are displayed (individual, group, flexible)
-    var checkInStyleRaw: String? = nil
+    var checkInStyleRaw: String?
 
     init(
         id: UUID = UUID(),

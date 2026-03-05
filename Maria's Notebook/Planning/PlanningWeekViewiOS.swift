@@ -23,7 +23,7 @@ struct PlanningWeekViewiOS: View {
     
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @State private var startDate: Date = Date()
-    @State private var activeSheet: PlanningWeekViewContent.ActiveSheet? = nil
+    @State private var activeSheet: PlanningWeekViewContent.ActiveSheet?
     
     var body: some View {
         PlanningWeekViewContent(

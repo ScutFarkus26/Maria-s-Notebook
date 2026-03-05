@@ -7,7 +7,6 @@ import OSLog
 struct FollowUpWorkService {
     private static let logger = Logger.inbox
 
-    
     // MARK: - Work Generation
     
     /// Generates work items from a presentation based on its follow-up flags

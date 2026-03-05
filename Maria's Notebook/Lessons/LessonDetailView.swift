@@ -10,7 +10,7 @@ struct LessonDetailView: View {
     static let logger = Logger.lessons
     var lesson: Lesson
     var onSave: (Lesson) -> Void
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) var modelContext
@@ -35,7 +35,7 @@ struct LessonDetailView: View {
     @State var draftTeacherNotes: String = ""
     @State private var showDeleteAlert = false
     @State var showingExerciseEditor = false
-    @State var editingExercise: LessonExercise? = nil
+    @State var editingExercise: LessonExercise?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?

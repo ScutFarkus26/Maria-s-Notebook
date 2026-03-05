@@ -42,7 +42,7 @@ extension View {
 
 /// A single skeleton placeholder block
 struct SkeletonBlock: View {
-    var width: CGFloat? = nil
+    var width: CGFloat?
     var height: CGFloat = 16
     var cornerRadius: CGFloat = UIConstants.CornerRadius.small
 

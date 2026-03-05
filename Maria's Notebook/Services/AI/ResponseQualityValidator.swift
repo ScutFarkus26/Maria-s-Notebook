@@ -36,7 +36,7 @@ enum ResponseQualityValidator {
         "i'm not able to",
         "i am not able to",
         "sorry, i can't",
-        "sorry, i cannot",
+        "sorry, i cannot"
     ]
 
     /// Validates a response against quality heuristics.

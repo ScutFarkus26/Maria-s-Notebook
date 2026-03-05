@@ -11,4 +11,3 @@ struct MeetingSummary {
     var sentiment: String
 }
 #endif
-

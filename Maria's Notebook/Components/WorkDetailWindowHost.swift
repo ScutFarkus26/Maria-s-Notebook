@@ -23,4 +23,3 @@ struct WorkDetailWindowHost: View {
         }
     }
 }
-

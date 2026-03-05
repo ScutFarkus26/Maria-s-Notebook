@@ -243,7 +243,7 @@ struct TagButton: View {
     let tag: String
     let isSelected: Bool
     let onToggle: () -> Void
-    var onEdit: (() -> Void)? = nil
+    var onEdit: (() -> Void)?
 
     private var tagName: String {
         if TodoTagHelper.isStudentTag(tag) {

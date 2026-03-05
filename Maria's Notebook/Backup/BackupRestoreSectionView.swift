@@ -148,7 +148,7 @@ struct BackupRestoreSectionView: View {
                 )
             }
         }
-        .onChange(of: appRouter.navigationDestination) { oldValue, newValue in
+        .onChange(of: appRouter.navigationDestination) { _, newValue in
             if case .createBackup = newValue {
                 Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
                 appRouter.clearNavigation()
@@ -162,7 +162,7 @@ struct BackupRestoreSectionView: View {
             viewModel.calculateEstimatedBackupSize(modelContext: modelContext)
         }
 #if os(iOS)
-        .onChange(of: viewModel.exportData) { oldValue, newValue in
+        .onChange(of: viewModel.exportData) { _, newValue in
             showingExporter = (newValue != nil)
         }
 #endif

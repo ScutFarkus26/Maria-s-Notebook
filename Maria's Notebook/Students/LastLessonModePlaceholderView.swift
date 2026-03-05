@@ -14,5 +14,3 @@ struct LastLessonModePlaceholderView: View {
 #Preview {
     LastLessonModePlaceholderView()
 }
-
-

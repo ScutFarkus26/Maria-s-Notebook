@@ -261,7 +261,7 @@ struct ProjectWeekEditorView: View, Identifiable {
                                             get: { currentRoleID(for: student.id) },
                                             set: { setRoleID($0, for: student.id) }
                                         )) {
-                                            Text("—").tag(Optional<UUID>(nil))
+                                            Text("—").tag(UUID?(nil))
                                             ForEach(roles, id: \.id) { role in
                                                 Text(role.title).tag(Optional(role.id))
                                             }
@@ -353,7 +353,7 @@ struct ProjectWeekEditorView: View, Identifiable {
             Text("Offered Works")
                 .font(.subheadline).fontWeight(.medium)
 
-            ForEach(Array(offeredWorks.enumerated()), id: \.element.id) { index, work in
+            ForEach(Array(offeredWorks.enumerated()), id: \.element.id) { index, _ in
                 HStack(alignment: .top) {
                     VStack(spacing: 4) {
                         TextField("Title", text: Binding(

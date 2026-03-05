@@ -66,9 +66,9 @@ struct ObservationsView: View {
     @State var isSummarizing: Bool = false
     @State var showingSummarySheet: Bool = false
     @State var summaryMode: SummaryMode = .digest
-    @State var summaryPartialDigest: NotesDigest.PartiallyGenerated? = nil
-    @State var summaryPartialNarrative: NotesNarrative.PartiallyGenerated? = nil
-    @State var summaryTask: Task<Void, Never>? = nil
+    @State var summaryPartialDigest: NotesDigest.PartiallyGenerated?
+    @State var summaryPartialNarrative: NotesNarrative.PartiallyGenerated?
+    @State var summaryTask: Task<Void, Never>?
 
     // AI scope picker state
     @State var showingAIScopeSheet: Bool = false

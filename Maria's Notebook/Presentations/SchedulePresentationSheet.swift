@@ -151,4 +151,3 @@ struct SchedulePresentationSheet: View {
         allStudents.filter { selectedStudentIDs.contains($0.id) }
     }
 }
-

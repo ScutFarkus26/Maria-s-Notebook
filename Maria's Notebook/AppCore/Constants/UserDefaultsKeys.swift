@@ -133,7 +133,3 @@ enum UserDefaultsKeys {
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
 }
-
-
-
-

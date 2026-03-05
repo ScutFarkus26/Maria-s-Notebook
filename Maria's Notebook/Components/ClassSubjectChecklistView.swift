@@ -335,4 +335,3 @@ struct CellIdentifier: Hashable {
     let studentID: UUID
     let lessonID: UUID
 }
-

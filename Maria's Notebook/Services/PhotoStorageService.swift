@@ -229,4 +229,3 @@ public enum PhotoStorageError: Error {
     case fileNotFound
     case directoryCreationFailed
 }
-

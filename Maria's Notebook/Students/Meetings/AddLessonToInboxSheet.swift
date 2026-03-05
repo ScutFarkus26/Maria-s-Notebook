@@ -4,7 +4,7 @@ import SwiftData
 /// Quick sheet for adding a lesson to a student's inbox from the meetings view
 struct AddLessonToInboxSheet: View {
     let student: Student
-    var preselectedLessonID: UUID? = nil
+    var preselectedLessonID: UUID?
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

@@ -119,7 +119,7 @@ struct LessonsCardsGridView: View {
                 let lk = lhs.key.trimmed()
                 let rk = rhs.key.trimmed()
 
-                if (lk.isEmpty != rk.isEmpty) {
+                if lk.isEmpty != rk.isEmpty {
                     return !lk.isEmpty
                 }
                 if !lk.isEmpty && !rk.isEmpty {
@@ -192,7 +192,7 @@ struct LessonsCardsGridView: View {
                     Task { @MainActor in
                         do {
                             try await Task.sleep(for: .milliseconds(100))
-                            adaptiveWithAnimation() {
+                            adaptiveWithAnimation {
                                 scrollProxy.scrollTo(lessonID, anchor: .center)
                             }
                         } catch {
@@ -519,4 +519,3 @@ private class RightClickView: NSView {
         showIntroductionCards: true
     )
 }
-

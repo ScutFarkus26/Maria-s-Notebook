@@ -69,7 +69,7 @@ struct TodoLocationPickerView: View {
                         MapCompass()
                         MapScaleView()
                     }
-                    .onMapCameraChange(frequency: .onEnd) { context in
+                    .onMapCameraChange(frequency: .onEnd) { _ in
                         // Allow tapping on search results to select them
                     }
                     
@@ -247,5 +247,3 @@ struct TodoLocationPickerView: View {
         }
     }
 }
-
-

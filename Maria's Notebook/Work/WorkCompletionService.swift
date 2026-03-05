@@ -69,4 +69,3 @@ enum WorkCompletionService {
         try markCompleted(workID: work.id, studentID: student.id, note: note, at: date, in: context)
     }
 }
-

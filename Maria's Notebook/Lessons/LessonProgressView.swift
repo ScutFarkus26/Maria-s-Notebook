@@ -4,7 +4,7 @@ import SwiftData
 /// Unified view showing the complete journey and progress for a lesson
 struct LessonProgressView: View {
     let lesson: Lesson
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) var modelContext

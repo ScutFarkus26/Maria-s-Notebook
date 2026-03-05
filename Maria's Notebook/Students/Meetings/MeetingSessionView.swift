@@ -10,7 +10,7 @@ struct MeetingSessionView: View {
     let meetings: [StudentMeeting]
     let meetingTemplates: [MeetingTemplate]
     let workOverdueDays: Int
-    var onComplete: (() -> Void)? = nil
+    var onComplete: (() -> Void)?
 
     @Environment(\.modelContext) private var modelContext
 

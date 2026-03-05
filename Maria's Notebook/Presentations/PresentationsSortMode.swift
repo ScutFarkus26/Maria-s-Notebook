@@ -7,4 +7,3 @@ public enum PresentationsSortMode: String, CaseIterable, Identifiable, Sendable 
     case needsAttention = "Needs Attention"
     public var id: String { rawValue }
 }
-

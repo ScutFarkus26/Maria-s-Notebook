@@ -40,4 +40,3 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.isInboxPlan = isInboxPlan
     }
 }
-

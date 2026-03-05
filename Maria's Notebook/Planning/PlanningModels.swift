@@ -29,11 +29,6 @@ enum DayPeriod: CaseIterable, Hashable, Sendable {
 struct DayKey: Hashable {
     let dayStart: Date
     let period: DayPeriod
-
-    init(dayStart: Date, period: DayPeriod) {
-        self.dayStart = dayStart
-        self.period = period
-    }
 }
 
 struct ScheduledItem: Identifiable, Hashable {

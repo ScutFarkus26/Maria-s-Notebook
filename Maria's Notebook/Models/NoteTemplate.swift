@@ -95,7 +95,7 @@ final class NoteTemplate: Identifiable {
 
         // General
         ("Parent request", "Per parent request: ", [TagHelper.tagFromNoteCategory("general")]),
-        ("Follow up needed", "Requires follow-up: ", [TagHelper.tagFromNoteCategory("general")]),
+        ("Follow up needed", "Requires follow-up: ", [TagHelper.tagFromNoteCategory("general")])
     ]
 
     /// Seeds the built-in templates into the database if they don't exist.

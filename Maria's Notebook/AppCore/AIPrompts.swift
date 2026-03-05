@@ -97,5 +97,3 @@ struct AIPrompts {
         return "\(generalAssistant)\n\nInstruction: \(instruction)\n\nText to Process:\n\(text)"
     }
 }
-
-

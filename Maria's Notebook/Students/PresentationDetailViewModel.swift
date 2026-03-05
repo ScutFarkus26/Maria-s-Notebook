@@ -52,7 +52,7 @@ final class PresentationDetailViewModel {
     // MARK: - Autosave State
     var notesDirty: Bool = false
     var originalNotes: String
-    private var notesAutosaveTask: Task<Void, Never>? = nil
+    private var notesAutosaveTask: Task<Void, Never>?
 
     // MARK: - Initialization
     init(lessonAssignment: LessonAssignment, modelContext: ModelContext, saveCoordinator: SaveCoordinator, autoFocusLessonPicker: Bool = false) {
@@ -174,7 +174,7 @@ final class PresentationDetailViewModel {
         let nowGiven = isPresented || (givenAt != nil)
         if nowGiven {
             do {
-                let _ = try LifecycleService.recordPresentation(
+                _ = try LifecycleService.recordPresentation(
                     from: lessonAssignment,
                     presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
                     modelContext: modelContext

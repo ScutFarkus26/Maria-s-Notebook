@@ -46,4 +46,3 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 #endif
-

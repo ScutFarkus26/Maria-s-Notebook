@@ -26,4 +26,3 @@ public struct PillButton: View {
                              action: action)
     }
 }
-

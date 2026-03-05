@@ -17,7 +17,7 @@ extension DataCleanupService {
             var changed = 0
 
             for note in notes {
-                var targetStudentID: UUID? = nil
+                var targetStudentID: UUID?
 
                 if let rec = note.attendanceRecord, let uuid = UUID(uuidString: rec.studentID) {
                     targetStudentID = uuid

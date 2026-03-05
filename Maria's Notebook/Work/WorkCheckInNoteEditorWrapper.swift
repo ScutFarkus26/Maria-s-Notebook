@@ -16,7 +16,7 @@ struct WorkCheckInNoteEditorWrapper: View {
         UnifiedNoteEditor(
             context: .workCheckIn(checkIn),
             initialNote: existingNote,
-            onSave: { note in
+            onSave: { _ in
                 // Note is automatically saved via relationship
                 dismiss()
             },
@@ -26,6 +26,3 @@ struct WorkCheckInNoteEditorWrapper: View {
         )
     }
 }
-
-
-

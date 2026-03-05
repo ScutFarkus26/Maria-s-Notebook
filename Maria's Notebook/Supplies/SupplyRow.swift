@@ -4,7 +4,7 @@ import SwiftData
 /// A row displaying a supply item with status indicators
 struct SupplyRow: View {
     let supply: Supply
-    var onQuickAdjust: ((Int) -> Void)? = nil
+    var onQuickAdjust: ((Int) -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {

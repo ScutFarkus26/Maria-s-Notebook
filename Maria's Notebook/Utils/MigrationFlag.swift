@@ -48,4 +48,3 @@ enum MigrationFlag {
         UserDefaults.standard.removeObject(forKey: key)
     }
 }
-

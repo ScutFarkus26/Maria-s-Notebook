@@ -66,7 +66,7 @@ final class Project: Identifiable {
     var modifiedAt: Date = Date()
 
     var title: String = ""
-    var bookTitle: String? = nil
+    var bookTitle: String?
 
     // Store Student IDs as strings for CloudKit compatibility
     var memberStudentIDs: [String] = []
@@ -111,7 +111,7 @@ final class ProjectAssignmentTemplate: Identifiable {
     var isShared: Bool = true
 
     // Optional default link to a Lesson by UUID string
-    var defaultLinkedLessonID: String? = nil
+    var defaultLinkedLessonID: String?
     
     // Computed property for backward compatibility with UUID
     var projectIDUUID: UUID? {
@@ -150,14 +150,14 @@ final class ProjectSession: Identifiable {
     var project: Project?
 
     var meetingDate: Date = Date()
-    var chapterOrPages: String? = nil
+    var chapterOrPages: String?
 
     // Agenda from template or edited per-session (JSON encoded)
     var agendaItemsJSON: String = ""
 
     // Optional link back to a template week
     // CloudKit compatibility: Store UUID as string
-    var templateWeekID: String? = nil
+    var templateWeekID: String?
 
     // MARK: - Assignment Mode Configuration
 

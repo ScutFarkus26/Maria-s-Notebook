@@ -374,7 +374,7 @@ struct RootView: View {
     private func handleMigration() {
         guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
 
-        var targetItem: RootView.NavigationItem? = nil
+        var targetItem: RootView.NavigationItem?
 
         if legacyRaw == "Lesson Planning" {
             targetItem = .planningAgenda

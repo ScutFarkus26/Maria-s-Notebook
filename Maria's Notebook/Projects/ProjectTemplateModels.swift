@@ -37,12 +37,6 @@ struct TemplateOfferedWork: Codable, Identifiable, Equatable {
     var id: String = UUID().uuidString
     var title: String = ""
     var instructions: String = ""
-
-    init(id: String = UUID().uuidString, title: String = "", instructions: String = "") {
-        self.id = id
-        self.title = title
-        self.instructions = instructions
-    }
 }
 
 // MARK: - Template Offered Works JSON Helper
@@ -149,7 +143,6 @@ final class ProjectTemplateWeek: Identifiable {
     @Relationship(inverse: \ProjectWeekRoleAssignment.week)
     var roleAssignments: [ProjectWeekRoleAssignment]? = []
     
-
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
@@ -252,4 +245,3 @@ final class ProjectWeekRoleAssignment: Identifiable {
         self.week = week
     }
 }
-

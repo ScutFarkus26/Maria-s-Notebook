@@ -10,7 +10,7 @@ struct ChipView: View {
     let highlight: Bool
     let blockingWork: WorkModel?
 
-    var onTap: (() -> Void)? = nil
+    var onTap: (() -> Void)?
 
     var body: some View {
         // If tappable (has blocking contract), wrap in button to capture touch

@@ -27,4 +27,3 @@ struct PlanningDragItem: Codable, Transferable, Equatable {
     static func work(_ id: UUID) -> PlanningDragItem { .init(kind: .work, id: id) }
     static func checkIn(_ id: UUID) -> PlanningDragItem { .init(kind: .checkIn, id: id) }
 }
-

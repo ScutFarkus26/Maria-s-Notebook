@@ -16,7 +16,7 @@ struct WorkAgendaCalendarPane: View {
 
     private struct SelectionToken: Identifiable, Equatable { let id: UUID; let contractID: UUID }
     @State private var selected: SelectionToken?
-    @State private var selectedGroup: WorkAgendaDayColumn.CheckInGroup? = nil
+    @State private var selectedGroup: WorkAgendaDayColumn.CheckInGroup?
     
     @AppStorage(UserDefaultsKeys.workCalendarShowPresentations) private var showPresentations: Bool = true
 
@@ -238,7 +238,6 @@ struct WorkAgendaCalendarPane: View {
         _ = saveCoordinator.save(modelContext, reason: "Reschedule LessonAssignment from Work view")
     }
 
-
 }
 
 // MARK: - Grouped Check-In Detail Sheet
@@ -254,11 +253,7 @@ struct GroupedCheckInDetailSheet: View {
 
     private var purposeIcon: String {
         let p = group.purpose.lowercased()
-        if p.contains("progress") || p.contains("check") { return "checkmark.circle" }
-        else if p.contains("due") { return "calendar.badge.exclamationmark" }
-        else if p.contains("assessment") { return "chart.bar" }
-        else if p.contains("follow") { return "arrow.turn.down.right" }
-        else { return "calendar" }
+        if p.contains("progress") || p.contains("check") { return "checkmark.circle" } else if p.contains("due") { return "calendar.badge.exclamationmark" } else if p.contains("assessment") { return "chart.bar" } else if p.contains("follow") { return "arrow.turn.down.right" } else { return "calendar" }
     }
 
     var body: some View {
@@ -344,7 +339,7 @@ private struct CheckInStudentRow: View {
     let onOpen: () -> Void
 
     @State private var noteText: String
-    @State private var saveTask: Task<Void, Never>? = nil
+    @State private var saveTask: Task<Void, Never>?
 
     init(checkIn: WorkCheckIn, work: WorkModel?, studentName: String, onOpen: @escaping () -> Void) {
         self.checkIn = checkIn
@@ -467,4 +462,3 @@ private struct PlanPromptSheetView: View {
         #endif
     }
 }
-

@@ -5,7 +5,7 @@ import SwiftData
 struct PracticeSessionCard: View {
     let session: PracticeSession
     let displayMode: DisplayMode
-    var onTap: (() -> Void)? = nil
+    var onTap: (() -> Void)?
     
     @Query var allStudents: [Student]
     @Query var allWork: [WorkModel]

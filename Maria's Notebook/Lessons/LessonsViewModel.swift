@@ -371,7 +371,7 @@ struct LessonsViewModel {
 
         let activeWork = workForLesson.filter { $0.completedAt == nil }
 
-        var lastActivity: Date? = nil
+        var lastActivity: Date?
         if !activeWork.isEmpty {
             let lastTouches = activeWork.compactMap { work -> Date? in
                 let checkIns = work.checkIns ?? []
@@ -394,10 +394,7 @@ struct LessonsViewModel {
         }
         
         let status: LessonStatus
-        if isStale || isOverdue { status = .stalled }
-        else if !activeWork.isEmpty { status = .practicing }
-        else if isPresented { status = .presented }
-        else { status = .ready }
+        if isStale || isOverdue { status = .stalled } else if !activeWork.isEmpty { status = .practicing } else if isPresented { status = .presented } else { status = .ready }
         
         let resolvedCache: SchoolDayLookupCache
         if let schoolDayCache = schoolDayCache {

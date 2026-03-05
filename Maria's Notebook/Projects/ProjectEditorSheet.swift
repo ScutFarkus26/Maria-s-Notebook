@@ -23,7 +23,7 @@ struct ProjectEditorSheet: View {
     @State private var bookTitle: String = ""
     @State private var selectedMemberIDs: Set<String> = []
 
-    struct TemplateDraft: Identifiable, Hashable { var id = UUID(); var title: String = ""; var instructions: String = ""; var defaultLinkedLessonID: String? = nil }
+    struct TemplateDraft: Identifiable, Hashable { var id = UUID(); var title: String = ""; var instructions: String = ""; var defaultLinkedLessonID: String? }
     @State private var sharedTemplates: [TemplateDraft] = []
 
     init(club: Project?) {

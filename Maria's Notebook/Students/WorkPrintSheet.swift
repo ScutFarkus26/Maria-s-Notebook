@@ -114,7 +114,7 @@ struct WorkPrintSheet: View {
             printInfo.jobName = "Open Work Report"
             printController.printInfo = printInfo
 
-            printController.present(animated: true) { _, completed, error in
+            printController.present(animated: true) { _, completed, _ in
                 if completed {
                     dismiss()
                 }

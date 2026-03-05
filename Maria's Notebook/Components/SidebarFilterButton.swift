@@ -169,4 +169,3 @@ struct SidebarFilterButton: View {
     }
     .padding()
 }
-

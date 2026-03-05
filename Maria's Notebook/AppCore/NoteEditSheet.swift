@@ -15,7 +15,7 @@ struct NoteEditSheet: View {
     @FocusState var isTextEditorFocused: Bool
 
     let note: Note
-    var onSaved: (() -> Void)? = nil
+    var onSaved: (() -> Void)?
 
     @State var bodyText: String
     @State var tags: [String]

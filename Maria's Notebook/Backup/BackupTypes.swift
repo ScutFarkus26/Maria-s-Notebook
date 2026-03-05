@@ -28,9 +28,9 @@ public struct BackupEnvelope: Codable, Sendable {
     public var manifest: BackupManifest
     // If encryption is enabled, payload is nil and encryptedPayload contains the encrypted bytes.
     // For format version 6+, compressedPayload may contain compressed (but not encrypted) data.
-    public var payload: BackupPayload? = nil
-    public var encryptedPayload: Data? = nil
-    public var compressedPayload: Data? = nil  // Format version 6+: compressed but unencrypted data
+    public var payload: BackupPayload?
+    public var encryptedPayload: Data?
+    public var compressedPayload: Data?  // Format version 6+: compressed but unencrypted data
 
     enum CodingKeys: String, CodingKey {
         case formatVersion
@@ -88,7 +88,7 @@ public struct BackupManifest: Codable, Sendable {
     public var sha256: String
     public var notes: String?
     /// Compression algorithm used (if any). nil means no compression (backward compatible)
-    public var compression: String? = nil
+    public var compression: String?
 
     public init(entityCounts: [String: Int], sha256: String, notes: String? = nil, compression: String? = nil) {
         self.entityCounts = entityCounts

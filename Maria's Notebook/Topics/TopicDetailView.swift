@@ -366,4 +366,3 @@ private struct MeetingNotesSection: View {
         }
     }
 }
-

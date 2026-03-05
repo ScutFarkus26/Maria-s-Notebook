@@ -15,7 +15,6 @@ import OSLog
 enum DataMigrations {
     private static let logger = Logger.migration
 
-
     // MARK: - Schema Migrations (delegated to SchemaMigrationService)
 
     /// Legacy date normalization (no-op — model removed).

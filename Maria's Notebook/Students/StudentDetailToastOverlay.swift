@@ -25,4 +25,3 @@ struct StudentDetailToastOverlay: View {
         }
     }
 }
-

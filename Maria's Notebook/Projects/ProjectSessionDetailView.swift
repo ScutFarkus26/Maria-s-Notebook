@@ -24,8 +24,8 @@ struct ProjectSessionDetailView: View {
     // NEW: Query all work models to filter locally
     @Query private var allWorkModels: [WorkModel]
 
-    @State var showLessonPickerForWork: WorkModel? = nil
-    @State var showSelectionSheetForStudent: String? = nil
+    @State var showLessonPickerForWork: WorkModel?
+    @State var showSelectionSheetForStudent: String?
     @State var showAddWorkSheet: Bool = false
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
@@ -113,7 +113,7 @@ struct ProjectSessionDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Agenda Items")
                             .font(.headline)
-                        ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, item in
+                        ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, _ in
                             HStack {
                                 TextField("Agenda item", text: Binding(
                                     get: { session.agendaItems.indices.contains(index) ? session.agendaItems[index] : "" },

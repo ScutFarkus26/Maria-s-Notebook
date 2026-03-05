@@ -46,17 +46,17 @@ final class Lesson: Identifiable {
     /// Raw storage for source ("album" or "personal"). Defaults to album for backward compatibility.
     var sourceRaw: String = "album"
     /// Raw storage for optional personal kind when source is personal. Nil or empty means default .personal.
-    var personalKindRaw: String? = nil
+    var personalKindRaw: String?
     
     // MARK: - Work Configuration
     
     /// Raw storage for the preferred work type produced by this lesson (e.g., Practice or Follow-Up).
-    var defaultWorkKindRaw: String? = nil
+    var defaultWorkKindRaw: String?
 
     /// Store large bookmark blobs as external storage so SwiftData/CloudKit can manage them as assets.
-    @Attribute(.externalStorage) var pagesFileBookmark: Data? = nil
+    @Attribute(.externalStorage) var pagesFileBookmark: Data?
     /// Relative path to an imported file inside the app's managed container.
-    var pagesFileRelativePath: String? = nil
+    var pagesFileRelativePath: String?
 
     // MARK: - Computed Properties
 

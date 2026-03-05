@@ -60,7 +60,3 @@ enum ArrayFiltering {
         items.filter { extractor($0) == value }
     }
 }
-
-
-
-

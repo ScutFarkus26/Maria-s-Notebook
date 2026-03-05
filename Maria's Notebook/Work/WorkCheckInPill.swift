@@ -7,7 +7,7 @@ struct WorkCheckInPill: View {
     
     let checkIn: WorkCheckIn
     var isDulled: Bool = false
-    var onTap: (() -> Void)? = nil
+    var onTap: (() -> Void)?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

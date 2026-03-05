@@ -4,7 +4,7 @@ import SwiftData
 /// Detail view for viewing a procedure
 struct ProcedureDetailView: View {
     let procedure: Procedure
-    var onEdit: ((Procedure) -> Void)? = nil
+    var onEdit: ((Procedure) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss

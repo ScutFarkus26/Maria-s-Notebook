@@ -78,4 +78,3 @@ public enum PreferenceRegistry {
         "LessonPlanning."
     ]
 }
-

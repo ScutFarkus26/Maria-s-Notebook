@@ -160,4 +160,3 @@ struct SubjectListRow: View {
         .contentShape(Rectangle())
     }
 }
-

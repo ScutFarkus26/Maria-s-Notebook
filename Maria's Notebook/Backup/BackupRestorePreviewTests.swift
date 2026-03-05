@@ -227,7 +227,7 @@ import Testing
         let payload = makeMinimalPayload()
         let manifest = makeManifest(payload: payload)
         let envelope = RestoreEnvelope(manifest: manifest, payload: payload)
-        let _ = try writeEnvelopeToDisk(envelope: envelope)
+        _ = try writeEnvelopeToDisk(envelope: envelope)
 
         // Preview import in merge mode on empty store: expect inserts = 1 each, deletes = 0
         let preview1 = store.previewImport(payload: payload, mode: .merge)
@@ -295,4 +295,3 @@ import Testing
     }
 }
 #endif
-

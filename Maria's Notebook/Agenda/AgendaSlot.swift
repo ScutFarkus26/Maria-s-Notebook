@@ -68,7 +68,7 @@ struct AgendaSlot: View {
                         .padding(.vertical, 8)
                         .padding(.horizontal, 10)
                 } else {
-                    ForEach(Array(scheduledLessonsForSlot.enumerated()), id: \.element.id) { index, la in
+                    ForEach(Array(scheduledLessonsForSlot.enumerated()), id: \.element.id) { _, la in
                         lessonPillView(for: la)
                     }
                 }

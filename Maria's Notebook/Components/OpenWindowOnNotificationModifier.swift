@@ -60,4 +60,3 @@ func openWorkInNewWindow(_ workID: UUID) {
     )
 }
 #endif
-

@@ -92,8 +92,7 @@ final class WorksPlanningViewModel {
         do {
             try svc.markCompleted(ci)
             _ = saveCoordinator.save(context, reason: "Mark check-in completed")
-        }
-        catch {
+        } catch {
             errorMessage = "Failed to mark as completed. Please try again."
         }
     }

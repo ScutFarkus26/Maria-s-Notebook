@@ -145,7 +145,7 @@ actor StudentTagger {
         tagger.string = text
         let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
         
-        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { tag, tokenRange in
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { _, tokenRange in
             let token = String(text[tokenRange])
             
             var tokenExactCandidates = Set<UUID>()

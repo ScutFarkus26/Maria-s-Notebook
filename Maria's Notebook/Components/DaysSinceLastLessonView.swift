@@ -29,7 +29,7 @@ struct DaysSinceLastLessonView: View {
         let relevant = allLessonAssignments.filter { la in
             la.isPresented && la.studentIDs.contains(studentIDString) && !excludedLessonIDs.contains(la.resolvedLessonID)
         }
-        var latest: Date? = nil
+        var latest: Date?
         for la in relevant {
             let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
             if let cur = latest {

@@ -10,7 +10,7 @@ final class WorkStep: Identifiable {
     var id: UUID = UUID()
 
     /// The work this step belongs to (relationship defined on WorkModel.steps)
-    var work: WorkModel? = nil
+    var work: WorkModel?
 
     /// Order index within the work (0-based, lower numbers come first)
     var orderIndex: Int = 0
@@ -22,7 +22,7 @@ final class WorkStep: Identifiable {
     var instructions: String = ""
 
     /// When this step was completed (nil if not yet completed)
-    var completedAt: Date? = nil
+    var completedAt: Date?
 
     /// Notes about this step
     var notes: String = ""

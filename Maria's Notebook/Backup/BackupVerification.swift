@@ -128,7 +128,7 @@ public struct BackupVerification {
             .appendingPathComponent("Backups/Auto")
         let autoBackupExists = FileManager.default.fileExists(atPath: autoBackupDir.path)
         
-        var mostRecentAutoBackup: URL? = nil
+        var mostRecentAutoBackup: URL?
         if autoBackupExists {
             mostRecentAutoBackup = findMostRecentBackup(in: autoBackupDir)
         }
@@ -175,4 +175,3 @@ public struct BackupStatus {
     public let autoBackupDirectoryExists: Bool
     public let mostRecentAutoBackupURL: URL?
 }
-

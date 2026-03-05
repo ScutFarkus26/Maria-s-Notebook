@@ -185,7 +185,7 @@ struct StudentFilesTab: View {
                 .padding(.horizontal, 32)
                 .padding(.vertical, 20)
             }
-            .dropDestination(for: URL.self) { items, location in
+            .dropDestination(for: URL.self) { items, _ in
                 return handleDrop(items)
             }
         }

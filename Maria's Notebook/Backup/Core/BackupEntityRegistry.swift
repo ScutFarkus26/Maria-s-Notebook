@@ -73,7 +73,7 @@ struct BackupEntityRegistry {
         TodoSubtask.self,
         TodoTemplate.self,
         // Agenda
-        TodayAgendaOrder.self,
+        TodayAgendaOrder.self
     ]
     
     /// Entity type names for progress reporting and error messages
@@ -109,4 +109,3 @@ struct BackupProgress {
         return phaseStart + (phaseRange * subProgress)
     }
 }
-

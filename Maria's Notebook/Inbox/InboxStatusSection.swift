@@ -86,5 +86,4 @@ struct InboxStatusSection: View {
         }
     }
 
-
 }

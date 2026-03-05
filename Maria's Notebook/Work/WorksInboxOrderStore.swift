@@ -32,4 +32,3 @@ enum WorksInboxOrderStore {
         return base.sorted { (indexMap[$0.id] ?? Int.max) < (indexMap[$1.id] ?? Int.max) }
     }
 }
-

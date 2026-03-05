@@ -360,7 +360,7 @@ extension LessonsRootView {
     func lessonDetailPane(lesson: Lesson) -> some View {
         LessonDetailView(
             lesson: lesson,
-            onSave: { updatedLesson in
+            onSave: { _ in
                 _ = saveCoordinator.save(modelContext, reason: "Update lesson")
             },
             onDone: {

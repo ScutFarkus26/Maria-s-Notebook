@@ -199,4 +199,3 @@ struct AgeUtils {
         return age.hasHalf ? "\(age.years) 1/2" : "\(age.years)"
     }
 }
-

@@ -8,8 +8,8 @@ import SwiftUI
 @Observable
 @MainActor
 final class LessonsFilterState {
-    var selectedSubject: String? = nil
-    var selectedGroup: String? = nil
+    var selectedSubject: String?
+    var selectedGroup: String?
     var searchText: String = "" {
         didSet {
             scheduleDebounce()
@@ -17,8 +17,8 @@ final class LessonsFilterState {
     }
     var expandedSubjects: Set<String> = []
 
-    var sourceFilter: LessonSource? = nil // nil means All
-    var personalKindFilter: PersonalLessonKind? = nil // nil means All Types
+    var sourceFilter: LessonSource? // nil means All
+    var personalKindFilter: PersonalLessonKind? // nil means All Types
 
     // New filter properties for chip bar
     var hasAttachmentFilter: Bool = false
@@ -90,4 +90,3 @@ final class LessonsFilterState {
         return (subjectRaw, groupRaw, searchRaw, expandedRaw, sourceRaw, personalKindRaw, hasAttachmentRaw, needsAttentionRaw)
     }
 }
-

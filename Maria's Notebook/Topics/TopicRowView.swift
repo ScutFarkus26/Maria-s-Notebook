@@ -95,4 +95,3 @@ struct TopicRowView: View {
         .onTapGesture(perform: onSelect)
     }
 }
-

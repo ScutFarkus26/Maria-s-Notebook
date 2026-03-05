@@ -310,7 +310,6 @@ struct PresentationsListView: View {
     }
 }
 
-
 #Preview {
     PresentationsListView()
 }

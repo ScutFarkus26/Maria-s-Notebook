@@ -19,26 +19,26 @@ struct KeyboardShortcutsHelpView: View {
                     ShortcutItem(keys: "\u{2318}4", description: "Lessons"),
                     ShortcutItem(keys: "\u{2318}5", description: "Logs"),
                     ShortcutItem(keys: "\u{2318}6", description: "Attendance"),
-                    ShortcutItem(keys: "\u{2318},", description: "Settings"),
+                    ShortcutItem(keys: "\u{2318},", description: "Settings")
                 ])
 
                 shortcutSection("Create", shortcuts: [
                     ShortcutItem(keys: "\u{2318}N", description: "New Lesson"),
                     ShortcutItem(keys: "\u{21E7}\u{2318}N", description: "New Student"),
-                    ShortcutItem(keys: "\u{2325}\u{2318}N", description: "New Work"),
+                    ShortcutItem(keys: "\u{2325}\u{2318}N", description: "New Work")
                 ])
 
                 shortcutSection("Import & Backup", shortcuts: [
                     ShortcutItem(keys: "\u{2318}I", description: "Import Lessons"),
                     ShortcutItem(keys: "\u{21E7}\u{2318}I", description: "Import Students"),
                     ShortcutItem(keys: "\u{2318}B", description: "Create Backup"),
-                    ShortcutItem(keys: "\u{21E7}\u{2318}B", description: "Restore Data"),
+                    ShortcutItem(keys: "\u{21E7}\u{2318}B", description: "Restore Data")
                 ])
 
                 shortcutSection("General", shortcuts: [
                     ShortcutItem(keys: "\u{2318}F", description: "Search"),
                     ShortcutItem(keys: "\u{2318}W", description: "Close Window"),
-                    ShortcutItem(keys: "\u{2318}?", description: "Help"),
+                    ShortcutItem(keys: "\u{2318}?", description: "Help")
                 ])
             }
             .padding(32)

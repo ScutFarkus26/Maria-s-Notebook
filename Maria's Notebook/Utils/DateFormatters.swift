@@ -38,6 +38,3 @@ enum DateFormatters {
         return formatter
     }()
 }
-
-
-

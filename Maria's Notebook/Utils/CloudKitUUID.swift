@@ -89,9 +89,6 @@ extension CloudKitUUID {
     }
 }
 
-    
-
-
 // MARK: - Array Support
 
 extension Array where Element == UUID {

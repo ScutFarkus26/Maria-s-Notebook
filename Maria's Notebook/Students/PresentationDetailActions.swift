@@ -213,4 +213,3 @@ final class PresentationDetailActions {
         return PlanNextLessonService.findNextLesson(after: current, in: lessons)
     }
 }
-

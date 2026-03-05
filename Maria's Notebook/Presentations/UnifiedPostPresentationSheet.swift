@@ -256,7 +256,7 @@ struct UnifiedPostPresentationSheet: View {
                         .foregroundStyle(.tertiary)
 
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
-                        ForEach(Array(suggestedWorkItems.enumerated()), id: \.offset) { index, suggestion in
+                        ForEach(Array(suggestedWorkItems.enumerated()), id: \.offset) { _, suggestion in
                             Button {
                                 viewModel.bulkAssignment = suggestion
                             } label: {

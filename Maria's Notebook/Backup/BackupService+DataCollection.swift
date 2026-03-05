@@ -237,7 +237,7 @@ extension BackupService {
         let verificationData = try Data(contentsOf: url)
         let verificationDecoder = JSONDecoder()
         verificationDecoder.dateDecodingStrategy = .iso8601
-        let _ = try verificationDecoder.decode(BackupEnvelope.self, from: verificationData)
+        _ = try verificationDecoder.decode(BackupEnvelope.self, from: verificationData)
 
         progress(BackupProgress.progress(for: .complete), "Backup complete")
         return BackupOperationSummary(

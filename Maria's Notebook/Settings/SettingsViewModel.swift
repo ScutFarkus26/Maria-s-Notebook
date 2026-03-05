@@ -19,19 +19,19 @@ final class SettingsViewModel {
     var backupMessage: String = ""
     var importProgress: Double = 0
     var importMessage: String = ""
-    var resultSummary: String? = nil
-    var operationSummary: BackupOperationSummary? = nil
-    var restorePreviewData: RestorePreview? = nil
+    var resultSummary: String?
+    var operationSummary: BackupOperationSummary?
+    var restorePreviewData: RestorePreview?
     var defaultFolderName: String = ""
-    var exportData: Data? = nil
-    var importError: String? = nil
-    var estimatedBackupSize: Int64? = nil
+    var exportData: Data?
+    var importError: String?
+    var estimatedBackupSize: Int64?
 
     // Internal
     private let dependencies: AppDependencies
     private var backupService: BackupService { dependencies.backupService }
-    private var pendingImportURL: URL? = nil
-    private var exportURL: URL? = nil
+    private var pendingImportURL: URL?
+    private var exportURL: URL?
     
     // MARK: - Initialization
     
@@ -231,4 +231,3 @@ final class SettingsViewModel {
         }
     }
 }
-

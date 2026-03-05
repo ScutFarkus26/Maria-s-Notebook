@@ -55,6 +55,6 @@ struct AppSchema {
         TodoSubtask.self,
         TodoTemplate.self,
         TodayAgendaOrder.self,
-        PlanningRecommendation.self,
+        PlanningRecommendation.self
     ])
 }

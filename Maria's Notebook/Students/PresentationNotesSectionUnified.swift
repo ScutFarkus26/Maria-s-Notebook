@@ -93,7 +93,6 @@ struct PresentationNotesSectionUnified: View {
         allUnifiedNotes
     }
     
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -217,6 +216,3 @@ struct PresentationNotesSectionUnified: View {
     }
     
 }
-
-
-

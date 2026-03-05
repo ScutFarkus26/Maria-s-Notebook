@@ -12,8 +12,8 @@ final class ChecklistDragSelectionManager {
     // MARK: - State
 
     var cellFrames: [CellIdentifier: CGRect] = [:]
-    var dragStart: CGPoint? = nil
-    var dragCurrent: CGPoint? = nil
+    var dragStart: CGPoint?
+    var dragCurrent: CGPoint?
     var isDragging: Bool = false
 
     // MARK: - Selection Calculation

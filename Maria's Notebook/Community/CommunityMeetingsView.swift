@@ -223,4 +223,3 @@ struct CommunityMeetingsView: View {
     return CommunityMeetingsView()
         .previewEnvironment(using: container)
 }
-

@@ -49,7 +49,7 @@ struct WorksAgendaView: View {
     @State private var sortMode: WorkAgendaSortMode = .lesson
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
-    @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @State private var searchDebounceTask: Task<Void, Never>?
     @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
     @State private var isCalendarMinimized: Bool = false
     @State private var calendarStartDate: Date = AppCalendar.startOfDay(Date())

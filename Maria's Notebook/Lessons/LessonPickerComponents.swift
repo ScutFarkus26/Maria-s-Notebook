@@ -236,8 +236,6 @@ struct StudentChipsList: View {
     }
 }
 
-
-
 // MARK: - Status Section
 
 struct StatusSection: View {
@@ -285,8 +283,6 @@ struct StatusSection: View {
     }
 }
 
-
-
 // MARK: - Keyboard Shortcuts Overlay
 
 struct KeyboardShortcutsOverlay: View {
@@ -317,4 +313,3 @@ struct KeyboardShortcutsOverlay: View {
         .allowsHitTesting(false)
     }
 }
-

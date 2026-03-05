@@ -236,4 +236,3 @@ struct AgendaSchoolDayRules {
         return PlanningEngine.moveBySchoolDays(from: startDay, days: delta, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 }
-

@@ -20,4 +20,3 @@ enum StringNormalization {
         return components.joined(separator: " ")
     }
 }
-

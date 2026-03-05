@@ -38,7 +38,3 @@ enum StringFallbacks {
         return trimmed.isEmpty ? nil : trimmed
     }
 }
-
-
-
-

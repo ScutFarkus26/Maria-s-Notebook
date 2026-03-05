@@ -59,7 +59,3 @@ enum DateCalculations {
         calendar.startOfDay(for: date)
     }
 }
-
-
-
-

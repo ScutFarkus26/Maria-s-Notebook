@@ -146,7 +146,7 @@ struct IntroductionCard: View {
 
     @ViewBuilder
     private var folderTabAccent: some View {
-        GeometryReader { geo in
+        GeometryReader { _ in
             Path { path in
                 let tabWidth: CGFloat = 60
                 let tabHeight: CGFloat = 8

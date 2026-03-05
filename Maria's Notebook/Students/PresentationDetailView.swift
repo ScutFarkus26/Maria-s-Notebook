@@ -30,7 +30,7 @@ struct PresentationDetailView: View {
 
     let lessonAssignment: LessonAssignment
     let autoFocusLessonPicker: Bool
-    var onDone: (() -> Void)? = nil
+    var onDone: (() -> Void)?
 
     // ViewModel is optional and initialized in onAppear
     @State private var vm: PresentationDetailViewModel?

@@ -215,7 +215,6 @@ struct PresentationsView: View {
         viewModel.daysSinceLastLessonByStudent
     }
 
-
     var body: some View {
         Group {
             if horizontalSizeClass == .compact {
@@ -401,7 +400,6 @@ struct PresentationsView: View {
         }
     }
 
-
     // MARK: - Helpers
     
     /// Update ViewModel - now fetches data internally with targeted queries
@@ -471,4 +469,3 @@ struct PresentationsView: View {
         }.count
     }
 }
-

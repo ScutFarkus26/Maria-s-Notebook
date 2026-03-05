@@ -35,10 +35,10 @@ final class StudentDetailViewModel {
 
     // MARK: - UI State
     // UI selection and toast state moved from the view
-    var selectedLessonForGive: Lesson? = nil
+    var selectedLessonForGive: Lesson?
     var giveStartGiven: Bool = false
-    var selectedLessonAssignmentForDetail: LessonAssignment? = nil
-    var toastMessage: String? = nil
+    var selectedLessonAssignmentForDetail: LessonAssignment?
+    var toastMessage: String?
 
     private let dependencies: AppDependencies
     

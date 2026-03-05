@@ -480,7 +480,6 @@ struct StudentNotesTimelineList: View {
 
 }
 
-
 extension StudentNotesViewModel {
     @MainActor
     func reload() { self.reloadItems?() }

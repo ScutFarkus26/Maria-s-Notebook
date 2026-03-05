@@ -62,14 +62,14 @@ struct StudentsView<WorkloadContent: View>: View {
 
     // MARK: - State for CSV Import
     @State var showingStudentCSVImporter: Bool = false
-    @State var importAlert: StudentsCSVImportHandler.ImportAlert? = nil
+    @State var importAlert: StudentsCSVImportHandler.ImportAlert?
     @State var mappingHeaders: [String] = []
-    @State var pendingMapping: StudentCSVImporter.Mapping? = nil
+    @State var pendingMapping: StudentCSVImporter.Mapping?
     @State var pendingFileURL: URL?
-    @State var pendingParsedImport: StudentCSVImporter.Parsed? = nil
+    @State var pendingParsedImport: StudentCSVImporter.Parsed?
     @State var showingMappingSheet: Bool = false
     @State var isParsing: Bool = false
-    @State var parsingTask: Task<Void, Never>? = nil
+    @State var parsingTask: Task<Void, Never>?
 
     // MARK: - Body
 

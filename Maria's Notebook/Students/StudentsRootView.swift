@@ -205,13 +205,13 @@ private struct WorkloadContentView: View {
             
             switch work.kind {
             case .practiceLesson:
-                result[sid, default: (0,0,0)].practice += 1
+                result[sid, default: (0, 0, 0)].practice += 1
             case .followUpAssignment:
-                result[sid, default: (0,0,0)].follow += 1
+                result[sid, default: (0, 0, 0)].follow += 1
             case .research, .report:
-                result[sid, default: (0,0,0)].research += 1
+                result[sid, default: (0, 0, 0)].research += 1
             case nil:
-                result[sid, default: (0,0,0)].follow += 1
+                result[sid, default: (0, 0, 0)].follow += 1
             }
         }
         return result
@@ -220,7 +220,7 @@ private struct WorkloadContentView: View {
     private var summaries: [StudentWorkSummary] {
         let countsMap = counts
         return studentsByID.values.map { s in
-            let c = countsMap[s.id, default: (0,0,0)]
+            let c = countsMap[s.id, default: (0, 0, 0)]
             return StudentWorkSummary(id: s.id, student: s, practiceOpen: c.practice, followUpOpen: c.follow, researchOpen: c.research)
         }
         .sorted { lhs, rhs in
@@ -238,5 +238,3 @@ private struct WorkloadContentView: View {
         )
     }
 }
-
-

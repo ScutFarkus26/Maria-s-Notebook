@@ -50,4 +50,3 @@ import SwiftData
         self.completedAt = cal.startOfDay(for: completedAt)
     }
 }
-

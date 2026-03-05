@@ -154,4 +154,3 @@ private struct CompactPillButton: View {
     }
 }
 #endif
-

@@ -286,7 +286,7 @@ struct EventTimelineChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day)) { value in
+            AxisMarks(values: .stride(by: .day)) { _ in
                 AxisGridLine()
                 AxisValueLabel(format: .dateTime.month().day())
             }

@@ -78,4 +78,3 @@ struct SummarizeTodaysObservationsIntent: AppIntent, SnippetIntent {
     }
 }
 #endif
-

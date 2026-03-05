@@ -129,4 +129,3 @@ final class AttendanceViewModel {
     /// This is a derived metric for the header summary only and does not change stored data.
     var inClassCount: Int { countPresent + countTardy }
 }
-

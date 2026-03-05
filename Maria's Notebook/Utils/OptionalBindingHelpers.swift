@@ -60,7 +60,3 @@ enum OptionalBindingHelpers {
         return transform2(intermediate)
     }
 }
-
-
-
-

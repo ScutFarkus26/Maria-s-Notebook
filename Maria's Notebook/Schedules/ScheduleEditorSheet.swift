@@ -435,7 +435,7 @@ struct ScheduleEditorSheet: View {
             ("Teal", "#5AC8FA"),
             ("Indigo", "#5856D6"),
             ("Brown", "#A2845E"),
-            ("Gray", "#8E8E93"),
+            ("Gray", "#8E8E93")
         ]
     }
 
@@ -460,7 +460,7 @@ struct ScheduleEditorSheet: View {
             "leaf",
             "globe",
             "lightbulb",
-            "hammer",
+            "hammer"
         ]
     }
 }

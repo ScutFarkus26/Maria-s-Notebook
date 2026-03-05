@@ -502,4 +502,3 @@ struct OverviewStatsGrid: View {
         }
     }
 }
-

@@ -320,4 +320,3 @@ struct ProjectSidebarRow: View {
         .contentShape(Rectangle())
     }
 }
-

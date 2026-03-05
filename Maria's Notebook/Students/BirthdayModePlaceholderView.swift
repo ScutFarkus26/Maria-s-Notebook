@@ -14,5 +14,3 @@ struct BirthdayModePlaceholderView: View {
 #Preview {
     BirthdayModePlaceholderView()
 }
-
-
