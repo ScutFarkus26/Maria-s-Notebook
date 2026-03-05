@@ -18,7 +18,8 @@ final class LessonPresentation: Identifiable {
     var stateRaw: String = LessonPresentationState.presented.rawValue
     var presentedAt: Date = Date()
     var lastObservedAt: Date?
-    var masteredAt: Date? // swiftlint:disable:this inclusive_language — persisted SwiftData property name
+    // Persisted SwiftData property name
+    var masteredAt: Date? // swiftlint:disable:this inclusive_language
     var notes: String?
     
     var state: LessonPresentationState {
@@ -37,7 +38,7 @@ final class LessonPresentation: Identifiable {
         state: LessonPresentationState = .presented,
         presentedAt: Date = Date(),
         lastObservedAt: Date? = nil,
-        masteredAt: Date? = nil, // swiftlint:disable:this inclusive_language — persisted SwiftData property name
+        masteredAt: Date? = nil, // swiftlint:disable:this inclusive_language
         notes: String? = nil
     ) {
         self.id = id

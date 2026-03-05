@@ -388,8 +388,11 @@ struct UnifiedPostPresentationSheet: View {
             isExpanded: Binding(
                 get: { viewModel.expandedStudentIDs.contains(student.id) },
                 set: {
-                    if $0 { viewModel.expandedStudentIDs.insert(student.id) }
-                    else { viewModel.expandedStudentIDs.remove(student.id) }
+                    if $0 {
+                        viewModel.expandedStudentIDs.insert(student.id)
+                    } else {
+                        viewModel.expandedStudentIDs.remove(student.id)
+                    }
                 }
             ),
             suggestedWorkItems: suggestedWorkItems,
@@ -397,8 +400,11 @@ struct UnifiedPostPresentationSheet: View {
             isUnlockSelected: Binding(
                 get: { viewModel.studentsToUnlock.contains(student.id) },
                 set: {
-                    if $0 { viewModel.studentsToUnlock.insert(student.id) }
-                    else { viewModel.studentsToUnlock.remove(student.id) }
+                    if $0 {
+                        viewModel.studentsToUnlock.insert(student.id)
+                    } else {
+                        viewModel.studentsToUnlock.remove(student.id)
+                    }
                 }
             ),
             defaultCheckInDate: viewModel.defaultCheckInDate,
