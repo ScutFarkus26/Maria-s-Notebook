@@ -143,7 +143,10 @@ actor StudentTagger {
         tagger.string = text
         let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames]
         
-        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: options) { _, tokenRange in
+        tagger.enumerateTags(
+            in: text.startIndex..<text.endIndex,
+            unit: .word, scheme: .nameType, options: options
+        ) { _, tokenRange in
             let token = String(text[tokenRange])
             
             var tokenExactCandidates = Set<UUID>()
@@ -265,7 +268,8 @@ actor StudentTagger {
                 continue
             }
             // Compact or punctuated initials
-            if let fi = first.first, let li = last.first, containsInitials(haystack, firstInitial: fi, lastInitial: li) {
+            if let fi = first.first, let li = last.first,
+               containsInitials(haystack, firstInitial: fi, lastInitial: li) {
                 exact.insert(student.id)
                 let key = String(fi) + String(li)
                 if let ids = initialsMap[key], ids.count == 1 {
@@ -284,12 +288,17 @@ actor StudentTagger {
         for id in exact {
             // Check if this exact match is unique for its name pattern
             if let student = studentData.first(where: { $0.id == id }) {
-                let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                let nick = (student.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let first = student.firstName
+                    .folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let last = student.lastName
+                    .folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let nick = (student.nickname ?? "")
+                    .folding(options: .diacriticInsensitive, locale: .current).lowercased()
                 let full = (first + " " + last).trimmed()
                 
-                if firstNameCounts[first] == 1 || (!nick.isEmpty && nicknameCounts[nick] == 1) || fullNameCounts[full] == 1 {
+                if firstNameCounts[first] == 1
+                    || (!nick.isEmpty && nicknameCounts[nick] == 1)
+                    || fullNameCounts[full] == 1 {
                     autoSelect.insert(id)
                 }
                 
@@ -304,9 +313,15 @@ actor StudentTagger {
         }
         
         // Generate text replacements for exact matches
-        replacements = generateReplacements(for: exact, in: text, studentData: studentData, firstNameCounts: firstNameCounts)
-        
-        return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect, replacements: replacements)
+        replacements = generateReplacements(
+            for: exact, in: text, studentData: studentData,
+            firstNameCounts: firstNameCounts
+        )
+
+        return StudentMatchResult(
+            exact: exact, fuzzy: fuzzy, autoSelect: autoSelect,
+            replacements: replacements
+        )
     }
     
     // Private Helpers delegate to shared helpers

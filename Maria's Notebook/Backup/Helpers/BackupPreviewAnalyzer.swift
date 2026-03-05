@@ -98,11 +98,23 @@ enum BackupPreviewAnalyzer {
         assign("AttendanceRecord", payload.attendance.count, 0, count(AttendanceRecord.self))
         assign("WorkCompletionRecord", payload.workCompletions.count, 0, count(WorkCompletionRecord.self))
         assign("Project", payload.projects.count, 0, count(Project.self))
-        assign("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count, 0, count(ProjectAssignmentTemplate.self))
+        assign(
+            "ProjectAssignmentTemplate",
+            payload.projectAssignmentTemplates.count, 0,
+            count(ProjectAssignmentTemplate.self)
+        )
         assign("ProjectSession", payload.projectSessions.count, 0, count(ProjectSession.self))
         assign("ProjectRole", payload.projectRoles.count, 0, count(ProjectRole.self))
-        assign("ProjectTemplateWeek", payload.projectTemplateWeeks.count, 0, count(ProjectTemplateWeek.self))
-        assign("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count, 0, count(ProjectWeekRoleAssignment.self))
+        assign(
+            "ProjectTemplateWeek",
+            payload.projectTemplateWeeks.count, 0,
+            count(ProjectTemplateWeek.self)
+        )
+        assign(
+            "ProjectWeekRoleAssignment",
+            payload.projectWeekRoleAssignments.count, 0,
+            count(ProjectWeekRoleAssignment.self)
+        )
     }
 
     // MARK: - Merge Mode Analysis
@@ -157,7 +169,11 @@ enum BackupPreviewAnalyzer {
         }
         assign("LegacyPresentation (legacy)", legacyPresentationAnalysis.ins, legacyPresentationAnalysis.sk, 0)
         if legacyPresentationAnalysis.missingLesson > 0 {
-            warnings.append("\(legacyPresentationAnalysis.missingLesson) legacy LegacyPresentation records reference missing Lessons and will be skipped.")
+            let count = legacyPresentationAnalysis.missingLesson
+            warnings.append(
+                "\(count) legacy LegacyPresentation records "
+                + "reference missing Lessons and will be skipped."
+            )
         }
 
         // LessonAssignments - similar handling for missing lesson references
@@ -181,7 +197,11 @@ enum BackupPreviewAnalyzer {
         }
         assign("LessonAssignment", lessonAssignmentAnalysis.ins, lessonAssignmentAnalysis.sk, 0)
         if lessonAssignmentAnalysis.missingLesson > 0 {
-            warnings.append("\(lessonAssignmentAnalysis.missingLesson) LessonAssignment records reference missing Lessons and will be skipped.")
+            let missingCount = lessonAssignmentAnalysis.missingLesson
+            warnings.append(
+                "\(missingCount) LessonAssignment records "
+                + "reference missing Lessons and will be skipped."
+            )
         }
 
         // Helper for simple entities
@@ -204,7 +224,11 @@ enum BackupPreviewAnalyzer {
         assignCounts("ProposedSolution", items: payload.proposedSolutions, type: ProposedSolution.self) { $0.id }
 
         // Remaining entities using direct filtering with explicit id extraction
-        func countFiltered<T>(_ items: [T], type: any PersistentModel.Type, idExtractor: (T) -> UUID) -> (ins: Int, sk: Int) {
+        func countFiltered<T>(
+            _ items: [T],
+            type: any PersistentModel.Type,
+            idExtractor: (T) -> UUID
+        ) -> (ins: Int, sk: Int) {
             let existing = items.filter { entityExists(type, idExtractor($0)) }
             let new = items.filter { !entityExists(type, idExtractor($0)) }
             return (new.count, existing.count)
@@ -222,7 +246,10 @@ enum BackupPreviewAnalyzer {
         let projectCounts = countFiltered(payload.projects, type: Project.self) { $0.id }
         assign("Project", projectCounts.ins, projectCounts.sk, 0)
 
-        let templateCounts = countFiltered(payload.projectAssignmentTemplates, type: ProjectAssignmentTemplate.self) { $0.id }
+        let templateCounts = countFiltered(
+            payload.projectAssignmentTemplates,
+            type: ProjectAssignmentTemplate.self
+        ) { $0.id }
         assign("ProjectAssignmentTemplate", templateCounts.ins, templateCounts.sk, 0)
 
         let sessionCounts = countFiltered(payload.projectSessions, type: ProjectSession.self) { $0.id }
@@ -234,7 +261,10 @@ enum BackupPreviewAnalyzer {
         let weekCounts = countFiltered(payload.projectTemplateWeeks, type: ProjectTemplateWeek.self) { $0.id }
         assign("ProjectTemplateWeek", weekCounts.ins, weekCounts.sk, 0)
 
-        let assignmentCounts = countFiltered(payload.projectWeekRoleAssignments, type: ProjectWeekRoleAssignment.self) { $0.id }
+        let assignmentCounts = countFiltered(
+            payload.projectWeekRoleAssignments,
+            type: ProjectWeekRoleAssignment.self
+        ) { $0.id }
         assign("ProjectWeekRoleAssignment", assignmentCounts.ins, assignmentCounts.sk, 0)
     }
 }

@@ -297,8 +297,14 @@ public final class ConflictResolutionService {
             }
             guard let existing = existing else { continue }
 
-            let localSummary = "Scheduled: \(existing.scheduledFor?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")"
-            let backupSummary = "Scheduled: \(dto.scheduledFor?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")"
+            let localDate = existing.scheduledFor?.formatted(
+                date: .abbreviated, time: .omitted
+            ) ?? "N/A"
+            let backupDate = dto.scheduledFor?.formatted(
+                date: .abbreviated, time: .omitted
+            ) ?? "N/A"
+            let localSummary = "Scheduled: \(localDate)"
+            let backupSummary = "Scheduled: \(backupDate)"
 
             conflicts.append(Conflict(
                 id: UUID(),

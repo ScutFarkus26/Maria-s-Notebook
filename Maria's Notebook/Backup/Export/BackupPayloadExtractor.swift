@@ -25,7 +25,8 @@ enum BackupPayloadExtractor {
                     checkIndex = jsonString.index(before: checkIndex)
                 }
 
-                if checkIndex >= jsonString.startIndex && (jsonString[checkIndex] == "{" || jsonString[checkIndex] == ",") {
+                let ch = jsonString[checkIndex]
+                if checkIndex >= jsonString.startIndex && (ch == "{" || ch == ",") {
                     return extractPayloadValue(from: jsonString, startingAt: keyRange.upperBound)
                 }
             } else if checkIndex == jsonString.startIndex {

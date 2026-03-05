@@ -7,9 +7,21 @@ extension BackupEntityImporter {
 
     // MARK: - Todo Items
 
-    static func importTodoItems(_ dtos: [TodoItemDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<TodoItem>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
-            let t = TodoItem(id: dto.id, title: dto.title, notes: dto.notes, createdAt: dto.createdAt, orderIndex: dto.orderIndex)
+    static func importTodoItems(
+        _ dtos: [TodoItemDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<TodoItem>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+            let t = TodoItem(
+                id: dto.id, title: dto.title,
+                notes: dto.notes, createdAt: dto.createdAt,
+                orderIndex: dto.orderIndex
+            )
             t.isCompleted = dto.isCompleted
             t.completedAt = dto.completedAt
             t.dueDate = dto.dueDate
@@ -65,9 +77,21 @@ extension BackupEntityImporter {
 
     // MARK: - Todo Templates
 
-    static func importTodoTemplates(_ dtos: [TodoTemplateDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<TodoTemplate>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
-            let t = TodoTemplate(id: dto.id, name: dto.name, title: dto.title, notes: dto.notes, createdAt: dto.createdAt)
+    static func importTodoTemplates(
+        _ dtos: [TodoTemplateDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<TodoTemplate>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+            let t = TodoTemplate(
+                id: dto.id, name: dto.name,
+                title: dto.title, notes: dto.notes,
+                createdAt: dto.createdAt
+            )
             t.priority = TodoPriority(rawValue: dto.priorityRaw) ?? .none
             t.defaultEstimatedMinutes = dto.defaultEstimatedMinutes
             t.defaultStudentIDs = dto.defaultStudentIDs
@@ -79,8 +103,16 @@ extension BackupEntityImporter {
 
     // MARK: - Today Agenda Orders
 
-    static func importTodayAgendaOrders(_ dtos: [TodayAgendaOrderDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<TodayAgendaOrder>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importTodayAgendaOrders(
+        _ dtos: [TodayAgendaOrderDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<TodayAgendaOrder>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let a = TodayAgendaOrder(
                 day: dto.day,
                 itemType: AgendaItemType(rawValue: dto.itemTypeRaw) ?? .lesson,

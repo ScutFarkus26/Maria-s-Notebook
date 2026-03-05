@@ -69,7 +69,12 @@ extension TodoMainView {
         #else
         .background(Color(nsColor: .controlBackgroundColor))
         #endif
-        .navigationTitle(selectedFolder ?? (selectedTag != nil ? TodoTagHelper.tagName(selectedTag!) : (selectedFilter ?? .inbox).title))
+        .navigationTitle(
+            selectedFolder
+                ?? (selectedTag != nil
+                    ? TodoTagHelper.tagName(selectedTag!)
+                    : (selectedFilter ?? .inbox).title)
+        )
     }
 
     // MARK: - Batch Action Bar
@@ -271,9 +276,10 @@ extension TodoMainView {
                                 Button {
                                     toggleSelection(todo)
                                 } label: {
-                                    Image(systemName: selectedTodoIDs.contains(todo.id) ? "checkmark.circle.fill" : "circle")
+                                    let isSelected = selectedTodoIDs.contains(todo.id)
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                         .font(.system(size: 22))
-                                        .foregroundStyle(selectedTodoIDs.contains(todo.id) ? Color.accentColor : .secondary)
+                                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.leading, 12)

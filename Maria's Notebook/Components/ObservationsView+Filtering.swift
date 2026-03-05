@@ -37,7 +37,8 @@ extension ObservationsView {
 
                 Divider()
 
-                let allUsedTags = Set(loadedItems.flatMap { $0.tags }).sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
+                let allUsedTags = Set(loadedItems.flatMap { $0.tags })
+                    .sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
                 ForEach(allUsedTags, id: \.self) { tag in
                     Button(action: {
                         if selectedFilterTags.contains(tag) {
@@ -57,7 +58,10 @@ extension ObservationsView {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text(selectedFilterTags.isEmpty ? "All Tags" : "\(selectedFilterTags.count) tag\(selectedFilterTags.count == 1 ? "" : "s")")
+                    let tagLabel = selectedFilterTags.isEmpty
+                        ? "All Tags"
+                        : "\(selectedFilterTags.count) tag\(selectedFilterTags.count == 1 ? "" : "s")"
+                    Text(tagLabel)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)

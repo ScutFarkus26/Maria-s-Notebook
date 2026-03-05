@@ -6,7 +6,11 @@ public struct SubjectDropDelegate: DropDelegate {
     @Binding var dragState: (from: Int?, to: Int?)
     let onReorder: (Int, Int) -> Void
 
-    public init(index: Int, currentItems: [String], dragState: Binding<(from: Int?, to: Int?)>, onReorder: @escaping (Int, Int) -> Void) {
+    public init(
+        index: Int, currentItems: [String],
+        dragState: Binding<(from: Int?, to: Int?)>,
+        onReorder: @escaping (Int, Int) -> Void
+    ) {
         self.index = index
         self.currentItems = currentItems
         self._dragState = dragState
@@ -33,7 +37,11 @@ public struct GroupDropDelegate: DropDelegate {
     @Binding var dragState: (from: Int?, to: Int?)
     let onReorder: (Int, Int) -> Void
 
-    public init(subject: String, index: Int, currentItems: [String], dragState: Binding<(from: Int?, to: Int?)>, onReorder: @escaping (Int, Int) -> Void) {
+    public init(
+        subject: String, index: Int, currentItems: [String],
+        dragState: Binding<(from: Int?, to: Int?)>,
+        onReorder: @escaping (Int, Int) -> Void
+    ) {
         self.subject = subject
         self.index = index
         self.currentItems = currentItems

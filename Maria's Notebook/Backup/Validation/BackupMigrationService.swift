@@ -58,7 +58,9 @@ public final class BackupMigrationService {
                 domain: "BackupMigrationService",
                 code: 1,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "No migration path found from version \(originalVersion) to \(target). Only format version \(BackupFile.formatVersion) is supported."
+                    NSLocalizedDescriptionKey:
+                        "No migration path from version \(originalVersion) to \(target). "
+                        + "Only format version \(BackupFile.formatVersion) is supported."
                 ]
             )
         }
@@ -98,7 +100,9 @@ public final class BackupMigrationService {
                 domain: "BackupMigrationService",
                 code: 1,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "No migration path found from version \(originalVersion) to \(target). Only format version \(BackupFile.formatVersion) is supported."
+                    NSLocalizedDescriptionKey:
+                        "No migration path from version \(originalVersion) to \(target). "
+                        + "Only format version \(BackupFile.formatVersion) is supported."
                 ]
             )
         }

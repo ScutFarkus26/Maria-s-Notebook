@@ -144,7 +144,10 @@ final class OllamaClient: MCPClientProtocol {
     // MARK: - MCPClientProtocol
 
     func generateText(prompt: String, temperature: Double) async throws -> String {
-        try await generateText(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil, model: nil, timeout: nil)
+        try await generateText(
+            prompt: prompt, systemMessage: nil, temperature: temperature,
+            maxTokens: nil, model: nil, timeout: nil
+        )
     }
 
     func generateText(
@@ -173,7 +176,10 @@ final class OllamaClient: MCPClientProtocol {
     }
 
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
-        try await generateStructuredJSON(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil, model: nil, timeout: nil)
+        try await generateStructuredJSON(
+            prompt: prompt, systemMessage: nil, temperature: temperature,
+            maxTokens: nil, model: nil, timeout: nil
+        )
     }
 
     func generateStructuredJSON(
@@ -187,7 +193,8 @@ final class OllamaClient: MCPClientProtocol {
         let enhancedPrompt = """
         \(prompt)
 
-        IMPORTANT: Return ONLY valid JSON in your response. No markdown formatting, no code blocks, no explanatory text. Just the raw JSON object.
+        IMPORTANT: Return ONLY valid JSON in your response. No markdown formatting, \
+        no code blocks, no explanatory text. Just the raw JSON object.
         """
 
         let text = try await generateText(

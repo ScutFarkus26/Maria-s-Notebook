@@ -130,7 +130,10 @@ struct AddLessonView: View {
                     let subjectTrimmed = newLesson.subject.trimmed()
                     let groupTrimmed = newLesson.group.trimmed()
                     if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
-                        if GroupTrackService.isTrack(subject: subjectTrimmed, group: groupTrimmed, modelContext: modelContext) {
+                        let isTrack = GroupTrackService.isTrack(
+                            subject: subjectTrimmed, group: groupTrimmed, modelContext: modelContext
+                        )
+                        if isTrack {
                             do {
                                 _ = try GroupTrackService.getOrCreateTrack(
                                     subject: subjectTrimmed,
@@ -138,6 +141,7 @@ struct AddLessonView: View {
                                     modelContext: modelContext
                                 )
                             } catch {
+                                // swiftlint:disable:next line_length
                                 Self.logger.warning("Failed to create/update Track for \(subjectTrimmed)/\(groupTrimmed): \(error)")
                             }
                         }

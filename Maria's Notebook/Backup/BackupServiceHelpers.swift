@@ -255,7 +255,11 @@ enum BackupServiceHelpers {
     }
 
     /// Filters entities by date range
-    static func filterByDateRange<T>(_ entities: [T], dateRange: ClosedRange<Date>?, dateExtractor: (T) -> Date?) -> [T] {
+    static func filterByDateRange<T>(
+        _ entities: [T],
+        dateRange: ClosedRange<Date>?,
+        dateExtractor: (T) -> Date?
+    ) -> [T] {
         guard let range = dateRange else { return entities }
         return entities.filter { entity in
             guard let date = dateExtractor(entity) else { return true }

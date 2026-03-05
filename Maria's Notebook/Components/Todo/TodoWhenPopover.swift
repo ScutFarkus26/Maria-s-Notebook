@@ -91,7 +91,9 @@ struct TodoWhenPopover: View {
         }
     }
 
-    private func quickPickButton(_ title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+    private func quickPickButton(
+        _ title: String, icon: String, tint: Color, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: icon)
@@ -102,10 +104,20 @@ struct TodoWhenPopover: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Spacing.small)
             .foregroundStyle(tint)
-            .background(tint.opacity(UIConstants.OpacityConstants.faint), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
+            .background(
+                tint.opacity(UIConstants.OpacityConstants.faint),
+                in: RoundedRectangle(
+                    cornerRadius: UIConstants.CornerRadius.medium, style: .continuous
+                )
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                    .strokeBorder(tint.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                RoundedRectangle(
+                    cornerRadius: UIConstants.CornerRadius.medium, style: .continuous
+                )
+                .strokeBorder(
+                    tint.opacity(UIConstants.OpacityConstants.light),
+                    lineWidth: UIConstants.StrokeWidth.thin
+                )
             )
         }
         .buttonStyle(.plain)
@@ -118,8 +130,12 @@ struct TodoWhenPopover: View {
             // Month navigation
             HStack {
                 Button {
-                    adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
-                        displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
+                    adaptiveWithAnimation(
+                        .easeInOut(duration: UIConstants.AnimationDuration.fast)
+                    ) {
+                        displayedMonth = calendar.date(
+                            byAdding: .month, value: -1, to: displayedMonth
+                        ) ?? displayedMonth
                     }
                 } label: {
                     Image(systemName: "chevron.left")
@@ -314,7 +330,9 @@ struct TodoWhenPopover: View {
 
     private var weekdaySymbols: [String] {
         let formatter = DateFormatter()
-        let base = formatter.shortStandaloneWeekdaySymbols ?? formatter.shortWeekdaySymbols ?? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+        let base = formatter.shortStandaloneWeekdaySymbols
+            ?? formatter.shortWeekdaySymbols
+            ?? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
         let start = max(1, min(7, calendar.firstWeekday)) - 1
         guard start > 0, start < base.count else { return base }
         return Array(base[start...]) + Array(base[..<start])

@@ -24,22 +24,38 @@ extension BackupDiffService {
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = currentStudents
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "\($0.firstName) \($0.lastName)", timestamp: nil) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: "\($0.firstName) \($0.lastName)",
+                    timestamp: nil
+                )
+            }
 
         // Removed (in backup but not in current)
         let removedIDs = backupIDs.subtracting(currentIDs)
         let removed = backupStudents
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "\($0.firstName) \($0.lastName)", timestamp: $0.updatedAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: "\($0.firstName) \($0.lastName)",
+                    timestamp: $0.updatedAt
+                )
+            }
 
         // Modified (in both but different)
         var modified: [EntityModification] = []
         for dto in backupStudents {
-            guard let current = currentStudents.first(where: { $0.id == dto.id }) else { continue }
+            guard let current = currentStudents.first(
+                where: { $0.id == dto.id }
+            ) else { continue }
             var changes: [FieldChange] = []
 
             if current.firstName != dto.firstName {
-                changes.append(FieldChange(fieldName: "First Name", oldValue: dto.firstName, newValue: current.firstName))
+                changes.append(FieldChange(
+                    fieldName: "First Name", oldValue: dto.firstName, newValue: current.firstName
+                ))
             }
             if current.lastName != dto.lastName {
                 changes.append(FieldChange(fieldName: "Last Name", oldValue: dto.lastName, newValue: current.lastName))
@@ -82,12 +98,23 @@ extension BackupDiffService {
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = currentLessons
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: $0.name, timestamp: nil) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: $0.name, timestamp: nil
+                )
+            }
 
         let removedIDs = backupIDs.subtracting(currentIDs)
         let removed = backupLessons
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: $0.name, timestamp: $0.updatedAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: $0.name,
+                    timestamp: $0.updatedAt
+                )
+            }
 
         var modified: [EntityModification] = []
         for dto in backupLessons {
@@ -128,7 +155,9 @@ extension BackupDiffService {
         // LegacyPresentation model removed -- compare against LessonAssignment
         let current: [LessonAssignment]
         do {
-            current = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
+            current = try modelContext.fetch(
+                FetchDescriptor<LessonAssignment>()
+            )
         } catch {
             print("Warning [Backup:\(#function)] Failed to fetch current lesson assignments: \(error)")
             current = []
@@ -139,14 +168,27 @@ extension BackupDiffService {
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Legacy Presentation", timestamp: $0.createdAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: "Legacy Presentation", timestamp: $0.createdAt
+                )
+            }
 
         let removedIDs = backupIDs.subtracting(currentIDs)
         let removed = backupLegacyPresentations
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Legacy Presentation", timestamp: $0.createdAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: "Legacy Presentation", timestamp: $0.createdAt
+                )
+            }
 
-        return EntityDiff(entityType: "LegacyPresentation", added: added, removed: removed, modified: [])
+        return EntityDiff(
+            entityType: "LegacyPresentation",
+            added: added, removed: removed, modified: []
+        )
     }
 
     func analyzeNoteDiff(
@@ -166,12 +208,24 @@ extension BackupDiffService {
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: String($0.body.prefix(40)), timestamp: $0.createdAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: String($0.body.prefix(40)),
+                    timestamp: $0.createdAt
+                )
+            }
 
         let removedIDs = backupIDs.subtracting(currentIDs)
         let removed = backupNotes
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: String($0.body.prefix(40)), timestamp: $0.createdAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: String($0.body.prefix(40)),
+                    timestamp: $0.createdAt
+                )
+            }
 
         var modified: [EntityModification] = []
         for dto in backupNotes {
@@ -222,12 +276,14 @@ extension BackupDiffService {
 
         for id in currentNSDIDs.subtracting(backupNSDIDs) {
             if let nsd = currentNSD.first(where: { $0.id == id }) {
-                added.append(EntityChange(id: UUID(), entityID: id, description: "Non-School Day: \(nsd.date.formatted(date: .abbreviated, time: .omitted))", timestamp: nil))
+                let desc = "Non-School Day: \(nsd.date.formatted(date: .abbreviated, time: .omitted))"
+                added.append(EntityChange(id: UUID(), entityID: id, description: desc, timestamp: nil))
             }
         }
         for id in backupNSDIDs.subtracting(currentNSDIDs) {
             if let nsd = backupNonSchoolDays.first(where: { $0.id == id }) {
-                removed.append(EntityChange(id: UUID(), entityID: id, description: "Non-School Day: \(nsd.date.formatted(date: .abbreviated, time: .omitted))", timestamp: nil))
+                let desc = "Non-School Day: \(nsd.date.formatted(date: .abbreviated, time: .omitted))"
+                removed.append(EntityChange(id: UUID(), entityID: id, description: desc, timestamp: nil))
             }
         }
 
@@ -237,12 +293,14 @@ extension BackupDiffService {
 
         for id in currentOvrIDs.subtracting(backupOvrIDs) {
             if let ovr = currentOvr.first(where: { $0.id == id }) {
-                added.append(EntityChange(id: UUID(), entityID: id, description: "Override: \(ovr.date.formatted(date: .abbreviated, time: .omitted))", timestamp: nil))
+                let desc = "Override: \(ovr.date.formatted(date: .abbreviated, time: .omitted))"
+                added.append(EntityChange(id: UUID(), entityID: id, description: desc, timestamp: nil))
             }
         }
         for id in backupOvrIDs.subtracting(currentOvrIDs) {
             if let ovr = backupOverrides.first(where: { $0.id == id }) {
-                removed.append(EntityChange(id: UUID(), entityID: id, description: "Override: \(ovr.date.formatted(date: .abbreviated, time: .omitted))", timestamp: nil))
+                let desc = "Override: \(ovr.date.formatted(date: .abbreviated, time: .omitted))"
+                removed.append(EntityChange(id: UUID(), entityID: id, description: desc, timestamp: nil))
             }
         }
 
@@ -266,12 +324,24 @@ extension BackupDiffService {
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: $0.title, timestamp: $0.createdAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: $0.title,
+                    timestamp: $0.createdAt
+                )
+            }
 
         let removedIDs = backupIDs.subtracting(currentIDs)
         let removed = backupProjects
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: $0.title, timestamp: $0.createdAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: $0.title,
+                    timestamp: $0.createdAt
+                )
+            }
 
         return EntityDiff(entityType: "Project", added: added, removed: removed, modified: [])
     }
@@ -293,12 +363,18 @@ extension BackupDiffService {
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Attendance \($0.date.formatted(date: .abbreviated, time: .omitted))", timestamp: nil) }
+            .map {
+                let desc = "Attendance \($0.date.formatted(date: .abbreviated, time: .omitted))"
+                return EntityChange(id: UUID(), entityID: $0.id, description: desc, timestamp: nil)
+            }
 
         let removedIDs = backupIDs.subtracting(currentIDs)
         let removed = backupAttendance
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "Attendance \($0.date.formatted(date: .abbreviated, time: .omitted))", timestamp: nil) }
+            .map {
+                let desc = "Attendance \($0.date.formatted(date: .abbreviated, time: .omitted))"
+                return EntityChange(id: UUID(), entityID: $0.id, description: desc, timestamp: nil)
+            }
 
         return EntityDiff(entityType: "Attendance", added: added, removed: removed, modified: [])
     }

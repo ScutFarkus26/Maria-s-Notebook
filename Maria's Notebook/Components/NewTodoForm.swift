@@ -11,10 +11,13 @@ struct NewTodoForm: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var allStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw
+        )
     }
 
     @State private var title = ""

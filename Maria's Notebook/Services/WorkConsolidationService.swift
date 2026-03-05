@@ -92,7 +92,10 @@ struct WorkConsolidationService {
                         canonical.participants?.append(newParticipant)
                     } else if existingParticipantIDs.contains(participantID) {
                         // Participant already exists in canonical - merge completion dates
-                        if let existingParticipant = (canonical.participants ?? []).first(where: { $0.studentID == participantID }) {
+                        let canonicalParts = canonical.participants ?? []
+                        if let existingParticipant = canonicalParts.first(
+                            where: { $0.studentID == participantID }
+                        ) {
                             // Check duplicates for earlier completion dates
                             for duplicate in duplicates {
                                 if let dupParticipants = duplicate.participants,

@@ -62,7 +62,8 @@ extension BackupService {
             }
         } else {
             throw NSError(domain: "BackupService", code: 1101, userInfo: [
-                NSLocalizedDescriptionKey: "Backup file missing payload. This may be an older backup format that is no longer supported."
+                NSLocalizedDescriptionKey: "Backup file missing payload. "
+                    + "This may be an older backup format that is no longer supported."
             ])
         }
     }

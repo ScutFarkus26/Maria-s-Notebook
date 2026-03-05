@@ -300,10 +300,13 @@ public final class BackupTelemetryService {
             }
             return Double(compressed) / Double(uncompressed)
         }
-        let avgCompressionRatio = compressionRatios.isEmpty ? 0.0 : compressionRatios.reduce(0, +) / Double(compressionRatios.count)
-        
-        let backupSuccessRate = backups.isEmpty ? 0.0 : Double(successfulBackups.count) / Double(backups.count)
-        let restoreSuccessRate = restores.isEmpty ? 0.0 : Double(successfulRestores.count) / Double(restores.count)
+        let avgCompressionRatio = compressionRatios.isEmpty
+            ? 0.0 : compressionRatios.reduce(0, +) / Double(compressionRatios.count)
+
+        let backupSuccessRate = backups.isEmpty
+            ? 0.0 : Double(successfulBackups.count) / Double(backups.count)
+        let restoreSuccessRate = restores.isEmpty
+            ? 0.0 : Double(successfulRestores.count) / Double(restores.count)
         
         currentMetrics = PerformanceMetrics(
             averageBackupDuration: avgBackupDuration,
@@ -351,10 +354,13 @@ public final class BackupTelemetryService {
             }
             return Double(compressed) / Double(uncompressed)
         }
-        let avgCompressionRatio = compressionRatios.isEmpty ? 0.0 : compressionRatios.reduce(0, +) / Double(compressionRatios.count)
-        
-        let backupSuccessRate = backups.isEmpty ? 0.0 : Double(successfulBackups) / Double(backups.count) * 100.0
-        let restoreSuccessRate = restores.isEmpty ? 0.0 : Double(successfulRestores) / Double(restores.count) * 100.0
+        let avgCompressionRatio = compressionRatios.isEmpty
+            ? 0.0 : compressionRatios.reduce(0, +) / Double(compressionRatios.count)
+
+        let backupSuccessRate = backups.isEmpty
+            ? 0.0 : Double(successfulBackups) / Double(backups.count) * 100.0
+        let restoreSuccessRate = restores.isEmpty
+            ? 0.0 : Double(successfulRestores) / Double(restores.count) * 100.0
         
         let metrics = PerformanceMetrics(
             averageBackupDuration: avgBackupDuration,

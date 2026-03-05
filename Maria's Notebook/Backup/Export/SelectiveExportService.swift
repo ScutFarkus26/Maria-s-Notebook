@@ -97,7 +97,11 @@ public final class SelectiveExportService {
     
     // MARK: - Helper
     
-    private func safeFetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, context: ModelContext, functionName: String = #function) -> [T] {
+    private func safeFetch<T: PersistentModel>(
+        _ descriptor: FetchDescriptor<T>,
+        context: ModelContext,
+        functionName: String = #function
+    ) -> [T] {
         do {
             return try context.fetch(descriptor)
         } catch {
@@ -350,54 +354,98 @@ public final class SelectiveExportService {
         }
 
         progress(0.1, "Collecting students…")
-        let studentDTOs: [StudentDTO] = shouldInclude(.students) ? collectStudents(modelContext: modelContext, filter: filter) : []
+        let studentDTOs: [StudentDTO] = shouldInclude(.students)
+            ? collectStudents(modelContext: modelContext, filter: filter) : []
         counts["Student"] = studentDTOs.count
 
         progress(0.2, "Collecting lessons…")
-        let lessonDTOs: [LessonDTO] = shouldInclude(.lessons) ? collectLessons(modelContext: modelContext) : []
+        let lessonDTOs: [LessonDTO] = shouldInclude(.lessons)
+            ? collectLessons(modelContext: modelContext) : []
         counts["Lesson"] = lessonDTOs.count
 
         progress(0.3, "Collecting legacy presentations…")
-        let legacyPresentationDTOs: [LegacyPresentationDTO] = shouldInclude(.legacyPresentations) ? collectLegacyPresentations(modelContext: modelContext, filter: filter) : []
+        let legacyPresentationDTOs: [LegacyPresentationDTO] =
+            shouldInclude(.legacyPresentations)
+            ? collectLegacyPresentations(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["LegacyPresentation"] = legacyPresentationDTOs.count
 
         progress(0.5, "Collecting other entities…")
-        let noteDTOs: [NoteDTO] = shouldInclude(.notes) ? collectNotes(modelContext: modelContext, filter: filter) : []
+        let noteDTOs: [NoteDTO] = shouldInclude(.notes)
+            ? collectNotes(modelContext: modelContext, filter: filter) : []
         counts["Note"] = noteDTOs.count
 
-        let nonSchoolDTOs: [NonSchoolDayDTO] = shouldInclude(.calendar) ? collectNonSchoolDays(modelContext: modelContext, filter: filter) : []
+        let nonSchoolDTOs: [NonSchoolDayDTO] = shouldInclude(.calendar)
+            ? collectNonSchoolDays(modelContext: modelContext, filter: filter)
+            : []
         counts["NonSchoolDay"] = nonSchoolDTOs.count
 
-        let schoolOverrideDTOs: [SchoolDayOverrideDTO] = shouldInclude(.calendar) ? collectSchoolDayOverrides(modelContext: modelContext, filter: filter) : []
+        let schoolOverrideDTOs: [SchoolDayOverrideDTO] =
+            shouldInclude(.calendar)
+            ? collectSchoolDayOverrides(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["SchoolDayOverride"] = schoolOverrideDTOs.count
 
-        let attendanceDTOs: [AttendanceRecordDTO] = shouldInclude(.attendance) ? collectAttendance(modelContext: modelContext, filter: filter) : []
+        let attendanceDTOs: [AttendanceRecordDTO] =
+            shouldInclude(.attendance)
+            ? collectAttendance(modelContext: modelContext, filter: filter)
+            : []
         counts["AttendanceRecord"] = attendanceDTOs.count
 
-        let workCompletionDTOs: [WorkCompletionRecordDTO] = shouldInclude(.workCompletions) ? collectWorkCompletions(modelContext: modelContext, filter: filter) : []
+        let workCompletionDTOs: [WorkCompletionRecordDTO] =
+            shouldInclude(.workCompletions)
+            ? collectWorkCompletions(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["WorkCompletionRecord"] = workCompletionDTOs.count
 
         progress(0.7, "Collecting projects…")
-        let projectDTOs: [ProjectDTO] = shouldInclude(.projects) ? collectProjects(modelContext: modelContext, filter: filter) : []
+        let projectDTOs: [ProjectDTO] = shouldInclude(.projects)
+            ? collectProjects(modelContext: modelContext, filter: filter)
+            : []
         counts["Project"] = projectDTOs.count
 
-        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] = shouldInclude(.projects) ? collectProjectTemplates(modelContext: modelContext, filter: filter) : []
+        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] =
+            shouldInclude(.projects)
+            ? collectProjectTemplates(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["ProjectAssignmentTemplate"] = projectTemplateDTOs.count
 
-        let projectSessionDTOs: [ProjectSessionDTO] = shouldInclude(.projects) ? collectProjectSessions(modelContext: modelContext, filter: filter) : []
+        let projectSessionDTOs: [ProjectSessionDTO] =
+            shouldInclude(.projects)
+            ? collectProjectSessions(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["ProjectSession"] = projectSessionDTOs.count
 
-        let projectRoleDTOs: [ProjectRoleDTO] = shouldInclude(.projects) ? collectProjectRoles(modelContext: modelContext, filter: filter) : []
+        let projectRoleDTOs: [ProjectRoleDTO] =
+            shouldInclude(.projects)
+            ? collectProjectRoles(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["ProjectRole"] = projectRoleDTOs.count
 
-        let projectWeekDTOs: [ProjectTemplateWeekDTO] = shouldInclude(.projects) ? collectProjectWeeks(modelContext: modelContext, filter: filter) : []
+        let projectWeekDTOs: [ProjectTemplateWeekDTO] =
+            shouldInclude(.projects)
+            ? collectProjectWeeks(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["ProjectTemplateWeek"] = projectWeekDTOs.count
 
-        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] = shouldInclude(.projects) ? collectProjectWeekAssignments(modelContext: modelContext, filter: filter) : []
+        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] =
+            shouldInclude(.projects)
+            ? collectProjectWeekAssignments(
+                modelContext: modelContext, filter: filter
+            ) : []
         counts["ProjectWeekRoleAssignment"] = projectWeekAssignDTOs.count
 
         progress(0.9, "Collecting preferences…")
-        let preferences: PreferencesDTO = shouldInclude(.preferences) ? BackupPreferencesService.buildPreferencesDTO() : PreferencesDTO(values: [:])
+        let preferences: PreferencesDTO = shouldInclude(.preferences)
+            ? BackupPreferencesService.buildPreferencesDTO()
+            : PreferencesDTO(values: [:])
 
         let payload = BackupPayload(
             items: [],
@@ -437,7 +485,9 @@ public final class SelectiveExportService {
         return BackupServiceHelpers.toDTOs(allLessons)
     }
 
-    private func collectLegacyPresentations(modelContext: ModelContext, filter: ExportFilter) -> [LegacyPresentationDTO] {
+    private func collectLegacyPresentations(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [LegacyPresentationDTO] {
         // LegacyPresentation model removed — no longer exported in new backups
         return []
     }
@@ -458,7 +508,9 @@ public final class SelectiveExportService {
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectSchoolDayOverrides(modelContext: ModelContext, filter: ExportFilter) -> [SchoolDayOverrideDTO] {
+    private func collectSchoolDayOverrides(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [SchoolDayOverrideDTO] {
         let all = safeFetch(FetchDescriptor<SchoolDayOverride>(), context: modelContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
         return BackupServiceHelpers.toDTOs(filtered)
@@ -466,15 +518,23 @@ public final class SelectiveExportService {
 
     private func collectAttendance(modelContext: ModelContext, filter: ExportFilter) -> [AttendanceRecordDTO] {
         let all = safeFetch(FetchDescriptor<AttendanceRecord>(), context: modelContext)
-        var filtered = BackupServiceHelpers.filterByStudents(all, studentIDs: filter.studentIDs) { UUID(uuidString: $0.studentID) }
+        var filtered = BackupServiceHelpers.filterByStudents(
+            all, studentIDs: filter.studentIDs
+        ) { UUID(uuidString: $0.studentID) }
         filtered = BackupServiceHelpers.filterByDateRange(filtered, dateRange: filter.dateRange) { $0.date }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectWorkCompletions(modelContext: ModelContext, filter: ExportFilter) -> [WorkCompletionRecordDTO] {
+    private func collectWorkCompletions(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [WorkCompletionRecordDTO] {
         let all = safeFetch(FetchDescriptor<WorkCompletionRecord>(), context: modelContext)
-        var filtered = BackupServiceHelpers.filterByStudents(all, studentIDs: filter.studentIDs) { UUID(uuidString: $0.studentID) }
-        filtered = BackupServiceHelpers.filterByDateRange(filtered, dateRange: filter.dateRange) { $0.completedAt }
+        var filtered = BackupServiceHelpers.filterByStudents(
+            all, studentIDs: filter.studentIDs
+        ) { UUID(uuidString: $0.studentID) }
+        filtered = BackupServiceHelpers.filterByDateRange(
+            filtered, dateRange: filter.dateRange
+        ) { $0.completedAt }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
@@ -484,31 +544,55 @@ public final class SelectiveExportService {
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectTemplates(modelContext: ModelContext, filter: ExportFilter) -> [ProjectAssignmentTemplateDTO] {
-        let all = safeFetch(FetchDescriptor<ProjectAssignmentTemplate>(), context: modelContext)
-        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+    private func collectProjectTemplates(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [ProjectAssignmentTemplateDTO] {
+        let all = safeFetch(
+            FetchDescriptor<ProjectAssignmentTemplate>(),
+            context: modelContext
+        )
+        let filtered = BackupServiceHelpers.filterByProjects(
+            all, projectIDs: filter.projectIDs
+        ) { UUID(uuidString: $0.projectID) }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectSessions(modelContext: ModelContext, filter: ExportFilter) -> [ProjectSessionDTO] {
-        let all = safeFetch(FetchDescriptor<ProjectSession>(), context: modelContext)
-        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+    private func collectProjectSessions(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [ProjectSessionDTO] {
+        let all = safeFetch(
+            FetchDescriptor<ProjectSession>(), context: modelContext
+        )
+        let filtered = BackupServiceHelpers.filterByProjects(
+            all, projectIDs: filter.projectIDs
+        ) { UUID(uuidString: $0.projectID) }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectRoles(modelContext: ModelContext, filter: ExportFilter) -> [ProjectRoleDTO] {
         let all = safeFetch(FetchDescriptor<ProjectRole>(), context: modelContext)
-        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+        let filtered = BackupServiceHelpers.filterByProjects(
+            all, projectIDs: filter.projectIDs
+        ) { UUID(uuidString: $0.projectID) }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectWeeks(modelContext: ModelContext, filter: ExportFilter) -> [ProjectTemplateWeekDTO] {
-        let all = safeFetch(FetchDescriptor<ProjectTemplateWeek>(), context: modelContext)
-        let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { UUID(uuidString: $0.projectID) }
+    private func collectProjectWeeks(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [ProjectTemplateWeekDTO] {
+        let all = safeFetch(
+            FetchDescriptor<ProjectTemplateWeek>(),
+            context: modelContext
+        )
+        let filtered = BackupServiceHelpers.filterByProjects(
+            all, projectIDs: filter.projectIDs
+        ) { UUID(uuidString: $0.projectID) }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectWeekAssignments(modelContext: ModelContext, filter: ExportFilter) -> [ProjectWeekRoleAssignmentDTO] {
+    private func collectProjectWeekAssignments(
+        modelContext: ModelContext, filter: ExportFilter
+    ) -> [ProjectWeekRoleAssignmentDTO] {
         let all = safeFetch(FetchDescriptor<ProjectWeekRoleAssignment>(), context: modelContext)
 
         if let projectIDs = filter.projectIDs {

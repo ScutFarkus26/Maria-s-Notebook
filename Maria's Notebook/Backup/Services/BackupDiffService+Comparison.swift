@@ -12,12 +12,22 @@ extension BackupDiffService {
         let addedIDs = newerIDs.subtracting(olderIDs)
         let added = newer
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "\($0.firstName) \($0.lastName)", timestamp: $0.updatedAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: "\($0.firstName) \($0.lastName)", timestamp: $0.updatedAt
+                )
+            }
 
         let removedIDs = olderIDs.subtracting(newerIDs)
         let removed = older
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: "\($0.firstName) \($0.lastName)", timestamp: $0.updatedAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: "\($0.firstName) \($0.lastName)", timestamp: $0.updatedAt
+                )
+            }
 
         return EntityDiff(entityType: "Student", added: added, removed: removed, modified: [])
     }
@@ -46,12 +56,22 @@ extension BackupDiffService {
         let addedIDs = newerIDs.subtracting(olderIDs)
         let added = newer
             .filter { addedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: String($0.body.prefix(40)), timestamp: $0.updatedAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: String($0.body.prefix(40)), timestamp: $0.updatedAt
+                )
+            }
 
         let removedIDs = olderIDs.subtracting(newerIDs)
         let removed = older
             .filter { removedIDs.contains($0.id) }
-            .map { EntityChange(id: UUID(), entityID: $0.id, description: String($0.body.prefix(40)), timestamp: $0.updatedAt) }
+            .map {
+                EntityChange(
+                    id: UUID(), entityID: $0.id,
+                    description: String($0.body.prefix(40)), timestamp: $0.updatedAt
+                )
+            }
 
         return EntityDiff(entityType: "Note", added: added, removed: removed, modified: [])
     }

@@ -39,7 +39,10 @@ extension LessonDetailView {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftPurpose)
                     .frame(minHeight: 60)
-                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -51,7 +54,10 @@ extension LessonDetailView {
                     .foregroundStyle(.tertiary)
                 TextEditor(text: $draftMaterials)
                     .frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -94,7 +100,10 @@ extension LessonDetailView {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftWriteUp)
                     .frame(minHeight: 160)
-                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -103,7 +112,10 @@ extension LessonDetailView {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftTeacherNotes)
                     .frame(minHeight: 100)
-                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -115,7 +127,10 @@ extension LessonDetailView {
                     .foregroundStyle(.tertiary)
                 TextEditor(text: $draftSuggestedFollowUpWork)
                     .frame(minHeight: 120)
-                    .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
             }
 
             // Exercises Editor

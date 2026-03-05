@@ -8,8 +8,16 @@ extension BackupEntityImporter {
     // MARK: - Work Completion Records
 
     /// Imports work completion records from DTOs.
-    static func importWorkCompletionRecords(_ dtos: [WorkCompletionRecordDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<WorkCompletionRecord>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importWorkCompletionRecords(
+        _ dtos: [WorkCompletionRecordDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<WorkCompletionRecord>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt)
         })
     }
@@ -103,8 +111,16 @@ extension BackupEntityImporter {
 
     // MARK: - Practice Sessions
 
-    static func importPracticeSessions(_ dtos: [PracticeSessionDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<PracticeSession>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importPracticeSessions(
+        _ dtos: [PracticeSessionDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<PracticeSession>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let session = PracticeSession()
             session.id = dto.id
             session.createdAt = dto.createdAt

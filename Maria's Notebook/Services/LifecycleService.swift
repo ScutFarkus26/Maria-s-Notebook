@@ -14,7 +14,10 @@ struct LifecycleService {
 
     // MARK: - Helper Methods
 
-    static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, using context: ModelContext, caller: String = #function) -> [T] {
+    static func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>, using context: ModelContext,
+        caller: String = #function
+    ) -> [T] {
         do {
             return try context.fetch(descriptor)
         } catch {

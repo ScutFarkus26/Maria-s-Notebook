@@ -90,7 +90,11 @@ struct EntityFetcherRegistry {
     // These are necessary because SwiftData's #Predicate macro doesn't work with
     // generic types - it requires the concrete type at compile time.
     
-    private func safeFetchFirst<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, context: ModelContext, entityName: String) -> T? {
+    private func safeFetchFirst<T: PersistentModel>(
+        _ descriptor: FetchDescriptor<T>,
+        context: ModelContext,
+        entityName: String
+    ) -> T? {
         do {
             return try context.fetch(descriptor).first
         } catch {

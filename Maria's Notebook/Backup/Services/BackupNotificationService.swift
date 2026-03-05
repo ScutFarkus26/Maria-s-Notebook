@@ -107,10 +107,15 @@ public final class BackupNotificationService {
 
     public init() {
         // Load settings from UserDefaults
-        self.notificationsEnabled = UserDefaults.standard.object(forKey: "BackupNotifications.enabled") as? Bool ?? true
-        self.showSuccessNotifications = UserDefaults.standard.object(forKey: "BackupNotifications.showSuccess") as? Bool ?? false
-        self.showFailureNotifications = UserDefaults.standard.object(forKey: "BackupNotifications.showFailure") as? Bool ?? true
-        self.showHealthWarnings = UserDefaults.standard.object(forKey: "BackupNotifications.showHealthWarnings") as? Bool ?? true
+        let defaults = UserDefaults.standard
+        self.notificationsEnabled = defaults.object(
+            forKey: "BackupNotifications.enabled") as? Bool ?? true
+        self.showSuccessNotifications = defaults.object(
+            forKey: "BackupNotifications.showSuccess") as? Bool ?? false
+        self.showFailureNotifications = defaults.object(
+            forKey: "BackupNotifications.showFailure") as? Bool ?? true
+        self.showHealthWarnings = defaults.object(
+            forKey: "BackupNotifications.showHealthWarnings") as? Bool ?? true
     }
     
     /// Configures the service to observe the given AutoBackupManager
@@ -280,7 +285,8 @@ public final class BackupNotificationService {
                         do {
                             fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
                         } catch {
-                            print("⚠️ [Backup:observeBackupEvents] Failed to get file size for \(url.lastPathComponent): \(error)")
+                            let name = url.lastPathComponent
+                            print("Warning [Backup:observeBackupEvents] Failed to get file size for \(name): \(error)")
                             fileSize = nil
                         }
                         self.notifyBackupComplete(type: event.trigger, url: url, fileSize: fileSize)

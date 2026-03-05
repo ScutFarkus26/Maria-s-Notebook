@@ -261,7 +261,9 @@ struct LessonProgressSection: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(didPlanNext || lessonAssignmentsAll.contains { la in
-                            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == Set(selectedStudentIDs) && !la.isPresented
+                            la.resolvedLessonID == next.id
+                                && Set(la.resolvedStudentIDs) == Set(selectedStudentIDs)
+                                && !la.isPresented
                         })
                     }
                     .transition(.opacity)
@@ -342,7 +344,9 @@ struct LessonProgressSection: View {
                 }
             }
             practiceWork.legacyStudentLessonID = presentationID.uuidString
-            practiceWork.participants = Array(selectedStudentIDs).map { sid in WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork) }
+            practiceWork.participants = Array(selectedStudentIDs).map { sid in
+                WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork)
+            }
             modelContext.insert(practiceWork)
             do {
                 try modelContext.save()

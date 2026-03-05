@@ -222,6 +222,7 @@ public final class CloudBackupService {
             do {
                 resourceValues = try fileURL.resourceValues(forKeys: resourceKeys)
             } catch {
+                // swiftlint:disable:next line_length
                 print("Warning [Backup:\(#function)] Failed to get resource values for \(fileURL.lastPathComponent): \(error)")
                 continue
             }
@@ -295,20 +296,33 @@ public final class CloudBackupService {
                             Task {
                                 // Check download status one final time
                                 do {
-                                    let resourceValues = try url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+                                    let resourceValues = try url.resourceValues(
+                                        forKeys: [.ubiquitousItemDownloadingStatusKey]
+                                    )
                                     if resourceValues.ubiquitousItemDownloadingStatus == .current ||
                                        resourceValues.ubiquitousItemDownloadingStatus == nil {
                                         if await tracker.tryResume(with: .success(url)) {
                                             continuation.resume(returning: url)
                                         }
                                     } else {
-                                        let error = BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: NSError(domain: "CloudBackup", code: 404, userInfo: [NSLocalizedDescriptionKey: "File '\(backup.fileName)' not downloaded"])))
+                                        let dlError = NSError(
+                                            domain: "CloudBackup", code: 404,
+                                            userInfo: [
+                                                NSLocalizedDescriptionKey:
+                                                    "File '\(backup.fileName)' not downloaded"
+                                            ]
+                                        )
+                                        let error = BackupOperationError.cloudOperationFailed(
+                                            .downloadFailed(underlying: dlError)
+                                        )
                                         if await tracker.tryResume(with: .failure(error)) {
                                             continuation.resume(throwing: error)
                                         }
                                     }
                                 } catch {
-                                    let wrappedError = BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: error))
+                                    let wrappedError = BackupOperationError.cloudOperationFailed(
+                                        .downloadFailed(underlying: error)
+                                    )
                                     if await tracker.tryResume(with: .failure(wrappedError)) {
                                         continuation.resume(throwing: wrappedError)
                                     }
@@ -319,9 +333,11 @@ public final class CloudBackupService {
                         // Handle coordination error
                         if let error = coordinatorError {
                             Task {
-                                let wrappedError = BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: error))
-                                if await tracker.tryResume(with: .failure(wrappedError)) {
-                                    continuation.resume(throwing: wrappedError)
+                                let wrappedErr = BackupOperationError.cloudOperationFailed(
+                                    .downloadFailed(underlying: error)
+                                )
+                                if await tracker.tryResume(with: .failure(wrappedErr)) {
+                                    continuation.resume(throwing: wrappedErr)
                                 }
                             }
                         }
@@ -332,12 +348,29 @@ public final class CloudBackupService {
             // Add timeout task using structured concurrency
             group.addTask {
                 try await Task.sleep(for: .seconds(60))
-                throw BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: NSError(domain: "CloudBackup", code: 408, userInfo: [NSLocalizedDescriptionKey: "Download timed out for '\(backup.fileName)'"])))
+                let timeoutError = NSError(
+                    domain: "CloudBackup", code: 408,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Download timed out for '\(backup.fileName)'"
+                    ]
+                )
+                throw BackupOperationError.cloudOperationFailed(
+                    .downloadFailed(underlying: timeoutError)
+                )
             }
 
             // Return the first result (either success or timeout)
             guard let result = try await group.next() else {
-                throw BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: NSError(domain: "CloudBackup", code: 500, userInfo: [NSLocalizedDescriptionKey: "No task result available"])))
+                let noResultError = NSError(
+                    domain: "CloudBackup", code: 500,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "No task result available"
+                    ]
+                )
+                throw BackupOperationError.cloudOperationFailed(
+                    .downloadFailed(underlying: noResultError)
+                )
             }
             group.cancelAll() // Cancel the other task
             return result

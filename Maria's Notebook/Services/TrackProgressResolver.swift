@@ -32,7 +32,9 @@ struct TrackProgressResolver {
     }
     
     /// Helper function to determine if a step is mastered.
-    private static func isStepProficient(step: TrackStep, studentID: String, lessonPresentations: [LessonPresentation]) -> Bool {
+    private static func isStepProficient(
+        step: TrackStep, studentID: String, lessonPresentations: [LessonPresentation]
+    ) -> Bool {
         return lessonPresentations.contains { lp in
             // Check student ID matches
             guard lp.studentID == studentID else { return false }

@@ -160,7 +160,8 @@ final class AppBootstrapping {
                 userInfo: [
                     NSLocalizedDescriptionKey: "DEBUG: Simulated database initialization failure."
                         + " This is a test error to verify the recovery UI."
-                        + " Clear the 'DEBUG_SimulateDatabaseInitFailure' UserDefaults flag to restore normal operation."
+                        + " Clear the 'DEBUG_SimulateDatabaseInitFailure'"
+                        + " UserDefaults flag to restore normal operation."
                 ]
             )
             AppBootstrapping.initError = testError

@@ -36,7 +36,8 @@ extension EnhancedBackupService {
                         localBackup: localInfo,
                         remoteBackup: incomingInfo,
                         conflictType: .divergentHistory,
-                        description: "Database and backup differ significantly in record counts (\(localTotal) vs \(incomingTotal))."
+                        description: "Database and backup differ significantly "
+                            + "in record counts (\(localTotal) vs \(incomingTotal))."
                     )
                 )
             }

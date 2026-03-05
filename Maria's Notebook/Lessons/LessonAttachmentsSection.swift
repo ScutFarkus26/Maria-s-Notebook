@@ -79,7 +79,11 @@ struct LessonAttachmentsSection: View {
             ) { result in
                 handleFileImport(result: result)
             }
-            .alert("Delete Attachment?", isPresented: $showingDeleteAlert, presenting: attachmentToDelete) { attachment in
+            .alert(
+                "Delete Attachment?",
+                isPresented: $showingDeleteAlert,
+                presenting: attachmentToDelete
+            ) { attachment in
                 Button("Delete", role: .destructive) {
                     deleteAttachment(attachment)
                 }
@@ -112,15 +116,23 @@ struct LessonAttachmentsSection: View {
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     if !lessonAttachments.isEmpty {
-                        attachmentGroup(title: "This Lesson", attachments: lessonAttachments)
+                        attachmentGroup(
+                            title: "This Lesson", attachments: lessonAttachments
+                        )
                     }
 
                     if !groupAttachments.isEmpty {
-                        attachmentGroup(title: "From Group: \(lesson.group)", attachments: groupAttachments, isInherited: true)
+                        attachmentGroup(
+                            title: "From Group: \(lesson.group)",
+                            attachments: groupAttachments, isInherited: true
+                        )
                     }
 
                     if !subjectAttachments.isEmpty {
-                        attachmentGroup(title: "From Subject: \(lesson.subject)", attachments: subjectAttachments, isInherited: true)
+                        attachmentGroup(
+                            title: "From Subject: \(lesson.subject)",
+                            attachments: subjectAttachments, isInherited: true
+                        )
                     }
                 }
             }
@@ -171,7 +183,9 @@ struct LessonAttachmentsSection: View {
         .padding(.vertical, 24)
     }
     
-    private func attachmentGroup(title: String, attachments: [LessonAttachment], isInherited: Bool = false) -> some View {
+    private func attachmentGroup(
+        title: String, attachments: [LessonAttachment], isInherited: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(AppTheme.ScaledFont.captionSemibold)

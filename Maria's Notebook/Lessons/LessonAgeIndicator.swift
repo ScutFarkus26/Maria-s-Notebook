@@ -120,7 +120,10 @@ struct LessonAgeHelper {
     /// Compute the number of school days between `createdAt` (start of day) and `today` (start of day),
     /// counting only days that are not marked as non-school by SchoolCalendar.
     /// Returns 0 when `today` is the same start-of-day as `createdAt` or earlier.
-    static func schoolDaysSinceCreation(createdAt: Date, asOf today: Date = Date(), using context: ModelContext, calendar: Calendar = .current) -> Int {
+    static func schoolDaysSinceCreation(
+        createdAt: Date, asOf today: Date = Date(),
+        using context: ModelContext, calendar: Calendar = .current
+    ) -> Int {
         let start = calendar.startOfDay(for: createdAt)
         let end = calendar.startOfDay(for: today)
         if end <= start { return 0 }
@@ -139,7 +142,14 @@ struct LessonAgeHelper {
 
 extension LessonAssignmentSnapshot {
     /// Convenience wrapper to compute school-day age directly from a snapshot.
-    func schoolDaysSinceCreation(asOf today: Date = Date(), using context: ModelContext, calendar: Calendar = .current) -> Int {
-        return LessonAgeHelper.schoolDaysSinceCreation(createdAt: self.createdAt, asOf: today, using: context, calendar: calendar)
+    func schoolDaysSinceCreation(
+        asOf today: Date = Date(),
+        using context: ModelContext,
+        calendar: Calendar = .current
+    ) -> Int {
+        return LessonAgeHelper.schoolDaysSinceCreation(
+            createdAt: self.createdAt, asOf: today,
+            using: context, calendar: calendar
+        )
     }
 }

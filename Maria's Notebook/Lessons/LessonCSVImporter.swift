@@ -56,10 +56,17 @@ enum LessonCSVImporter {
 
     // MARK: - Public API
     /// Convenience one-shot import: parse then commit.
-    static func importLessons(from data: Data, existingLessons: [Lesson], into context: ModelContext) throws -> Summary {
+    static func importLessons(
+        from data: Data, existingLessons: [Lesson], into context: ModelContext
+    ) throws -> Summary {
         let parsed = try parse(data: data, existingLessons: existingLessons)
         let inserted = try commit(parsed: parsed, into: context, existingLessons: existingLessons)
-        return Summary(totalRows: parsed.totalRows, insertedCount: inserted, potentialDuplicates: parsed.potentialDuplicates, warnings: parsed.warnings)
+        return Summary(
+            totalRows: parsed.totalRows,
+            insertedCount: inserted,
+            potentialDuplicates: parsed.potentialDuplicates,
+            warnings: parsed.warnings
+        )
     }
 
     /// Parse CSV into rows and detect potential duplicates against existing lessons.
@@ -131,7 +138,13 @@ enum LessonCSVImporter {
                 continue
             }
 
-            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup, materials: materials, purpose: purpose, ageRange: ageRange, teacherNotes: teacherNotes)
+            let row = Row(
+                name: name, subject: subject, group: group,
+                subheading: subheading, writeUp: writeUp,
+                orderInGroup: orderInGroup, materials: materials,
+                purpose: purpose, ageRange: ageRange,
+                teacherNotes: teacherNotes
+            )
             rows.append(row)
 
             let key = duplicateKey(name: name, subject: subject, group: group)
@@ -144,7 +157,11 @@ enum LessonCSVImporter {
         // Deduplicate potentialDupTitles preserving order
         let uniquePotentialDupTitles = potentialDupTitles.removingDuplicates()
 
-        return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
+        return Parsed(
+            rows: rows, totalRows: rows.count,
+            potentialDuplicates: uniquePotentialDupTitles,
+            warnings: warnings
+        )
     }
 
     /// Parse CSV into rows and detect potential duplicates against an existing set of duplicate keys.
@@ -214,7 +231,13 @@ enum LessonCSVImporter {
                 continue
             }
 
-            let row = Row(name: name, subject: subject, group: group, subheading: subheading, writeUp: writeUp, orderInGroup: orderInGroup, materials: materials, purpose: purpose, ageRange: ageRange, teacherNotes: teacherNotes)
+            let row = Row(
+                name: name, subject: subject, group: group,
+                subheading: subheading, writeUp: writeUp,
+                orderInGroup: orderInGroup, materials: materials,
+                purpose: purpose, ageRange: ageRange,
+                teacherNotes: teacherNotes
+            )
             rows.append(row)
 
             let key = duplicateKey(name: name, subject: subject, group: group)
@@ -227,7 +250,11 @@ enum LessonCSVImporter {
         // Deduplicate potentialDupTitles preserving order
         let uniquePotentialDupTitles = potentialDupTitles.removingDuplicates()
 
-        return Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: uniquePotentialDupTitles, warnings: warnings)
+        return Parsed(
+            rows: rows, totalRows: rows.count,
+            potentialDuplicates: uniquePotentialDupTitles,
+            warnings: warnings
+        )
     }
 
     /// Commit parsed rows by inserting new Lesson objects; updates existing lessons if duplicates found.
@@ -306,7 +333,12 @@ enum LessonCSVImporter {
                     orderToUse = nextOrder
                 }
 
-                let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp, materials: r.materials, purpose: r.purpose, ageRange: r.ageRange, teacherNotes: r.teacherNotes)
+                let lesson = Lesson(
+                    name: r.name, subject: r.subject, group: r.group,
+                    subheading: r.subheading, writeUp: r.writeUp,
+                    materials: r.materials, purpose: r.purpose,
+                    ageRange: r.ageRange, teacherNotes: r.teacherNotes
+                )
                 lesson.orderInGroup = orderToUse
                 context.insert(lesson)
                 byKey[key] = lesson

@@ -143,7 +143,9 @@ struct GroupIntroductionSheet: View {
 
             ## Introduction to Algebra
 
-            We approach algebra in the elementary classroom as a puzzle to solve. Be clear with children about this framing—they may be hearing at home that algebra is hard or intimidating.
+            We approach algebra in the elementary classroom as a puzzle \
+            to solve. Be clear with children about this framing—they \
+            may be hearing at home that algebra is hard or intimidating.
 
             ## What Is Algebra?
 
@@ -167,7 +169,9 @@ struct GroupIntroductionSheet: View {
             content: """
             # Math Album
 
-            The mathematics curriculum guides children from concrete manipulation to abstract understanding through carefully sequenced materials.
+            The mathematics curriculum guides children from concrete \
+            manipulation to abstract understanding through carefully \
+            sequenced materials.
             """
         )
     )

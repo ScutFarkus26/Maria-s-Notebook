@@ -36,8 +36,16 @@ extension BackupEntityImporter {
 
     // MARK: - Supplies
 
-    static func importSupplies(_ dtos: [SupplyDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Supply>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importSupplies(
+        _ dtos: [SupplyDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<Supply>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let s = Supply(
                 id: dto.id,
                 name: dto.name,
@@ -87,8 +95,16 @@ extension BackupEntityImporter {
 
     // MARK: - Procedures
 
-    static func importProcedures(_ dtos: [ProcedureDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Procedure>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importProcedures(
+        _ dtos: [ProcedureDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<Procedure>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let p = Procedure(
                 id: dto.id,
                 title: dto.title,

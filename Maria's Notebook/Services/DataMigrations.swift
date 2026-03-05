@@ -142,7 +142,9 @@ enum DataMigrations {
 
     /// Validates that the LessonAssignment migration completed successfully.
     /// Returns the validation result for logging/debugging purposes.
-    static func validateLessonAssignmentMigration(using context: ModelContext) async -> LessonAssignmentValidationResult? {
+    static func validateLessonAssignmentMigration(
+        using context: ModelContext
+    ) async -> LessonAssignmentValidationResult? {
         let validator = LessonAssignmentMigrationValidator(context: context)
         do {
             return try await validator.validate()

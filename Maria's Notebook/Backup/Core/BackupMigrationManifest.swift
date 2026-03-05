@@ -110,9 +110,12 @@ public enum BackupMigrationManifest {
             case .compatible:
                 return "Format version is compatible."
             case .futureVersion(let version):
-                return "Backup was created with a newer app version (format v\(version)). Please update the app."
+                return "Backup was created with a newer app version "
+                    + "(format v\(version)). Please update the app."
             case .invalid:
-                return "Unsupported backup format version. Only format v\(BackupMigrationManifest.currentVersion) is supported."
+                let ver = BackupMigrationManifest.currentVersion
+                return "Unsupported backup format version. "
+                    + "Only format v\(ver) is supported."
             }
         }
     }
@@ -128,36 +131,80 @@ extension BackupMigrationManifest {
         // MARK: - Student
 
         public static let studentChanges: [EntityChange] = [
-            EntityChange(version: 6, entity: "Student", change: "Fields: id, firstName, lastName, birthday, level, dateStarted, nextLessons, manualOrder")
+            EntityChange(
+                version: 6, entity: "Student",
+                change: "Fields: id, firstName, lastName, birthday, "
+                    + "level, dateStarted, nextLessons, manualOrder"
+            )
         ]
 
         // MARK: - Lesson
 
         public static let lessonChanges: [EntityChange] = [
-            EntityChange(version: 6, entity: "Lesson", change: "Fields: id, name, subject, group, orderInGroup, subheading, writeUp, pagesFileRelativePath")
+            EntityChange(
+                version: 6, entity: "Lesson",
+                change: "Fields: id, name, subject, group, "
+                    + "orderInGroup, subheading, writeUp, "
+                    + "pagesFileRelativePath"
+            )
         ]
 
         // MARK: - Note
 
         public static let noteChanges: [EntityChange] = [
-            EntityChange(version: 6, entity: "Note", change: "Fields: id, createdAt, updatedAt, body, isPinned, scope (JSON), lessonID, imagePath")
+            EntityChange(
+                version: 6, entity: "Note",
+                change: "Fields: id, createdAt, updatedAt, body, "
+                    + "isPinned, scope (JSON), lessonID, imagePath"
+            )
         ]
 
         // MARK: - Project
 
         public static let projectChanges: [EntityChange] = [
-            EntityChange(version: 6, entity: "Project", change: "Fields: id, createdAt, title, bookTitle, memberStudentIDs"),
-            EntityChange(version: 6, entity: "ProjectSession", change: "Fields: id, createdAt, projectID, meetingDate, chapterOrPages, notes, agendaItemsJSON, templateWeekID"),
-            EntityChange(version: 6, entity: "ProjectRole", change: "Fields: id, createdAt, projectID, title, summary, instructions"),
-            EntityChange(version: 6, entity: "ProjectTemplateWeek", change: "Fields: id, createdAt, projectID, weekIndex, readingRange, agendaItemsJSON, linkedLessonIDsJSON, workInstructions"),
-            EntityChange(version: 6, entity: "ProjectWeekRoleAssignment", change: "Fields: id, createdAt, weekID, studentID, roleID"),
-            EntityChange(version: 6, entity: "ProjectAssignmentTemplate", change: "Fields: id, createdAt, projectID, title, instructions, isShared, defaultLinkedLessonID")
+            EntityChange(
+                version: 6, entity: "Project",
+                change: "Fields: id, createdAt, title, bookTitle, "
+                    + "memberStudentIDs"
+            ),
+            EntityChange(
+                version: 6, entity: "ProjectSession",
+                change: "Fields: id, createdAt, projectID, "
+                    + "meetingDate, chapterOrPages, notes, "
+                    + "agendaItemsJSON, templateWeekID"
+            ),
+            EntityChange(
+                version: 6, entity: "ProjectRole",
+                change: "Fields: id, createdAt, projectID, title, "
+                    + "summary, instructions"
+            ),
+            EntityChange(
+                version: 6, entity: "ProjectTemplateWeek",
+                change: "Fields: id, createdAt, projectID, "
+                    + "weekIndex, readingRange, agendaItemsJSON, "
+                    + "linkedLessonIDsJSON, workInstructions"
+            ),
+            EntityChange(
+                version: 6, entity: "ProjectWeekRoleAssignment",
+                change: "Fields: id, createdAt, weekID, "
+                    + "studentID, roleID"
+            ),
+            EntityChange(
+                version: 6, entity: "ProjectAssignmentTemplate",
+                change: "Fields: id, createdAt, projectID, title, "
+                    + "instructions, isShared, "
+                    + "defaultLinkedLessonID"
+            )
         ]
 
         // MARK: - Attendance
 
         public static let attendanceChanges: [EntityChange] = [
-            EntityChange(version: 6, entity: "AttendanceRecord", change: "Fields: id, studentID, date, status, absenceReason, note")
+            EntityChange(
+                version: 6, entity: "AttendanceRecord",
+                change: "Fields: id, studentID, date, status, "
+                    + "absenceReason, note"
+            )
         ]
 
         public struct EntityChange: Identifiable, Sendable {
@@ -179,7 +226,11 @@ extension BackupMigrationManifest {
         PayloadField(name: "items", introducedIn: 6, description: "Legacy items array (unused)"),
         PayloadField(name: "students", introducedIn: 6, description: "Student records"),
         PayloadField(name: "lessons", introducedIn: 6, description: "Lesson definitions"),
-        PayloadField(name: "studentLessons", introducedIn: 6, description: "Legacy lesson assignments (mapped to legacyPresentations property for backward compatibility)"),
+        PayloadField(
+            name: "studentLessons", introducedIn: 6,
+            description: "Legacy lesson assignments "
+                + "(mapped to legacyPresentations property)"
+        ),
         PayloadField(name: "lessonAssignments", introducedIn: 6, description: "Unified lesson assignments"),
         PayloadField(name: "notes", introducedIn: 6, description: "Notes and observations"),
         PayloadField(name: "nonSchoolDays", introducedIn: 6, description: "Calendar non-school days"),
@@ -203,7 +254,11 @@ extension BackupMigrationManifest {
         PayloadField(name: "projectSessions", introducedIn: 6, description: "Project session records"),
         PayloadField(name: "projectRoles", introducedIn: 6, description: "Project role definitions"),
         PayloadField(name: "projectTemplateWeeks", introducedIn: 6, description: "Project weekly templates"),
-        PayloadField(name: "projectWeekRoleAssignments", introducedIn: 6, description: "Project role assignments per week"),
+        PayloadField(
+            name: "projectWeekRoleAssignments",
+            introducedIn: 6,
+            description: "Project role assignments per week"
+        ),
 
         // Preferences
         PayloadField(name: "preferences", introducedIn: 6, description: "App preferences dictionary")

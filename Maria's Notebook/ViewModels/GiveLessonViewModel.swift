@@ -362,6 +362,7 @@ final class LessonPickerViewModel {
                         )
                         workModel.setLegacyNoteText(trimmedFollowUp, in: context)
                     } catch {
+                        // swiftlint:disable:next line_length
                         Self.logger.warning("Failed to create follow-up work for student \(sid, privacy: .public): \(error)")
                     }
                 }
@@ -377,11 +378,15 @@ final class LessonPickerViewModel {
     
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, from context: ModelContext, functionName: String = #function) -> [T] {
+    private func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>, from context: ModelContext,
+        functionName: String = #function
+    ) -> [T] {
         do {
             return try context.fetch(descriptor)
         } catch {
             let typeName = String(describing: T.self)
+            // swiftlint:disable:next line_length
             Self.logger.warning("Failed to fetch \(typeName, privacy: .public) in \(functionName, privacy: .public): \(error)")
             return []
         }

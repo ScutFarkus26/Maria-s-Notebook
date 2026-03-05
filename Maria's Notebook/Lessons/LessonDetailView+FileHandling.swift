@@ -15,15 +15,24 @@ extension LessonDetailView {
         var isStale = false
         do {
 #if os(macOS)
-            let url = try URL(resolvingBookmarkData: bookmarkData, options: [.withoutUI, .withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &isStale)
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [.withoutUI, .withSecurityScope],
+                relativeTo: nil, bookmarkDataIsStale: &isStale
+            )
 #else
-            let url = try URL(resolvingBookmarkData: bookmarkData, options: [.withoutUI], relativeTo: nil, bookmarkDataIsStale: &isStale)
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [.withoutUI],
+                relativeTo: nil, bookmarkDataIsStale: &isStale
+            )
 #endif
 
 #if os(iOS)
             if url.startAccessingSecurityScopedResource() {
-                // Caller must call stopAccessingSecurityScopedResource when done, but here we keep it open as long as resolvedPagesURL is set
-                // So keep it open; will be released when resolvedPagesURL changes or view disappears
+                // Caller must call stopAccessingSecurityScopedResource when done,
+                // but here we keep it open as long as resolvedPagesURL is set.
+                // Will be released when resolvedPagesURL changes or view disappears.
             }
 #endif
 
@@ -53,7 +62,11 @@ extension LessonDetailView {
         guard let legacyURL = resolvePagesURL(), !LessonFileStorage.isManagedURL(legacyURL) else { return }
         Task(priority: .utility) {
             do {
-                let destURL = try LessonFileStorage.importFile(from: legacyURL, forLessonWithID: lesson.id, lessonName: lesson.name)
+                let destURL = try LessonFileStorage.importFile(
+                    from: legacyURL,
+                    forLessonWithID: lesson.id,
+                    lessonName: lesson.name
+                )
                 let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
                 let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
                 await MainActor.run {
@@ -72,14 +85,22 @@ extension LessonDetailView {
     func savePagesBookmark(from url: URL) {
 #if os(iOS)
         do {
-            let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+            let bookmark = try url.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
             lesson.pagesFileBookmark = bookmark
         } catch {
             // ignore error
         }
 #elseif os(macOS)
         do {
-            let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+            let bookmark = try url.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
             lesson.pagesFileBookmark = bookmark
         } catch {
             // ignore error
@@ -96,7 +117,10 @@ extension LessonDetailView {
         if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
-            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+            NSWorkspace.shared.open(
+                [url], withApplicationAt: pagesAppURL,
+                configuration: config, completionHandler: nil
+            )
         } else {
             NSWorkspace.shared.open(url)
         }

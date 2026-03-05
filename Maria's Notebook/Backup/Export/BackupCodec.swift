@@ -45,12 +45,28 @@ struct BackupCodec {
         defer { destinationBuffer.deallocate() }
 
         return try data.withUnsafeBytes { sourceRawBuffer in
-            guard let sourceBuffer = sourceRawBuffer.bindMemory(to: UInt8.self).baseAddress else {
-                throw NSError(domain: "BackupCodec", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed: could not access source memory"])
+            guard let sourceBuffer = sourceRawBuffer
+                .bindMemory(to: UInt8.self).baseAddress else {
+                throw NSError(
+                    domain: "BackupCodec", code: 1200,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Compression failed: could not access source memory"
+                    ]
+                )
             }
-            let compressedSize = compression_encode_buffer(destinationBuffer, bufferSize, sourceBuffer, data.count, nil, COMPRESSION_LZFSE)
+            let compressedSize = compression_encode_buffer(
+                destinationBuffer, bufferSize,
+                sourceBuffer, data.count, nil, COMPRESSION_LZFSE
+            )
             guard compressedSize > 0 else {
-                throw NSError(domain: "BackupCodec", code: 1200, userInfo: [NSLocalizedDescriptionKey: "Compression failed"])
+                throw NSError(
+                    domain: "BackupCodec", code: 1200,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Compression failed"
+                    ]
+                )
             }
             return Data(bytes: destinationBuffer, count: compressedSize)
         }
@@ -62,20 +78,36 @@ struct BackupCodec {
         let maxAttempts = 3
         var attempt = 0
         return try data.withUnsafeBytes { sourceRawBuffer in
-            guard let sourceBuffer = sourceRawBuffer.bindMemory(to: UInt8.self).baseAddress else {
-                throw NSError(domain: "BackupCodec", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: could not access source memory"])
+            guard let sourceBuffer = sourceRawBuffer
+                .bindMemory(to: UInt8.self).baseAddress else {
+                throw NSError(
+                    domain: "BackupCodec", code: 1201,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Decompression failed: could not access source memory"
+                    ]
+                )
             }
             while attempt < maxAttempts {
                 let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
                 defer { destinationBuffer.deallocate() }
-                let decompressedSize = compression_decode_buffer(destinationBuffer, bufferSize, sourceBuffer, data.count, nil, COMPRESSION_LZFSE)
+                let decompressedSize = compression_decode_buffer(
+                    destinationBuffer, bufferSize,
+                    sourceBuffer, data.count, nil, COMPRESSION_LZFSE
+                )
                 if decompressedSize > 0 && decompressedSize < bufferSize {
                     return Data(bytes: destinationBuffer, count: decompressedSize)
                 }
                 bufferSize *= 2
                 attempt += 1
             }
-            throw NSError(domain: "BackupCodec", code: 1201, userInfo: [NSLocalizedDescriptionKey: "Decompression failed: buffer size insufficient"])
+            throw NSError(
+                domain: "BackupCodec", code: 1201,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Decompression failed: buffer size insufficient"
+                ]
+            )
         }
     }
 
@@ -94,7 +126,13 @@ struct BackupCodec {
 
         let sealedBox = try AES.GCM.seal(data, using: key)
         guard let combined = sealedBox.combined else {
-            throw NSError(domain: "BackupCodec", code: 1100, userInfo: [NSLocalizedDescriptionKey: "Encryption failed (could not combine data)."])
+            throw NSError(
+                domain: "BackupCodec", code: 1100,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Encryption failed (could not combine data)."
+                ]
+            )
         }
 
         // Prepend salt to encrypted data
@@ -109,7 +147,13 @@ struct BackupCodec {
     func decrypt(_ data: Data, password: String) throws -> Data {
         // Extract salt (first 32 bytes)
         guard data.count > 32 else {
-            throw NSError(domain: "BackupCodec", code: 1101, userInfo: [NSLocalizedDescriptionKey: "Decryption failed: data too short to contain salt"])
+            throw NSError(
+                domain: "BackupCodec", code: 1101,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Decryption failed: data too short to contain salt"
+                ]
+            )
         }
 
         let salt = data.prefix(32)
@@ -122,7 +166,13 @@ struct BackupCodec {
             sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
         } catch {
             Self.logger.warning("Failed to create sealed box: \(error)")
-            throw NSError(domain: "BackupCodec", code: 1102, userInfo: [NSLocalizedDescriptionKey: "Decryption failed: invalid sealed box"])
+            throw NSError(
+                domain: "BackupCodec", code: 1102,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Decryption failed: invalid sealed box"
+                ]
+            )
         }
 
         return try AES.GCM.open(sealedBox, using: key)

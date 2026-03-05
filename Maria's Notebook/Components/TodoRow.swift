@@ -71,7 +71,8 @@ struct TodoRow: View {
 
         // Priority
         if todo.priority != .none {
-            let priorityEmoji = todo.priority == .high ? "\u{1F534}" : todo.priority == .medium ? "\u{1F7E0}" : "\u{1F535}"
+            let priorityEmoji = todo.priority == .high
+                ? "\u{1F534}" : todo.priority == .medium ? "\u{1F7E0}" : "\u{1F535}"
             text += "\(priorityEmoji) Priority: \(todo.priority.rawValue)\n"
         }
 
@@ -258,7 +259,8 @@ struct TodoRow: View {
             .tint(.orange)
 
             Button {
-                todo.scheduledDate = AppCalendar.startOfDay(Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+                let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
                 todo.isSomeday = false
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")

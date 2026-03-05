@@ -144,7 +144,10 @@ import SwiftUI
 
     // swiftlint:disable:next line_length
     /// DEPRECATED: Use `kind` instead. This property is maintained for backwards compatibility. After data migration, workType reads from kind and converts to the legacy enum format.
-    @available(*, deprecated, message: "Use 'kind' (WorkKind) instead. WorkType is maintained for backwards compatibility only.")
+    @available(
+        *, deprecated,
+        message: "Use 'kind' (WorkKind) instead. WorkType is maintained for backwards compatibility only."
+    )
     var workType: WorkType {
         get {
             // After migration, prefer kind over workTypeRaw

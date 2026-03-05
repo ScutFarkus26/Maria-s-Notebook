@@ -183,10 +183,14 @@ final class TodayViewModel {
             cacheManager.loadLessonsIfNeeded(ids: lessonsResult.neededLessonIDs, context: context)
         }
         let filteredLessons = lessonsResult.lessons.isEmpty ? [] :
-            TodayLevelFilterService.filterLessons(lessonsResult.lessons, studentsByID: studentsByID, levelFilter: levelFilter)
+            TodayLevelFilterService.filterLessons(
+                lessonsResult.lessons, studentsByID: studentsByID, levelFilter: levelFilter
+            )
 
         // 2. Fetch work data
-        if let prelimResult = TodayDataFetcher.fetchWorkData(day: day, nextDay: nextDay, referenceDate: date, context: context) {
+        if let prelimResult = TodayDataFetcher.fetchWorkData(
+            day: day, nextDay: nextDay, referenceDate: date, context: context
+        ) {
             cacheManager.loadStudentsIfNeeded(ids: prelimResult.neededStudentIDs, context: context)
             cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
         }

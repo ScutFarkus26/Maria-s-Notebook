@@ -81,11 +81,21 @@ struct AppPillButton<Label: View>: View {
                 )
                 .overlay(
                     metrics.corner
-                        .stroke(Color.primary.opacity(selectionStyle == .accentFill && isSelected ? 0.0 : 0.10), lineWidth: metrics.outlineWidth)
+                        .stroke(
+                            Color.primary.opacity(
+                                selectionStyle == .accentFill && isSelected ? 0.0 : 0.10
+                            ),
+                            lineWidth: metrics.outlineWidth
+                        )
                 )
                 .overlay(
                     metrics.corner
-                        .stroke(Color.accentColor.opacity(selectionStyle == .accentOutline && isSelected ? 0.45 : 0.0), lineWidth: metrics.selectedRingWidth)
+                        .stroke(
+                            Color.accentColor.opacity(
+                                selectionStyle == .accentOutline && isSelected ? 0.45 : 0.0
+                            ),
+                            lineWidth: metrics.selectedRingWidth
+                        )
                 )
         }
         .buttonStyle(.plain)

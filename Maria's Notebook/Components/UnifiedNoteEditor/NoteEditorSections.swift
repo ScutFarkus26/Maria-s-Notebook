@@ -283,7 +283,10 @@ extension UnifiedNoteEditor {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: UIConstants.CardSize.studentAvatar * 0.75, height: UIConstants.CardSize.studentAvatar * 0.75)
+                    .frame(
+                        width: UIConstants.CardSize.studentAvatar * 0.75,
+                        height: UIConstants.CardSize.studentAvatar * 0.75
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
             }
             #else
@@ -291,7 +294,10 @@ extension UnifiedNoteEditor {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: UIConstants.CardSize.studentAvatar * 0.75, height: UIConstants.CardSize.studentAvatar * 0.75)
+                    .frame(
+                        width: UIConstants.CardSize.studentAvatar * 0.75,
+                        height: UIConstants.CardSize.studentAvatar * 0.75
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
             }
             #endif

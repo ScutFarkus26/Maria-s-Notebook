@@ -59,7 +59,9 @@ extension LessonProgressView {
             statCard(
                 title: "Practice Sessions",
                 value: "\(stats.totalPracticeSessions)",
-                subtitle: stats.totalPracticeSessions > 0 ? "Last: \(stats.lastPresentedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")" : "None yet",
+                subtitle: stats.totalPracticeSessions > 0
+                    ? "Last: \(stats.lastPresentedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")"
+                    : "None yet",
                 icon: "person.2.fill",
                 color: .purple
             )
@@ -108,7 +110,8 @@ extension LessonProgressView {
                 if stats.activeWorkItems > 0 {
                     insightRow(
                         icon: "exclamationmark.circle",
-                        text: "\(stats.activeWorkItems) work \(stats.activeWorkItems == 1 ? "item" : "items") still in progress",
+                        text: "\(stats.activeWorkItems) work "
+                            + "\(stats.activeWorkItems == 1 ? "item" : "items") still in progress",
                         color: .orange
                     )
                 }

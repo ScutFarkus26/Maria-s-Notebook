@@ -33,7 +33,8 @@ struct TodoSmartParserService {
         
         Extract:
         1. Clean title (remove markers like "tomorrow", "urgent", etc.)
-        2. Priority level based on words like urgent, important, ASAP (high), or normal/regular (medium), or later/someday (low)
+        2. Priority level based on words like urgent, important, ASAP (high),
+           or normal/regular (medium), or later/someday (low)
         3. Due date if mentioned (today, tomorrow, next week, specific dates, etc.) - use ISO 8601 format
         4. Recurrence if mentioned (daily, every day, weekdays, weekly, every week, monthly, yearly)
         

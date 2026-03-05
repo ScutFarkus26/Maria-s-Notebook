@@ -49,7 +49,9 @@ extension SelectiveRestoreService {
     // MARK: - Cache Helpers
 
     /// Helper to fetch and cache entity IDs for a given type.
-    func cacheEntityIDs<T: PersistentModel & Identifiable>(_ type: T.Type, key: String, in context: ModelContext) where T.ID == UUID {
+    func cacheEntityIDs<T: PersistentModel & Identifiable>(
+        _ type: T.Type, key: String, in context: ModelContext
+    ) where T.ID == UUID {
         do {
             let entities = try context.fetch(FetchDescriptor<T>())
             existingIDSets[key] = Set(entities.map { $0.id })
@@ -60,7 +62,9 @@ extension SelectiveRestoreService {
     }
 
     /// Helper to fetch and cache entities with full objects for relationships.
-    func cacheDictionary<T: PersistentModel & Identifiable>(_ type: T.Type, in context: ModelContext) -> [UUID: T] where T.ID == UUID {
+    func cacheDictionary<T: PersistentModel & Identifiable>(
+        _ type: T.Type, in context: ModelContext
+    ) -> [UUID: T] where T.ID == UUID {
         do {
             let entities = try context.fetch(FetchDescriptor<T>())
             return entities.toDictionary(by: \.id)

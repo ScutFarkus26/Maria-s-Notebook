@@ -12,7 +12,10 @@ extension CloudKitSyncStatusService {
     func handleNetworkChange(isAvailable: Bool) {
         if isAvailable {
             // Network restored - clear network-related errors and trigger retry
-            if let error = lastSyncError, error.contains("network") || error.contains("offline") || error.contains("Waiting") {
+            let isNetworkError = lastSyncError?.contains("network") == true
+                || lastSyncError?.contains("offline") == true
+                || lastSyncError?.contains("Waiting") == true
+            if isNetworkError {
                 lastSyncError = nil
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
@@ -25,7 +28,10 @@ extension CloudKitSyncStatusService {
     func handleICloudAccountChange(isAvailable: Bool) {
         if isAvailable {
             // User signed into iCloud - clear any offline errors and retry
-            if lastSyncError?.contains("iCloud") == true || lastSyncError?.contains("signed in") == true || lastSyncError?.contains("Sign into") == true {
+            let isICloudError = lastSyncError?.contains("iCloud") == true
+                || lastSyncError?.contains("signed in") == true
+                || lastSyncError?.contains("Sign into") == true
+            if isICloudError {
                 lastSyncError = nil
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
@@ -167,7 +173,9 @@ extension CloudKitSyncStatusService {
                 self.pendingSyncCount = 0
                 let now = Date()
                 self.lastSuccessfulSync = now
-                UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+                UserDefaults.standard.set(
+                    now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
+                )
                 self.updateSyncHealth()
             }
         }
@@ -222,7 +230,9 @@ extension CloudKitSyncStatusService {
                 syncingTask = nil
                 isSyncing = false
 
-                UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+                UserDefaults.standard.set(
+                    now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
+                )
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
         } else if let errorDesc = errorDescription {

@@ -8,10 +8,15 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Transformers are organized into domain-specific extensions:
-/// - `BackupDTOTransformers+Core.swift` — Student, Lesson, Note, LessonExercise, LessonAttachment, LessonPresentation
-/// - `BackupDTOTransformers+Work.swift` — WorkCheckIn, WorkStep, WorkParticipant, PracticeSession
-/// - `BackupDTOTransformers+Projects.swift` — Project, ProjectSession, ProjectRole, ProjectTemplateWeek, ProjectWeekRoleAssignment, CommunityTopic, ProposedSolution, CommunityAttachment
-/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, Track, Supply, Schedule, Issue, Procedure, Document, and remaining types
+/// - `BackupDTOTransformers+Core.swift` — Student, Lesson, Note,
+///   LessonExercise, LessonAttachment, LessonPresentation
+/// - `BackupDTOTransformers+Work.swift` — WorkCheckIn, WorkStep,
+///   WorkParticipant, PracticeSession
+/// - `BackupDTOTransformers+Projects.swift` — Project, ProjectSession,
+///   ProjectRole, ProjectTemplateWeek, ProjectWeekRoleAssignment,
+///   CommunityTopic, ProposedSolution, CommunityAttachment
+/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, Track,
+///   Supply, Schedule, Issue, Procedure, Document, and remaining types
 enum BackupDTOTransformers {
     static let logger = Logger.backup
 

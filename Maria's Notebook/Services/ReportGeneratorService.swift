@@ -459,7 +459,9 @@ struct ReportGeneratorService {
         return result
     }
 
-    private func createPDFPage(from attributedString: NSAttributedString, pageSize: NSSize, margin: CGFloat) -> PDFPage? {
+    private func createPDFPage(
+        from attributedString: NSAttributedString, pageSize: NSSize, margin: CGFloat
+    ) -> PDFPage? {
         // Create a simple PDF page from attributed string
         let textStorage = NSTextStorage(attributedString: attributedString)
         let layoutManager = NSLayoutManager()

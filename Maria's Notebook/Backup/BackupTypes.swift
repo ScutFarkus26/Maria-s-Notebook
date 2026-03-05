@@ -44,7 +44,14 @@ public struct BackupEnvelope: Codable, Sendable {
         case compressedPayload
     }
 
-    public init(formatVersion: Int, createdAt: Date, appBuild: String, appVersion: String, device: String, manifest: BackupManifest, payload: BackupPayload? = nil, encryptedPayload: Data? = nil, compressedPayload: Data? = nil) {
+    public init(
+        formatVersion: Int, createdAt: Date,
+        appBuild: String, appVersion: String, device: String,
+        manifest: BackupManifest,
+        payload: BackupPayload? = nil,
+        encryptedPayload: Data? = nil,
+        compressedPayload: Data? = nil
+    ) {
         self.formatVersion = formatVersion
         self.createdAt = createdAt
         self.appBuild = appBuild
@@ -311,7 +318,13 @@ public struct RestorePreview: Codable, Sendable, Equatable {
     public var totalInserts: Int
     public var totalDeletes: Int
     public var warnings: [String]
-    public init(mode: String, entityInserts: [String: Int], entitySkips: [String: Int], entityDeletes: [String: Int], totalInserts: Int, totalDeletes: Int, warnings: [String]) {
+    public init(
+        mode: String,
+        entityInserts: [String: Int], entitySkips: [String: Int],
+        entityDeletes: [String: Int],
+        totalInserts: Int, totalDeletes: Int,
+        warnings: [String]
+    ) {
         self.mode = mode
         self.entityInserts = entityInserts
         self.entitySkips = entitySkips

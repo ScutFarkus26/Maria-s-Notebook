@@ -112,7 +112,9 @@ struct CurriculumDataAssembler {
                 // Only show frontier lessons (first not-presented or practicing)
                 let frontierLessons = group.lessons.filter { lesson in
                     lesson.studentStatuses.contains { status in
-                        status.proficiency == .notPresented || status.proficiency == .practicing || status.proficiency == .needsMorePractice
+                        status.proficiency == .notPresented
+                            || status.proficiency == .practicing
+                            || status.proficiency == .needsMorePractice
                     }
                 }.prefix(3)
                 
@@ -123,7 +125,10 @@ struct CurriculumDataAssembler {
                     for lesson in frontierLessons {
                         let studentSummaries = lesson.studentStatuses
                             .filter { $0.proficiency != .proficient }
-                            .map { "\($0.studentName.components(separatedBy: " ").first ?? $0.studentName):\($0.proficiency.shortCode)" }
+                            .map {
+                                let name = $0.studentName.components(separatedBy: " ").first ?? $0.studentName
+                                return "\(name):\($0.proficiency.shortCode)"
+                            }
                         if !studentSummaries.isEmpty {
                             detail += " \(lesson.lessonName)[\(studentSummaries.joined(separator: ","))]"
                         }
@@ -141,7 +146,8 @@ struct CurriculumDataAssembler {
         
         // Check token budget
         if !TokenEstimator.isWithinBudget(result, budget: maxTokenBudget) {
-            Self.logger.info("Curriculum summary exceeds token budget (\(TokenEstimator.estimateTokens(for: result))/\(maxTokenBudget))")
+            let tokens = TokenEstimator.estimateTokens(for: result)
+            Self.logger.info("Curriculum summary exceeds token budget (\(tokens)/\(maxTokenBudget))")
         }
         
         return result

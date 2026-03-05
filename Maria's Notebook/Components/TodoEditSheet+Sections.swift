@@ -69,11 +69,20 @@ extension TodoEditSheet {
                         .padding(.vertical, 8)
                         .background {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(priority == priorityLevel ? colorForPriority(priorityLevel).opacity(0.15) : Color.secondary.opacity(0.1))
+                                .fill(
+                                    priority == priorityLevel
+                                        ? colorForPriority(priorityLevel).opacity(0.15)
+                                        : Color.secondary.opacity(0.1)
+                                )
                         }
                         .overlay {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(priority == priorityLevel ? colorForPriority(priorityLevel).opacity(0.4) : Color.clear, lineWidth: 1.5)
+                                .strokeBorder(
+                                    priority == priorityLevel
+                                        ? colorForPriority(priorityLevel).opacity(0.4)
+                                        : Color.clear,
+                                    lineWidth: 1.5
+                                )
                         }
                         .foregroundStyle(priority == priorityLevel ? colorForPriority(priorityLevel) : .primary)
                     }
@@ -518,7 +527,10 @@ extension TodoEditSheet {
                     let variance = actualTotal - estimatedTotal
 
                     HStack(spacing: 8) {
-                        Image(systemName: variance > 0 ? "exclamationmark.triangle.fill" : variance < 0 ? "checkmark.circle.fill" : "equal.circle.fill")
+                        let varianceIcon = variance > 0
+                            ? "exclamationmark.triangle.fill"
+                            : variance < 0 ? "checkmark.circle.fill" : "equal.circle.fill"
+                        Image(systemName: varianceIcon)
                             .foregroundStyle(variance > 0 ? .orange : variance < 0 ? .green : .blue)
 
                         if variance == 0 && actualTotal > 0 {
@@ -848,7 +860,9 @@ extension TodoEditSheet {
     func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+            guard let documentsDir = FileManager.default.urls(
+                for: .documentDirectory, in: .userDomainMask
+            ).first else { return }
             let attachmentsDir = documentsDir.appendingPathComponent("TodoAttachments", isDirectory: true)
 
             try? FileManager.default.createDirectory(at: attachmentsDir, withIntermediateDirectories: true)

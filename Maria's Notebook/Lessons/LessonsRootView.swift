@@ -39,7 +39,11 @@ struct LessonsRootView: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // MARK: - Data Query
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex), SortDescriptor(\Lesson.orderInGroup)])
+    @Query(sort: [
+        SortDescriptor(\Lesson.subject),
+        SortDescriptor(\Lesson.sortIndex),
+        SortDescriptor(\Lesson.orderInGroup)
+    ])
     var lessons: [Lesson]
 
     // MARK: - UI State

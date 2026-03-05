@@ -73,7 +73,8 @@ final class CloudKitSyncStatusService {
 
     init() {
         // Load persisted state
-        if let timestamp = UserDefaults.standard.object(forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate) as? TimeInterval {
+        let syncDateKey = UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
+        if let timestamp = UserDefaults.standard.object(forKey: syncDateKey) as? TimeInterval {
             lastSuccessfulSync = Date(timeIntervalSince1970: timestamp)
         }
         lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
@@ -158,7 +159,9 @@ final class CloudKitSyncStatusService {
             let now = Date()
             lastSuccessfulSync = now
             lastSyncError = nil
-            UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+            UserDefaults.standard.set(
+                now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
+            )
             UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
             // Keep syncing indicator briefly to show activity

@@ -30,6 +30,7 @@ extension BackupService {
                 do {
                     return (try self.fetchOne(type, id: id, using: modelContext)) != nil
                 } catch {
+                    // swiftlint:disable:next line_length
                     print("\u{26a0}\u{fe0f} [BackupService] Failed to check entity existence for type \(String(describing: type)): \(error)")
                     return false
                 }

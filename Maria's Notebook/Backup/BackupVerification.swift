@@ -31,19 +31,34 @@ public struct BackupVerification {
                 let errorMessage: String
                 switch decodingError {
                 case .dataCorrupted(let context):
-                    errorMessage = "Backup file is corrupted or invalid JSON. \(context.debugDescription)"
+                    errorMessage = "Backup file is corrupted or invalid JSON. "
+                        + "\(context.debugDescription)"
                 case .keyNotFound(let key, let context):
-                    errorMessage = "Backup file is missing required field '\(key.stringValue)'. \(context.debugDescription)"
+                    errorMessage = "Backup file is missing required field "
+                        + "'\(key.stringValue)'. \(context.debugDescription)"
                 case .typeMismatch(let type, let context):
-                    errorMessage = "Backup file has invalid data type. Expected \(type), but found: \(context.debugDescription)"
+                    errorMessage = "Backup file has invalid data type. "
+                        + "Expected \(type), but found: "
+                        + "\(context.debugDescription)"
                 case .valueNotFound(let type, let context):
-                    errorMessage = "Backup file is missing required value of type \(type). \(context.debugDescription)"
+                    errorMessage = "Backup file is missing required value "
+                        + "of type \(type). \(context.debugDescription)"
                 @unknown default:
                     errorMessage = "Backup file format error: \(decodingError.localizedDescription)"
                 }
-                throw NSError(domain: "BackupVerification", code: 2, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                throw NSError(
+                    domain: "BackupVerification", code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: errorMessage]
+                )
             } catch {
-                throw NSError(domain: "BackupVerification", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to decode backup file: \(error.localizedDescription)"])
+                throw NSError(
+                    domain: "BackupVerification", code: 2,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Failed to decode backup file: "
+                            + "\(error.localizedDescription)"
+                    ]
+                )
             }
             
             // Get file attributes
@@ -97,16 +112,22 @@ public struct BackupVerification {
         let sorted = backupFiles.sorted { url1, url2 in
             let date1: Date
             do {
-                date1 = try url1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? Date.distantPast
+                date1 = try url1.resourceValues(
+                    forKeys: [.contentModificationDateKey]
+                ).contentModificationDate ?? Date.distantPast
             } catch {
+                // swiftlint:disable:next line_length
                 print("⚠️ [Backup:findMostRecentBackup] Failed to get modification date for \(url1.lastPathComponent): \(error)")
                 date1 = Date.distantPast
             }
             
             let date2: Date
             do {
-                date2 = try url2.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? Date.distantPast
+                date2 = try url2.resourceValues(
+                    forKeys: [.contentModificationDateKey]
+                ).contentModificationDate ?? Date.distantPast
             } catch {
+                // swiftlint:disable:next line_length
                 print("⚠️ [Backup:findMostRecentBackup] Failed to get modification date for \(url2.lastPathComponent): \(error)")
                 date2 = Date.distantPast
             }

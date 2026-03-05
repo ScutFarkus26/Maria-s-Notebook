@@ -68,7 +68,10 @@ struct LessonAttachmentImporter {
         
         for term in searchTerms {
             // Exact word matches in name get highest score
-            if lessonName.contains(" \(term) ") || lessonName.hasPrefix("\(term) ") || lessonName.hasSuffix(" \(term)") {
+            let hasWordMatch = lessonName.contains(" \(term) ")
+                || lessonName.hasPrefix("\(term) ")
+                || lessonName.hasSuffix(" \(term)")
+            if hasWordMatch {
                 score += 10
             } else if lessonName.contains(term) {
                 score += 5

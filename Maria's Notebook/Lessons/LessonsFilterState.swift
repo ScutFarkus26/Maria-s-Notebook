@@ -63,7 +63,8 @@ final class LessonsFilterState {
         self.searchText = searchRaw
         self.expandedSubjects = LessonsFilterPersistence.deserializeExpandedSubjects(expandedRaw)
         self.sourceFilter = sourceRaw.trimmed().isEmpty ? nil : LessonSource(rawValue: sourceRaw)
-        self.personalKindFilter = personalKindRaw.trimmed().isEmpty ? nil : PersonalLessonKind(rawValue: personalKindRaw)
+        self.personalKindFilter = personalKindRaw.trimmed().isEmpty
+            ? nil : PersonalLessonKind(rawValue: personalKindRaw)
         self.hasAttachmentFilter = hasAttachmentRaw == "true"
         self.needsAttentionFilter = needsAttentionRaw == "true"
     }
@@ -87,6 +88,10 @@ final class LessonsFilterState {
         let personalKindRaw = personalKindFilter?.rawValue ?? ""
         let hasAttachmentRaw = hasAttachmentFilter ? "true" : ""
         let needsAttentionRaw = needsAttentionFilter ? "true" : ""
-        return (subjectRaw, groupRaw, searchRaw, expandedRaw, sourceRaw, personalKindRaw, hasAttachmentRaw, needsAttentionRaw)
+        return (
+            subjectRaw, groupRaw, searchRaw, expandedRaw,
+            sourceRaw, personalKindRaw,
+            hasAttachmentRaw, needsAttentionRaw
+        )
     }
 }

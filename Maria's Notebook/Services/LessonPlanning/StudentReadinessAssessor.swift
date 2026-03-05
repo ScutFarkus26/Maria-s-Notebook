@@ -290,7 +290,11 @@ struct StudentReadinessAssessor {
     
     private static func fetchAllLessons(modelContext: ModelContext) -> [Lesson] {
         let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)]
+            sortBy: [
+                SortDescriptor(\Lesson.subject),
+                SortDescriptor(\Lesson.group),
+                SortDescriptor(\Lesson.orderInGroup)
+            ]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
     }

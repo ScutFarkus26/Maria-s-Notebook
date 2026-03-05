@@ -124,7 +124,8 @@ public final class CloudSyncConflictResolver {
                 localBackup: localInfo,
                 remoteBackup: remoteInfo,
                 conflictType: .divergentHistory,
-                description: "Different backup format versions (v\(localInfo.formatVersion) vs v\(remoteInfo.formatVersion))"
+                description: "Different backup format versions "
+                    + "(v\(localInfo.formatVersion) vs v\(remoteInfo.formatVersion))"
             ))
         }
         

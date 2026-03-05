@@ -41,7 +41,10 @@ public enum PhotoStorageService {
         // Convert NSImage to JPEG data
         guard let tiffData = image.tiffRepresentation,
               let bitmapImage = NSBitmapImageRep(data: tiffData),
-              let jpegData = bitmapImage.representation(using: .jpeg, properties: [NSBitmapImageRep.PropertyKey.compressionFactor: 0.8]) else {
+              let jpegData = bitmapImage.representation(
+                  using: .jpeg,
+                  properties: [NSBitmapImageRep.PropertyKey.compressionFactor: 0.8]
+              ) else {
             throw PhotoStorageError.imageConversionFailed
         }
         
@@ -126,7 +129,9 @@ public enum PhotoStorageService {
     ///   - scale: The display scale factor (typically from UIScreen.main.scale or NSScreen.main?.backingScaleFactor)
     /// - Returns: The downsampled NSImage if found, nil otherwise
     #if os(macOS)
-    nonisolated public static func loadDownsampledImage(filename: String, pointSize: CGSize, scale: CGFloat) -> NSImage? {
+    nonisolated public static func loadDownsampledImage(
+        filename: String, pointSize: CGSize, scale: CGFloat
+    ) -> NSImage? {
         let photosDir: URL
         do {
             photosDir = try photosDirectory()
@@ -162,7 +167,9 @@ public enum PhotoStorageService {
     ///   - pointSize: The desired size in points
     ///   - scale: The display scale factor (typically from UIScreen.main.scale)
     /// - Returns: The downsampled UIImage if found, nil otherwise
-    nonisolated public static func loadDownsampledImage(filename: String, pointSize: CGSize, scale: CGFloat) -> UIImage? {
+    nonisolated public static func loadDownsampledImage(
+        filename: String, pointSize: CGSize, scale: CGFloat
+    ) -> UIImage? {
         let photosDir: URL
         do {
             photosDir = try photosDirectory()

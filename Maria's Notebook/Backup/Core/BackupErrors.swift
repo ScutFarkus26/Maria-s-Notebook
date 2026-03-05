@@ -126,7 +126,9 @@ extension BackupOperationError.ExportError: LocalizedError {
             return "Failed to write backup to \(url.path): \(error.localizedDescription)"
         case .insufficientDiskSpace(let required, let available):
             let formatter = ByteCountFormatter()
-            return "Insufficient disk space. Need \(formatter.string(fromByteCount: required)), have \(formatter.string(fromByteCount: available))"
+            let need = formatter.string(fromByteCount: required)
+            let have = formatter.string(fromByteCount: available)
+            return "Insufficient disk space. Need \(need), have \(have)"
         case .accessDenied(let url):
             return "Access denied to \(url.path)"
         }

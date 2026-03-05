@@ -244,7 +244,11 @@ struct LessonDetailCard: View {
                     let needsAccess = pickedURL.startAccessingSecurityScopedResource()
                     defer { if needsAccess { pickedURL.stopAccessingSecurityScopedResource() } }
                     do {
-                        let destURL = try LessonFileStorage.importFile(from: pickedURL, forLessonWithID: lesson.id, lessonName: lesson.name)
+                        let destURL = try LessonFileStorage.importFile(
+                            from: pickedURL,
+                            forLessonWithID: lesson.id,
+                            lessonName: lesson.name
+                        )
                         let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
                         let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
                         if let oldURL = previousManagedURL {
@@ -301,15 +305,31 @@ struct LessonDetailCard: View {
         var stale = false
         do {
 #if os(macOS)
-            let url = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil, bookmarkDataIsStale: &stale
+            )
 #else
-            let url = try URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [],
+                relativeTo: nil, bookmarkDataIsStale: &stale
+            )
 #endif
             if stale {
 #if os(macOS)
-                let newBookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+                let newBookmark = try url.bookmarkData(
+                    options: [.withSecurityScope],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
 #else
-                let newBookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+                let newBookmark = try url.bookmarkData(
+                    options: [],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
 #endif
                 lesson.pagesFileBookmark = newBookmark
             }
@@ -340,7 +360,11 @@ struct LessonDetailCard: View {
         guard let legacyURL = resolvePagesURL(), !LessonFileStorage.isManagedURL(legacyURL) else { return }
         Task(priority: .utility) {
             do {
-                let destURL = try LessonFileStorage.importFile(from: legacyURL, forLessonWithID: lesson.id, lessonName: lesson.name)
+                let destURL = try LessonFileStorage.importFile(
+                    from: legacyURL,
+                    forLessonWithID: lesson.id,
+                    lessonName: lesson.name
+                )
                 let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
                 let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
                 await MainActor.run {
@@ -375,7 +399,11 @@ struct LessonDetailCard: View {
             if response == .OK, let url = panel.url {
                 Task(priority: .userInitiated) {
                     do {
-                        let destURL = try LessonFileStorage.importFile(from: url, forLessonWithID: lesson.id, lessonName: lesson.name)
+                        let destURL = try LessonFileStorage.importFile(
+                            from: url,
+                            forLessonWithID: lesson.id,
+                            lessonName: lesson.name
+                        )
                         let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
                         let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
                         if let oldURL = previousManagedURL {
@@ -410,7 +438,10 @@ struct LessonDetailCard: View {
         if let pagesAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Pages") {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
-            NSWorkspace.shared.open([url], withApplicationAt: pagesAppURL, configuration: config, completionHandler: nil)
+            NSWorkspace.shared.open(
+                [url], withApplicationAt: pagesAppURL,
+                configuration: config, completionHandler: nil
+            )
         } else {
             NSWorkspace.shared.open(url)
         }
@@ -421,7 +452,10 @@ struct LessonDetailCard: View {
 #Preview {
     let container = ModelContainer.preview
     let ctx = container.mainContext
-    let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "A foundational presentation.")
+    let lesson = Lesson(
+        name: "Decimal System", subject: "Math", group: "Number Work",
+        subheading: "Intro to base-10", writeUp: "A foundational presentation."
+    )
     ctx.insert(lesson)
     return LessonDetailCard(lesson: lesson, onSave: { _ in }, onClose: {})
         .previewEnvironment(using: container)

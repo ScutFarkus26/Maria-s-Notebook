@@ -94,7 +94,8 @@ final class ReminderSyncService {
     /// Request access to Reminders
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            let granted = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestFullAccessToReminders { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -112,7 +113,8 @@ final class ReminderSyncService {
             
             return granted
         } else {
-            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            let granted = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestAccess(to: .reminder) { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -206,7 +208,8 @@ final class ReminderSyncService {
         let predicate = eventStore.predicateForReminders(in: [targetCalendar])
 
         // Use the Sendable DTO to retrieve data safely
-        let ekRemindersData = await withCheckedContinuation { (continuation: CheckedContinuation<[ReminderSyncData]?, Never>) in
+        let ekRemindersData = await withCheckedContinuation {
+            (continuation: CheckedContinuation<[ReminderSyncData]?, Never>) in
             let continuationLock = NSLock()
             var pendingContinuation: CheckedContinuation<[ReminderSyncData]?, Never>? = continuation
 
@@ -432,8 +435,9 @@ final class ReminderSyncService {
         guard modelContext != nil else { return }
         
         // Debounce: Only sync if we haven't synced recently (within last 30 seconds)
-        // This prevents excessive syncing during rapid iCloud background updates, preserving battery life
-        // The logic guarantees a sync happens eventually: once 30 seconds pass since last sync, the next change will trigger a sync
+        // This prevents excessive syncing during rapid iCloud background updates,
+        // preserving battery life. The logic guarantees a sync happens eventually:
+        // once 30 seconds pass since last sync, the next change triggers a sync.
         if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 30.0 {
             return
         }

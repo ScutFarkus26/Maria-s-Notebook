@@ -152,7 +152,9 @@ struct DropZone: View {
             },
             onInsertionIndexChange: { idx in
                 if insertionIndex != idx {
-                    adaptiveWithAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+                    adaptiveWithAnimation(
+                        .interactiveSpring(response: 0.16, dampingFraction: 0.85)
+                    ) { insertionIndex = idx }
                 }
             }
         ))
@@ -182,7 +184,9 @@ struct DropZone: View {
         .onTapGesture { onSelectLesson(la) }
         .contextMenu {
             Button { onQuickActions(la) } label: { Label("Quick Actions…", systemImage: "bolt") }
-            Button { onPlanNext(la) } label: { Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus) }
+            Button { onPlanNext(la) } label: {
+                Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
+            }
             Button { onSelectLesson(la) } label: { Label("Open Details", systemImage: SFSymbol.Status.infoCircle) }
         }
         .background(
@@ -305,7 +309,10 @@ struct BoardDropDelegate: DropDelegate {
         let boundedIndex = max(0, min(insertionIndex, ids.count))
         ids.insert(targetLA.id, at: boundedIndex)
         let baseDate = dateForSlot(day: day, period: period)
-        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
+        let timeMap = PlanningDropUtils.assignSequentialTimes(
+            ids: ids, base: baseDate, calendar: calendar,
+            spacingSeconds: UIConstants.scheduleSpacingSeconds
+        )
         applyTimeMap(ids: ids, timeMap: timeMap, targetLA: targetLA)
 
         removeStudentFromSource(srcID: srcID, studentID: studentID)
@@ -355,7 +362,10 @@ struct BoardDropDelegate: DropDelegate {
         ids.insert(id, at: bounded)
 
         let baseDate = dateForSlot(day: day, period: period)
-        let timeMap = PlanningDropUtils.assignSequentialTimes(ids: ids, base: baseDate, calendar: calendar, spacingSeconds: UIConstants.scheduleSpacingSeconds)
+        let timeMap = PlanningDropUtils.assignSequentialTimes(
+            ids: ids, base: baseDate, calendar: calendar,
+            spacingSeconds: UIConstants.scheduleSpacingSeconds
+        )
         applyTimeMapForReorder(ids: ids, timeMap: timeMap)
         do {
             try modelContext.save()

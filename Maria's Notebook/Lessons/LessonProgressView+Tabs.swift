@@ -30,7 +30,11 @@ extension LessonProgressView {
             HStack(spacing: AppTheme.Spacing.compact) {
                 ZStack {
                     Circle()
-                        .fill(presentation.isPresented ? Color.green.opacity(UIConstants.OpacityConstants.accent) : Color.blue.opacity(UIConstants.OpacityConstants.accent))
+                        .fill(
+                            presentation.isPresented
+                                ? Color.green.opacity(UIConstants.OpacityConstants.accent)
+                                : Color.blue.opacity(UIConstants.OpacityConstants.accent)
+                        )
                         .frame(width: 44, height: 44)
 
                     Image(systemName: presentation.isPresented ? "checkmark.circle.fill" : "calendar")
@@ -82,7 +86,10 @@ extension LessonProgressView {
         )
         .overlay(
             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: UIConstants.StrokeWidth.thin)
+                .stroke(
+                    Color.primary.opacity(UIConstants.OpacityConstants.light),
+                    lineWidth: UIConstants.StrokeWidth.thin
+                )
         )
     }
 
@@ -154,7 +161,10 @@ extension LessonProgressView {
         )
         .overlay(
             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium + 2)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.faint), lineWidth: UIConstants.StrokeWidth.thin)
+                .stroke(
+                    Color.primary.opacity(UIConstants.OpacityConstants.faint),
+                    lineWidth: UIConstants.StrokeWidth.thin
+                )
         )
     }
 

@@ -119,9 +119,13 @@ final class StudentAnalysisService {
         if let earlierQuality = earlier.averagePracticeQuality,
            let laterQuality = later.averagePracticeQuality {
             if laterQuality > earlierQuality {
-                improvements.append("Practice quality improved from \(String(format: FormattingConstants.singleDecimal, earlierQuality)) to \(String(format: FormattingConstants.singleDecimal, laterQuality))")
+                let earlier = String(format: FormattingConstants.singleDecimal, earlierQuality)
+                let later = String(format: FormattingConstants.singleDecimal, laterQuality)
+                improvements.append("Practice quality improved from \(earlier) to \(later)")
             } else if laterQuality < earlierQuality {
-                regressions.append("Practice quality decreased from \(String(format: FormattingConstants.singleDecimal, earlierQuality)) to \(String(format: FormattingConstants.singleDecimal, laterQuality))")
+                let earlier = String(format: FormattingConstants.singleDecimal, earlierQuality)
+                let later = String(format: FormattingConstants.singleDecimal, laterQuality)
+                regressions.append("Practice quality decreased from \(earlier) to \(later)")
             }
         }
         
@@ -178,10 +182,12 @@ final class StudentAnalysisService {
         
         // Calculate metrics
         let practiceQualities = practiceSessions.compactMap { $0.practiceQuality }
-        let avgQuality = practiceQualities.isEmpty ? nil : Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
-        
+        let avgQuality: Double? = practiceQualities.isEmpty ? nil :
+            Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
+
         let independenceLevels = practiceSessions.compactMap { $0.independenceLevel }
-        let avgIndependence = independenceLevels.isEmpty ? nil : Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
+        let avgIndependence: Double? = independenceLevels.isEmpty ? nil :
+            Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
         
         return StudentDataPackage(
             student: student,
@@ -194,7 +200,9 @@ final class StudentAnalysisService {
         )
     }
     
-    private func performMCPAnalysis(studentData: StudentDataPackage, student: Student) async throws -> MCPAnalysisResult {
+    private func performMCPAnalysis(
+        studentData: StudentDataPackage, student: Student
+    ) async throws -> MCPAnalysisResult {
         // Prepare structured data for MCP analysis
         let analysisPayload = prepareAnalysisPayload(studentData: studentData, student: student)
         
@@ -203,7 +211,8 @@ final class StudentAnalysisService {
         You are an experienced Montessori guide analyzing a student's recent development.
         
         Student: \(student.fullName) (Age: \(student.birthday.age ?? 0), Level: \(student.level.rawValue))
-        Analysis Period: \(studentData.dateRange.lowerBound.formatted(date: .abbreviated, time: .omitted)) to \(studentData.dateRange.upperBound.formatted(date: .abbreviated, time: .omitted))
+        Analysis Period: \(studentData.dateRange.lowerBound.formatted(date: .abbreviated, time: .omitted)) to \
+        \(studentData.dateRange.upperBound.formatted(date: .abbreviated, time: .omitted))
         
         DATA SUMMARY:
         - Total Notes: \(studentData.notes.count)

@@ -84,7 +84,10 @@ enum TodayScheduleBuilder {
             // --- Stale/Follow-Up Logic ---
             if !isOverdueOrToday {
                 if WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: workNotes) {
-                    let days = WorkAgingPolicy.daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: workNotes)
+                    let days = WorkAgingPolicy.daysSinceLastTouch(
+                        for: work, modelContext: modelContext,
+                        checkIns: checkIns, notes: workNotes
+                    )
                     newStale.append(FollowUpWorkItem(work: work, daysSinceTouch: days))
                 }
             }

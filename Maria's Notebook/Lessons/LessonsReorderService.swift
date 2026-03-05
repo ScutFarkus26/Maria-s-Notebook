@@ -9,7 +9,10 @@ enum LessonsReorderService {
     ///   - toIndex: Target index within the subset
     ///   - subset: The subset of lessons being reordered (e.g., the current group view)
     ///   - context: ModelContext to save changes
-    public static func reorder(movingLesson: Lesson, fromIndex: Int, toIndex: Int, subset: [Lesson], context: ModelContext) throws {
+    public static func reorder(
+        movingLesson: Lesson, fromIndex: Int, toIndex: Int,
+        subset: [Lesson], context: ModelContext
+    ) throws {
         var ordered = subset
         let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
         let item = ordered.remove(at: boundedFrom)
@@ -29,7 +32,10 @@ enum LessonsReorderService {
     ///   - allLessonsInSubject: All lessons in the subject (across all groups)
     ///   - context: ModelContext to save changes
     @MainActor
-    public static func reorderInSubject(movingLesson: Lesson, fromIndex: Int, toIndex: Int, allLessonsInSubject: [Lesson], context: ModelContext) throws {
+    public static func reorderInSubject(
+        movingLesson: Lesson, fromIndex: Int, toIndex: Int,
+        allLessonsInSubject: [Lesson], context: ModelContext
+    ) throws {
         var ordered = allLessonsInSubject
         let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
         let item = ordered.remove(at: boundedFrom)
@@ -52,7 +58,10 @@ enum LessonsReorderService {
     ///   - groupLessons: All lessons in the group
     ///   - context: ModelContext to save changes
     @MainActor
-    public static func reorderInGroup(movingLesson: Lesson, fromIndex: Int, toIndex: Int, groupLessons: [Lesson], context: ModelContext) throws {
+    public static func reorderInGroup(
+        movingLesson: Lesson, fromIndex: Int, toIndex: Int,
+        groupLessons: [Lesson], context: ModelContext
+    ) throws {
         var ordered = groupLessons
         let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
         let item = ordered.remove(at: boundedFrom)

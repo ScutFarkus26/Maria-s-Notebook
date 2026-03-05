@@ -12,7 +12,8 @@ struct AppleIntelligenceSheet: View {
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
@@ -348,7 +349,9 @@ struct SmartNoteFormatter {
     
     private func dateRangeString(notes: [Note]) -> String {
         guard let first = notes.first?.updatedAt, let last = notes.last?.updatedAt else { return "N/A" }
-        if Calendar.current.isDate(first, inSameDayAs: last) { return first.formatted(date: .abbreviated, time: .omitted) }
+        if Calendar.current.isDate(first, inSameDayAs: last) {
+            return first.formatted(date: .abbreviated, time: .omitted)
+        }
         return "\(first.formatted(date: .numeric, time: .omitted)) - \(last.formatted(date: .numeric, time: .omitted))"
     }
 }
@@ -371,6 +374,7 @@ enum PromptTemplate: String, CaseIterable {
         }
     }
     
+    // swiftlint:disable line_length
     var instruction: String {
         switch self {
         case .raw: return ""
@@ -384,4 +388,5 @@ enum PromptTemplate: String, CaseIterable {
             return "Task: Provide a concise bulleted summary of the key themes found in these notes."
         }
     }
+    // swiftlint:enable line_length
 }

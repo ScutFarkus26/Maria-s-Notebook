@@ -53,6 +53,7 @@ extension LifecycleService {
                         modelContext: context
                     )
                 } catch {
+                    // swiftlint:disable:next line_length
                     logger.warning("Failed to create/get GroupTrack for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
                 }
             }
@@ -83,6 +84,7 @@ extension LifecycleService {
 
             // Validate lesson exists before attempting to sync
             guard lesson != nil else {
+                // swiftlint:disable:next line_length
                 logger.warning("Skipping LessonAssignment \(la.id, privacy: .public): lesson not found for lessonID \(la.lessonID, privacy: .public)")
                 continue
             }
@@ -117,6 +119,7 @@ extension LifecycleService {
             } catch {
                 // If recordPresentationAndExplodeWork fails (e.g., lesson not found),
                 // still try to create LessonPresentation record directly
+                // swiftlint:disable:next line_length
                 logger.warning("Failed to process LessonAssignment \(la.id, privacy: .public): \(error.localizedDescription)")
 
                 // Fallback: create LessonPresentation directly
@@ -154,6 +157,7 @@ extension LifecycleService {
                             modelContext: context
                         )
                     } catch {
+                        // swiftlint:disable:next line_length
                         logger.warning("Failed to create/get GroupTrack for \(lesson.subject, privacy: .public)/\(lesson.group, privacy: .public): \(error.localizedDescription)")
                     }
 
@@ -166,7 +170,10 @@ extension LifecycleService {
 
                     // Update trackID on LessonPresentation records for this lesson+student combo
                     let trackID = "\(lesson.subject.trimmed())|\(lesson.group.trimmed())"
-                    let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>(), using: context, caller: "syncAllStudentProgress")
+                    let allLessonPresentations = safeFetch(
+                        FetchDescriptor<LessonPresentation>(), using: context,
+                        caller: "syncAllStudentProgress"
+                    )
                     for studentIDStr in la.studentIDs {
                         if let lp = allLessonPresentations.first(where: {
                             $0.lessonID == la.lessonID &&
@@ -240,7 +247,8 @@ extension LifecycleService {
                         }) {
                             if lp.state != .proficient || lp.masteredAt == nil {
                                 lp.state = .proficient
-                                lp.masteredAt = participant.completedAt ?? work.completedAt ?? work.lastTouchedAt ?? Date()
+                                lp.masteredAt = participant.completedAt
+                                    ?? work.completedAt ?? work.lastTouchedAt ?? Date()
                                 proficientCount += 1
                             }
                         }

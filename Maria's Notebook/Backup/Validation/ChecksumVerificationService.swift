@@ -14,7 +14,12 @@ public final class ChecksumVerificationService {
         public var createdAt: Date
         public var algorithm: String
         
-        public init(globalChecksum: String, entityChecksums: [String: String], createdAt: Date = Date(), algorithm: String = "SHA-256") {
+        public init(
+            globalChecksum: String,
+            entityChecksums: [String: String],
+            createdAt: Date = Date(),
+            algorithm: String = "SHA-256"
+        ) {
             self.globalChecksum = globalChecksum
             self.entityChecksums = entityChecksums
             self.createdAt = createdAt
@@ -60,11 +65,17 @@ public final class ChecksumVerificationService {
         entityChecksums["AttendanceRecord"] = try checksumFor(payload.attendance, encoder: encoder)
         entityChecksums["WorkCompletionRecord"] = try checksumFor(payload.workCompletions, encoder: encoder)
         entityChecksums["Project"] = try checksumFor(payload.projects, encoder: encoder)
-        entityChecksums["ProjectAssignmentTemplate"] = try checksumFor(payload.projectAssignmentTemplates, encoder: encoder)
+        entityChecksums["ProjectAssignmentTemplate"] = try checksumFor(
+            payload.projectAssignmentTemplates, encoder: encoder
+        )
         entityChecksums["ProjectSession"] = try checksumFor(payload.projectSessions, encoder: encoder)
         entityChecksums["ProjectRole"] = try checksumFor(payload.projectRoles, encoder: encoder)
-        entityChecksums["ProjectTemplateWeek"] = try checksumFor(payload.projectTemplateWeeks, encoder: encoder)
-        entityChecksums["ProjectWeekRoleAssignment"] = try checksumFor(payload.projectWeekRoleAssignments, encoder: encoder)
+        entityChecksums["ProjectTemplateWeek"] = try checksumFor(
+            payload.projectTemplateWeeks, encoder: encoder
+        )
+        entityChecksums["ProjectWeekRoleAssignment"] = try checksumFor(
+            payload.projectWeekRoleAssignments, encoder: encoder
+        )
         entityChecksums["Preferences"] = try checksumFor(payload.preferences, encoder: encoder)
         
         // Generate global checksum from all entity checksums combined

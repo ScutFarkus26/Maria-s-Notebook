@@ -72,8 +72,16 @@ extension BackupEntityImporter {
 
     // MARK: - Note Templates
 
-    static func importNoteTemplates(_ dtos: [NoteTemplateDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<NoteTemplate>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importNoteTemplates(
+        _ dtos: [NoteTemplateDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<NoteTemplate>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let templateTags: [String]
             if let dtoTags = dto.tags, !dtoTags.isEmpty {
                 templateTags = dtoTags
@@ -102,8 +110,18 @@ extension BackupEntityImporter {
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<CommunityTopic>
     ) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
-            let topic = CommunityTopic(id: dto.id, title: dto.title, issueDescription: dto.issueDescription, createdAt: dto.createdAt, addressedDate: dto.addressedDate, resolution: dto.resolution)
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+            let topic = CommunityTopic(
+                id: dto.id, title: dto.title,
+                issueDescription: dto.issueDescription,
+                createdAt: dto.createdAt,
+                addressedDate: dto.addressedDate,
+                resolution: dto.resolution
+            )
             topic.raisedBy = dto.raisedBy
             topic.tags = dto.tags
             return topic
@@ -149,6 +167,7 @@ extension BackupEntityImporter {
                         solution.topic = topic
                     }
                 } catch {
+                        // swiftlint:disable:next line_length
                     print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check topic for proposed solution: \(error)")
                 }
             }
@@ -195,6 +214,7 @@ extension BackupEntityImporter {
                         attachment.topic = topic
                     }
                 } catch {
+                        // swiftlint:disable:next line_length
                     print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check topic for community attachment: \(error)")
                 }
             }
@@ -205,8 +225,16 @@ extension BackupEntityImporter {
 
     // MARK: - Issues
 
-    static func importIssues(_ dtos: [IssueDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Issue>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importIssues(
+        _ dtos: [IssueDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<Issue>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let i = Issue(
                 title: dto.title,
                 description: dto.issueDescription,
@@ -266,8 +294,16 @@ extension BackupEntityImporter {
 
     // MARK: - Development Snapshots
 
-    static func importDevelopmentSnapshots(_ dtos: [DevelopmentSnapshotDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<DevelopmentSnapshot>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
+    static func importDevelopmentSnapshots(
+        _ dtos: [DevelopmentSnapshotDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<DevelopmentSnapshot>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
             let s = DevelopmentSnapshot(
                 id: dto.id,
                 studentID: dto.studentID,

@@ -126,7 +126,10 @@ struct BackupStatusView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Entity Counts")
                                     .font(.headline)
-                                ForEach(Array(info.entityCounts.sorted(by: { $0.key < $1.key })), id: \.key) { key, count in
+                                ForEach(
+                                    Array(info.entityCounts.sorted(by: { $0.key < $1.key })),
+                                    id: \.key
+                                ) { key, count in
                                     HStack {
                                         Text(key)
                                             .font(.caption)

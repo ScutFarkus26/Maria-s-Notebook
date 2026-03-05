@@ -32,11 +32,18 @@ public struct BulkLessonsEntryView: View {
     @State private var batchSource: LessonSource = .album
     @State private var batchPersonalKind: PersonalLessonKind = .personal
 
-    public init(defaultSubject: String? = nil, defaultGroup: String? = nil, onDone: (() -> Void)? = nil) {
+    public init(
+        defaultSubject: String? = nil,
+        defaultGroup: String? = nil,
+        onDone: (() -> Void)? = nil
+    ) {
         self.defaultSubject = defaultSubject?.trimmed()
         self.defaultGroup = defaultGroup?.trimmed()
         self.onDone = onDone
-        _rows = State(initialValue: Self.initialRows(count: 10, defaultSubject: self.defaultSubject, defaultGroup: self.defaultGroup))
+        _rows = State(initialValue: Self.initialRows(
+            count: 10, defaultSubject: self.defaultSubject,
+            defaultGroup: self.defaultGroup
+        ))
     }
 
     private let columnSpacing: CGFloat = 8
@@ -231,11 +238,26 @@ public struct BulkLessonsEntryView: View {
         HStack(spacing: columnSpacing) {
             // Selection header (empty space)
             Spacer().frame(width: selectionColumnWidth)
-            Text("Name").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[0], alignment: .leading)
-            Text("Subject").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[1], alignment: .leading)
-            Text("Group").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[2], alignment: .leading)
-            Text("Subheading").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[3], alignment: .leading)
-            Text("Write Up").font(AppTheme.ScaledFont.captionSemibold).foregroundStyle(.secondary).frame(width: widths[4], alignment: .leading)
+            Text("Name")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+                .frame(width: widths[0], alignment: .leading)
+            Text("Subject")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+                .frame(width: widths[1], alignment: .leading)
+            Text("Group")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+                .frame(width: widths[2], alignment: .leading)
+            Text("Subheading")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+                .frame(width: widths[3], alignment: .leading)
+            Text("Write Up")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+                .frame(width: widths[4], alignment: .leading)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)

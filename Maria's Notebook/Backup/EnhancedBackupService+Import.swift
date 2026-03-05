@@ -35,7 +35,8 @@ extension EnhancedBackupService {
                 domain: "EnhancedBackupService",
                 code: 1,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "Backup validation failed with \(validationResult.errors.count) critical errors"
+                    NSLocalizedDescriptionKey:
+                        "Backup validation failed with \(validationResult.errors.count) critical errors"
                 ]
             )
         }

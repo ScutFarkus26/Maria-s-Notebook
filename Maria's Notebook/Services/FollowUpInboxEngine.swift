@@ -80,7 +80,10 @@ struct FollowUpInboxEngine {
 
     // MARK: - Helper Methods
 
-    private static func safeFetch<T>(_ descriptor: FetchDescriptor<T>, modelContext: ModelContext, context: String = #function) -> [T] {
+    private static func safeFetch<T>(
+        _ descriptor: FetchDescriptor<T>, modelContext: ModelContext,
+        context: String = #function
+    ) -> [T] {
         do {
             return try modelContext.fetch(descriptor)
         } catch {
@@ -130,11 +133,17 @@ struct FollowUpInboxEngine {
         }
 
         // PERFORMANCE: Pre-fetch ALL school day data ONCE to avoid N+1 queries in schoolDaysSince loop
+        let nonSchoolDays = safeFetch(
+            FetchDescriptor<NonSchoolDay>(), modelContext: modelContext, context: "computeItems"
+        )
         let nonSchoolDaysSet: Set<Date> = Set(
-            safeFetch(FetchDescriptor<NonSchoolDay>(), modelContext: modelContext, context: "computeItems").map { AppCalendar.startOfDay($0.date) }
+            nonSchoolDays.map { AppCalendar.startOfDay($0.date) }
+        )
+        let schoolDayOverrides = safeFetch(
+            FetchDescriptor<SchoolDayOverride>(), modelContext: modelContext, context: "computeItems"
         )
         let schoolDayOverridesSet: Set<Date> = Set(
-            safeFetch(FetchDescriptor<SchoolDayOverride>(), modelContext: modelContext, context: "computeItems").map { AppCalendar.startOfDay($0.date) }
+            schoolDayOverrides.map { AppCalendar.startOfDay($0.date) }
         )
 
         // Synchronous helper that determines if a date is a non-school day using pre-fetched data (O(1) lookup)

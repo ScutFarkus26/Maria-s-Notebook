@@ -221,7 +221,10 @@ struct LessonsCardsGridView: View {
     @ViewBuilder
     private func groupHeader(for groupName: String, subject: String?) -> some View {
         let displayName = groupName.isEmpty ? "Ungrouped" : groupName
-        let hasIntro = subject != nil && introductionStore.hasIntroduction(for: subject!, group: groupName.isEmpty ? nil : groupName)
+        let groupArg = groupName.isEmpty ? nil : groupName
+        let hasIntro = subject != nil && introductionStore.hasIntroduction(
+            for: subject!, group: groupArg
+        )
 
         HStack(spacing: 8) {
             Text(displayName)
@@ -231,7 +234,9 @@ struct LessonsCardsGridView: View {
             if hasIntro {
                 Button {
                     if let subj = subject {
-                        introductionToShow = introductionStore.introduction(for: subj, group: groupName.isEmpty ? nil : groupName)
+                        introductionToShow = introductionStore.introduction(
+                        for: subj, group: groupArg
+                    )
                     }
                 } label: {
                     Image(systemName: "info.circle")
@@ -337,7 +342,10 @@ struct LessonsCardsGridView: View {
                     }
                     if let startCenter = centers[lesson.id] {
                         let translation = drag.translation
-                        if let targetID = nearestTargetID(from: startCenter, translation: translation, centers: centers) {
+                        let targetID = nearestTargetID(
+                            from: startCenter, translation: translation, centers: centers
+                        )
+                        if let targetID {
                             hoverTargetID = targetID
                         }
                     }
@@ -364,7 +372,11 @@ struct LessonsCardsGridView: View {
                 } else {
                     var translation = CGSize.zero
                     if case .second(true, let drag?) = value { translation = drag.translation }
-                    if let startCenter = centers[lesson.id], let targetID = nearestTargetID(from: startCenter, translation: translation, centers: centers), let idx = subsetIDs.firstIndex(of: targetID) {
+                    if let startCenter = centers[lesson.id],
+                       let targetID = nearestTargetID(
+                           from: startCenter, translation: translation, centers: centers
+                       ),
+                       let idx = subsetIDs.firstIndex(of: targetID) {
                         toIndex = idx
                     } else {
                         return
@@ -425,11 +437,17 @@ private struct LessonCardContainer: View {
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isDragging ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 2)
+                    .stroke(
+                        isDragging ? Color.accentColor.opacity(0.6) : Color.clear,
+                        lineWidth: 2
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isHover ? Color.accentColor.opacity(0.35) : Color.clear, style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                    .stroke(
+                        isHover ? Color.accentColor.opacity(0.35) : Color.clear,
+                        style: StrokeStyle(lineWidth: 2, dash: [6, 6])
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
@@ -506,8 +524,16 @@ private class RightClickView: NSView {
 #Preview {
     LessonsCardsGridView(
         lessons: [
-            Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Introduction to base-10", writeUp: ""),
-            Lesson(name: "Parts of Speech", subject: "Language", group: "Grammar", subheading: "Nouns and Verbs", writeUp: "")
+            Lesson(
+                name: "Decimal System", subject: "Math",
+                group: "Number Work", subheading: "Introduction to base-10",
+                writeUp: ""
+            ),
+            Lesson(
+                name: "Parts of Speech", subject: "Language",
+                group: "Grammar", subheading: "Nouns and Verbs",
+                writeUp: ""
+            )
         ],
         isManualMode: false,
         onTapLesson: { _ in },

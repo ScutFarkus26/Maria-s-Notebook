@@ -48,7 +48,12 @@ struct LessonsViewModel {
         }
     }
 
-    private func indexForGroup(_ group: String, inSubject subject: String, cache: inout [String: [String: Int]], lessons: [Lesson]) -> Int {
+    private func indexForGroup(
+        _ group: String,
+        inSubject subject: String,
+        cache: inout [String: [String: Int]],
+        lessons: [Lesson]
+    ) -> Int {
         let key = norm(subject)
         if cache[key] == nil { cache[key] = groupIndex(for: subject, lessons: lessons) }
         return cache[key]?[norm(group)] ?? Int.max
@@ -82,9 +87,11 @@ struct LessonsViewModel {
         
         return #Predicate<Lesson> { lesson in
             (sourceFilterRaw == nil || lesson.sourceRaw == sourceFilterRaw!) &&
-            (!hasPersonalKindFilter || (lesson.sourceRaw == personalRawValue && (lesson.personalKindRaw == personalKindFilterRaw || (lesson.personalKindRaw == nil && personalKindFilterRaw == personalKindPersonalRaw)))) &&
-            // Note: Predicates don't support .trimmed(), so we rely on exact match here,
-            // but the in-memory fallback below handles the loose matching.
+            (!hasPersonalKindFilter ||
+                (lesson.sourceRaw == personalRawValue &&
+                    (lesson.personalKindRaw == personalKindFilterRaw ||
+                        (lesson.personalKindRaw == nil &&
+                            personalKindFilterRaw == personalKindPersonalRaw)))) &&
             (!hasSubject || lesson.subject == trimmedSubject!) &&
             (!hasGroup || lesson.group == trimmedGroup!)
         }
@@ -101,7 +108,9 @@ struct LessonsViewModel {
             if let personalKindFilterRaw = personalKindFilter?.rawValue {
                 return #Predicate<Lesson> {
                     $0.sourceRaw == personalRawValue &&
-                    ($0.personalKindRaw == personalKindFilterRaw || ($0.personalKindRaw == nil && personalKindFilterRaw == personalKindPersonalRaw))
+                    ($0.personalKindRaw == personalKindFilterRaw ||
+                        ($0.personalKindRaw == nil &&
+                            personalKindFilterRaw == personalKindPersonalRaw))
                 }
             }
             return nil
@@ -113,7 +122,9 @@ struct LessonsViewModel {
         if let personalKindFilterRaw = personalKindFilter?.rawValue, isPersonalSourceFilter {
             return #Predicate<Lesson> {
                 $0.sourceRaw == personalRawValue &&
-                ($0.personalKindRaw == personalKindFilterRaw || ($0.personalKindRaw == nil && personalKindFilterRaw == personalKindPersonalRaw))
+                ($0.personalKindRaw == personalKindFilterRaw ||
+                    ($0.personalKindRaw == nil &&
+                        personalKindFilterRaw == personalKindPersonalRaw))
             }
         }
         
@@ -224,7 +235,8 @@ struct LessonsViewModel {
         // Sorting logic with pre-computed indices
         if !query.isEmpty {
             // OPTIMIZATION: Pre-compute all sort keys to avoid repeated calculations during comparison
-            let sortKeys = fetched.map { lesson -> (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String) in
+            typealias SortKey = (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String)
+            let sortKeys = fetched.map { lesson -> SortKey in
                 let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
                 let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
                 return (subjectIdx, groupIdx, lesson.orderInGroup, lesson.name, lesson.id.uuidString)
@@ -269,7 +281,8 @@ struct LessonsViewModel {
             }
         } else {
             // OPTIMIZATION: Pre-compute all sort keys to avoid repeated calculations during comparison
-            let sortKeys = fetched.map { lesson -> (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String) in
+            typealias SortKey = (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String)
+            let sortKeys = fetched.map { lesson -> SortKey in
                 let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
                 let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
                 return (subjectIdx, groupIdx, lesson.orderInGroup, lesson.name, lesson.id.uuidString)
@@ -392,7 +405,15 @@ struct LessonsViewModel {
         }
         
         let status: LessonStatus
-        if isStale || isOverdue { status = .stalled } else if !activeWork.isEmpty { status = .practicing } else if isPresented { status = .presented } else { status = .ready }
+        if isStale || isOverdue {
+            status = .stalled
+        } else if !activeWork.isEmpty {
+            status = .practicing
+        } else if isPresented {
+            status = .presented
+        } else {
+            status = .ready
+        }
         
         let resolvedCache: SchoolDayLookupCache
         if let schoolDayCache = schoolDayCache {

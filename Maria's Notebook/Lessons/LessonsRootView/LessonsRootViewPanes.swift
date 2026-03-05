@@ -258,7 +258,9 @@ extension LessonsRootView {
     }
 
     @ViewBuilder
-    private func expandedGroupSection(group: String, ungroupedLabel: String, scrollProxy: ScrollViewProxy) -> some View {
+    private func expandedGroupSection(
+        group: String, ungroupedLabel: String, scrollProxy: ScrollViewProxy
+    ) -> some View {
         let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
 
         if !groupLessons.isEmpty {

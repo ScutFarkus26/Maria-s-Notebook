@@ -136,5 +136,13 @@ struct BackupSummaryView: View {
 }
 
 #Preview {
-    BackupSummaryView(summary: BackupOperationSummary(kind: .export, fileName: "sample.mtbbackup", formatVersion: BackupFile.formatVersion, encryptUsed: true, createdAt: Date(), entityCounts: ["students": 24, "lessons": 180], warnings: ["Files/attachments are not included in backups by design."]))
+    BackupSummaryView(summary: BackupOperationSummary(
+        kind: .export,
+        fileName: "sample.mtbbackup",
+        formatVersion: BackupFile.formatVersion,
+        encryptUsed: true,
+        createdAt: Date(),
+        entityCounts: ["students": 24, "lessons": 180],
+        warnings: ["Files/attachments are not included in backups by design."]
+    ))
 }

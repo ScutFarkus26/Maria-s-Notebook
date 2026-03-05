@@ -103,7 +103,8 @@ final class LessonPlanningService {
         // Add assistant message summarizing the plan
         let summary = recommendations.isEmpty
             ? "No recommendations found for \(student.fullName) at this time."
-            : "Found \(recommendations.count) lesson recommendation\(recommendations.count == 1 ? "" : "s") for \(student.fullName)."
+            : "Found \(recommendations.count) lesson recommendation"
+            + "\(recommendations.count == 1 ? "" : "s") for \(student.fullName)."
         session.messages.append(PlanningMessage(
             role: .assistant,
             content: summary,
@@ -202,7 +203,9 @@ final class LessonPlanningService {
         session.weekPlan = weekPlan
         session.recommendations = scheduledRecs
         
-        let summary = "Generated weekly plan with \(scheduledRecs.count) presentations across \(weekPlan.days.count) days."
+        let recCount = scheduledRecs.count
+        let dayCount = weekPlan.days.count
+        let summary = "Generated weekly plan with \(recCount) presentations across \(dayCount) days."
         session.messages.append(PlanningMessage(
             role: .assistant,
             content: summary,
@@ -223,7 +226,8 @@ final class LessonPlanningService {
         
         // Build condensed context (~500 tokens)
         let context = buildCondensedContext(from: session)
-        let currentPlan = session.recommendations.isEmpty ? nil : encodeRecommendationsForPrompt(session.recommendations)
+        let currentPlan = session.recommendations.isEmpty
+            ? nil : encodeRecommendationsForPrompt(session.recommendations)
         
         let followUpPrompt = PlanningPromptBuilder.buildFollowUpPrompt(
             question: question,
@@ -323,8 +327,10 @@ final class LessonPlanningService {
                 
                 // Resolve student IDs from names
                 let resolvedStudentIDs = apiRec.studentNames.compactMap { name -> UUID? in
-                    studentNameMap[name.lowercased()]
-                        ?? studentNameMap.first { $0.key.contains(name.lowercased().components(separatedBy: " ").first ?? "") }?.value
+                    let lowered = name.lowercased()
+                    let firstWord = lowered.components(separatedBy: " ").first ?? ""
+                    return studentNameMap[lowered]
+                        ?? studentNameMap.first { $0.key.contains(firstWord) }?.value
                 }
                 
                 return LessonRecommendation(
@@ -407,11 +413,16 @@ final class LessonPlanningService {
         // Assign recommendations to days
         for rec in recommendations {
             if let dayName = rec.suggestedDay,
-               let dayIndex = days.firstIndex(where: { $0.dayName.lowercased().hasPrefix(dayName.lowercased().prefix(3).description) }) {
+               let dayIndex = days.firstIndex(where: {
+                   let prefix = dayName.lowercased().prefix(3)
+                   return $0.dayName.lowercased().hasPrefix(String(prefix))
+               }) {
                 days[dayIndex].recommendations.append(rec)
             } else {
                 // Find the day with fewest recommendations
-                if let minIndex = days.indices.min(by: { days[$0].recommendations.count < days[$1].recommendations.count }) {
+                if let minIndex = days.indices.min(by: {
+                    days[$0].recommendations.count < days[$1].recommendations.count
+                }) {
                     days[minIndex].recommendations.append(rec)
                 }
             }
@@ -494,7 +505,11 @@ final class LessonPlanningService {
     
     private func fetchAllLessons() -> [Lesson] {
         let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)]
+            sortBy: [
+                SortDescriptor(\Lesson.subject),
+                SortDescriptor(\Lesson.group),
+                SortDescriptor(\Lesson.orderInGroup)
+            ]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
     }

@@ -38,6 +38,7 @@ extension CloudBackupService {
                     let jitter = Double.random(in: 0...0.5)
                     let actualDelay = min(delay + jitter, retryConfiguration.maxDelaySeconds)
 
+                    // swiftlint:disable:next line_length
                     Logger.backup.error("Attempt \(attempt + 1) failed: \(error.localizedDescription). Retrying in \(actualDelay)s...")
 
                     try await Task.sleep(for: .seconds(actualDelay))

@@ -97,7 +97,13 @@ public final class StreamingBackupWriter {
         guard let studentDTOs = s as? [StudentDTO],
               let lessonDTOs = l as? [LessonDTO],
               let noteDTOs = n as? [NoteDTO] else {
-            throw WriteError.encodingFailed(NSError(domain: "StreamingBackupWriter", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to cast entity types during processing"]))
+            throw WriteError.encodingFailed(NSError(
+                domain: "StreamingBackupWriter", code: -1,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Failed to cast entity types during processing"
+                ]
+            ))
         }
         
         // Continue with other entity types (sequential for now to maintain order)
@@ -106,13 +112,17 @@ public final class StreamingBackupWriter {
         // LegacyPresentation removed — no longer exported in new backups
         let legacyPresentationDTOs: [LegacyPresentationDTO] = []
         
-        let lessonAssignments: [LessonAssignment] = try await streamFetchRaw(LessonAssignment.self, from: modelContext)
+        let lessonAssignments: [LessonAssignment] = try await streamFetchRaw(
+            LessonAssignment.self, from: modelContext
+        )
         let lessonAssignmentDTOs = BackupDTOTransformers.toDTOs(lessonAssignments)
         
         let nonSchoolDays: [NonSchoolDay] = try await streamFetchRaw(NonSchoolDay.self, from: modelContext)
         let nonSchoolDTOs = BackupDTOTransformers.toDTOs(nonSchoolDays)
         
-        let schoolDayOverrides: [SchoolDayOverride] = try await streamFetchRaw(SchoolDayOverride.self, from: modelContext)
+        let schoolDayOverrides: [SchoolDayOverride] = try await streamFetchRaw(
+            SchoolDayOverride.self, from: modelContext
+        )
         let schoolOverrideDTOs = BackupDTOTransformers.toDTOs(schoolDayOverrides)
         
         let studentMeetings: [StudentMeeting] = try await streamFetchRaw(StudentMeeting.self, from: modelContext)
@@ -124,19 +134,25 @@ public final class StreamingBackupWriter {
         let proposedSolutions: [ProposedSolution] = try await streamFetchRaw(ProposedSolution.self, from: modelContext)
         let solutionDTOs = BackupDTOTransformers.toDTOs(proposedSolutions)
         
-        let communityAttachments: [CommunityAttachment] = try await streamFetchRaw(CommunityAttachment.self, from: modelContext)
+        let communityAttachments: [CommunityAttachment] = try await streamFetchRaw(
+            CommunityAttachment.self, from: modelContext
+        )
         let attachmentDTOs = BackupDTOTransformers.toDTOs(communityAttachments)
         
         let attendance: [AttendanceRecord] = try await streamFetchRaw(AttendanceRecord.self, from: modelContext)
         let attendanceDTOs = BackupDTOTransformers.toDTOs(attendance)
         
-        let workCompletions: [WorkCompletionRecord] = try await streamFetchRaw(WorkCompletionRecord.self, from: modelContext)
+        let workCompletions: [WorkCompletionRecord] = try await streamFetchRaw(
+            WorkCompletionRecord.self, from: modelContext
+        )
         let workCompletionDTOs = BackupDTOTransformers.toDTOs(workCompletions)
         
         let projects: [Project] = try await streamFetchRaw(Project.self, from: modelContext)
         let projectDTOs = BackupDTOTransformers.toDTOs(projects)
         
-        let projectTemplates: [ProjectAssignmentTemplate] = try await streamFetchRaw(ProjectAssignmentTemplate.self, from: modelContext)
+        let projectTemplates: [ProjectAssignmentTemplate] = try await streamFetchRaw(
+            ProjectAssignmentTemplate.self, from: modelContext
+        )
         let projectTemplateDTOs = BackupDTOTransformers.toDTOs(projectTemplates)
         
         let projectSessions: [ProjectSession] = try await streamFetchRaw(ProjectSession.self, from: modelContext)
@@ -148,7 +164,10 @@ public final class StreamingBackupWriter {
         let projectWeeks: [ProjectTemplateWeek] = try await streamFetchRaw(ProjectTemplateWeek.self, from: modelContext)
         let projectWeekDTOs = BackupDTOTransformers.toDTOs(projectWeeks)
         
-        let projectWeekAssignments: [ProjectWeekRoleAssignment] = try await streamFetchRaw(ProjectWeekRoleAssignment.self, from: modelContext)
+        let projectWeekAssignments: [ProjectWeekRoleAssignment] =
+            try await streamFetchRaw(
+                ProjectWeekRoleAssignment.self, from: modelContext
+            )
         let projectWeekAssignDTOs = BackupDTOTransformers.toDTOs(projectWeekAssignments)
         
         progress(0.40, "Processing work tracking…", processedEntities, nil)
@@ -160,7 +179,9 @@ public final class StreamingBackupWriter {
         let workSteps: [WorkStep] = try await streamFetchRaw(WorkStep.self, from: modelContext)
         let workStepDTOs = BackupDTOTransformers.toDTOs(workSteps)
         
-        let workParticipants: [WorkParticipantEntity] = try await streamFetchRaw(WorkParticipantEntity.self, from: modelContext)
+        let workParticipants: [WorkParticipantEntity] = try await streamFetchRaw(
+            WorkParticipantEntity.self, from: modelContext
+        )
         let workParticipantDTOs = BackupDTOTransformers.toDTOs(workParticipants)
         
         let practiceSessions: [PracticeSession] = try await streamFetchRaw(PracticeSession.self, from: modelContext)
@@ -171,7 +192,9 @@ public final class StreamingBackupWriter {
         let lessonAttachments: [LessonAttachment] = try await streamFetchRaw(LessonAttachment.self, from: modelContext)
         let lessonAttachmentDTOs = BackupDTOTransformers.toDTOs(lessonAttachments)
         
-        let lessonPresentations: [LessonPresentation] = try await streamFetchRaw(LessonPresentation.self, from: modelContext)
+        let lessonPresentations: [LessonPresentation] = try await streamFetchRaw(
+            LessonPresentation.self, from: modelContext
+        )
         let lessonPresentationDTOs = BackupDTOTransformers.toDTOs(lessonPresentations)
 
         let lessonExercises: [LessonExercise] = try await streamFetchRaw(LessonExercise.self, from: modelContext)
@@ -201,7 +224,9 @@ public final class StreamingBackupWriter {
         let trackSteps: [TrackStep] = try await streamFetchRaw(TrackStep.self, from: modelContext)
         let trackStepDTOs = BackupDTOTransformers.toDTOs(trackSteps)
         
-        let enrollments: [StudentTrackEnrollment] = try await streamFetchRaw(StudentTrackEnrollment.self, from: modelContext)
+        let enrollments: [StudentTrackEnrollment] = try await streamFetchRaw(
+            StudentTrackEnrollment.self, from: modelContext
+        )
         let enrollmentDTOs = BackupDTOTransformers.toDTOs(enrollments)
         
         let groupTracks: [GroupTrack] = try await streamFetchRaw(GroupTrack.self, from: modelContext)
@@ -215,7 +240,9 @@ public final class StreamingBackupWriter {
         let supplies: [Supply] = try await streamFetchRaw(Supply.self, from: modelContext)
         let supplyDTOs = BackupDTOTransformers.toDTOs(supplies)
         
-        let supplyTransactions: [SupplyTransaction] = try await streamFetchRaw(SupplyTransaction.self, from: modelContext)
+        let supplyTransactions: [SupplyTransaction] = try await streamFetchRaw(
+            SupplyTransaction.self, from: modelContext
+        )
         let supplyTransactionDTOs = BackupDTOTransformers.toDTOs(supplyTransactions)
         
         let procedures: [Procedure] = try await streamFetchRaw(Procedure.self, from: modelContext)

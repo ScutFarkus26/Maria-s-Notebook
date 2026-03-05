@@ -182,9 +182,14 @@ enum TodayNavigationService {
                 let filtered = allStudents.filter { neededStudentIDs.contains($0.id) }
                 // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
                 let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID
-                let studentsByID = Dictionary(visibleStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                let studentsByID = Dictionary(
+                    visibleStudents.map { ($0.id, $0) },
+                    uniquingKeysWith: { first, _ in first }
+                )
 
-                let filteredLessons = filterLessonsByLevel(lessons, studentsByID: studentsByID, levelFilter: levelFilter)
+                let filteredLessons = filterLessonsByLevel(
+                    lessons, studentsByID: studentsByID, levelFilter: levelFilter
+                )
                 return !filteredLessons.isEmpty
             }
 

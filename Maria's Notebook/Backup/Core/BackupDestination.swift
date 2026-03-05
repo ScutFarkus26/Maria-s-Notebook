@@ -34,7 +34,12 @@ enum BackupDestination {
         #endif
         
         do {
-            let url = try URL(resolvingBookmarkData: data, options: options, relativeTo: nil, bookmarkDataIsStale: &stale)
+            let url = try URL(
+                resolvingBookmarkData: data,
+                options: options,
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
             
             if stale {
                 // If the system tells us the bookmark is stale (e.g. folder moved/renamed),

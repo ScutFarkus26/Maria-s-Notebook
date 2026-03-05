@@ -207,12 +207,18 @@ class ClassSubjectChecklistViewModel {
         let lessonIDString = lesson.id.uuidString
         let studentIDString = student.id.uuidString
 
-        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.lessonID == lessonIDString }
+        )
+        let allLAs = context.safeFetch(descriptor)
 
         if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
         } else {
-            addStudentToUnscheduledLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
+            addStudentToUnscheduledLesson(
+                student: student, studentIDString: studentIDString,
+                lesson: lesson, in: allLAs, context: context
+            )
         }
     }
 
@@ -230,7 +236,10 @@ class ClassSubjectChecklistViewModel {
         }
     }
 
-    private func addStudentToUnscheduledLesson(student: Student, studentIDString: String, lesson: Lesson, in allLAs: [LessonAssignment], context: ModelContext) {
+    private func addStudentToUnscheduledLesson(
+        student: Student, studentIDString: String, lesson: Lesson,
+        in allLAs: [LessonAssignment], context: ModelContext
+    ) {
         if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
@@ -254,9 +263,15 @@ class ClassSubjectChecklistViewModel {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
-        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.lessonID == lessonIDString }
+        )
+        let allLAs = context.safeFetch(descriptor)
         if findGivenLessonContaining(student: studentIDString, in: allLAs) == nil {
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
+            addStudentToGivenLesson(
+                student: student, studentIDString: studentIDString,
+                lesson: lesson, in: allLAs, context: context
+            )
         }
 
         if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
@@ -264,9 +279,16 @@ class ClassSubjectChecklistViewModel {
             work.completedAt = AppCalendar.startOfDay(Date())
         }
 
-        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .proficient, context: context)
-        GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
-        GroupTrackService.checkAndCompleteTrackIfNeeded(lesson: lesson, studentID: studentIDString, modelContext: context)
+        upsertLessonPresentation(
+            studentID: studentIDString, lessonID: lessonIDString,
+            state: .proficient, context: context
+        )
+        GroupTrackService.autoEnrollInTrackIfNeeded(
+            lesson: lesson, studentIDs: [studentIDString], modelContext: context
+        )
+        GroupTrackService.checkAndCompleteTrackIfNeeded(
+            lesson: lesson, studentID: studentIDString, modelContext: context
+        )
     }
 
     func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
@@ -279,14 +301,25 @@ class ClassSubjectChecklistViewModel {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
 
-        let allLAs = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString }))
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.lessonID == lessonIDString }
+        )
+        let allLAs = context.safeFetch(descriptor)
 
         if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
-            deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
+            deleteLessonPresentation(
+                studentID: studentIDString, lessonID: lessonIDString, context: context
+            )
         } else {
-            addStudentToGivenLesson(student: student, studentIDString: studentIDString, lesson: lesson, in: allLAs, context: context)
-            upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .presented, context: context)
+            addStudentToGivenLesson(
+                student: student, studentIDString: studentIDString,
+                lesson: lesson, in: allLAs, context: context
+            )
+            upsertLessonPresentation(
+                studentID: studentIDString, lessonID: lessonIDString,
+                state: .presented, context: context
+            )
         }
     }
 
@@ -294,12 +327,20 @@ class ClassSubjectChecklistViewModel {
         lessons.first(where: { $0.isPresented && $0.studentIDs.contains(student) })
     }
 
-    private func addStudentToGivenLesson(student: Student, studentIDString: String, lesson: Lesson, in allLAs: [LessonAssignment], context: ModelContext) {
+    private func addStudentToGivenLesson(
+        student: Student, studentIDString: String, lesson: Lesson,
+        in allLAs: [LessonAssignment], context: ModelContext
+    ) {
         let today = Date()
-        if let group = allLAs.first(where: { $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today) }) {
+        let isGivenToday = { (la: LessonAssignment) -> Bool in
+            la.isPresented && (la.presentedAt ?? Date.distantPast).isSameDay(as: today)
+        }
+        if let group = allLAs.first(where: isGivenToday) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
-                GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                )
             }
         } else {
             _ = PresentationFactory.insertPresented(
@@ -307,7 +348,9 @@ class ClassSubjectChecklistViewModel {
                 studentIDs: [student.id],
                 context: context
             )
-            GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+            )
         }
     }
 
@@ -322,7 +365,10 @@ class ClassSubjectChecklistViewModel {
         let sidString = student.id.uuidString
         let lidString = lid.uuidString
 
-        let las = context.safeFetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString }))
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.lessonID == lidString }
+        )
+        let las = context.safeFetch(descriptor)
         for la in las where la.studentIDs.contains(sidString) {
             var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
@@ -390,7 +436,10 @@ class ClassSubjectChecklistViewModel {
 
     // MARK: - LessonPresentation Helpers
 
-    private func upsertLessonPresentation(studentID: String, lessonID: String, state: LessonPresentationState, context: ModelContext) {
+    private func upsertLessonPresentation(
+        studentID: String, lessonID: String,
+        state: LessonPresentationState, context: ModelContext
+    ) {
         // OPTIMIZATION: Use predicate to fetch only the specific presentation instead of all
         let descriptor = FetchDescriptor<LessonPresentation>(
             predicate: #Predicate<LessonPresentation> { $0.studentID == studentID && $0.lessonID == lessonID }

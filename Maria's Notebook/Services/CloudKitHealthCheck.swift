@@ -87,7 +87,8 @@ final class CloudKitHealthCheck {
         
         if isEnabled && isActive && isICloudAvailable {
             // Load persisted state to determine initial health
-            if let lastSyncTimestamp = UserDefaults.standard.object(forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate) as? TimeInterval {
+            let syncDateKey = UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
+            if let lastSyncTimestamp = UserDefaults.standard.object(forKey: syncDateKey) as? TimeInterval {
                 let lastSync = Date(timeIntervalSince1970: lastSyncTimestamp)
                 let elapsed = Date().timeIntervalSince(lastSync)
                 let lastError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)

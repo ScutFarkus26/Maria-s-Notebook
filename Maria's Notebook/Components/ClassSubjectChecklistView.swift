@@ -16,7 +16,8 @@ struct ClassSubjectChecklistView: View {
     @State private var viewModel = ClassSubjectChecklistViewModel()
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     @AppStorage(UserDefaultsKeys.checklistSelectedSubject) private var persistedSubject: String = ""
 
     // Grid Configuration
@@ -159,11 +160,29 @@ struct ClassSubjectChecklistView: View {
                                             state: state,
                                             isSelected: viewModel.isSelected(student: student, lesson: lesson),
                                             isSelectionMode: viewModel.isSelectionMode,
-                                            onTap: { viewModel.toggleScheduled(student: student, lesson: lesson, context: modelContext) },
-                                            onSelect: { viewModel.toggleSelection(student: student, lesson: lesson) },
-                                            onMarkComplete: { viewModel.markComplete(student: student, lesson: lesson, context: modelContext) },
-                                            onMarkPresented: { viewModel.togglePresented(student: student, lesson: lesson, context: modelContext) },
-                                            onClear: { viewModel.clearStatus(student: student, lesson: lesson, context: modelContext) }
+                                            onTap: {
+                                                viewModel.toggleScheduled(
+                                                    student: student, lesson: lesson, context: modelContext
+                                                )
+                                            },
+                                            onSelect: {
+                                                viewModel.toggleSelection(student: student, lesson: lesson)
+                                            },
+                                            onMarkComplete: {
+                                                viewModel.markComplete(
+                                                    student: student, lesson: lesson, context: modelContext
+                                                )
+                                            },
+                                            onMarkPresented: {
+                                                viewModel.togglePresented(
+                                                    student: student, lesson: lesson, context: modelContext
+                                                )
+                                            },
+                                            onClear: {
+                                                viewModel.clearStatus(
+                                                    student: student, lesson: lesson, context: modelContext
+                                                )
+                                            }
                                         )
                                         .frame(width: studentColumnWidth, height: rowHeight)
                                         .borderSeparated()
@@ -185,7 +204,9 @@ struct ClassSubjectChecklistView: View {
                 viewModel.selectedSubject = persistedSubject
             }
             viewModel.loadData(context: modelContext)
-            viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
+            viewModel.applyVisibilityFilter(
+                context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+            )
         }
         .onChange(of: viewModel.selectedSubject) { _, newValue in
             viewModel.refreshMatrix(context: modelContext)
@@ -193,10 +214,14 @@ struct ClassSubjectChecklistView: View {
             persistedSubject = newValue
         }
         .onChange(of: showTestStudents) { _, _ in
-            viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
+            viewModel.applyVisibilityFilter(
+                context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+            )
         }
         .onChange(of: testStudentNamesRaw) { _, _ in
-            viewModel.applyVisibilityFilter(context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw)
+            viewModel.applyVisibilityFilter(
+                context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+            )
         }
     }
 
@@ -229,7 +254,10 @@ struct ClassSubjectChecklistView: View {
                 .borderSeparated()
             }
         }
-        .frame(minWidth: lessonColumnWidth + (CGFloat(viewModel.students.count) * studentColumnWidth), alignment: .leading)
+        .frame(
+            minWidth: lessonColumnWidth + (CGFloat(viewModel.students.count) * studentColumnWidth),
+            alignment: .leading
+        )
     }
 }
 

@@ -59,7 +59,12 @@ extension SelectiveRestoreService {
                 payload.legacyPresentations,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("lessonAssignments").contains(id) ? try modelContext.fetch(FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })).first : nil
+                    guard self.getCachedIDs("lessonAssignments")
+                        .contains(id) else { return nil }
+                    let desc = FetchDescriptor<LessonAssignment>(
+                        predicate: #Predicate { $0.id == id }
+                    )
+                    return try modelContext.fetch(desc).first
                 },
                 lessonCheck: { [lessonsByID] id in lessonsByID[id] },
                 studentCheck: { [studentsByID] id in studentsByID[id] }
@@ -99,7 +104,9 @@ extension SelectiveRestoreService {
                 payload.studentMeetings,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("studentMeetings").contains(id) ? StudentMeeting(studentID: UUID(), date: Date()) : nil
+                    self.getCachedIDs("studentMeetings").contains(id)
+                        ? StudentMeeting(studentID: UUID(), date: Date())
+                        : nil
                 }
             )
             imported = payload.studentMeetings.count
@@ -122,7 +129,11 @@ extension SelectiveRestoreService {
                 payload.proposedSolutions,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("proposedSolutions").contains(id) ? ProposedSolution(title: "", details: "", proposedBy: "", topic: nil) : nil
+                    self.getCachedIDs("proposedSolutions").contains(id)
+                        ? ProposedSolution(
+                            title: "", details: "",
+                            proposedBy: "", topic: nil
+                        ) : nil
                 },
                 topicCheck: { [topicsByID] id in topicsByID[id] }
             )
@@ -130,18 +141,29 @@ extension SelectiveRestoreService {
                 payload.communityAttachments,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("communityAttachments").contains(id) ? CommunityAttachment(filename: "", kind: .file, data: nil, topic: nil) : nil
+                    self.getCachedIDs("communityAttachments")
+                        .contains(id)
+                        ? CommunityAttachment(
+                            filename: "", kind: .file,
+                            data: nil, topic: nil
+                        ) : nil
                 },
                 topicCheck: { [topicsByID] id in topicsByID[id] }
             )
-            imported = payload.communityTopics.count + payload.proposedSolutions.count + payload.communityAttachments.count
+            imported = payload.communityTopics.count
+                + payload.proposedSolutions.count
+                + payload.communityAttachments.count
 
         case .attendance:
             BackupEntityImporter.importAttendanceRecords(
                 payload.attendance,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("attendanceRecords").contains(id) ? AttendanceRecord(studentID: UUID(), date: Date(), status: .unmarked) : nil
+                    self.getCachedIDs("attendanceRecords").contains(id)
+                        ? AttendanceRecord(
+                            studentID: UUID(), date: Date(),
+                            status: .unmarked
+                        ) : nil
                 }
             )
             imported = payload.attendance.count
@@ -151,7 +173,12 @@ extension SelectiveRestoreService {
                 payload.workCompletions,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("workCompletionRecords").contains(id) ? WorkCompletionRecord(workID: UUID(), studentID: UUID(), completedAt: Date()) : nil
+                    self.getCachedIDs("workCompletionRecords")
+                        .contains(id)
+                        ? WorkCompletionRecord(
+                            workID: UUID(), studentID: UUID(),
+                            completedAt: Date()
+                        ) : nil
                 }
             )
             imported = payload.workCompletions.count
@@ -161,14 +188,22 @@ extension SelectiveRestoreService {
                 payload.projects,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("projects").contains(id) ? Project(title: "", bookTitle: nil, memberStudentIDs: []) : nil
+                    self.getCachedIDs("projects").contains(id)
+                        ? Project(
+                            title: "", bookTitle: nil,
+                            memberStudentIDs: []
+                        ) : nil
                 }
             )
             BackupEntityImporter.importProjectRoles(
                 payload.projectRoles,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("projectRoles").contains(id) ? ProjectRole(projectID: UUID(), title: "", summary: "", instructions: "") : nil
+                    self.getCachedIDs("projectRoles").contains(id)
+                        ? ProjectRole(
+                            projectID: UUID(), title: "",
+                            summary: "", instructions: ""
+                        ) : nil
                 }
             )
             BackupEntityImporter.importProjectTemplateWeeks(
@@ -188,14 +223,24 @@ extension SelectiveRestoreService {
                 payload.projectAssignmentTemplates,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("projectAssignmentTemplates").contains(id) ? ProjectAssignmentTemplate(projectID: UUID(), title: "", instructions: "") : nil
+                    self.getCachedIDs("projectAssignmentTemplates")
+                        .contains(id)
+                        ? ProjectAssignmentTemplate(
+                            projectID: UUID(), title: "",
+                            instructions: ""
+                        ) : nil
                 }
             )
             BackupEntityImporter.importProjectWeekRoleAssignments(
                 payload.projectWeekRoleAssignments,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("projectWeekRoleAssignments").contains(id) ? ProjectWeekRoleAssignment(weekID: UUID(), studentID: "", roleID: UUID(), week: nil) : nil
+                    self.getCachedIDs("projectWeekRoleAssignments")
+                        .contains(id)
+                        ? ProjectWeekRoleAssignment(
+                            weekID: UUID(), studentID: "",
+                            roleID: UUID(), week: nil
+                        ) : nil
                 },
                 weekCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
             )
@@ -203,7 +248,10 @@ extension SelectiveRestoreService {
                 payload.projectSessions,
                 into: modelContext,
                 existingCheck: { [self] id in
-                    self.getCachedIDs("projectSessions").contains(id) ? ProjectSession(projectID: UUID(), meetingDate: Date()) : nil
+                    self.getCachedIDs("projectSessions").contains(id)
+                        ? ProjectSession(
+                            projectID: UUID(), meetingDate: Date()
+                        ) : nil
                 }
             )
             imported = payload.projects.count + payload.projectAssignmentTemplates.count +

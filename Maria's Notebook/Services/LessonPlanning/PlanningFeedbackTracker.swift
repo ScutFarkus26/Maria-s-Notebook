@@ -119,13 +119,15 @@ struct PlanningFeedbackTracker {
         // Most accepted subjects
         let topAccepted = acceptedSubjects.sorted { $0.value > $1.value }.prefix(3)
         if !topAccepted.isEmpty {
-            lines.append("Frequently accepted subjects: \(topAccepted.map { "\($0.key)(\($0.value))" }.joined(separator: ", "))")
+            let acceptedList = topAccepted.map { "\($0.key)(\($0.value))" }.joined(separator: ", ")
+            lines.append("Frequently accepted subjects: \(acceptedList)")
         }
-        
+
         // Most rejected subjects
         let topRejected = rejectedSubjects.sorted { $0.value > $1.value }.prefix(3)
         if !topRejected.isEmpty {
-            lines.append("Frequently rejected subjects: \(topRejected.map { "\($0.key)(\($0.value))" }.joined(separator: ", "))")
+            let rejectedList = topRejected.map { "\($0.key)(\($0.value))" }.joined(separator: ", ")
+            lines.append("Frequently rejected subjects: \(rejectedList)")
         }
         
         // Teacher notes patterns

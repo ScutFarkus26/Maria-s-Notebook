@@ -14,7 +14,10 @@ extension TodoMainView {
                 tagSet.insert(tag)
             }
         }
-        return tagSet.sorted { TodoTagHelper.tagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending }
+        return tagSet.sorted {
+            TodoTagHelper.tagName($0)
+                .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
+        }
     }
 
     /// All sidebar items (top-level tags + group names) in user-defined order.
@@ -74,7 +77,8 @@ extension TodoMainView {
             let lhsIdx = orderMap[lhs] ?? Int.max
             let rhsIdx = orderMap[rhs] ?? Int.max
             if lhsIdx != rhsIdx { return lhsIdx < rhsIdx }
-            return TodoTagHelper.leafTagName(lhs).localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName(rhs)) == .orderedAscending
+            return TodoTagHelper.leafTagName(lhs)
+                .localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName(rhs)) == .orderedAscending
         }
     }
 
@@ -82,7 +86,13 @@ extension TodoMainView {
         let nested = allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count > 1 }
         let grouped = Dictionary(grouping: nested, by: { TodoTagHelper.rootTagName($0) })
         return grouped
-            .map { (group: $0.key, tags: $0.value.sorted { TodoTagHelper.leafTagName($0).localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName($1)) == .orderedAscending }) }
+            .map { entry in
+                let sortedTags = entry.value.sorted {
+                    TodoTagHelper.leafTagName($0)
+                        .localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName($1)) == .orderedAscending
+                }
+                return (group: entry.key, tags: sortedTags)
+            }
             .sorted { $0.group.localizedCaseInsensitiveCompare($1.group) == .orderedAscending }
     }
 
@@ -126,7 +136,10 @@ extension TodoMainView {
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(filter.color)
                                 .frame(width: 28, height: 28)
-                                .background(filter.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                .background(
+                                    filter.color.opacity(0.15),
+                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                )
 
                             Text(filter.title)
                                 .font(AppTheme.ScaledFont.body)

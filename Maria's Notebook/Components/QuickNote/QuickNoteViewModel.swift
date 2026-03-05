@@ -164,9 +164,11 @@ class QuickNoteViewModel {
                                     let matchedText = String(updatedText[matchRange])
                                     let matchedTrimmed = matchedText.trimmed()
 
-                                    // CRITICAL: Only replace if it's not already the replacement text (case-insensitive)
-                                    // This prevents replacing "Sarah Z." with "Sarah Z." which would cause period repetition
-                                    if matchedTrimmed.lowercased() != replacementTrimmed.lowercased() {
+                                    // CRITICAL: Only replace if it's not already the replacement
+                                    // text (case-insensitive). This prevents replacing "Sarah Z."
+                                    // with "Sarah Z." which would cause period repetition
+                                    if matchedTrimmed.lowercased()
+                                        != replacementTrimmed.lowercased() {
                                         updatedText.replaceSubrange(matchRange, with: replacement.replacement)
                                         hasChanges = true
                                     }

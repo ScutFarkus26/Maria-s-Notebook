@@ -60,7 +60,10 @@ struct LessonSearchField: View {
             .onSubmit {
                 // If the user typed an exact lesson name, select it
                 let trimmed = searchText.trimmed()
-                if let match = filteredLessons.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+                let match = filteredLessons.first {
+                    $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
+                }
+                if let match {
                     selectedLessonID = match.id
                     searchText = match.name
                     adaptiveWithAnimation(.easeInOut) { isPresented = false }

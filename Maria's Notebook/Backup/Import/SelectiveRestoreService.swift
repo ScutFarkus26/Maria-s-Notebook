@@ -61,7 +61,9 @@ public final class SelectiveRestoreService {
         counts[.notes] = payload.notes.count
         counts[.calendar] = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
         counts[.meetings] = payload.studentMeetings.count
-        counts[.community] = payload.communityTopics.count + payload.proposedSolutions.count + payload.communityAttachments.count
+        counts[.community] = payload.communityTopics.count
+            + payload.proposedSolutions.count
+            + payload.communityAttachments.count
         counts[.attendance] = payload.attendance.count
         counts[.workCompletions] = payload.workCompletions.count
         counts[.projects] = payload.projects.count + payload.projectAssignmentTemplates.count +
@@ -110,7 +112,10 @@ public final class SelectiveRestoreService {
         }
 
         if !missing.isEmpty {
-            warnings.append("Some entities have dependencies that are not selected: \(missing.map { $0.rawValue }.joined(separator: ", "))")
+            let names = missing.map { $0.rawValue }.joined(separator: ", ")
+            warnings.append(
+                "Some entities have dependencies that are not selected: \(names)"
+            )
         }
 
         // Count entities for each selected type
@@ -129,7 +134,9 @@ public final class SelectiveRestoreService {
             case .meetings:
                 counts[type] = payload.studentMeetings.count
             case .community:
-                counts[type] = payload.communityTopics.count + payload.proposedSolutions.count + payload.communityAttachments.count
+                counts[type] = payload.communityTopics.count
+                    + payload.proposedSolutions.count
+                    + payload.communityAttachments.count
             case .attendance:
                 counts[type] = payload.attendance.count
             case .workCompletions:

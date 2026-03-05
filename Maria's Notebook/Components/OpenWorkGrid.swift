@@ -25,7 +25,12 @@ struct OpenWorkGrid: View {
     var body: some View {
         GeometryReader { proxy in
             ScrollView {
-                LazyVGrid(columns: columns(for: proxy.size.width), alignment: .leading, spacing: 8, pinnedViews: [.sectionHeaders]) {
+                LazyVGrid(
+                    columns: columns(for: proxy.size.width),
+                    alignment: .leading,
+                    spacing: 8,
+                    pinnedViews: [.sectionHeaders]
+                ) {
                     ForEach(groupedSections, id: \.key) { section in
                         Section(header: groupHeader(title: section.key, count: section.items.count)) {
                             ForEach(section.items, id: \.id) { item in
@@ -78,8 +83,12 @@ struct OpenWorkGrid: View {
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
         for work in works {
-            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
-            let age = cache.schoolDaysSinceCreation(createdAt: lastTouch, asOf: today, using: modelContext, calendar: calendar)
+            let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
+                for: work, checkIns: work.checkIns, notes: work.unifiedNotes
+            )
+            let age = cache.schoolDaysSinceCreation(
+                createdAt: lastTouch, asOf: today, using: modelContext, calendar: calendar
+            )
             result[work.id] = age
         }
         
@@ -107,7 +116,15 @@ struct OpenWorkGrid: View {
     }
 
     // MARK: - Derived items
-    private struct WorkGridItem: Identifiable { let id = UUID(); let workID: UUID; let work: WorkModel; let title: String; let student: String; let needsAttention: Bool; let metadata: String }
+    private struct WorkGridItem: Identifiable {
+        let id = UUID()
+        let workID: UUID
+        let work: WorkModel
+        let title: String
+        let student: String
+        let needsAttention: Bool
+        let metadata: String
+    }
 
     // Group items by current sort mode; preserve overall order by grouping in the order items first appear
     private var groupedSections: [(key: String, items: [WorkGridItem])] {
@@ -137,7 +154,12 @@ struct OpenWorkGrid: View {
     }
 
     private func ageBucketLabel(forDays days: Int) -> String {
-        if days <= 0 { return "Today" } else if days <= 3 { return "1–3 days" } else if days <= 7 { return "4–7 days" } else if days <= 14 { return "8–14 days" } else if days <= 30 { return "15–30 days" } else { return "30+ days" }
+        if days <= 0 { return "Today" }
+        else if days <= 3 { return "1–3 days" }
+        else if days <= 7 { return "4–7 days" }
+        else if days <= 14 { return "8–14 days" }
+        else if days <= 30 { return "15–30 days" }
+        else { return "30+ days" }
     }
 
     private var sortedWorks: [WorkGridItem] {
@@ -146,7 +168,10 @@ struct OpenWorkGrid: View {
             let student = studentName(for: w)
             let meta = metadata(for: w)
             let attention = needsAttention(for: w)
-            return WorkGridItem(workID: w.id, work: w, title: title, student: student, needsAttention: attention, metadata: meta)
+            return WorkGridItem(
+                workID: w.id, work: w, title: title,
+                student: student, needsAttention: attention, metadata: meta
+            )
         }
         switch sortMode {
         case .lesson:

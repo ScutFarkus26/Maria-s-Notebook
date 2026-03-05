@@ -183,6 +183,7 @@ struct IntroductionCard: View {
         introduction: CurriculumIntroduction(
             subject: "Math",
             group: "Algebra",
+            // swiftlint:disable:next line_length
             content: "## Introduction to Algebra\n\nAlgebra introduces students to abstract mathematical thinking through the use of variables and equations. This foundational work builds upon concrete number experiences.",
             prerequisites: "Decimal System, Four Operations",
             ageRange: "6-9"
@@ -199,6 +200,7 @@ struct IntroductionCard: View {
         introduction: CurriculumIntroduction(
             subject: "Language",
             group: nil,
+            // swiftlint:disable:next line_length
             content: "The Language curriculum encompasses reading, writing, grammar, and oral expression. Children progress from concrete letter work through increasingly abstract linguistic concepts.",
             prerequisites: nil,
             ageRange: "3-12"

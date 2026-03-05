@@ -153,7 +153,9 @@ public final class EnhancedBackupService {
     // MARK: - Integrity & Verification
 
     /// Verifies a backup file's integrity
-    public func verifyBackup(at url: URL, password: String? = nil) async throws -> BackupIntegrityMonitor.BackupVerificationResult {
+    public func verifyBackup(
+        at url: URL, password: String? = nil
+    ) async throws -> BackupIntegrityMonitor.BackupVerificationResult {
         return await integrityMonitor.verifyBackup(at: url)
     }
 

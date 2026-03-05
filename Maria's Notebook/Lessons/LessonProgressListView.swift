@@ -147,7 +147,11 @@ struct LessonProgressListView: View {
                                     .padding(.vertical, 8)
                                     .background(
                                         Capsule()
-                                            .fill(selectedSubject == subject ? Color.accentColor : Color.primary.opacity(0.08))
+                                            .fill(
+                                                selectedSubject == subject
+                                                    ? Color.accentColor
+                                                    : Color.primary.opacity(0.08)
+                                            )
                                     )
                             }
                             .buttonStyle(.plain)
@@ -301,7 +305,11 @@ struct LessonProgressListView: View {
                     .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.secondary)
                 
-                Text(searchText.isEmpty ? "Create your first lesson to see progress" : "Try adjusting your search or filters")
+                Text(
+                    searchText.isEmpty
+                        ? "Create your first lesson to see progress"
+                        : "Try adjusting your search or filters"
+                )
                     .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)

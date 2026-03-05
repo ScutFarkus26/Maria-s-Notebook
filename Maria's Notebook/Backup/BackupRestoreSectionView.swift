@@ -43,7 +43,14 @@ struct BackupRestoreSectionView: View {
             defaultFolderName: $viewModel.defaultFolderName,
             lastBackupDate: viewModel.lastBackupDate,
             estimatedBackupSize: viewModel.estimatedBackupSize,
-            performExport: { Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) } },
+            performExport: {
+                Task {
+                    await viewModel.performExport(
+                        modelContext: modelContext,
+                        encryptBackups: encryptBackups
+                    )
+                }
+            },
             presentImporter: {
                 showingImporter = true
             },

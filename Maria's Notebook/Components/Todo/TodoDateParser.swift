@@ -73,6 +73,7 @@ struct TodoDateParser {
 
         // "next monday" ... "next sunday"
         DatePattern(
+            // swiftlint:disable:next line_length
             regex: try! NSRegularExpression(pattern: "\\bnext\\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\b", options: .caseInsensitive),
             resolve: { match, input, today in
                 guard let dayRange = Range(match.range(at: 1), in: input) else { return nil }
@@ -85,6 +86,7 @@ struct TodoDateParser {
 
         // Bare weekday: "monday" ... "sunday" (coming occurrence)
         DatePattern(
+            // swiftlint:disable:next line_length
             regex: try! NSRegularExpression(pattern: "\\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\b", options: .caseInsensitive),
             resolve: { match, input, today in
                 guard let dayRange = Range(match.range(at: 1), in: input) else { return nil }
@@ -116,10 +118,8 @@ struct TodoDateParser {
 
         // "jan 15", "january 15", "feb 3", etc.
         DatePattern(
-            regex: try! NSRegularExpression(
-                pattern: "\\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+(\\d{1,2})\\b",
-                options: .caseInsensitive
-            ),
+            // swiftlint:disable:next line_length
+            regex: try! NSRegularExpression(pattern: "\\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+(\\d{1,2})\\b", options: .caseInsensitive),
             resolve: { match, input, today in
                 guard let monthRange = Range(match.range(at: 1), in: input),
                       let dayRange = Range(match.range(at: 2), in: input),

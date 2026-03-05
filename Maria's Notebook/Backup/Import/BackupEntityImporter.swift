@@ -7,13 +7,13 @@ import SwiftData
 /// testability and separation of concerns.
 ///
 /// Domain-specific import methods are organized into extensions:
-/// - `BackupEntityImporter+Students.swift` — student imports
-/// - `BackupEntityImporter+Lessons.swift` — lesson, lesson assignment, lesson exercise, lesson attachment, lesson presentation imports
-/// - `BackupEntityImporter+Work.swift` — work completion record, work check-in, work step, work participant, practice session imports
-/// - `BackupEntityImporter+Projects.swift` — project, project role, project template week, project assignment template, project week role assignment, project session imports
-/// - `BackupEntityImporter+Calendar.swift` — student meeting, attendance record, meeting template, reminder, calendar event imports
-/// - `BackupEntityImporter+Todo.swift` — todo item, todo subtask, todo template, today agenda order imports
-/// - `BackupEntityImporter+Misc.swift` — notes, note templates, non-school days, school day overrides, community topics, proposed solutions, community attachments, tracks, track steps, student track enrollments, group tracks, documents, supplies, supply transactions, procedures, schedules, schedule slots, issues, issue actions, development snapshots
+/// - `BackupEntityImporter+Students.swift` -- student imports
+/// - `BackupEntityImporter+Lessons.swift` -- lesson imports
+/// - `BackupEntityImporter+Work.swift` -- work imports
+/// - `BackupEntityImporter+Projects.swift` -- project imports
+/// - `BackupEntityImporter+Calendar.swift` -- calendar imports
+/// - `BackupEntityImporter+Todo.swift` -- todo imports
+/// - `BackupEntityImporter+Misc.swift` -- misc entity imports
 enum BackupEntityImporter {
 
     /// Type alias for a function that checks if an entity with a given ID exists

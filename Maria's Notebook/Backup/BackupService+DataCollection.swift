@@ -18,68 +18,199 @@ extension BackupService {
 
         // Modern approach: Fetch and transform to DTOs in batches to reduce peak memory usage
         // This avoids holding both full models and DTOs in memory simultaneously
-        let studentDTOs = fetchAndTransformInBatches(Student.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons\u{2026}")
-        let lessonDTOs = fetchAndTransformInBatches(Lesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        let studentDTOs = fetchAndTransformInBatches(
+            Student.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.06),
+            "Collecting lessons\u{2026}"
+        )
+        let lessonDTOs = fetchAndTransformInBatches(
+            Lesson.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
         // LegacyPresentation removed -- no longer exported in new backups
         let legacyPresentationDTOs: [LegacyPresentationDTO] = []
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments\u{2026}")
-        let lessonAssignmentDTOs = fetchAndTransformInBatches(LessonAssignment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.24), "Collecting notes\u{2026}")
-        let noteDTOs = fetchAndTransformInBatches(Note.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.27), "Collecting calendar data\u{2026}")
-        let nonSchoolDTOs = fetchAndTransformInBatches(NonSchoolDay.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let schoolOverrideDTOs = fetchAndTransformInBatches(SchoolDayOverride.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.30), "Collecting meetings\u{2026}")
-        let studentMeetingDTOs = fetchAndTransformInBatches(StudentMeeting.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.33), "Collecting community data\u{2026}")
-        let topicDTOs = fetchAndTransformInBatches(CommunityTopic.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let solutionDTOs = fetchAndTransformInBatches(ProposedSolution.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let attachmentDTOs = fetchAndTransformInBatches(CommunityAttachment.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.36), "Collecting attendance and work completions\u{2026}")
-        let attendanceDTOs = fetchAndTransformInBatches(AttendanceRecord.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let workCompletionDTOs = fetchAndTransformInBatches(WorkCompletionRecord.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting projects\u{2026}")
-        let projectDTOs = fetchAndTransformInBatches(Project.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let projectTemplateDTOs = fetchAndTransformInBatches(ProjectAssignmentTemplate.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let projectSessionDTOs = fetchAndTransformInBatches(ProjectSession.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let projectRoleDTOs = fetchAndTransformInBatches(ProjectRole.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let projectWeekDTOs = fetchAndTransformInBatches(ProjectTemplateWeek.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-        let projectWeekAssignDTOs = fetchAndTransformInBatches(ProjectWeekRoleAssignment.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.15),
+            "Collecting lesson assignments\u{2026}"
+        )
+        let lessonAssignmentDTOs = fetchAndTransformInBatches(
+            LessonAssignment.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.24),
+            "Collecting notes\u{2026}"
+        )
+        let noteDTOs = fetchAndTransformInBatches(
+            Note.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.27),
+            "Collecting calendar data\u{2026}"
+        )
+        let nonSchoolDTOs = fetchAndTransformInBatches(
+            NonSchoolDay.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let schoolOverrideDTOs = fetchAndTransformInBatches(
+            SchoolDayOverride.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.30),
+            "Collecting meetings\u{2026}"
+        )
+        let studentMeetingDTOs = fetchAndTransformInBatches(
+            StudentMeeting.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.33),
+            "Collecting community data\u{2026}"
+        )
+        let topicDTOs = fetchAndTransformInBatches(
+            CommunityTopic.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let solutionDTOs = fetchAndTransformInBatches(
+            ProposedSolution.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let attachmentDTOs = fetchAndTransformInBatches(
+            CommunityAttachment.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.36),
+            "Collecting attendance and work completions\u{2026}"
+        )
+        let attendanceDTOs = fetchAndTransformInBatches(
+            AttendanceRecord.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let workCompletionDTOs = fetchAndTransformInBatches(
+            WorkCompletionRecord.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.39),
+            "Collecting projects\u{2026}"
+        )
+        let projectDTOs = fetchAndTransformInBatches(
+            Project.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let projectTemplateDTOs = fetchAndTransformInBatches(
+            ProjectAssignmentTemplate.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let projectSessionDTOs = fetchAndTransformInBatches(
+            ProjectSession.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let projectRoleDTOs = fetchAndTransformInBatches(
+            ProjectRole.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let projectWeekDTOs = fetchAndTransformInBatches(
+            ProjectTemplateWeek.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
+        let projectWeekAssignDTOs = fetchAndTransformInBatches(
+            ProjectWeekRoleAssignment.self, using: modelContext
+        ) { BackupServiceHelpers.toDTOs($0) }
 
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.42), "Collecting work tracking\u{2026}")
-        let workCheckInDTOs = fetchAndTransformInBatches(WorkCheckIn.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let workStepDTOs = fetchAndTransformInBatches(WorkStep.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let workParticipantDTOs = fetchAndTransformInBatches(WorkParticipantEntity.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let practiceSessionDTOs = fetchAndTransformInBatches(PracticeSession.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras\u{2026}")
-        let lessonAttachmentDTOs = fetchAndTransformInBatches(LessonAttachment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let lessonPresentationDTOs = fetchAndTransformInBatches(LessonPresentation.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let lessonExerciseDTOs = fetchAndTransformInBatches(LessonExercise.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.55), "Collecting templates & tracks\u{2026}")
-        let noteTemplateDTOs = fetchAndTransformInBatches(NoteTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let meetingTemplateDTOs = fetchAndTransformInBatches(MeetingTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let reminderDTOs = fetchAndTransformInBatches(Reminder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let calendarEventDTOs = fetchAndTransformInBatches(CalendarEvent.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let trackDTOs = fetchAndTransformInBatches(Track.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let trackStepDTOs = fetchAndTransformInBatches(TrackStep.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let enrollmentDTOs = fetchAndTransformInBatches(StudentTrackEnrollment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let groupTrackDTOs = fetchAndTransformInBatches(GroupTrack.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.65), "Collecting supplies, schedules & issues\u{2026}")
-        let documentDTOs = fetchAndTransformInBatches(Document.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let supplyDTOs = fetchAndTransformInBatches(Supply.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let supplyTransactionDTOs = fetchAndTransformInBatches(SupplyTransaction.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let procedureDTOs = fetchAndTransformInBatches(Procedure.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let scheduleDTOs = fetchAndTransformInBatches(Schedule.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let scheduleSlotDTOs = fetchAndTransformInBatches(ScheduleSlot.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let issueDTOs = fetchAndTransformInBatches(Issue.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let issueActionDTOs = fetchAndTransformInBatches(IssueAction.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.75), "Collecting snapshots & todos\u{2026}")
-        let snapshotDTOs = fetchAndTransformInBatches(DevelopmentSnapshot.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let todoItemDTOs = fetchAndTransformInBatches(TodoItem.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let todoSubtaskDTOs = fetchAndTransformInBatches(TodoSubtask.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let todoTemplateDTOs = fetchAndTransformInBatches(TodoTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
-        let agendaOrderDTOs = fetchAndTransformInBatches(TodayAgendaOrder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.42),
+            "Collecting work tracking\u{2026}"
+        )
+        let workCheckInDTOs = fetchAndTransformInBatches(
+            WorkCheckIn.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let workStepDTOs = fetchAndTransformInBatches(
+            WorkStep.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let workParticipantDTOs = fetchAndTransformInBatches(
+            WorkParticipantEntity.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let practiceSessionDTOs = fetchAndTransformInBatches(
+            PracticeSession.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.50),
+            "Collecting lesson extras\u{2026}"
+        )
+        let lessonAttachmentDTOs = fetchAndTransformInBatches(
+            LessonAttachment.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let lessonPresentationDTOs = fetchAndTransformInBatches(
+            LessonPresentation.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let lessonExerciseDTOs = fetchAndTransformInBatches(
+            LessonExercise.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.55),
+            "Collecting templates & tracks\u{2026}"
+        )
+        let noteTemplateDTOs = fetchAndTransformInBatches(
+            NoteTemplate.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let meetingTemplateDTOs = fetchAndTransformInBatches(
+            MeetingTemplate.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let reminderDTOs = fetchAndTransformInBatches(
+            Reminder.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let calendarEventDTOs = fetchAndTransformInBatches(
+            CalendarEvent.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let trackDTOs = fetchAndTransformInBatches(
+            Track.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let trackStepDTOs = fetchAndTransformInBatches(
+            TrackStep.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let enrollmentDTOs = fetchAndTransformInBatches(
+            StudentTrackEnrollment.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let groupTrackDTOs = fetchAndTransformInBatches(
+            GroupTrack.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.65),
+            "Collecting supplies, schedules & issues\u{2026}"
+        )
+        let documentDTOs = fetchAndTransformInBatches(
+            Document.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let supplyDTOs = fetchAndTransformInBatches(
+            Supply.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let supplyTransactionDTOs = fetchAndTransformInBatches(
+            SupplyTransaction.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let procedureDTOs = fetchAndTransformInBatches(
+            Procedure.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let scheduleDTOs = fetchAndTransformInBatches(
+            Schedule.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let scheduleSlotDTOs = fetchAndTransformInBatches(
+            ScheduleSlot.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let issueDTOs = fetchAndTransformInBatches(
+            Issue.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let issueActionDTOs = fetchAndTransformInBatches(
+            IssueAction.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.75),
+            "Collecting snapshots & todos\u{2026}"
+        )
+        let snapshotDTOs = fetchAndTransformInBatches(
+            DevelopmentSnapshot.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let todoItemDTOs = fetchAndTransformInBatches(
+            TodoItem.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let todoSubtaskDTOs = fetchAndTransformInBatches(
+            TodoSubtask.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let todoTemplateDTOs = fetchAndTransformInBatches(
+            TodoTemplate.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let agendaOrderDTOs = fetchAndTransformInBatches(
+            TodayAgendaOrder.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
 
         let preferences = buildPreferencesDTO()
 
@@ -275,6 +406,7 @@ extension BackupService {
                 do {
                     return try context.fetch(descriptor)
                 } catch {
+                    // swiftlint:disable:next line_length
                     print("\u{26a0}\u{fe0f} [Backup:safeFetchInBatches] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
                     return nil
                 }
@@ -313,6 +445,7 @@ extension BackupService {
                 do {
                     batch = try context.fetch(descriptor)
                 } catch {
+                    // swiftlint:disable:next line_length
                     print("\u{26a0}\u{fe0f} [Backup:collectBatch] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
                     return nil
                 }

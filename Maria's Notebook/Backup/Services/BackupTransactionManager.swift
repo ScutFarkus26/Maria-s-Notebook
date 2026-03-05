@@ -30,7 +30,8 @@ public final class BackupTransactionManager {
                 return "No checkpoint exists for rollback."
             case .importFailed(let error, let checkpointURL):
                 if let url = checkpointURL {
-                    return "Import failed: \(error.localizedDescription). A safety backup was created at \(url.lastPathComponent)."
+                    let name = url.lastPathComponent
+                    return "Import failed: \(error.localizedDescription). A safety backup was created at \(name)."
                 }
                 return "Import failed: \(error.localizedDescription)"
             }

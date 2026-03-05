@@ -127,7 +127,11 @@ struct LessonDetailView: View {
                     let needsAccess = pickedURL.startAccessingSecurityScopedResource()
                     defer { if needsAccess { pickedURL.stopAccessingSecurityScopedResource() } }
                     do {
-                        let destURL = try LessonFileStorage.importFile(from: pickedURL, forLessonWithID: lesson.id, lessonName: lesson.name)
+                        let destURL = try LessonFileStorage.importFile(
+                            from: pickedURL,
+                            forLessonWithID: lesson.id,
+                            lessonName: lesson.name
+                        )
                         let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
                         let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
                         if let oldURL = previousManagedURL {
@@ -267,7 +271,10 @@ struct LessonDetailView: View {
 #Preview {
     let container = ModelContainer.preview
     let ctx = container.mainContext
-    let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "Intro to base-10", writeUp: "Sample write up.")
+    let lesson = Lesson(
+        name: "Decimal System", subject: "Math", group: "Number Work",
+        subheading: "Intro to base-10", writeUp: "Sample write up."
+    )
     ctx.insert(lesson)
     return LessonDetailView(lesson: lesson, onSave: { _ in })
         .previewEnvironment(using: container)

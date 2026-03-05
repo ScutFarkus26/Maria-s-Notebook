@@ -61,10 +61,15 @@ public enum LessonFileStorage {
     }
 
     /// Imports a file or package directory from a source URL into the managed lesson files directory.
-    /// The destination filename is constructed from a sanitized lesson name, the lesson UUID suffix, and the source file extension.
+    /// The destination filename is constructed from a sanitized lesson name,
+    /// the lesson UUID suffix, and the source file extension.
     /// Uniqueness is ensured by appending a counter if needed.
     /// Returns the final destination URL.
-    public static func importFile(from sourceURL: URL, forLessonWithID lessonID: UUID, lessonName: String?) throws -> URL {
+    public static func importFile(
+        from sourceURL: URL,
+        forLessonWithID lessonID: UUID,
+        lessonName: String?
+    ) throws -> URL {
         let fm = FileManager.default
 
         let destDir = try lessonFilesDirectory()
@@ -117,11 +122,14 @@ public enum LessonFileStorage {
     /// Returns a relative path string for a managed URL, relative to the lesson files directory.
     public static func relativePath(forManagedURL url: URL) throws -> String {
         let base = try lessonFilesDirectory()
-        let rel = url.standardizedFileURL.path.replacingOccurrences(of: base.standardizedFileURL.path + "/", with: "")
+        let basePath = base.standardizedFileURL.path + "/"
+        let rel = url.standardizedFileURL.path
+            .replacingOccurrences(of: basePath, with: "")
         return rel
     }
 
-    /// Resolves a relative path (previously returned by `relativePath(forManagedURL:)`) to an absolute URL inside the managed directory.
+    /// Resolves a relative path (previously returned by `relativePath(forManagedURL:)`)
+    /// to an absolute URL inside the managed directory.
     public static func resolve(relativePath: String) throws -> URL {
         let base = try lessonFilesDirectory()
         return base.appendingPathComponent(relativePath, isDirectory: false)
@@ -205,10 +213,11 @@ public enum LessonFileStorage {
         
         // Determine base filename
         let baseName: String
+        let sourceStem = sourceURL.deletingPathExtension().lastPathComponent
         if let customName = customName {
-            baseName = sanitizeFilenameComponent(customName, fallback: sourceURL.deletingPathExtension().lastPathComponent)
+            baseName = sanitizeFilenameComponent(customName, fallback: sourceStem)
         } else {
-            baseName = sanitizeFilenameComponent(sourceURL.deletingPathExtension().lastPathComponent, fallback: "Attachment")
+            baseName = sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
         }
         
         // Add scope prefix for non-lesson attachments
@@ -361,7 +370,11 @@ public enum LessonFileStorage {
             logger.info("Starting migration from old: \(oldLocation.path) to new: \(newLocation.path)")
             
             // Get all items in old location (recursively to handle Subject/Group folders)
-            let contents = try fm.contentsOfDirectory(at: oldLocation, includingPropertiesForKeys: [.isDirectoryKey], options: [])
+            let contents = try fm.contentsOfDirectory(
+                at: oldLocation,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: []
+            )
             var migratedCount = 0
             
             for oldItemURL in contents {

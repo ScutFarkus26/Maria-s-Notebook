@@ -5,13 +5,31 @@ import SwiftUI
 extension LessonDetailView {
     var infoSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            infoRow(icon: SFSymbol.Education.bookClosed, title: "Name", value: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
-            infoRow(icon: SFSymbol.Education.graduationcap, title: "Subject", value: lesson.subject.isEmpty ? "\u{2014}" : lesson.subject)
-            infoRow(icon: SFSymbol.List.squareGrid, title: "Group", value: lesson.group.isEmpty ? "\u{2014}" : lesson.group)
-            infoRow(icon: "text.bubble", title: "Subheading", value: lesson.subheading.isEmpty ? "\u{2014}" : lesson.subheading)
-            infoRow(icon: "square.stack.3d.up", title: "Source", value: lesson.source.label)
+            infoRow(
+                icon: SFSymbol.Education.bookClosed, title: "Name",
+                value: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
+            )
+            infoRow(
+                icon: SFSymbol.Education.graduationcap, title: "Subject",
+                value: lesson.subject.isEmpty ? "\u{2014}" : lesson.subject
+            )
+            infoRow(
+                icon: SFSymbol.List.squareGrid, title: "Group",
+                value: lesson.group.isEmpty ? "\u{2014}" : lesson.group
+            )
+            infoRow(
+                icon: "text.bubble", title: "Subheading",
+                value: lesson.subheading.isEmpty ? "\u{2014}" : lesson.subheading
+            )
+            infoRow(
+                icon: "square.stack.3d.up", title: "Source",
+                value: lesson.source.label
+            )
             if lesson.source == .personal {
-                infoRow(icon: SFSymbol.People.person, title: "Personal Type", value: lesson.personalKind?.label ?? "Personal")
+                infoRow(
+                    icon: SFSymbol.People.person, title: "Personal Type",
+                    value: lesson.personalKind?.label ?? "Personal"
+                )
             }
             if !lesson.ageRange.isEmpty {
                 infoRow(icon: "person.2", title: "Age Range", value: lesson.ageRange)
