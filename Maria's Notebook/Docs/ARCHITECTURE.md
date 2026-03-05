@@ -1,354 +1,241 @@
 # Architecture Guide
 
-This document describes the architecture and design patterns used in Maria's Notebook.
-
 ## Overview
 
-Maria's Notebook follows a modular architecture with clear separation of concerns:
+Maria's Notebook follows a modular MVVM architecture with services:
 
 - **SwiftUI** for the view layer
-- **SwiftData** for persistence
-- **MVVM** pattern for complex views
-- **Service-oriented** backend for business logic
-
-## Directory Structure
-
-### Core Directories
-
-| Directory | Purpose |
-|-----------|---------|
-| `AppCore/` | App entry point, bootstrapping, root navigation |
-| `Models/` | SwiftData `@Model` definitions |
-| `Services/` | Business logic, data operations, sync services |
-| `Components/` | Reusable SwiftUI components |
-| `ViewModels/` | View models for complex state management |
-| `Utils/` | Extensions, helpers, and utilities |
-
-### Feature Directories
-
-| Directory | Purpose |
-|-----------|---------|
-| `Students/` | Student profiles, progress tracking, lessons |
-| `Lessons/` | Lesson management, organization, imports |
-| `Work/` | Work item lifecycle management |
-| `Presentations/` | Presentation scheduling and history |
-| `Planning/` | Checklists, agenda, planning tools |
-| `Attendance/` | Daily attendance tracking |
-| `Projects/` | Project templates, sessions, roles |
-| `Inbox/` | Follow-up reminders and inbox |
-| `Settings/` | App configuration and preferences |
-| `Backup/` | Backup/restore functionality |
+- **SwiftData** for persistence (51 @Model classes)
+- **MVVM** pattern for complex views (24 ViewModels)
+- **Service-oriented** backend (70+ services)
+- **Repository pattern** for data access (13 repositories)
 
 ## App Lifecycle
 
-### Startup Flow
-
 ```
 App Launch
-    │
     ├─► MariasNotebookApp.init()
     │       └─► Configure SwiftData container
     │       └─► Initialize CloudKit (if enabled)
-    │
     ├─► AppBootstrapper.bootstrap()
     │       └─► Run data migrations
     │       └─► Backfill relationships
     │       └─► Initialize services
-    │
     └─► RootView.body
             └─► Display main navigation
 ```
 
-### Key Files
+**Key files:**
+- `AppCore/MariasNotebookApp.swift` — App entry point, container config
+- `AppCore/AppBootstrapper.swift` — Startup migrations
+- `AppCore/RootView.swift` — Root navigation container
+- `AppCore/AppRouter.swift` — Programmatic navigation
 
-- `MariasToolboxApp.swift` - App entry point, container configuration
-- `AppCore/AppBootstrapper.swift` - Startup migrations and initialization
-- `AppCore/RootView.swift` - Root navigation container
+## Navigation
 
-## Navigation Architecture
-
-### RootView Navigation
-
-The app uses a pill-based navigation system with two layouts:
-
-**Split View (iPad/Mac)**
-- Sidebar navigation with detail content
-- `NavigationSplitView` pattern
-
-**Compact (iPhone)**
-- Tab-based navigation
-- `RootCompactTabs` component
-
-### Navigation Items
+Pill-based navigation with two layouts:
+- **Split View** (iPad/Mac) — `NavigationSplitView` with sidebar
+- **Compact** (iPhone) — Tab-based via `RootCompactTabs`
 
 ```swift
-enum NavigationItem {
-    case today           // Dashboard
-    case attendance      // Attendance tracking
-    case note            // Quick note entry
-    case students        // Student roster
-    case lessons         // Lesson library
-    case planningChecklist
-    case planningAgenda
-    case planningWork
-    case planningProjects
-    case community
-    case logs
-    case settings
+enum NavigationItem: String, Hashable {
+    case today, attendance, note, students, supplies
+    case procedures, meetings, lessons, more, todos
+
+    // Planning Sub-items
+    case planningChecklist, planningAgenda, planningWork
+    case planningProgression, planningProjects
+
+    case community, schedules, issues, askAI, logs, settings
 }
 ```
 
-### App Router
-
-The `AppRouter` environment object handles programmatic navigation:
-
+Navigation via `AppRouter`:
 ```swift
 @Environment(\.appRouter) private var appRouter
-
-// Navigate to a destination
 appRouter.navigate(to: .openAttendance)
 ```
 
 ## Data Layer
 
-### SwiftData Models
+### SwiftData Patterns
 
-All persistence uses SwiftData `@Model` classes. See [DATA_MODELS.md](DATA_MODELS.md) for details.
-
-**Key patterns:**
-- UUID primary keys stored as `@Attribute(.unique)`
-- Enum properties stored as raw strings for CloudKit compatibility
-- Relationships marked optional for CloudKit
-- Foreign keys stored as `String` (not `UUID`) for CloudKit
-
-### Data Access Patterns
-
-**Direct Query (Simple Views)**
 ```swift
+// Direct query (simple views)
 @Query private var students: [Student]
-```
 
-**Filtered Query**
-```swift
+// Filtered query
 @Query(filter: #Predicate<WorkModel> { $0.statusRaw == "active" })
 private var activeWork: [WorkModel]
-```
 
-**ViewModel Pattern (Complex Views)**
-```swift
+// ViewModel (complex views)
 @StateObject private var viewModel = TodayViewModel()
-
-// ViewModel fetches data efficiently
-class TodayViewModel: ObservableObject {
-    func reload(context: ModelContext) async { ... }
-}
 ```
 
-**DataLoader Pattern (Efficient Loading)**
-```swift
-let loader = InboxDataLoader(context: modelContext)
-let data = try await loader.loadInboxItems()
-```
+**CloudKit compatibility rules:**
+- Enums stored as raw strings (`statusRaw` pattern — see [ADR-001](ADRs/ADR-001-swiftdata-enum-pattern.md))
+- Foreign keys as `String`, not `UUID`
+- Optional relationship arrays
+- No `@Attribute(.unique)` (incompatible with CloudKit)
+
+See [DATA_MODELS.md](DATA_MODELS.md) for full model reference.
+
+### Repository Pattern
+
+Repositories for complex data access; `@Query` for simple cases. See [ADR-003](ADRs/ADR-003-repository-pattern.md).
+
+### Dependency Injection
+
+Centralized via `AppDependencies` with lazy initialization. See [ADR-004](ADRs/ADR-004-dependency-injection.md).
 
 ## Service Layer
 
-### Key Services
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `DataMigrations` | Services/ | Schema migrations |
+| `LifecycleService` | Services/ | Work lifecycle state transitions |
+| `BackupService` | Backup/ | Database backup/restore |
+| `ChatService` | Services/Chat/ | AI chat functionality |
+| `LessonPlanningService` | Services/LessonPlanning/ | AI-assisted lesson planning |
+| `CloudKitSyncStatusService` | Services/ | CloudKit sync monitoring |
+| `SyncedPreferencesStore` | Services/ | iCloud KVS preference sync |
+| `FollowUpInboxEngine` | Services/ | Inbox and follow-up tasks |
 
-| Service | Purpose |
-|---------|---------|
-| `LifecycleService` | Work item lifecycle state transitions |
-| `DataMigrations` | Schema migrations and data backfills |
-| `BackupService` | Database backup and restore |
-| `SyncedPreferencesStore` | iCloud KVS preference sync |
-| `PhotoStorageService` | Image file management |
-| `InboxDataLoader` | Efficient inbox data loading |
-| `PlanningEngine` | Planning operations and scheduling |
-
-### Service Access
-
-Services are typically instantiated where needed or accessed via environment:
-
-```swift
-// Direct instantiation
-let backupService = BackupService()
-
-// Environment access
-@Environment(\.modelContext) private var modelContext
-```
+Services accessed via `AppDependencies` or direct instantiation.
 
 ## UI Patterns
 
 ### View Composition
 
-Views are split into smaller files for maintainability:
-
+Views split into smaller files:
 ```
-StudentDetailView.swift          # Main view
-StudentDetailComponents.swift    # Subcomponents
-StudentDetailViewModel.swift     # State management
+StudentDetailView.swift           # Main view
+StudentDetailComponents.swift     # Subcomponents
+StudentDetailViewModel.swift      # State management
 StudentDetailSheetModifiers.swift # Sheet presentations
 ```
 
-### Reusable Components
+### Reusable Components (in Components/)
 
-Common components in `Components/`:
-
-- `UnifiedNoteEditor` - Multi-context note editing
-- `ObservationsView` - Note display with selection
-- `DropZone` - Drag-and-drop targets
-- `ToastOverlay` - Toast notifications
-- `SearchField` - Debounced search input
-
-### Sheet Presentations
-
-Sheets follow a consistent pattern:
-
-```swift
-@State private var isShowingSheet = false
-
-.sheet(isPresented: $isShowingSheet) {
-    SheetContentView()
-        .presentationDetents([.medium, .large])
-}
-```
+- `UnifiedNoteEditor` — Multi-context note editing
+- `ObservationsView` — Note display with selection
+- `DropZone` — Drag-and-drop targets
+- `ToastOverlay` — Toast notifications
+- `SearchField` — Debounced search input
 
 ### Error Handling
 
-Use `SaveCoordinator` for consistent save error handling:
-
 ```swift
-@Environment(\.modelContext) private var modelContext
-
-private func save() {
-    SaveCoordinator.save(context: modelContext)
-}
-
-// In view body
+SaveCoordinator.save(context: modelContext)
+// In view body:
 .saveErrorAlert()
 ```
 
-## CloudKit Integration
+## ViewModel Guidelines
 
-### Configuration
+### When to Use ViewModels
 
-CloudKit is configured but disabled by default:
+**Use ViewModel when:** Complex business logic, performance optimization needed, multiple data sources, testability required, reusable logic.
+
+**Keep `@State` in view when:** Simple UI state (toggles, selections), direct `@Query` with no logic, simple forms.
+
+### Required Patterns
 
 ```swift
-// Enable via UserDefaults
-UserDefaults.standard.set(true, forKey: "EnableCloudKitSync")
+@Observable
+@MainActor
+final class MyViewModel {
+    // State
+    var items: [Item] = []
+
+    // Dependencies (private, injected)
+    private let repository: ItemRepository
+
+    init(repository: ItemRepository) {
+        self.repository = repository
+    }
+
+    // Actions
+    func loadData() { ... }
+}
 ```
 
-### CloudKit Compatibility
+### Performance Patterns
 
-All models follow CloudKit best practices:
-- Optional relationship arrays
-- String-based foreign keys
-- Enum values stored as raw strings
-- External storage for large data
-
-See [CLOUDKIT_COMPATIBILITY_REPORT.md](CloudKit/CLOUDKIT_COMPATIBILITY_REPORT.md) for details.
-
-## Performance Patterns
-
-### Async Backfill Operations
-
-Long-running operations yield periodically:
-
+**Dictionary caching** — O(1) lookups instead of O(n) array filtering:
 ```swift
-func backfillRelationshipsIfNeeded() async {
-    for (index, item) in items.enumerated() {
-        // Process item
-        if index % 5000 == 0 {
-            await Task.yield()  // Prevent UI blocking
-        }
+private(set) var itemsByID: [UUID: Item] = [:]
+```
+
+**Debouncing** — 400ms delay for expensive operations:
+```swift
+nonisolated(unsafe) private var searchTask: Task<Void, Never>?
+
+private func scheduleSearch() {
+    searchTask?.cancel()
+    searchTask = Task { @MainActor [weak self] in
+        try? await Task.sleep(for: .milliseconds(400))
+        guard !Task.isCancelled else { return }
+        self?.performSearch()
     }
 }
+
+deinit { searchTask?.cancel() }
 ```
 
-### Lazy Loading
+**Batch property updates** — Set all `@Observable` properties together to trigger one SwiftUI re-render.
 
-Complex views load data on-demand:
+**Service delegation** — Extract complex logic (200+ lines) into service classes (e.g., `TodayDataFetcher`, `TodayCacheManager`).
 
+**Equatable** — Implement on ViewModels driving expensive views for shallow change detection.
+
+### Async Operations
+
+Long-running operations yield periodically:
 ```swift
-@State private var relatedData: [Item] = []
-
-.task {
-    await loadRelatedData()
-}
-
-private func loadRelatedData() async {
-    // Fetch only what's needed
-}
-```
-
-### ID-Only Queries for Change Detection
-
-Use lightweight queries for change detection:
-
-```swift
-@Query private var studentIDs: [UUID]  // Change detection only
-
-// Load full objects on-demand
-private func loadStudents(ids: [UUID]) { ... }
-```
-
-### Debouncing
-
-Search fields use debouncing:
-
-```swift
-@State private var searchText = ""
-@State private var debouncedSearchText = ""
-
-.onChange(of: searchText) { _, new in
-    // Debounce 250ms before applying
+for (index, item) in items.enumerated() {
+    // Process item
+    if index % 5000 == 0 { await Task.yield() }
 }
 ```
 
-## Testing
+## Performance Checklist
 
-### Debug Views
+### Completed Optimizations
+- RootView backfill → async `AppBootstrapper` (50-70% faster launch)
+- TodayViewModel → targeted fetches, dictionary caching, debouncing (60-80% memory reduction)
+- SettingsView stats → repository-based filtered fetches
+- WorksAgendaView → date range filtering (70-90% memory reduction)
+- PresentationHistoryView → pagination
 
-The `Tests/` directory contains debug and testing views:
+### Remaining Opportunities
 
-- `CloudKitStatusView` - CloudKit sync status
-- `TrackPopulationView` - Data population tools
-- Various test views for feature development
+| Target | Issue | Approach |
+|--------|-------|----------|
+| `PresentationsListView` | Unfiltered `@Query` | Repository with student-scoped fetch |
+| `PlanningWeekView` | Loads all lessons | Date range filter |
+| Heavy view body computations | Filtering in `body` | Move to ViewModel with caching |
 
-### Preview Support
+### Anti-Patterns to Avoid
 
-Views include preview providers:
-
-```swift
-#Preview {
-    StudentDetailView(student: .preview)
-        .previewEnvironment()
-}
-```
-
-The `.previewEnvironment()` modifier sets up an in-memory SwiftData container.
+- Unfiltered `@Query` in frequently-accessed views
+- O(n) `items.first { $0.id == targetID }` in row rendering (use dictionary)
+- Computation in view `body` (cache in ViewModel)
+- Blocking main thread with synchronous operations
+- Storing UUIDs directly in foreign key fields (use String)
 
 ## Best Practices
 
-### Do
-
-- Use SwiftData queries with predicates for filtering
-- Split large views into smaller components
-- Use ViewModels for complex state
-- Follow CloudKit compatibility patterns
-- Use `SaveCoordinator` for saves
-
-### Don't
-
-- Load entire tables when only a subset is needed
-- Use unfiltered `@Query` in frequently-accessed views
-- Block the main thread with synchronous operations
-- Force unwrap optionals - use safe access patterns
-- Store UUIDs directly in foreign key fields (use String)
+- Use `@Observable` and `@MainActor` on all ViewModels
+- Inject dependencies via constructor
+- Use `private(set)` for ViewModel published properties
+- Use `safeFetch`/`safeSave` extensions for data operations
+- Use `SaveCoordinator` for consistent save error handling
+- Follow CloudKit compatibility patterns for all models
+- Split large views into smaller component files
 
 ## Related Documentation
 
-- [DATA_MODELS.md](DATA_MODELS.md) - SwiftData model documentation
-- [FEATURES.md](FEATURES.md) - Feature documentation
-- [Optimization/](Optimization/) - Performance optimization guides
-- [CloudKit/](CloudKit/) - CloudKit configuration
+- [DATA_MODELS.md](DATA_MODELS.md) — Model reference
+- [ADRs/](ADRs/) — Architecture decisions
+- [CloudKit Guide](CloudKit/CLOUDKIT_GUIDE.md) — CloudKit setup

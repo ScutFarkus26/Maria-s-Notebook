@@ -196,8 +196,8 @@ As of 2026-02-13:
 
 ## Related Decisions
 
-- See [Domain Errors](ADR-005-domain-errors.md) for validation of invalid raw values
-- See [CloudKit Configuration](../CloudKitConfiguration.swift) for sync implications
+- See [ADR-003](ADR-003-repository-pattern.md) for repository data access patterns
+- See [ADR-004](ADR-004-dependency-injection.md) for dependency injection
 
 ## References
 
@@ -215,4 +215,4 @@ As of 2026-02-13:
 
 ---
 
-**Next ADR:** [ADR-002: Domain Errors Approach](ADR-002-domain-errors.md)
+**Next ADR:** [ADR-003: Repository Pattern Usage](ADR-003-repository-pattern.md)

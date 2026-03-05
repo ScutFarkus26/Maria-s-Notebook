@@ -43,7 +43,7 @@ Once enabled, the sparkle menu will appear in the toolbar when:
 The following files use the `ENABLE_FOUNDATION_MODELS` flag:
 - `Components/ObservationsView.swift` - Main sparkle menu implementation
 - `Components/UnifiedNoteEditor.swift` - Additional FoundationModels features
-- `Students/SummarizeTodaysObservationsIntent.swift` - Intent integration
+- Additional files throughout the codebase (40+ files use this flag)
 
 ## Troubleshooting
 

@@ -4,123 +4,148 @@ A comprehensive teacher planning and classroom management app for iOS and macOS,
 
 ## Overview
 
-Maria's Notebook helps educators manage their classrooms by providing tools for:
+Maria's Notebook helps educators manage their classrooms with tools for:
 
-- **Student Management** - Track student profiles, progress, and development
-- **Lesson Planning** - Organize lessons by subject and group with detailed write-ups
-- **Attendance Tracking** - Record daily attendance with absence reasons and email reporting
-- **Work Management** - Track student work assignments through their lifecycle
-- **Presentation Scheduling** - Plan and schedule lesson presentations
-- **Project Management** - Organize classroom projects with roles and sessions
-- **Notes & Observations** - Record observations with optional AI-powered summarization
-- **Backup & Restore** - Full database backup with encryption support
+- **Student Management** — Track profiles, progress, meetings, and development
+- **Lesson Planning** — Organize lessons by subject/group with write-ups and attachments
+- **Attendance Tracking** — Daily attendance with absence reasons and email reporting
+- **Work Management** — Track assignments through active → review → complete lifecycle
+- **Presentation Scheduling** — Plan and schedule lesson presentations with agenda views
+- **Project Management** — Organize projects with roles, sessions, and templates
+- **Notes & Observations** — Record observations with optional AI summarization
+- **Community** — Community topics, proposed solutions, and attachments
+- **Progression** — Student progress tracking and analytics
+- **Todos** — Smart todo lists with parsing, notifications, and location support
+- **Schedules** — Schedule management and time allocation
+- **Issues** — Issue tracking with priorities and actions
+- **Supplies** — Supply inventory and transaction tracking
+- **Procedures** — Procedure documentation
+- **Backup & Restore** — Full database backup with encryption support
 
 ## Requirements
 
-- **iOS 17.0+** / **macOS 14.0+**
-- Xcode 15.0+
+- **iOS 26.0+** / **macOS 26.0+**
+- Xcode 16+
 - Swift 5.9+
+- Apple Developer Account (for device testing and CloudKit)
 
 ## Getting Started
 
-See [SETUP.md](Docs/SETUP.md) for detailed build and configuration instructions.
-
-### Quick Start
-
 1. Clone the repository
 2. Open `Maria's Notebook.xcodeproj` in Xcode
-3. Select your target device (Mac or iOS Simulator)
-4. Build and run (Cmd+R)
+3. Select target → Signing & Capabilities → set your development team
+4. Select destination (Mac or iOS Simulator) and press Cmd+R
+
+### Build from Command Line
+
+```bash
+open "Maria's Notebook/Maria's Notebook.xcodeproj"
+
+xcodebuild -project "Maria's Notebook.xcodeproj" \
+  -scheme "Maria's Notebook" \
+  -destination "platform=iOS Simulator,name=iPhone 15"
+```
 
 ## Project Structure
 
 ```
 Maria's Notebook/
-├── AppCore/           # App initialization, routing, main views
-├── Models/            # SwiftData model definitions
-├── Services/          # Business logic and data services
-├── Components/        # Reusable SwiftUI components
-├── Students/          # Student management features
-├── Lessons/           # Lesson management and organization
-├── Work/              # Work item tracking and management
-├── Presentations/     # Presentation scheduling
-├── Planning/          # Planning tools and agenda views
-├── Attendance/        # Attendance tracking
-├── Projects/          # Project management
-├── Inbox/             # Follow-up inbox and reminders
-├── Settings/          # App configuration
-├── Backup/            # Backup and restore functionality
-├── Utils/             # Utility functions and extensions
-├── ViewModels/        # MVVM view models
-├── Docs/              # Documentation
-└── Tests/             # Debug and test views
+├── AppCore/          # App entry, bootstrapping, navigation, routing
+├── Models/           # SwiftData @Model definitions (51 models)
+├── Services/         # Business logic (70+ services)
+├── ViewModels/       # Shared ViewModels (Today, GiveLesson, etc.)
+├── Components/       # Reusable SwiftUI components
+├── Utils/            # Extensions & utilities
+├── Repositories/     # Data access repositories (13 repos)
+│
+├── Students/         # Student profiles, meetings, detail views
+├── Lessons/          # Lesson library, attachments, exercises
+├── Work/             # Work items, check-ins, practice sessions
+├── Presentations/    # Presentation scheduling
+├── Attendance/       # Attendance tracking
+├── Planning/         # Planning & checklist tools
+├── Inbox/            # Follow-up inbox
+│
+├── Agenda/           # Calendar day/month grid views
+├── Chat/             # AI chat features
+├── Community/        # Community topics & solutions
+├── Issues/           # Issue tracking
+├── Logs/             # Application logging
+├── Procedures/       # Procedure documentation
+├── Progression/      # Student progress tracking & analytics
+├── Projects/         # Project management & sessions
+├── Resources/        # Educational resources
+├── Schedules/        # Schedule management
+├── Supplies/         # Supply inventory
+├── Topics/           # Educational topics
+│
+├── Backup/           # Backup & restore
+├── Settings/         # App configuration
+└── Docs/             # Documentation
 ```
+
+## Configuration
+
+### Capabilities (Entitlements)
+
+| Capability | Purpose |
+|------------|---------|
+| iCloud | CloudKit sync and key-value storage |
+| Push Notifications | CloudKit change notifications |
+| App Sandbox | macOS security (with file access exceptions) |
+
+**Privacy permissions:** Camera (note photos), Reminders (sync), Calendars (events)
+
+### CloudKit Sync
+
+Disabled by default. Enable in Settings → CloudKit Status, then restart. See [CloudKit Guide](Docs/CloudKit/CLOUDKIT_GUIDE.md).
+
+Container: `iCloud.DanielSDeBerry.MariasNoteBook`
+
+### Apple Intelligence (Optional)
+
+AI-powered observation summarization using Foundation Models. Requires `ENABLE_FOUNDATION_MODELS` build flag. See [Setup Guide](Docs/ENABLE_FOUNDATION_MODELS.md).
+
+### Backup
+
+- Auto-backup enabled by default (10 backup retention)
+- Location: `~/Documents/Backups/Auto/`
+- Format: `.mtbbackup` (optional encryption)
+- See [Backup System](Backup/BACKUP_SYSTEM.md) for details
+
+### SwiftLint
+
+Configuration in `.swiftlint.yml`. Install via `brew install swiftlint`.
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [SETUP.md](Docs/SETUP.md) | Build instructions and environment setup |
-| [ARCHITECTURE.md](Docs/ARCHITECTURE.md) | App architecture and design patterns |
+| [ARCHITECTURE.md](Docs/ARCHITECTURE.md) | Architecture, patterns, and guidelines |
 | [DATA_MODELS.md](Docs/DATA_MODELS.md) | SwiftData model documentation |
-| [FEATURES.md](Docs/FEATURES.md) | Detailed feature documentation |
-| [CloudKit/](Docs/CloudKit/) | CloudKit sync configuration and status |
-| [Optimization/](Docs/Optimization/) | Performance optimization guides |
+| [CloudKit Guide](Docs/CloudKit/CLOUDKIT_GUIDE.md) | CloudKit verification & troubleshooting |
+| [ADRs](Docs/ADRs/) | Architecture Decision Records |
+| [BACKUP_SYSTEM.md](Backup/BACKUP_SYSTEM.md) | Backup system documentation |
 
-## Key Features
+## Keyboard Shortcuts (macOS)
 
-### Multi-Device Sync
+| Shortcut | Action |
+|----------|--------|
+| Cmd+N | New note |
+| Cmd+F | Search |
+| Cmd+, | Settings |
+| Esc | Close sheet/cancel |
 
-- **CloudKit Integration** - Optional cloud sync across devices (disabled by default)
-- **iCloud Key-Value Store** - Preference syncing across devices
-- See [CloudKit Documentation](Docs/CloudKit/CLOUDKIT_COMPATIBILITY_REPORT.md) for setup
+## Troubleshooting
 
-### Data Management
+**"No such module 'SwiftData'"** — Verify deployment target is iOS 26+ / macOS 26+
 
-- **Automatic Backups** - Configurable auto-backup with retention policy
-- **Manual Backup/Restore** - Export and import `.mtbbackup` files
-- **Encrypted Backups** - Optional encryption for sensitive data
+**Signing issues** — Verify Apple Developer account and team in Signing & Capabilities
 
-### Apple Intelligence (Optional)
+**CloudKit not syncing** — Check iCloud account, network, container ID, and restart app after enabling. See [CloudKit Guide](Docs/CloudKit/CLOUDKIT_GUIDE.md).
 
-- AI-powered observation summarization using Foundation Models
-- See [ENABLE_FOUNDATION_MODELS.md](Docs/ENABLE_FOUNDATION_MODELS.md) for setup
-
-### Calendar & Reminders Integration
-
-- View calendar events in Today dashboard
-- Sync reminders from a specific list
-
-## Configuration
-
-### CloudKit Sync
-
-CloudKit is disabled by default. To enable:
-
-```swift
-UserDefaults.standard.set(true, forKey: "EnableCloudKitSync")
-```
-
-See [CLOUDKIT_VERIFICATION_GUIDE.md](Docs/CloudKit/CLOUDKIT_VERIFICATION_GUIDE.md) for testing.
-
-### Backup Settings
-
-- Auto-backup enabled by default (10 backup retention)
-- Backup location: `~/Documents/Backups/Auto/`
-- Custom backup format: `.mtbbackup`
-
-## Technology Stack
-
-- **SwiftUI** - User interface
-- **SwiftData** - Local persistence
-- **CloudKit** - Cloud sync (optional)
-- **EventKit** - Calendar and reminders integration
-- **Foundation Models** - AI features (optional, macOS 26+)
+**Slow performance** — Check for unfiltered `@Query` usage. Profile with Instruments.
 
 ## License
 
-Private project - All rights reserved.
-
-## Support
-
-For issues or feature requests, contact the development team.
+Private project — All rights reserved.

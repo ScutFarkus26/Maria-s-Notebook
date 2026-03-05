@@ -151,9 +151,8 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
 
 ## Related Documentation
 
-- [CLOUDKIT_COMPATIBILITY_REPORT.md](CLOUDKIT_COMPATIBILITY_REPORT.md) - Model compatibility status
 - [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md) - iCloud KVS preference sync
-- [SETUP.md](../SETUP.md) - Build and configuration guide
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - Architecture guide
 
 
 
