@@ -114,7 +114,7 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeLessons(cutoff: Date?) -> String {
-        var descriptor = FetchDescriptor<Lesson>(sortBy: [SortDescriptor(\.subject), SortDescriptor(\.sortIndex)])
+        let descriptor = FetchDescriptor<Lesson>(sortBy: [SortDescriptor(\.subject), SortDescriptor(\.sortIndex)])
         let lessons = (try? modelContext.fetch(descriptor)) ?? []
         guard !lessons.isEmpty else { return "" }
 
@@ -131,7 +131,7 @@ final class DatabaseAnalysisService {
     }
 
     private func serializePresentations(cutoff: Date?) -> String {
-        var descriptor = FetchDescriptor<LessonAssignment>(sortBy: [SortDescriptor(\.presentedAt, order: .reverse)])
+        let descriptor = FetchDescriptor<LessonAssignment>(sortBy: [SortDescriptor(\.presentedAt, order: .reverse)])
         let all = (try? modelContext.fetch(descriptor)) ?? []
         let presentations = cutoff.map { date in all.filter { ($0.presentedAt ?? .distantPast) >= date } } ?? all
         guard !presentations.isEmpty else { return "" }
@@ -151,7 +151,7 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeNotes(cutoff: Date?) -> String {
-        var descriptor = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        let descriptor = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         let all = (try? modelContext.fetch(descriptor)) ?? []
         let notes = cutoff.map { date in all.filter { $0.createdAt >= date } } ?? all
         guard !notes.isEmpty else { return "" }
@@ -167,7 +167,7 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeWork(cutoff: Date?) -> String {
-        var descriptor = FetchDescriptor<WorkModel>(sortBy: [SortDescriptor(\.assignedAt, order: .reverse)])
+        let descriptor = FetchDescriptor<WorkModel>(sortBy: [SortDescriptor(\.assignedAt, order: .reverse)])
         let all = (try? modelContext.fetch(descriptor)) ?? []
         let work = cutoff.map { date in all.filter { $0.assignedAt >= date } } ?? all
         guard !work.isEmpty else { return "" }
@@ -183,7 +183,7 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeAttendance(cutoff: Date?) -> String {
-        var descriptor = FetchDescriptor<AttendanceRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+        let descriptor = FetchDescriptor<AttendanceRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
         let all = (try? modelContext.fetch(descriptor)) ?? []
         let records = cutoff.map { date in all.filter { $0.date >= date } } ?? all
         guard !records.isEmpty else { return "" }
