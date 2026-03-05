@@ -94,8 +94,10 @@ final class ReminderSyncService {
     /// Request access to Reminders
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            // swiftlint:disable:next closure_parameter_position
-            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:disable closure_parameter_position
+            let granted = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Bool, Error>) in
+                // swiftlint:enable closure_parameter_position
                 self.eventStore.requestFullAccessToReminders { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -113,8 +115,10 @@ final class ReminderSyncService {
             
             return granted
         } else {
-            // swiftlint:disable:next closure_parameter_position
-            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:disable closure_parameter_position
+            let granted = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Bool, Error>) in
+                // swiftlint:enable closure_parameter_position
                 self.eventStore.requestAccess(to: .reminder) { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -208,8 +212,10 @@ final class ReminderSyncService {
         let predicate = eventStore.predicateForReminders(in: [targetCalendar])
 
         // Use the Sendable DTO to retrieve data safely
-        // swiftlint:disable:next closure_parameter_position
-        let ekRemindersData = await withCheckedContinuation { (continuation: CheckedContinuation<[ReminderSyncData]?, Never>) in
+        // swiftlint:disable closure_parameter_position
+        let ekRemindersData = await withCheckedContinuation {
+            (continuation: CheckedContinuation<[ReminderSyncData]?, Never>) in
+            // swiftlint:enable closure_parameter_position
             let continuationLock = NSLock()
             var pendingContinuation: CheckedContinuation<[ReminderSyncData]?, Never>? = continuation
 

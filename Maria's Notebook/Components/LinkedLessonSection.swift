@@ -68,7 +68,10 @@ struct LinkedLessonSection: View {
         .sheet(isPresented: $showingLinkPicker) {
             NavigationStack {
                 List {
-                    let sorted = presentationSnapshotsByID.values.sorted { (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
+                    // swiftlint:disable closure_parameter_position
+                    let sorted = presentationSnapshotsByID.values.sorted {
+                        lhs, rhs in
+                        // swiftlint:enable closure_parameter_position
                         let ld = lhs.scheduledFor ?? lhs.presentedAt ?? lhs.createdAt
                         let rd = rhs.scheduledFor ?? rhs.presentedAt ?? rhs.createdAt
                         return ld > rd
