@@ -68,12 +68,11 @@ struct LinkedLessonSection: View {
         .sheet(isPresented: $showingLinkPicker) {
             NavigationStack {
                 List {
-                    let sorted = presentationSnapshotsByID.values.sorted(by: {
-                        (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
+                    let sorted = presentationSnapshotsByID.values.sorted { (lhs: LessonAssignmentSnapshot, rhs: LessonAssignmentSnapshot) in
                         let ld = lhs.scheduledFor ?? lhs.presentedAt ?? lhs.createdAt
                         let rd = rhs.scheduledFor ?? rhs.presentedAt ?? rhs.createdAt
                         return ld > rd
-                    })
+                    }
                     let filtered = sorted.filter { Set($0.studentIDs).isSuperset(of: selectedStudentIDs) }
                     if filtered.isEmpty {
                         ContentUnavailableView(

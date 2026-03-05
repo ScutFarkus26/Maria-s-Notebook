@@ -94,8 +94,8 @@ final class ReminderSyncService {
     /// Request access to Reminders
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            let granted = try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:disable:next closure_parameter_position
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestFullAccessToReminders { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -113,8 +113,8 @@ final class ReminderSyncService {
             
             return granted
         } else {
-            let granted = try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:disable:next closure_parameter_position
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestAccess(to: .reminder) { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -208,8 +208,8 @@ final class ReminderSyncService {
         let predicate = eventStore.predicateForReminders(in: [targetCalendar])
 
         // Use the Sendable DTO to retrieve data safely
-        let ekRemindersData = await withCheckedContinuation {
-            (continuation: CheckedContinuation<[ReminderSyncData]?, Never>) in
+        // swiftlint:disable:next closure_parameter_position
+        let ekRemindersData = await withCheckedContinuation { (continuation: CheckedContinuation<[ReminderSyncData]?, Never>) in
             let continuationLock = NSLock()
             var pendingContinuation: CheckedContinuation<[ReminderSyncData]?, Never>? = continuation
 

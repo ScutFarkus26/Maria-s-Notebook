@@ -85,8 +85,8 @@ final class CalendarSyncService {
     /// Request access to Calendar
     func requestAuthorization() async throws -> Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
-            let granted = try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:disable:next closure_parameter_position
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestFullAccessToEvents { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -104,8 +104,8 @@ final class CalendarSyncService {
             
             return granted
         } else {
-            let granted = try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Bool, Error>) in
+            // swiftlint:disable:next closure_parameter_position
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
                 self.eventStore.requestAccess(to: .event) { granted, error in
                     if let error = error {
                         continuation.resume(throwing: error)
