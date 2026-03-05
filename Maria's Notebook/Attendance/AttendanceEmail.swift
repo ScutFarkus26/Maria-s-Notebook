@@ -338,6 +338,9 @@ public struct AttendanceEmailSettingsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
+        .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
+        .onChange(of: fromAddress) { _, _ in SettingsCategory.markModified(.communication) }
     }
 }
 #Preview {

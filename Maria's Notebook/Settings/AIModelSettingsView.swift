@@ -156,6 +156,9 @@ struct AIModelSettingsView: View {
                 apiKeyWarning
             }
         }
+        .onChange(of: chatModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: lessonPlanningModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: backgroundTasksModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
     }
 
     // MARK: - Area Row

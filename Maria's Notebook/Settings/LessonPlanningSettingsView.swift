@@ -23,6 +23,10 @@ struct LessonPlanningSettingsView: View {
             advancedSection
             resetSection
         }
+        .onChange(of: timeout) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: defaultDepth) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: temperature) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: customSystemPrompt) { _, _ in SettingsCategory.markModified(.aiFeatures) }
     }
 
     // MARK: - Planning Defaults

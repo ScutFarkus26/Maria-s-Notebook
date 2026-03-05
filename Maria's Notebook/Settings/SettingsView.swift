@@ -1,15 +1,17 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 // MARK: - SettingsView
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dependencies) private var dependencies
     @State var statsViewModel = SettingsStatsViewModel()
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchText = ""
-    @AppStorage("settings_selectedCategory") private var selectedCategoryRaw: String = SettingsCategory.general.rawValue
+    @AppStorage("settings_selectedCategory") private var selectedCategoryRaw: String = ""
 
     var isCompact: Bool {
         #if os(iOS)
@@ -19,14 +21,14 @@ struct SettingsView: View {
         #endif
     }
 
-    var selectedCategory: SettingsCategory {
-        SettingsCategory(rawValue: selectedCategoryRaw) ?? .general
+    var selectedCategory: SettingsCategory? {
+        SettingsCategory(rawValue: selectedCategoryRaw)
     }
 
     var selectedCategoryBinding: Binding<SettingsCategory?> {
         Binding<SettingsCategory?>(
-            get: { SettingsCategory(rawValue: selectedCategoryRaw) ?? .general },
-            set: { if let cat = $0 { selectedCategoryRaw = cat.rawValue } }
+            get: { SettingsCategory(rawValue: selectedCategoryRaw) },
+            set: { selectedCategoryRaw = $0?.rawValue ?? "" }
         )
     }
 
@@ -36,8 +38,17 @@ struct SettingsView: View {
         let query = searchText.lowercased()
         return visible.filter {
             $0.searchKeywords.lowercased().contains(query) ||
-            $0.displayName.lowercased().contains(query)
+            $0.displayName.lowercased().contains(query) ||
+            $0.detailedSettings.contains { $0.lowercased().contains(query) }
         }
+    }
+
+    private var sidebarWidth: CGFloat {
+        #if os(macOS)
+        return 240
+        #else
+        return horizontalSizeClass == .regular ? 260 : 200
+        #endif
     }
 
     var overviewColumns: [GridItem] {
@@ -59,6 +70,31 @@ struct SettingsView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .fileImporter(
+            isPresented: $showingSettingsImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            do {
+                if let url = try result.get().first {
+                    let data = try Data(contentsOf: url)
+                    try SettingsExportService.importSettings(from: data)
+                    settingsImportMessage = "Settings imported successfully"
+                }
+            } catch {
+                settingsImportMessage = "Import failed: \(error.localizedDescription)"
+            }
+        }
+        .alert("Settings Import", isPresented: Binding(
+            get: { settingsImportMessage != nil },
+            set: { if !$0 { settingsImportMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let msg = settingsImportMessage {
+                Text(msg)
+            }
+        }
         .onAppear {
             statsViewModel.loadCounts(context: modelContext)
 
@@ -84,7 +120,7 @@ struct SettingsView: View {
     private var wideSettingsLayout: some View {
         HStack(spacing: 0) {
             settingsSidebar
-                .frame(width: 200)
+                .frame(width: sidebarWidth)
             Divider()
             settingsDetailPane
         }
@@ -120,24 +156,81 @@ struct SettingsView: View {
             .padding(.bottom, 8)
 
             List(filteredCategories, selection: selectedCategoryBinding) { category in
-                Label(category.displayName, systemImage: category.icon)
-                    .tag(category)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(category.displayName, systemImage: category.icon)
+                        Text(category.subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    connectionStatusDot(for: category)
+                    if category.wasRecentlyModified {
+                        Circle()
+                            .fill(AppColors.info)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .tag(category)
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
         }
         .background(SettingsStyle.groupBackgroundColor.opacity(0.5))
+        .onChange(of: searchText) { _, _ in
+            let filtered = filteredCategories
+            if filtered.count == 1, let match = filtered.first {
+                selectedCategoryRaw = match.rawValue
+            }
+        }
+    }
+
+    // MARK: - Connection Status Dots
+
+    @ViewBuilder
+    private func connectionStatusDot(for category: SettingsCategory) -> some View {
+        switch category {
+        case .dataSync:
+            Circle()
+                .fill(syncHealthColor(dependencies.cloudKitSyncStatusService.syncHealth))
+                .frame(width: 8, height: 8)
+        case .aiFeatures:
+            Circle()
+                .fill(AnthropicAPIClient.hasAPIKey() ? AppColors.success : AppColors.warning)
+                .frame(width: 8, height: 8)
+        default:
+            EmptyView()
+        }
+    }
+
+    private func syncHealthColor(_ health: CloudKitHealthCheck.SyncHealth) -> Color {
+        switch health {
+        case .healthy: return AppColors.success
+        case .syncing: return AppColors.info
+        case .warning: return AppColors.warning
+        case .error: return AppColors.destructive
+        case .offline, .unknown: return .gray
+        }
     }
 
     private var settingsDetailPane: some View {
         ScrollView {
-            settingsPaneContent(for: selectedCategory)
-                .frame(maxWidth: 700)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity)
+            Group {
+                if let category = selectedCategory {
+                    settingsPaneContent(for: category)
+                } else {
+                    SettingsDashboardView(statsViewModel: statsViewModel)
+                }
+            }
+            .frame(maxWidth: 700)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
+            .transition(.opacity)
+            .id(selectedCategoryRaw)
         }
-        .id(selectedCategory) // Reset scroll position when switching categories
+        .animation(.easeInOut(duration: 0.2), value: selectedCategoryRaw)
     }
 
     // MARK: - Compact Layout (iPhone)
@@ -146,7 +239,22 @@ struct SettingsView: View {
         List {
             ForEach(filteredCategories) { category in
                 NavigationLink(value: category) {
-                    Label(category.displayName, systemImage: category.icon)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label(category.displayName, systemImage: category.icon)
+                            Text(category.subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        connectionStatusDot(for: category)
+                        if category.wasRecentlyModified {
+                            Circle()
+                                .fill(AppColors.info)
+                                .frame(width: 6, height: 6)
+                        }
+                    }
                 }
             }
         }
@@ -166,6 +274,10 @@ struct SettingsView: View {
 
     // iCloud Backup Toggle
     @AppStorage(UserDefaultsKeys.cloudBackupScheduleEnabled) var cloudBackupEnabled = false
+
+    // Settings Import
+    @State var showingSettingsImporter = false
+    @State var settingsImportMessage: String?
 }
 
 // MARK: - Apple Intelligence Status Row

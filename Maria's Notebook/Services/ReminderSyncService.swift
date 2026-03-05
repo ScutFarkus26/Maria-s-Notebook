@@ -162,14 +162,17 @@ final class ReminderSyncService {
         // Update sync status
         isSyncing = true
         lastSyncError = nil
+        SyncEventLogger.shared.log("reminders", status: "started", message: "Reminders sync started")
 
         do {
             try await performSync()
             // Update status on success
             lastSuccessfulSync = Date()
             lastSyncError = nil
+            SyncEventLogger.shared.log("reminders", status: "success", message: "Reminders sync completed")
         } catch {
             lastSyncError = error.localizedDescription
+            SyncEventLogger.shared.log("reminders", status: "error", message: error.localizedDescription)
             isSyncing = false
             throw error
         }

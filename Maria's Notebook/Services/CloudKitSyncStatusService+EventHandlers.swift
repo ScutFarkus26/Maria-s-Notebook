@@ -104,6 +104,7 @@ extension CloudKitSyncStatusService {
 
     func handleRemoteChange() {
         // A remote change was received from CloudKit - this confirms sync is working
+        SyncEventLogger.shared.log("cloudkit", status: "success", message: "Remote changes received")
         let now = Date()
         lastSuccessfulSync = now
         lastSyncError = nil
@@ -216,6 +217,7 @@ extension CloudKitSyncStatusService {
 
         if succeeded {
             Self.logger.debug("CloudKit \(typeDescription) succeeded")
+            SyncEventLogger.shared.log("cloudkit", status: "success", message: "\(typeDescription) completed")
 
             // Update lastSuccessfulSync for data operations (import/export), not setup
             if type != .setup {
@@ -237,6 +239,7 @@ extension CloudKitSyncStatusService {
             }
         } else if let errorDesc = errorDescription {
             Self.logger.error("CloudKit \(typeDescription) failed: \(errorDesc)")
+            SyncEventLogger.shared.log("cloudkit", status: "error", message: "\(typeDescription) failed: \(errorDesc)")
 
             lastSyncError = "\(typeDescription) failed: \(errorDesc)"
             isSyncing = false

@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
 // MARK: - SettingsView Section Builders
 
 extension SettingsView {
@@ -34,12 +40,34 @@ extension SettingsView {
     // 1. General
     var generalSection: some View {
         VStack(spacing: 12) {
-            SettingsGroup(title: "School Calendar", systemImage: "calendar.badge.exclamationmark") {
+            SettingsGroup(
+                title: "School Calendar",
+                systemImage: "calendar.badge.exclamationmark",
+                collapsible: true
+            ) {
                 SchoolCalendarSettingsView()
                     .frame(maxWidth: .infinity)
             }
 
-            SettingsGroup(title: "Display & Colors", systemImage: "paintpalette.fill") {
+            SettingsGroup(
+                title: "Display & Colors",
+                systemImage: "paintpalette.fill",
+                collapsible: true,
+                onReset: {
+                    let store = SyncedPreferencesStore.shared
+                    _ = store.set(LessonAgeDefaults.warningDays, forKey: "LessonAge.warningDays")
+                    _ = store.set(LessonAgeDefaults.overdueDays, forKey: "LessonAge.overdueDays")
+                    _ = store.set(LessonAgeDefaults.freshColorHex, forKey: "LessonAge.freshColorHex")
+                    _ = store.set(LessonAgeDefaults.warningColorHex, forKey: "LessonAge.warningColorHex")
+                    _ = store.set(LessonAgeDefaults.overdueColorHex, forKey: "LessonAge.overdueColorHex")
+                    _ = store.set(WorkAgeDefaults.warningDays, forKey: "WorkAge.warningDays")
+                    _ = store.set(WorkAgeDefaults.overdueDays, forKey: "WorkAge.overdueDays")
+                    _ = store.set(WorkAgeDefaults.freshColorHex, forKey: "WorkAge.freshColorHex")
+                    _ = store.set(WorkAgeDefaults.warningColorHex, forKey: "WorkAge.warningColorHex")
+                    _ = store.set(WorkAgeDefaults.overdueColorHex, forKey: "WorkAge.overdueColorHex")
+                    SettingsCategory.markModified(.general)
+                }
+            ) {
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Lesson Age Indicators")
@@ -59,7 +87,68 @@ extension SettingsView {
                 }
                 .frame(maxWidth: .infinity)
             }
+
+            // Export/Import Settings
+            SettingsGroup(title: "Settings Profile", systemImage: "square.and.arrow.up") {
+                settingsExportSection
+            }
         }
+    }
+
+    // Settings Export Section
+    @ViewBuilder
+    private var settingsExportSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Export your settings as a shareable profile. API keys are never included.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button {
+                    exportSettingsToFile()
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Button {
+                    showingSettingsImporter = true
+                } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private func exportSettingsToFile() {
+        guard let data = SettingsExportService.exportSettings() else { return }
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("marias-notebook-settings.json")
+        try? data.write(to: tempURL)
+        #if os(macOS)
+        NSWorkspace.shared.activateFileViewerSelecting([tempURL])
+        #else
+        // Present share sheet via UIActivityViewController
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first,
+              let rootVC = window.rootViewController else { return }
+        let activityVC = UIActivityViewController(
+            activityItems: [tempURL],
+            applicationActivities: nil
+        )
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = window
+            popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+        }
+        rootVC.present(activityVC, animated: true)
+        #endif
     }
 
     // 2. Data & Sync
@@ -72,16 +161,41 @@ extension SettingsView {
                     Divider()
 
                     iCloudBackupToggle
+
+                    Divider()
+
+                    // Sync History & Conflict Resolution
+                    HStack(spacing: 12) {
+                        NavigationLink {
+                            SyncHistoryLogView(logger: SyncEventLogger.shared)
+                                .settingsBreadcrumb("Settings › Data & Sync")
+                        } label: {
+                            Label("Sync History", systemImage: "clock.arrow.circlepath")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        NavigationLink {
+                            SyncConflictResolutionView()
+                                .settingsBreadcrumb("Settings › Data & Sync")
+                        } label: {
+                            Label("Sync Details", systemImage: "exclamationmark.triangle")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }
 
-            SettingsGroup(title: "Reminders", systemImage: "bell.fill") {
+            SettingsGroup(title: "Reminders", systemImage: "bell.fill", collapsible: true) {
                 ReminderSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
 
-            SettingsGroup(title: "Calendar", systemImage: "calendar") {
+            SettingsGroup(title: "Calendar", systemImage: "calendar", collapsible: true) {
                 CalendarSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
@@ -114,6 +228,7 @@ extension SettingsView {
 
                     NavigationLink {
                         NoteTemplateManagementView()
+                            .settingsBreadcrumb("Settings › Templates")
                     } label: {
                         HStack {
                             Text("Manage Templates")
@@ -145,6 +260,7 @@ extension SettingsView {
 
                     NavigationLink {
                         MeetingTemplateManagementView()
+                            .settingsBreadcrumb("Settings › Templates")
                     } label: {
                         HStack {
                             Text("Manage Templates")
@@ -210,6 +326,7 @@ extension SettingsView {
 
                     NavigationLink {
                         APIKeySettingsView()
+                            .settingsBreadcrumb("Settings › AI Features")
                     } label: {
                         HStack {
                             Text("Configure API Key")
@@ -223,8 +340,18 @@ extension SettingsView {
                 }
             }
 
-            SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard") {
+            SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard", collapsible: true) {
                 LessonPlanningSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            SettingsGroup(title: "Test AI Connection", systemImage: "bolt.fill") {
+                AIConnectionTestView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            SettingsGroup(title: "API Usage", systemImage: "chart.bar.fill") {
+                APIUsageStatsView()
                     .frame(maxWidth: .infinity)
             }
         }

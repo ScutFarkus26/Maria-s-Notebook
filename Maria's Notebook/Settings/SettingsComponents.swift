@@ -55,12 +55,10 @@ struct StatCard: View {
                 .font(.title)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
-            if let subtitle, !subtitle.isEmpty {
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+            Text(subtitle ?? " ")
+                .font(.subheadline)
+                .foregroundStyle(subtitle != nil && !subtitle!.isEmpty ? Color.secondary : Color.clear)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .frame(maxWidth: .infinity, minHeight: 120)
@@ -114,12 +112,71 @@ struct SettingsCategoryHeader: View {
 struct SettingsGroup<Content: View>: View {
     let title: String
     let systemImage: String
+    let collapsible: Bool
+    let onReset: (() -> Void)?
     @ViewBuilder var content: Content
+
+    @State private var isExpanded: Bool = true
+
+    init(
+        title: String,
+        systemImage: String,
+        collapsible: Bool = false,
+        onReset: (() -> Void)? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.collapsible = collapsible
+        self.onReset = onReset
+        self.content = content()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
-            SectionHeader(title: title, systemImage: systemImage)
-            content
+            HStack {
+                if collapsible {
+                    Button {
+                        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                            isExpanded.toggle()
+                        }
+                    } label: {
+                        HStack {
+                            SectionHeader(title: title, systemImage: systemImage)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    SectionHeader(title: title, systemImage: systemImage)
+                    Spacer()
+                }
+
+                if let onReset {
+                    Menu {
+                        Button(role: .destructive) {
+                            onReset()
+                        } label: {
+                            Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                }
+            }
+
+            if isExpanded || !collapsible {
+                content
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(SettingsStyle.padding)
         .background(
@@ -482,6 +539,63 @@ struct DatabaseTotalSummary: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.accentColor.opacity(0.15))
         )
+    }
+}
+
+// MARK: - Search Highlight Modifier
+
+/// Highlights a setting label when it matches the current search text
+struct SearchHighlightModifier: ViewModifier {
+    let searchText: String
+    let label: String
+
+    private var isMatch: Bool {
+        !searchText.isEmpty && label.lowercased().contains(searchText.lowercased())
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                isMatch
+                    ? RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(AppColors.info.opacity(0.15))
+                        .padding(-4)
+                    : nil
+            )
+    }
+}
+
+extension View {
+    func settingsHighlight(searchText: String, label: String) -> some View {
+        modifier(SearchHighlightModifier(searchText: searchText, label: label))
+    }
+}
+
+// MARK: - Breadcrumb Modifier
+
+/// Adds a breadcrumb subtitle to the toolbar on compact layouts
+struct BreadcrumbModifier: ViewModifier {
+    let path: String
+
+    func body(content: Content) -> some View {
+        content
+            #if os(iOS)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        Text(path)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            #endif
+    }
+}
+
+extension View {
+    func settingsBreadcrumb(_ path: String) -> some View {
+        modifier(BreadcrumbModifier(path: path))
     }
 }
 

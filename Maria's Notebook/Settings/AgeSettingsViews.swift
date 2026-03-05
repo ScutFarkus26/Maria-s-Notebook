@@ -65,6 +65,11 @@ struct LessonAgeSettingsView: View {
             warningColor = ColorUtils.color(from: warningHex)
             overdueColor = ColorUtils.color(from: overdueHex)
         }
+        .onChange(of: warningDays) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: overdueDays) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: freshHex) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: warningHex) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: overdueHex) { _, _ in SettingsCategory.markModified(.general) }
     }
 }
 
@@ -133,5 +138,10 @@ struct WorkAgeSettingsView: View {
             warningColor = ColorUtils.color(from: warningHex)
             overdueColor = ColorUtils.color(from: overdueHex)
         }
+        .onChange(of: warningDays) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: overdueDays) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: freshHex) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: warningHex) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: overdueHex) { _, _ in SettingsCategory.markModified(.general) }
     }
 }

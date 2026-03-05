@@ -36,6 +36,8 @@ struct OllamaSettingsView: View {
             Divider()
             gettingStartedSection
         }
+        .onChange(of: baseURLString) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: selectedModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
     }
 
     // MARK: - Connection Status

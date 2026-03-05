@@ -252,6 +252,25 @@ struct DataManagementGrid: View {
                     Text("Last: \(date, style: .relative)")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+
+                    let daysSince = Calendar.current.dateComponents(
+                        [.day], from: date, to: Date()
+                    ).day ?? 0
+                    if daysSince >= 7 {
+                        Label(
+                            "Backup is \(daysSince) days old",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(AppColors.warning)
+                    }
+                } else {
+                    Label(
+                        "No backup found",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.warning)
                 }
             }
         }

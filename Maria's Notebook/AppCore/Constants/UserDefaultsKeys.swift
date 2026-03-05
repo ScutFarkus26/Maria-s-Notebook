@@ -132,4 +132,8 @@ enum UserDefaultsKeys {
 
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
+
+    // MARK: - Settings UI
+    static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"
+    static let backupAgeWarningDays = "BackupAge.warningDays"
 }

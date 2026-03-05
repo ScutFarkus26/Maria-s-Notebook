@@ -294,6 +294,18 @@ final class AnthropicAPIClient: MCPClientProtocol {
                 throw AnthropicAPIError.invalidResponseFormat
             }
 
+            // Track API usage
+            let usage = responseBody["usage"] as? [String: Any]
+            let inputTokens = usage?["input_tokens"] as? Int
+            let outputTokens = usage?["output_tokens"] as? Int
+            Task { @MainActor in
+                APIUsageTracker.shared.logUsage(
+                    model: resolvedModel,
+                    inputTokens: inputTokens,
+                    outputTokens: outputTokens
+                )
+            }
+
             return text
         } catch let error as AnthropicAPIError {
             throw error

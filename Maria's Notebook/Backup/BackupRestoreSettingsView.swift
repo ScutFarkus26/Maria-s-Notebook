@@ -54,6 +54,9 @@ struct BackupRestoreSettingsView: View {
             // iCloud row (always visible, compact)
             iCloudRow
         }
+        .onChange(of: autoBackupEnabled) { _, _ in SettingsCategory.markModified(.backup) }
+        .onChange(of: autoBackupRetention) { _, _ in SettingsCategory.markModified(.backup) }
+        .onChange(of: cloudBackupEnabled) { _, _ in SettingsCategory.markModified(.backup) }
     }
 
     private var isShowingProgress: Bool {

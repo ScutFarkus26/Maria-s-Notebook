@@ -150,6 +150,7 @@ final class CloudKitSyncStatusService {
         isSyncing = true
         syncStartTime = Date()
         updateSyncHealth()
+        SyncEventLogger.shared.log("cloudkit", status: "started", message: "Manual sync initiated")
 
         do {
             let context = ModelContext(container)
@@ -159,6 +160,7 @@ final class CloudKitSyncStatusService {
             let now = Date()
             lastSuccessfulSync = now
             lastSyncError = nil
+            SyncEventLogger.shared.log("cloudkit", status: "success", message: "Sync completed successfully")
             UserDefaults.standard.set(
                 now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
             )
@@ -176,6 +178,7 @@ final class CloudKitSyncStatusService {
         } catch {
             lastSyncError = error.localizedDescription
             UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)
             isSyncing = false
             updateSyncHealth()
             return false
@@ -224,6 +227,10 @@ final class CloudKitSyncStatusService {
                     guard let self = self else { return }
                     self.lastSyncError = "Sync failed after 5 attempts. Please try again later."
                     UserDefaults.standard.set(self.lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+                    SyncEventLogger.shared.log(
+                        "cloudkit", status: "error",
+                        message: "Sync failed after 5 retry attempts"
+                    )
                     self.updateSyncHealth()
                 }
             }

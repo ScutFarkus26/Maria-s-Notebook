@@ -71,6 +71,8 @@ struct TestStudentsSettingsView: View {
             }
         }
         .onAppear { draftNames = testStudentNamesRaw }
+        .onChange(of: showTestStudents) { _, _ in SettingsCategory.markModified(.advanced) }
+        .onChange(of: testStudentNamesRaw) { _, _ in SettingsCategory.markModified(.advanced) }
     }
 }
 

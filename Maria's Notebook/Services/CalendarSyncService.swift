@@ -162,13 +162,16 @@ final class CalendarSyncService {
 
         isSyncing = true
         lastSyncError = nil
+        SyncEventLogger.shared.log("calendar", status: "started", message: "Calendar sync started")
 
         do {
             try await performSync()
             lastSuccessfulSync = Date()
             lastSyncError = nil
+            SyncEventLogger.shared.log("calendar", status: "success", message: "Calendar sync completed")
         } catch {
             lastSyncError = error.localizedDescription
+            SyncEventLogger.shared.log("calendar", status: "error", message: error.localizedDescription)
             isSyncing = false
             throw error
         }
