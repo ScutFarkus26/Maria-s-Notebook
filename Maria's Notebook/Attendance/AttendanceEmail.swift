@@ -392,6 +392,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
 
     public func makeCoordinator() -> Coordinator { Coordinator(onComplete: onComplete) }
 
+    @MainActor
     public final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
         let onComplete: (MFMailComposeResult, Error?) -> Void
         init(onComplete: @escaping (MFMailComposeResult, Error?) -> Void) {

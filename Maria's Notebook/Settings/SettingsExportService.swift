@@ -94,27 +94,27 @@ enum SettingsExportService {
         let ud = UserDefaults.standard
 
         // General — Age Indicators
-        if let v = settings["lessonAgeWarningDays"] as? Int { _ = syncStore.set(v, forKey: "LessonAge.warningDays") }
-        if let v = settings["lessonAgeOverdueDays"] as? Int { _ = syncStore.set(v, forKey: "LessonAge.overdueDays") }
+        if let v = settings["lessonAgeWarningDays"] as? Int { syncStore.set(v, forKey: "LessonAge.warningDays") }
+        if let v = settings["lessonAgeOverdueDays"] as? Int { syncStore.set(v, forKey: "LessonAge.overdueDays") }
         if let v = settings["lessonAgeFreshColorHex"] as? String {
-            _ = syncStore.set(v, forKey: "LessonAge.freshColorHex")
+            syncStore.set(v, forKey: "LessonAge.freshColorHex")
         }
         if let v = settings["lessonAgeWarningColorHex"] as? String {
-            _ = syncStore.set(v, forKey: "LessonAge.warningColorHex")
+            syncStore.set(v, forKey: "LessonAge.warningColorHex")
         }
         if let v = settings["lessonAgeOverdueColorHex"] as? String {
-            _ = syncStore.set(v, forKey: "LessonAge.overdueColorHex")
+            syncStore.set(v, forKey: "LessonAge.overdueColorHex")
         }
-        if let v = settings["workAgeWarningDays"] as? Int { _ = syncStore.set(v, forKey: "WorkAge.warningDays") }
-        if let v = settings["workAgeOverdueDays"] as? Int { _ = syncStore.set(v, forKey: "WorkAge.overdueDays") }
+        if let v = settings["workAgeWarningDays"] as? Int { syncStore.set(v, forKey: "WorkAge.warningDays") }
+        if let v = settings["workAgeOverdueDays"] as? Int { syncStore.set(v, forKey: "WorkAge.overdueDays") }
         if let v = settings["workAgeFreshColorHex"] as? String {
-            _ = syncStore.set(v, forKey: "WorkAge.freshColorHex")
+            syncStore.set(v, forKey: "WorkAge.freshColorHex")
         }
         if let v = settings["workAgeWarningColorHex"] as? String {
-            _ = syncStore.set(v, forKey: "WorkAge.warningColorHex")
+            syncStore.set(v, forKey: "WorkAge.warningColorHex")
         }
         if let v = settings["workAgeOverdueColorHex"] as? String {
-            _ = syncStore.set(v, forKey: "WorkAge.overdueColorHex")
+            syncStore.set(v, forKey: "WorkAge.overdueColorHex")
         }
 
         // AI Models
@@ -144,17 +144,17 @@ enum SettingsExportService {
         if let v = settings["autoBackupRetentionCount"] as? Int {
             ud.set(v, forKey: UserDefaultsKeys.autoBackupRetentionCount)
         }
-        if let v = settings["backupEncrypt"] as? Bool { _ = syncStore.set(v, forKey: "Backup.encrypt") }
+        if let v = settings["backupEncrypt"] as? Bool { syncStore.set(v, forKey: "Backup.encrypt") }
 
         // Communication
         if let v = settings["attendanceEmailEnabled"] as? Bool {
-            _ = syncStore.set(v, forKey: "AttendanceEmail.enabled")
+            syncStore.set(v, forKey: "AttendanceEmail.enabled")
         }
         if let v = settings["attendanceEmailTo"] as? String {
-            _ = syncStore.set(v, forKey: "AttendanceEmail.to")
+            syncStore.set(v, forKey: "AttendanceEmail.to")
         }
         if let v = settings["attendanceEmailFrom"] as? String {
-            _ = syncStore.set(v, forKey: "AttendanceEmail.from")
+            syncStore.set(v, forKey: "AttendanceEmail.from")
         }
     }
 }

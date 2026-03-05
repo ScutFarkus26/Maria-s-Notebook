@@ -15,13 +15,21 @@ struct PDFRenderer {
         hostingController.view.backgroundColor = .white
 
         // CRITICAL: The hosting controller's view must be in the view hierarchy for SwiftUI to render.
-        // Add it to a temporary window positioned offscreen.
-        let tempWindow = UIWindow(frame: CGRect(
+        // Add it to a temporary window using the active window scene.
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+              ?? UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first
+        else { return nil }
+        let tempWindow = UIWindow(windowScene: windowScene)
+        tempWindow.frame = CGRect(
             x: TimeoutConstants.offscreenCoordinate,
             y: TimeoutConstants.offscreenCoordinate,
             width: size.width,
             height: size.height
-        ))
+        )
         tempWindow.rootViewController = hostingController
         tempWindow.isHidden = false
         tempWindow.layoutIfNeeded()

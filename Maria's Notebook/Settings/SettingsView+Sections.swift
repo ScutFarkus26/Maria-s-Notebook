@@ -55,16 +55,16 @@ extension SettingsView {
                 collapsible: true,
                 onReset: {
                     let store = SyncedPreferencesStore.shared
-                    _ = store.set(LessonAgeDefaults.warningDays, forKey: "LessonAge.warningDays")
-                    _ = store.set(LessonAgeDefaults.overdueDays, forKey: "LessonAge.overdueDays")
-                    _ = store.set(LessonAgeDefaults.freshColorHex, forKey: "LessonAge.freshColorHex")
-                    _ = store.set(LessonAgeDefaults.warningColorHex, forKey: "LessonAge.warningColorHex")
-                    _ = store.set(LessonAgeDefaults.overdueColorHex, forKey: "LessonAge.overdueColorHex")
-                    _ = store.set(WorkAgeDefaults.warningDays, forKey: "WorkAge.warningDays")
-                    _ = store.set(WorkAgeDefaults.overdueDays, forKey: "WorkAge.overdueDays")
-                    _ = store.set(WorkAgeDefaults.freshColorHex, forKey: "WorkAge.freshColorHex")
-                    _ = store.set(WorkAgeDefaults.warningColorHex, forKey: "WorkAge.warningColorHex")
-                    _ = store.set(WorkAgeDefaults.overdueColorHex, forKey: "WorkAge.overdueColorHex")
+                    store.set(LessonAgeDefaults.warningDays, forKey: "LessonAge.warningDays")
+                    store.set(LessonAgeDefaults.overdueDays, forKey: "LessonAge.overdueDays")
+                    store.set(LessonAgeDefaults.freshColorHex, forKey: "LessonAge.freshColorHex")
+                    store.set(LessonAgeDefaults.warningColorHex, forKey: "LessonAge.warningColorHex")
+                    store.set(LessonAgeDefaults.overdueColorHex, forKey: "LessonAge.overdueColorHex")
+                    store.set(WorkAgeDefaults.warningDays, forKey: "WorkAge.warningDays")
+                    store.set(WorkAgeDefaults.overdueDays, forKey: "WorkAge.overdueDays")
+                    store.set(WorkAgeDefaults.freshColorHex, forKey: "WorkAge.freshColorHex")
+                    store.set(WorkAgeDefaults.warningColorHex, forKey: "WorkAge.warningColorHex")
+                    store.set(WorkAgeDefaults.overdueColorHex, forKey: "WorkAge.overdueColorHex")
                     SettingsCategory.markModified(.general)
                 }
             ) {

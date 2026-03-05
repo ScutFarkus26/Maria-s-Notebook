@@ -65,6 +65,7 @@ struct MarkdownExporter {
     }
 
     #if os(iOS)
+    @MainActor
     static func presentShare(_ text: String) {
         let av = UIActivityViewController(activityItems: [text], applicationActivities: nil)
         guard

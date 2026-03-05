@@ -5,6 +5,7 @@ import UIKit
 import AppKit
 #endif
 
+@MainActor
 public enum PagesOpener {
     public static func open(_ url: URL) {
         let needsAccess = url.startAccessingSecurityScopedResource()
