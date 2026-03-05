@@ -1,0 +1,71 @@
+import Foundation
+import SwiftData
+
+// MARK: - AI Services
+
+extension AppDependencies {
+
+    /// The AI client router that handles local-first routing with Claude fallback.
+    /// All AI services should use this (via `mcpClient`) for inference.
+    var aiRouter: AIClientRouter {
+        if let router = _aiRouter { return router }
+        let router = AIClientRouter()
+        _aiRouter = router
+        return router
+    }
+
+    /// Protocol-typed client for injection into services.
+    /// Points to the router, which handles local/Claude routing transparently.
+    var mcpClient: MCPClientProtocol {
+        aiRouter
+    }
+
+    var chatService: ChatService {
+        if let service = _chatService {
+            return service
+        }
+        let service = ChatService(modelContext: modelContext, mcpClient: mcpClient)
+        _chatService = service
+        return service
+    }
+
+    var studentAnalysisService: StudentAnalysisService {
+        if let service = _studentAnalysisService {
+            return service
+        }
+        let service = StudentAnalysisService(
+            modelContext: modelContext,
+            mcpClient: mcpClient
+        )
+        _studentAnalysisService = service
+        return service
+    }
+
+    var lessonPlanningService: LessonPlanningService {
+        if let service = _lessonPlanningService {
+            return service
+        }
+        let service = LessonPlanningService(
+            modelContext: modelContext,
+            mcpClient: mcpClient
+        )
+        _lessonPlanningService = service
+        return service
+    }
+
+    var databaseAnalysisService: DatabaseAnalysisService {
+        if let service = _databaseAnalysisService { return service }
+        let service = DatabaseAnalysisService(modelContext: modelContext, mcpClient: mcpClient)
+        _databaseAnalysisService = service
+        return service
+    }
+
+    var reportGeneratorService: ReportGeneratorService {
+        if let service = _reportGeneratorService {
+            return service
+        }
+        let service = ReportGeneratorService()
+        _reportGeneratorService = service
+        return service
+    }
+}

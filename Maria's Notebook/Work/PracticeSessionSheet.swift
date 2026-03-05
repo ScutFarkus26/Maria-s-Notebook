@@ -17,27 +17,27 @@ struct PracticeSessionSheet: View {
     @Query private var allLessonAssignments: [LessonAssignment]
     @Query private var allPracticeSessions: [PracticeSession]
 
-    @State private var selectedDate: Date = Date()
-    @State private var selectedStudentIDs: Set<UUID> = []
-    @State private var selectedWorkItemIDs: Set<UUID> = []
-    @State private var sharedNotes: String = ""
-    @State private var duration: TimeInterval?
-    @State private var hasDuration: Bool = false
-    @State private var durationMinutes: Int = 30
-    @State private var location: String = ""
-    @State private var hasLocation: Bool = false
-    @State private var searchText: String = ""
+    @State var selectedDate: Date = Date()
+    @State var selectedStudentIDs: Set<UUID> = []
+    @State var selectedWorkItemIDs: Set<UUID> = []
+    @State var sharedNotes: String = ""
+    @State var duration: TimeInterval?
+    @State var hasDuration: Bool = false
+    @State var durationMinutes: Int = 30
+    @State var location: String = ""
+    @State var hasLocation: Bool = false
+    @State var searchText: String = ""
 
     // Session quality metrics
-    @State private var practiceQuality: Int?
-    @State private var independenceLevel: Int?
+    @State var practiceQuality: Int?
+    @State var independenceLevel: Int?
 
     // Individual notes per student (optional)
-    @State private var individualNotes: [UUID: String] = [:]
-    @State private var individualUnderstandingLevels: [UUID: Int] = [:]
+    @State var individualNotes: [UUID: String] = [:]
+    @State var individualUnderstandingLevels: [UUID: Int] = [:]
 
     // Student selection sheet
-    @State private var showStudentSelector: Bool = false
+    @State var showStudentSelector: Bool = false
     
     // Presentation and lesson context
     @State private var relatedPresentation: Presentation?
@@ -64,7 +64,7 @@ struct PracticeSessionSheet: View {
     }
 
     // All students ordered by category and search filter
-    private var orderedStudents: [CategorizedStudent] {
+    var orderedStudents: [CategorizedStudent] {
         let categorized = allStudents
             .filter { !selectedStudentIDs.contains($0.id) }
             .map { categorizer.categorize($0) }
@@ -78,13 +78,13 @@ struct PracticeSessionSheet: View {
         return StudentCategorizer.sort(categorized)
     }
 
-    private var selectedStudents: [Student] {
+    var selectedStudents: [Student] {
         allStudents
             .filter { selectedStudentIDs.contains($0.id) }
             .sorted { $0.firstName < $1.firstName }
     }
     
-    private var selectedWorkItems: [WorkModel] {
+    var selectedWorkItems: [WorkModel] {
         allWork
             .filter { selectedWorkItemIDs.contains($0.id) }
             .sorted { $0.title < $1.title }
@@ -168,20 +168,6 @@ struct PracticeSessionSheet: View {
         }
     }
     
-    private var dateSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            PracticeSectionHeader(title: "Practice Date")
-
-            DatePicker(
-                "Date",
-                selection: $selectedDate,
-                displayedComponents: [.date]
-            )
-            .datePickerStyle(.compact)
-            .labelsHidden()
-        }
-    }
-    
     private var currentlyPracticingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -222,177 +208,13 @@ struct PracticeSessionSheet: View {
         }
     }
     
-    private var studentSelectorSheet: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                StudentSelectorSearchBar(searchText: $searchText)
-
-                Divider()
-                
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if orderedStudents.isEmpty {
-                            emptyPartnersMessage
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding()
-                        } else {
-                            studentSelectionList
-                        }
-                    }
-                    .padding(20)
-                }
-            }
-            .navigationTitle("Add Practice Partners")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        showStudentSelector = false
-                        searchText = "" // Clear search on dismiss
-                    }
-                }
-            }
-        }
-    }
-
-    private var emptyPartnersMessage: some View {
-        Text(searchText.isEmpty ? "No other students have work for this lesson" : "No students match '\(searchText)'")
-            .font(AppTheme.ScaledFont.caption)
-            .foregroundStyle(.secondary)
-            .italic()
-            .padding(.vertical, 8)
-    }
-
-    private var studentSelectionList: some View {
-        ForEach(Array(groupedStudents.keys.sorted(by: { $0.rawValue < $1.rawValue })), id: \.rawValue) { category in
-            if let students = groupedStudents[category] {
-                StudentCategorySection(
-                    category: category,
-                    students: students,
-                    onStudentTap: toggleStudent
-                )
-            }
-        }
-    }
-
-    private var groupedStudents: [StudentCategory: [CategorizedStudent]] {
-        Dictionary(grouping: orderedStudents, by: { $0.category })
-    }
-    
-    private var sharedNotesSection: some View {
+    var sharedNotesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             PracticeSectionHeader(title: "Session Notes")
 
             StyledNotesTextField(placeholder: "Add session notes...", text: $sharedNotes, lineLimit: 5...10)
         }
     }
-
-    private var qualityMetricsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            PracticeSectionHeader(title: "Session Quality")
-
-            RatingLevelSelector(
-                label: "Engagement Level",
-                selectedLevel: $practiceQuality,
-                color: .blue,
-                levelLabels: PracticeSessionLabels.qualityLabel
-            )
-
-            RatingLevelSelector(
-                label: "Independence Level",
-                selectedLevel: $independenceLevel,
-                color: .green,
-                levelLabels: PracticeSessionLabels.independenceLabel
-            )
-        }
-    }
-
-
-    private var optionalFieldsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            OptionalFieldToggle(title: "Track Duration", isEnabled: $hasDuration) {
-                HStack {
-                    Text("Duration (minutes)")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Stepper("\(durationMinutes) min", value: $durationMinutes, in: 5...300, step: 5)
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                }
-                .onChange(of: durationMinutes) { _, newValue in
-                    duration = TimeInterval(newValue * 60)
-                }
-            }
-            .onChange(of: hasDuration) { _, newValue in
-                if !newValue {
-                    duration = nil
-                }
-            }
-
-            OptionalFieldToggle(title: "Add Location", isEnabled: $hasLocation) {
-                TextField("Location (e.g., Small table, Outside)", text: $location)
-                    .font(AppTheme.ScaledFont.body)
-                    .textFieldStyle(.plain)
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.05))
-                    )
-            }
-            .onChange(of: hasLocation) { _, newValue in
-                if !newValue {
-                    location = ""
-                }
-            }
-        }
-    }
-    
-    private var individualNotesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            PracticeSectionHeader(title: "Individual Student Notes")
-
-            ForEach(selectedStudents) { student in
-                individualStudentCard(for: student)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func individualStudentCard(for student: Student) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(StudentFormatter.displayName(for: student))
-                .font(AppTheme.ScaledFont.bodySemibold)
-
-            StudentUnderstandingSelector(level: Binding(
-                get: { individualUnderstandingLevels[student.id] ?? 3 },
-                set: { individualUnderstandingLevels[student.id] = $0 }
-            ))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Notes")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-
-                StyledNotesTextField(
-                    placeholder: "Add notes for \(StudentFormatter.displayName(for: student))...",
-                    text: Binding(
-                        get: { individualNotes[student.id] ?? "" },
-                        set: { individualNotes[student.id] = $0 }
-                    )
-                )
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-    }
-
 
     private var bottomBar: some View {
         PracticeSessionBottomBar(
@@ -416,7 +238,7 @@ struct PracticeSessionSheet: View {
         relatedLesson = initialWorkItem.fetchLesson(from: modelContext)
     }
     
-    private func toggleStudent(_ student: Student) {
+    func toggleStudent(_ student: Student) {
         if selectedStudentIDs.contains(student.id) {
             selectedStudentIDs.remove(student.id)
             // Remove their work item too

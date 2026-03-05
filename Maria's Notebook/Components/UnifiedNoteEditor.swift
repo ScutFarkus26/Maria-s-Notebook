@@ -4,10 +4,12 @@
 //
 // Split into multiple files for maintainability:
 // - UnifiedNoteEditor.swift (this file) - Main view structure and body
-// - NoteEditorSections.swift - All view sections (student selection, category, etc.)
+// - NoteEditorSections.swift - View sections (tags, note body, photos, etc.)
+// - NoteEditorStudentSelection.swift - Student selection UI (surfacing banner, student picker)
 // - NoteEditorHelpers.swift - Helper methods and computed properties
 // - NoteEditorSaveLogic.swift - Save functionality and relationship mapping
 // - NoteEditorAISuggestion.swift - AI suggestion functionality
+// - TemplatePickerView.swift - Template picker standalone view
 // - SmartTextEditor.swift - Smart text editor component
 
 import SwiftUI

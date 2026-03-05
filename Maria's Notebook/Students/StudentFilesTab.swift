@@ -2,12 +2,6 @@ import OSLog
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
-@preconcurrency import PDFKit
-#if os(macOS)
-import AppKit
-#elseif os(iOS)
-import UIKit
-#endif
 
 enum DocumentSortOption {
     case dateDesc
@@ -16,44 +10,44 @@ enum DocumentSortOption {
 }
 
 struct StudentFilesTab: View {
-    private static let logger = Logger.students
+    static let logger = Logger.students
 
     let student: Student
-    
+
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    private var repository: DocumentRepository {
+    var repository: DocumentRepository {
         DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)
     }
 
     @State private var showFileImporter = false
-    @State private var selectedImportData: ImportDataWrapper?
-    @State private var documentToRename: Document?
-    @State private var showRenameAlert = false
-    @State private var renameTitleText = ""
+    @State var selectedImportData: ImportDataWrapper?
+    @State var documentToRename: Document?
+    @State var showRenameAlert = false
+    @State var renameTitleText = ""
     @State private var previewURL: URL?
     @State private var sortOption: DocumentSortOption = .dateDesc
     @State private var filterCategory: String?
-    
-    private struct ImportDataWrapper: Identifiable {
+
+    struct ImportDataWrapper: Identifiable {
         let id = UUID()
         let url: URL
         let data: Data
     }
-    
+
     private var allDocuments: [Document] {
         student.documents ?? []
     }
-    
+
     private var documents: [Document] {
         var filtered = allDocuments
-        
+
         // Filter by category if set
         if let category = filterCategory {
             filtered = filtered.filter { $0.category == category }
         }
-        
+
         // Sort based on option
         switch sortOption {
         case .dateDesc:
@@ -63,19 +57,19 @@ struct StudentFilesTab: View {
         case .title:
             filtered.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
-        
+
         return filtered
     }
-    
+
     private var uniqueCategories: [String] {
         let categories = Set(allDocuments.map { $0.category })
         return Array(categories).sorted()
     }
-    
+
     private let columns = [
         GridItem(.adaptive(minimum: 200), spacing: 16)
     ]
-    
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -84,7 +78,7 @@ struct StudentFilesTab: View {
                         Text("Files")
                             .font(.headline)
                         Spacer()
-                        
+
                         Menu {
                             Section("Filter by") {
                                 Button {
@@ -95,7 +89,7 @@ struct StudentFilesTab: View {
                                         Image(systemName: "checkmark")
                                     }
                                 }
-                                
+
                                 ForEach(uniqueCategories, id: \.self) { category in
                                     Button {
                                         filterCategory = category
@@ -107,7 +101,7 @@ struct StudentFilesTab: View {
                                     }
                                 }
                             }
-                            
+
                             Section("Sort by") {
                                 Button {
                                     sortOption = .dateDesc
@@ -117,7 +111,7 @@ struct StudentFilesTab: View {
                                         Image(systemName: "checkmark")
                                     }
                                 }
-                                
+
                                 Button {
                                     sortOption = .dateAsc
                                 } label: {
@@ -126,7 +120,7 @@ struct StudentFilesTab: View {
                                         Image(systemName: "checkmark")
                                     }
                                 }
-                                
+
                                 Button {
                                     sortOption = .title
                                 } label: {
@@ -140,7 +134,7 @@ struct StudentFilesTab: View {
                             Label("Filter & Sort", systemImage: SFSymbol.Search.lineHorizontal3DecreaseCircle)
                         }
                         .buttonStyle(.bordered)
-                        
+
                         Button {
                             #if os(macOS)
                             presentMacOpenPanel()
@@ -152,7 +146,7 @@ struct StudentFilesTab: View {
                         }
                         .buttonStyle(.borderedProminent)
                     }
-                    
+
                     if allDocuments.isEmpty {
                         ContentUnavailableView(
                             "No files yet",
@@ -223,331 +217,7 @@ struct StudentFilesTab: View {
             }
         }
     }
-    
-    private func openDocumentInDefaultApp(_ url: URL) {
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
-        #endif
-    }
-    
-    private func handleDrop(_ urls: [URL]) -> Bool {
-        guard let url = urls.first else { return false }
-        
-        do {
-            let gotAccess = url.startAccessingSecurityScopedResource()
-            defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
-            
-            let data = try Data(contentsOf: url)
-            // Passing the original URL allows DocumentImportSheet to extract the correct filename
-            selectedImportData = ImportDataWrapper(url: url, data: data)
-            return true
-        } catch {
-            return false
-        }
-    }
-    
-    private func deleteDocument(_ document: Document) {
-        do {
-            try repository.deleteDocument(id: document.id)
-        } catch {
-            Self.logger.warning("Failed to delete document: \(error)")
-        }
-    }
-    
-    private func renameDocument(_ document: Document) {
-        documentToRename = document
-        renameTitleText = document.title
-        showRenameAlert = true
-    }
-    
-    private var renameSheet: some View {
-        NavigationStack {
-            Form {
-                Section("Document Title") {
-                    TextField("Title", text: $renameTitleText)
-                }
-            }
-            .navigationTitle("Rename Document")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        documentToRename = nil
-                        renameTitleText = ""
-                        showRenameAlert = false
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveRename()
-                    }
-                    .disabled(renameTitleText.trimmed().isEmpty)
-                }
-            }
-        }
-    }
-    
-    private func saveRename() {
-        guard let document = documentToRename else { return }
-        let trimmedTitle = renameTitleText.trimmed()
-        guard !trimmedTitle.isEmpty else { return }
-
-        repository.updateDocument(id: document.id, title: trimmedTitle)
-        _ = repository.save(reason: "Rename document")
-
-        documentToRename = nil
-        renameTitleText = ""
-        showRenameAlert = false
-    }
-    
-    private func handleFileImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            Task {
-                await loadPDFData(from: url)
-            }
-        case .failure:
-            break
-        }
-    }
-    
-    private func loadPDFData(from url: URL) async {
-        let needsAccess = url.startAccessingSecurityScopedResource()
-        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-        
-        do {
-            let data = try Data(contentsOf: url)
-            await MainActor.run {
-                selectedImportData = ImportDataWrapper(url: url, data: data)
-            }
-        } catch {
-            // Failed to load PDF data - continue silently
-        }
-    }
-    
-    #if os(macOS)
-    private func presentMacOpenPanel() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowedContentTypes = [.pdf]
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                Task {
-                    await loadPDFData(from: url)
-                }
-            }
-        }
-    }
-    #endif
 }
-
-struct DocumentCard: View {
-    let document: Document
-    let onOpen: (URL) -> Void
-    let onDelete: () -> Void
-    let onRename: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PDFThumbnail(data: document.pdfData)
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity, maxHeight: 120)
-                .frame(alignment: .center)
-                .padding(.vertical, 12)
-            
-            Text(document.title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-            
-            Text(document.category)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.1))
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if let url = createTemporaryFileURL() {
-                onOpen(url)
-            }
-        }
-        .contextMenu {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: SFSymbol.Action.trash)
-            }
-            
-            Button(action: onRename) {
-                Label("Rename", systemImage: SFSymbol.Education.pencil)
-            }
-        }
-    }
-    
-    private func createTemporaryFileURL() -> URL? {
-        guard let pdfData = document.pdfData else {
-            return nil
-        }
-        
-        // Create a temporary file URL
-        let tempDir = FileManager.default.temporaryDirectory
-        let sanitizedTitle = document.title
-            .replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-            .replacingOccurrences(of: "\n", with: " ")
-        let filename = sanitizedTitle.isEmpty ? "Document.pdf" : "\(sanitizedTitle).pdf"
-        let tempURL = tempDir.appendingPathComponent(filename)
-        
-        do {
-            // Write PDF data to temporary file
-            try pdfData.write(to: tempURL)
-            return tempURL
-        } catch {
-            return nil
-        }
-    }
-}
-
-struct PDFThumbnail: View {
-    let data: Data?
-
-    @State private var page: PDFPage?
-    @State private var isLoading = true
-
-    var body: some View {
-        Group {
-            if let page {
-                PDFThumbnailView(page: page)
-            } else if isLoading {
-                ProgressView()
-                    .frame(maxWidth: 40, maxHeight: 40)
-            } else {
-                Image(systemName: "doc.text.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .task {
-            await loadPDFPage()
-        }
-    }
-
-    private func loadPDFPage() async {
-        guard let pdfData = data else {
-            isLoading = false
-            return
-        }
-
-        // Keep PDFKit objects on the current actor to avoid crossing non-Sendable types.
-        let pdfDocument = PDFDocument(data: pdfData)
-        self.page = pdfDocument?.page(at: 0)
-        self.isLoading = false
-    }
-}
-
-struct PDFThumbnailView: View {
-    let page: PDFPage
-    
-    var body: some View {
-        #if os(macOS)
-        PDFPageViewRepresentable(page: page)
-        #else
-        PDFPageViewRepresentable(page: page)
-        #endif
-    }
-}
-
-#if os(macOS)
-struct PDFPageViewRepresentable: NSViewRepresentable {
-    let page: PDFPage
-
-    func makeNSView(context: Context) -> PDFView {
-        let pdfView = PDFView()
-        pdfView.autoScales = true
-        pdfView.displayMode = .singlePage
-        pdfView.displayDirection = .vertical
-        pdfView.backgroundColor = .clear
-        // Document assignment is deferred to updateNSView to avoid layout recursion
-        return pdfView
-    }
-
-    func updateNSView(_ nsView: PDFView, context: Context) {
-        // Defer all document/navigation changes to next run loop to avoid layout recursion
-        // PDFView internally triggers layout when documents are assigned
-        let targetPage = page
-
-        if let existingDocument = page.document {
-            if nsView.document !== existingDocument {
-                Task { @MainActor in
-                    nsView.document = existingDocument
-                    nsView.go(to: targetPage)
-                }
-            } else if nsView.currentPage !== page {
-                Task { @MainActor in
-                    nsView.go(to: targetPage)
-                }
-            }
-        } else if nsView.document == nil {
-            // Only create a new document if the page doesn't have one and view has no document
-            Task { @MainActor in
-                let newDocument = PDFDocument()
-                newDocument.insert(targetPage, at: 0)
-                nsView.document = newDocument
-            }
-        }
-    }
-}
-#else
-struct PDFPageViewRepresentable: UIViewRepresentable {
-    let page: PDFPage
-    
-    func makeUIView(context: Context) -> PDFView {
-        let pdfView = PDFView()
-        
-        // Check if the page already belongs to a document
-        if let existingDocument = page.document {
-            // Use the existing document to preserve accessibility tag structure
-            pdfView.document = existingDocument
-            pdfView.go(to: page)
-        } else {
-            // Only create a new document if the page doesn't have one
-            let newDocument = PDFDocument()
-            newDocument.insert(page, at: 0)
-            pdfView.document = newDocument
-        }
-        
-        pdfView.autoScales = true
-        pdfView.displayMode = .singlePage
-        pdfView.displayDirection = .vertical
-        pdfView.backgroundColor = .clear
-        return pdfView
-    }
-    
-    func updateUIView(_ uiView: PDFView, context: Context) {
-        // Ensure the view stays in sync with the page
-        if let existingDocument = page.document {
-            if uiView.document !== existingDocument {
-                uiView.document = existingDocument
-                uiView.go(to: page)
-            } else if uiView.currentPage !== page {
-                uiView.go(to: page)
-            }
-        }
-    }
-}
-#endif
 
 private enum StudentFilesTabPreviewFactory {
     @MainActor

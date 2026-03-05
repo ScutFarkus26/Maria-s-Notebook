@@ -7,13 +7,13 @@ import Foundation
 
 private let logger = Logger.students
 
-private enum PresentationsListSort: String {
+enum PresentationsListSort: String {
     case upcomingThenPresented = "Default"
     case dateCreated = "Date Created"
     case datePresented = "Date Presented"
 }
 
-private enum CompletionFilter: String {
+enum CompletionFilter: String {
     case all = "All"
     case completed = "Completed"
     case notCompleted = "Not Completed"
@@ -37,22 +37,22 @@ struct PresentationsListView: View {
     @Query private var studentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    var students: [Student] {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    @State private var selectedLessonID: UUID?
-    @State private var quickActionsLessonID: UUID?
-    
+    @State var selectedLessonID: UUID?
+    @State var quickActionsLessonID: UUID?
+
     // State for iPhone/Compact filter sheet
     @State private var showFilterSheet: Bool = false
 
-    @SceneStorage("Presentations.filter") private var presentationsFilterRaw: String = "all"
+    @SceneStorage("Presentations.filter") var presentationsFilterRaw: String = "all"
     @SceneStorage("Presentations.sort") private var presentationsSortRaw: String = "default"
-    @SceneStorage("Presentations.subject") private var presentationsSubjectRaw: String = ""
-    @State private var previousPresentationsFilterRaw: String?
+    @SceneStorage("Presentations.subject") var presentationsSubjectRaw: String = ""
+    @State var previousPresentationsFilterRaw: String?
 
-    private var filter: CompletionFilter {
+    var filter: CompletionFilter {
         switch presentationsFilterRaw {
         case "completed": return .completed
         case "notCompleted": return .notCompleted
@@ -61,7 +61,7 @@ struct PresentationsListView: View {
         }
     }
 
-    private var sort: PresentationsListSort {
+    var sort: PresentationsListSort {
         switch presentationsSortRaw {
         case "dateCreated": return .dateCreated
         case "datePresented", "dateGiven": return .datePresented
@@ -69,24 +69,24 @@ struct PresentationsListView: View {
         }
     }
 
-    private var selectedSubject: String? {
+    var selectedSubject: String? {
         StringFallbacks.valueOrNil(presentationsSubjectRaw)
     }
 
     private let lessonsVM = LessonsViewModel()
 
-    private var subjects: [String] {
+    var subjects: [String] {
         lessonsVM.subjects(from: lessons)
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonMap: [UUID: Lesson] {
+    var lessonMap: [UUID: Lesson] {
         Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
-    
+
     // MODERN: Computed properties with automatic dependency tracking
     // No manual cache invalidation needed - SwiftUI handles updates automatically
-    
+
     /// Subject-filtered lesson IDs for filtering lesson assignments
     private var subjectLessonIDs: Set<UUID>? {
         guard let subject = selectedSubject else { return nil }
@@ -96,10 +96,10 @@ struct PresentationsListView: View {
         let ids = Set(subjectLessons.map { $0.id })
         return ids.isEmpty ? nil : ids
     }
-    
+
     /// Filtered lesson assignments based on completion filter and subject selection
     /// Automatically recomputes when filter, subject, or allLessonAssignments changes
-    private var filteredAssignments: [LessonAssignment] {
+    var filteredAssignments: [LessonAssignment] {
         // Apply completion filter
         let base: [LessonAssignment]
         switch filter {
@@ -113,7 +113,7 @@ struct PresentationsListView: View {
         case .hiddenUndated:
             base = allLessonAssignments.filter { $0.isPresented && $0.presentedAt == nil }
         }
-        
+
         // Apply subject filter if selected
         if let lessonIDs = subjectLessonIDs {
             return base.filter { sl in
@@ -121,13 +121,13 @@ struct PresentationsListView: View {
                 return lessonIDs.contains(lessonID)
             }
         }
-        
+
         return base
     }
-    
+
     /// Sorted lesson assignments based on current sort mode
     /// Automatically recomputes when sort or filteredAssignments changes
-    private var sortedAssignments: [LessonAssignment] {
+    var sortedAssignments: [LessonAssignment] {
         #if DEBUG
         let startTime = Date()
         defer {
@@ -139,7 +139,7 @@ struct PresentationsListView: View {
             )
         }
         #endif
-        
+
         switch sort {
         case .upcomingThenPresented:
             let upcoming = filteredAssignments.filter { !$0.isPresented }.sorted { lhs, rhs in
@@ -169,17 +169,17 @@ struct PresentationsListView: View {
             }
         }
     }
-    
+
     // MODERN: Specialized views for different presentation layouts
     // These are only used for .upcomingThenPresented sort mode
-    
+
     /// Hidden undated presentations - automatically updates when filteredAssignments changes
-    private var hiddenUndated: [LessonAssignment] {
+    var hiddenUndated: [LessonAssignment] {
         filteredAssignments.sorted { $0.createdAt > $1.createdAt }
     }
-    
+
     /// Upcoming presentations (not yet presented) - automatically updates
-    private var defaultUpcoming: [LessonAssignment] {
+    var defaultUpcoming: [LessonAssignment] {
         filteredAssignments.filter { !$0.isPresented }.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?): return l < r
@@ -189,9 +189,9 @@ struct PresentationsListView: View {
             }
         }
     }
-    
+
     /// Presented assignments - automatically updates
-    private var defaultPresented: [LessonAssignment] {
+    var defaultPresented: [LessonAssignment] {
         filteredAssignments.filter { $0.isPresented && $0.presentedAt != nil }.sorted { lhs, rhs in
             let l = lhs.presentedAt ?? .distantPast
             let r = rhs.presentedAt ?? .distantPast
@@ -199,7 +199,7 @@ struct PresentationsListView: View {
         }
     }
 
-    private var columns: [GridItem] {
+    var columns: [GridItem] {
         [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: 24)]
     }
 
@@ -307,257 +307,6 @@ struct PresentationsListView: View {
             )
         }
         #endif
-    }
-
-    // MARK: - Sidebar
-    private var sidebar: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Filters")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 8)
-
-                SidebarFilterButton(
-                    icon: "line.3.horizontal.decrease.circle",
-                    title: CompletionFilter.all.rawValue,
-                    color: .accentColor,
-                    isSelected: filter == .all
-                ) {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        presentationsFilterRaw = "all"
-                    }
-                }
-
-                SidebarFilterButton(
-                    icon: "checkmark.circle.fill",
-                    title: CompletionFilter.completed.rawValue,
-                    color: .green,
-                    isSelected: filter == .completed
-                ) {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        presentationsFilterRaw = "completed"
-                    }
-                }
-
-                SidebarFilterButton(
-                    icon: "circle.dashed",
-                    title: CompletionFilter.notCompleted.rawValue,
-                    color: .orange,
-                    isSelected: filter == .notCompleted
-                ) {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        presentationsFilterRaw = "notCompleted"
-                    }
-                }
-
-                Text("Subject")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 8)
-
-                // Clear subject filter
-                SidebarFilterButton(
-                    icon: "rectangle.3.group",
-                    title: "All Subjects",
-                    color: .accentColor,
-                    isSelected: selectedSubject == nil
-                ) {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        presentationsSubjectRaw = ""
-                    }
-                }
-
-                ForEach(subjects, id: \.self) { subject in
-                    SidebarFilterButton(
-                        icon: "folder.fill",
-                        title: subject,
-                        color: AppColors.color(forSubject: subject),
-                        isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
-                    ) {
-                        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                            presentationsSubjectRaw = subject
-                        }
-                    }
-                }
-
-                Divider()
-
-                SidebarFilterButton(
-                    icon: "eye.slash.fill",
-                    title: CompletionFilter.hiddenUndated.rawValue,
-                    color: .gray,
-                    isSelected: filter == .hiddenUndated
-                ) {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        if filter == .hiddenUndated {
-                            presentationsFilterRaw = previousPresentationsFilterRaw ?? "all"
-                        } else {
-                            previousPresentationsFilterRaw = presentationsFilterRaw
-                            presentationsFilterRaw = "hidden"
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 16)
-            .padding(.leading, 16)
-        }
-        .frame(minWidth: 200, maxWidth: .infinity, alignment: .topLeading) // FIX: Allow flexible width in sheet
-        #if os(macOS)
-        .frame(width: 200)
-        #endif
-        .background(Color.gray.opacity(0.08))
-    }
-
-    // MARK: - Content (Unchanged)
-    private var content: some View {
-        Group {
-            if sort == .upcomingThenPresented {
-                if filter == .hiddenUndated {
-                    if hiddenUndated.isEmpty {
-                        VStack(spacing: 8) {
-                            Text("No hidden presentations")
-                                .font(AppTheme.ScaledFont.titleMedium)
-                            Text("Presentations marked presented without a date will appear here.")
-                                .font(AppTheme.ScaledFont.body)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "eye.slash.fill")
-                                        .foregroundStyle(.secondary)
-                                    Text("Hidden")
-                                        .font(AppTheme.ScaledFont.captionSemibold)
-                                        .foregroundStyle(.secondary)
-                                }
-                                LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                                    ForEach(hiddenUndated, id: \.id) { sl in
-                                        PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
-                                            .onTapGesture { selectedLessonID = sl.id }
-                                            .contextMenu {
-                                                Button {
-                                                    quickActionsLessonID = sl.id
-                                                } label: {
-                                                    Label("Quick Actions…", systemImage: "bolt")
-                                                }
-                                            }
-                                    }
-                                }
-                            }
-                            .padding(24)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                } else {
-                    let showUpcoming = filter != .completed
-                    let showPresented = filter != .notCompleted
-                    let up = defaultUpcoming
-                    let gv = defaultPresented
-
-                    if (!showUpcoming || up.isEmpty) && (!showPresented || gv.isEmpty) {
-                        VStack(spacing: 8) {
-                            Text("No presentations")
-                                .font(AppTheme.ScaledFont.titleMedium)
-                            Text("Try adjusting your filters or add presentations from the Lessons library.")
-                                .font(AppTheme.ScaledFont.body)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 24) {
-                                if showUpcoming && !up.isEmpty {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack(spacing: 10) {
-                                            Image(systemName: "clock")
-                                                .foregroundStyle(.secondary)
-                                            Text("To Present")
-                                                .font(AppTheme.ScaledFont.captionSemibold)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                                            ForEach(up, id: \.id) { sl in
-                                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
-                                                    .onTapGesture { selectedLessonID = sl.id }
-                                                    .contextMenu {
-                                                        Button {
-                                                            quickActionsLessonID = sl.id
-                                                        } label: {
-                                                            Label("Quick Actions…", systemImage: "bolt")
-                                                        }
-                                                    }
-                                            }
-                                        }
-                                    }
-                                }
-                                if showPresented && !gv.isEmpty {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack(spacing: 10) {
-                                            Image(systemName: "checkmark.circle")
-                                                .foregroundStyle(.secondary)
-                                            Text("Given")
-                                                .font(AppTheme.ScaledFont.captionSemibold)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                                            ForEach(gv, id: \.id) { sl in
-                                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
-                                                    .onTapGesture { selectedLessonID = sl.id }
-                                                    .contextMenu {
-                                                        Button {
-                                                            quickActionsLessonID = sl.id
-                                                        } label: {
-                                                            Label("Quick Actions…", systemImage: "bolt")
-                                                        }
-                                                    }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(24)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-            } else {
-                if sortedAssignments.isEmpty {
-                    VStack(spacing: 8) {
-                        Text("No presentations")
-                            .font(AppTheme.ScaledFont.titleMedium)
-                        Text("Try adjusting your filters or add presentations from the Lessons library.")
-                            .font(AppTheme.ScaledFont.body)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                            ForEach(sortedAssignments, id: \.id) { sl in
-                                PresentationCard(snapshot: sl.snapshot(), lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] }, students: students)
-                                    .onTapGesture { selectedLessonID = sl.id }
-                                    .contextMenu {
-                                        Button {
-                                            quickActionsLessonID = sl.id
-                                        } label: {
-                                            Label("Quick Actions…", systemImage: "bolt")
-                                        }
-                                    }
-                            }
-                        }
-                        .padding(24)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-        }
     }
 }
 

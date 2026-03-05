@@ -47,13 +47,13 @@ import OSLog
 final class AppDependencies {
     private static let logger = Logger.app_
     let modelContext: ModelContext
-    
+
     // MARK: - Initialization
-    
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
-    
+
     // MARK: - Core Services
 
     private var _memoryPressureMonitor: MemoryPressureMonitor?
@@ -68,9 +68,9 @@ final class AppDependencies {
         _memoryPressureMonitor = monitor
         return monitor
     }
-    
+
     // MARK: - Repositories
-    
+
     /// Central repository container for type-safe data access
     /// Provides repositories for all entities with consistent context injection
     private var _repositories: RepositoryContainer?
@@ -82,24 +82,24 @@ final class AppDependencies {
         _repositories = container
         return container
     }
-    
+
     // MARK: - Data Services
-    
+
     // Work-related services
     // Note: WorkCompletionService is an enum with static methods, access directly (e.g., WorkCompletionService.someMethod())
-    
+
     // MARK: - Protocol-Based Services
-    
+
     /// WorkCheckInService - Protocol-based architecture
     var workCheckInService: any WorkCheckInServiceProtocol {
         WorkCheckInServiceAdapter(context: modelContext)
     }
-    
+
     /// WorkStepService - Protocol-based architecture
     var workStepService: any WorkStepServiceProtocol {
         WorkStepServiceAdapter(context: modelContext)
     }
-    
+
     // Track services
     private var _groupTrackService: GroupTrackService?
     var groupTrackService: GroupTrackService {
@@ -110,7 +110,7 @@ final class AppDependencies {
         _groupTrackService = service
         return service
     }
-    
+
     private var _trackProgressResolver: TrackProgressResolver?
     var trackProgressResolver: TrackProgressResolver {
         if let resolver = _trackProgressResolver {
@@ -120,7 +120,7 @@ final class AppDependencies {
         _trackProgressResolver = resolver
         return resolver
     }
-    
+
     private var _groupTrackProgressResolver: GroupTrackProgressResolver?
     var groupTrackProgressResolver: GroupTrackProgressResolver {
         if let resolver = _groupTrackProgressResolver {
@@ -130,9 +130,9 @@ final class AppDependencies {
         _groupTrackProgressResolver = resolver
         return resolver
     }
-    
+
     // MARK: - Sync Services
-    
+
     private var _reminderSyncService: ReminderSyncService?
     var reminderSync: ReminderSyncService {
         if let service = _reminderSyncService {
@@ -143,7 +143,7 @@ final class AppDependencies {
         _reminderSyncService = service
         return service
     }
-    
+
     private var _calendarSyncService: CalendarSyncService?
     var calendarSync: CalendarSyncService {
         if let service = _calendarSyncService {
@@ -153,97 +153,26 @@ final class AppDependencies {
         _calendarSyncService = service
         return service
     }
-    
-    // MARK: - Backup Services
-    
-    private var _backupService: BackupService?
-    var backupService: BackupService {
-        if let service = _backupService {
-            return service
-        }
-        let service = BackupService()
-        _backupService = service
-        return service
-    }
-    
-    private var _selectiveRestoreService: SelectiveRestoreService?
-    var selectiveRestoreService: SelectiveRestoreService {
-        if let service = _selectiveRestoreService {
-            return service
-        }
-        let service = SelectiveRestoreService(backupService: backupService)
-        _selectiveRestoreService = service
-        return service
-    }
-    
-    private var _cloudBackupService: CloudBackupService?
-    var cloudBackupService: CloudBackupService {
-        if let service = _cloudBackupService {
-            return service
-        }
-        let service = CloudBackupService(backupService: backupService)
-        _cloudBackupService = service
-        return service
-    }
-    
-    private var _incrementalBackupService: IncrementalBackupService?
-    var incrementalBackupService: IncrementalBackupService {
-        if let service = _incrementalBackupService {
-            return service
-        }
-        let service = IncrementalBackupService(backupService: backupService)
-        _incrementalBackupService = service
-        return service
-    }
-    
-    private var _backupSharingService: BackupSharingService?
-    var backupSharingService: BackupSharingService {
-        if let service = _backupSharingService {
-            return service
-        }
-        let service = BackupSharingService(backupService: backupService)
-        _backupSharingService = service
-        return service
-    }
-    
-    private var _backupTransactionManager: BackupTransactionManager?
-    var backupTransactionManager: BackupTransactionManager {
-        if let manager = _backupTransactionManager {
-            return manager
-        }
-        let manager = BackupTransactionManager(backupService: backupService)
-        _backupTransactionManager = manager
-        return manager
-    }
-    
-    private var _selectiveExportService: SelectiveExportService?
-    var selectiveExportService: SelectiveExportService {
-        if let service = _selectiveExportService {
-            return service
-        }
-        let service = SelectiveExportService(backupService: backupService)
-        _selectiveExportService = service
-        return service
-    }
-    
-    private var _autoBackupManager: AutoBackupManager?
-    var autoBackupManager: AutoBackupManager {
-        if let manager = _autoBackupManager {
-            return manager
-        }
-        let manager = AutoBackupManager(backupService: backupService)
-        _autoBackupManager = manager
-        return manager
-    }
-    
+
+    // MARK: - Backup Services (backing stores for AppDependencies+BackupServices.swift)
+
+    var _backupService: BackupService?
+    var _selectiveRestoreService: SelectiveRestoreService?
+    var _cloudBackupService: CloudBackupService?
+    var _incrementalBackupService: IncrementalBackupService?
+    var _backupSharingService: BackupSharingService?
+    var _backupTransactionManager: BackupTransactionManager?
+    var _selectiveExportService: SelectiveExportService?
+    var _autoBackupManager: AutoBackupManager?
+
     // MARK: - Migration Services
-    
+
     var dataMigrations: DataMigrations.Type {
         DataMigrations.self
     }
-    
+
     // MARK: - Business Logic Services
-    
+
     private var _followUpInboxEngine: FollowUpInboxEngine?
     var followUpInboxEngine: FollowUpInboxEngine {
         if let engine = _followUpInboxEngine {
@@ -253,81 +182,18 @@ final class AppDependencies {
         _followUpInboxEngine = engine
         return engine
     }
-    
-    // MARK: - AI Services
 
-    private var _aiRouter: AIClientRouter?
-    /// The AI client router that handles local-first routing with Claude fallback.
-    /// All AI services should use this (via `mcpClient`) for inference.
-    var aiRouter: AIClientRouter {
-        if let router = _aiRouter { return router }
-        let router = AIClientRouter()
-        _aiRouter = router
-        return router
-    }
+    // MARK: - AI Services (backing stores for AppDependencies+AIServices.swift)
 
-    /// Protocol-typed client for injection into services.
-    /// Points to the router, which handles local/Claude routing transparently.
-    var mcpClient: MCPClientProtocol {
-        aiRouter
-    }
-    
-    private var _chatService: ChatService?
-    var chatService: ChatService {
-        if let service = _chatService {
-            return service
-        }
-        let service = ChatService(modelContext: modelContext, mcpClient: mcpClient)
-        _chatService = service
-        return service
-    }
-    
-    private var _studentAnalysisService: StudentAnalysisService?
-    var studentAnalysisService: StudentAnalysisService {
-        if let service = _studentAnalysisService {
-            return service
-        }
-        let service = StudentAnalysisService(
-            modelContext: modelContext,
-            mcpClient: mcpClient
-        )
-        _studentAnalysisService = service
-        return service
-    }
-    
-    private var _lessonPlanningService: LessonPlanningService?
-    var lessonPlanningService: LessonPlanningService {
-        if let service = _lessonPlanningService {
-            return service
-        }
-        let service = LessonPlanningService(
-            modelContext: modelContext,
-            mcpClient: mcpClient
-        )
-        _lessonPlanningService = service
-        return service
-    }
-    
-    private var _databaseAnalysisService: DatabaseAnalysisService?
-    var databaseAnalysisService: DatabaseAnalysisService {
-        if let service = _databaseAnalysisService { return service }
-        let service = DatabaseAnalysisService(modelContext: modelContext, mcpClient: mcpClient)
-        _databaseAnalysisService = service
-        return service
-    }
+    var _aiRouter: AIClientRouter?
+    var _chatService: ChatService?
+    var _studentAnalysisService: StudentAnalysisService?
+    var _lessonPlanningService: LessonPlanningService?
+    var _databaseAnalysisService: DatabaseAnalysisService?
+    var _reportGeneratorService: ReportGeneratorService?
 
-    private var _reportGeneratorService: ReportGeneratorService?
-    var reportGeneratorService: ReportGeneratorService {
-        if let service = _reportGeneratorService {
-            return service
-        }
-        let service = ReportGeneratorService()
-        _reportGeneratorService = service
-        return service
-    }
-    
     // MARK: - UI Services
-    
+
     private var _toastService: ToastService?
     var toastService: ToastService {
         if let service = _toastService {
@@ -337,14 +203,14 @@ final class AppDependencies {
         _toastService = service
         return service
     }
-    
+
     // MARK: - Storage Services
-    
+
     // PhotoStorageService is an enum with static methods, no initialization needed
     // Access methods directly via PhotoStorageService.methodName()
-    
+
     // MARK: - Calendar Services
-    
+
     private var _schoolCalendarService: SchoolCalendarService?
     var schoolCalendarService: SchoolCalendarService {
         if let service = _schoolCalendarService {
@@ -354,7 +220,7 @@ final class AppDependencies {
         _schoolCalendarService = service
         return service
     }
-    
+
     private var _schoolDayLookupCache: SchoolDayLookupCache?
     var schoolDayLookupCache: SchoolDayLookupCache {
         if let cache = _schoolDayLookupCache {
@@ -364,9 +230,9 @@ final class AppDependencies {
         _schoolDayLookupCache = cache
         return cache
     }
-    
+
     // MARK: - Presentation Services
-    
+
     private var _presentationsViewModel: PresentationsViewModel?
     var presentationsViewModel: PresentationsViewModel {
         if let vm = _presentationsViewModel {
@@ -376,12 +242,12 @@ final class AppDependencies {
         _presentationsViewModel = vm
         return vm
     }
-    
+
     // MARK: - CloudKit Services
-    
+
     // CloudKitConfigurationService is an enum with static methods, no initialization needed
     // Access methods directly via CloudKitConfigurationService.methodName()
-    
+
     private var _cloudKitSyncStatusService: CloudKitSyncStatusService?
     var cloudKitSyncStatusService: CloudKitSyncStatusService {
         if let service = _cloudKitSyncStatusService {
@@ -391,9 +257,9 @@ final class AppDependencies {
         _cloudKitSyncStatusService = service
         return service
     }
-    
+
     // MARK: - Router & Coordinators
-    
+
     private var _appRouter: AppRouter?
     var appRouter: AppRouter {
         if let router = _appRouter {
@@ -403,7 +269,7 @@ final class AppDependencies {
         _appRouter = router
         return router
     }
-    
+
     private var _saveCoordinator: SaveCoordinator?
     var saveCoordinator: SaveCoordinator {
         if let coordinator = _saveCoordinator {
@@ -413,7 +279,7 @@ final class AppDependencies {
         _saveCoordinator = coordinator
         return coordinator
     }
-    
+
     private var _restoreCoordinator: RestoreCoordinator?
     var restoreCoordinator: RestoreCoordinator {
         if let coordinator = _restoreCoordinator {
@@ -423,9 +289,9 @@ final class AppDependencies {
         _restoreCoordinator = coordinator
         return coordinator
     }
-    
+
     // MARK: - Preloading
-    
+
     /// Preload presentations data in the background for instant navigation.
     /// Call this early in the app lifecycle (e.g., from RootView.onAppear) to warm up the cache.
     /// Safe to call - will silently fail if the database is not ready yet.
@@ -465,9 +331,9 @@ final class AppDependencies {
             )
         }
     }
-    
+
     // MARK: - Testing Support
-    
+
     /// Create dependencies with in-memory storage for testing
     static func makeTest() throws -> AppDependencies {
         let schema = Schema([
@@ -481,12 +347,12 @@ final class AppDependencies {
         let container = try ModelContainer(for: schema, configurations: [config])
         return AppDependencies(modelContext: container.mainContext)
     }
-    
+
     /// Create dependencies with specific ModelContext for testing
     static func makeTest(context: ModelContext) -> AppDependencies {
         return AppDependencies(modelContext: context)
     }
-    
+
     // MARK: - Memory Pressure Handling
 
     /// Called when system memory pressure is detected.
@@ -536,5 +402,3 @@ extension EnvironmentValues {
         set { self[AppDependenciesKey.self] = newValue }
     }
 }
-
-

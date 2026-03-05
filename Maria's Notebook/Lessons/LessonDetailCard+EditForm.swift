@@ -1,0 +1,153 @@
+import SwiftUI
+import SwiftData
+import os
+
+extension LessonDetailCard {
+    var editForm: some View {
+        VStack(spacing: 12) {
+            TextField("Lesson Name", text: $draftName)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("Subject", text: $draftSubject)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Group", text: $draftGroup)
+                    .textFieldStyle(.roundedBorder)
+            }
+            TextField("Subheading", text: $draftSubheading)
+                .textFieldStyle(.roundedBorder)
+
+            Picker("Source", selection: $draftSource) {
+                ForEach(LessonSource.allCases) { s in
+                    Text(s.label).tag(s)
+                }
+            }
+            if draftSource == .personal {
+                Picker("Personal Type", selection: $draftPersonalKind) {
+                    ForEach(PersonalLessonKind.allCases) { k in
+                        Text(k.label).tag(k)
+                    }
+                }
+            }
+
+            TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
+                .textFieldStyle(.roundedBorder)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Purpose / Learning Objective")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $draftPurpose)
+                    .frame(minHeight: 60)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Materials")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                Text("Enter one material per line")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+                TextEditor(text: $draftMaterials)
+                    .frame(minHeight: 80)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Imported Pages File")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        if resolvedPagesURL != nil {
+                            Button("Remove") {
+                                if let url = resolvedPagesURL {
+                                    do {
+                                        try LessonFileStorage.deleteIfManaged(url)
+                                    } catch {
+                                        Self.logger.warning("Failed to delete managed file: \(error)")
+                                    }
+                                }
+                                lesson.pagesFileBookmark = nil
+                                lesson.pagesFileRelativePath = nil
+                                resolvedPagesURL = nil
+                                previousManagedURL = nil
+                                _ = saveCoordinator.save(modelContext, reason: "Clear Pages link")
+                            }
+                        }
+                        Button("Import\u{2026}") {
+                            #if os(macOS)
+                            presentMacOpenPanel()
+                            #else
+                            showingPagesImporter = true
+                            #endif
+                        }
+                    }
+                    if let url = resolvedPagesURL {
+                        OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
+                            .padding(.top, 4)
+                    } else {
+                        Text("No file selected")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Presentation Notes")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $draftWriteUp)
+                    .frame(minHeight: 140)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Teacher Notes")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $draftTeacherNotes)
+                    .frame(minHeight: 100)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+            }
+
+            // Exercises Editor
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Exercises")
+                        .font(AppTheme.ScaledFont.calloutSemibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        editingExercise = nil
+                        showingExerciseEditor = true
+                    } label: {
+                        Label("Add", systemImage: "plus.circle")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if lesson.sortedExercises.isEmpty {
+                    Text("No exercises yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(lesson.sortedExercises) { exercise in
+                        LessonExerciseRow(exercise: exercise)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                editingExercise = exercise
+                                showingExerciseEditor = true
+                            }
+                    }
+                }
+            }
+            .sheet(isPresented: $showingExerciseEditor) {
+                LessonExerciseEditorSheet(
+                    lesson: lesson,
+                    existingExercise: editingExercise,
+                    onSave: {}
+                )
+            }
+        }
+    }
+}

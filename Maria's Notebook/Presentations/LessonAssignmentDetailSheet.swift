@@ -11,14 +11,14 @@ import SwiftData
 import OSLog
 
 struct LessonAssignmentDetailSheet: View, Identifiable {
-    private static let logger = Logger.presentations
+    static let logger = Logger.presentations
     let assignmentID: UUID
     var onDone: (() -> Void)? = nil
 
     var id: UUID { assignmentID }
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.modelContext) var modelContext
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
@@ -33,11 +33,11 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
-    @State private var assignment: LessonAssignment?
-    @State private var unifiedNotes: [Note] = []
+    @State var assignment: LessonAssignment?
+    @State var unifiedNotes: [Note] = []
     @State private var isLoading: Bool = true
     @State private var showAddNoteSheet: Bool = false
-    @State private var noteBeingEdited: Note?
+    @State var noteBeingEdited: Note?
     @State private var showingEditSheet = false
 
     init(assignmentID: UUID, onDone: (() -> Void)? = nil) {
@@ -338,165 +338,6 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         case .draft: return .gray
         case .scheduled: return .blue
         case .presented: return .green
-        }
-    }
-    
-    // MARK: - Work Summary Section
-    
-    @ViewBuilder
-    private func workSummarySection(for presentation: LessonAssignment) -> some View {
-        let workItems = presentation.fetchRelatedWork(from: modelContext)
-        
-        if !workItems.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "folder.badge.gearshape")
-                        .foregroundStyle(.blue)
-                    Text("Related Work")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    
-                    Spacer()
-                    
-                    // Completion stats
-                    let stats = presentation.workCompletionStats(from: modelContext)
-                    if stats.total > 0 {
-                        HStack(spacing: 4) {
-                            Text("\(stats.completed)/\(stats.total)")
-                                .font(AppTheme.ScaledFont.captionSemibold)
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundStyle(stats.completed == stats.total ? .green : .secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill((stats.completed == stats.total ? Color.green : Color.secondary).opacity(0.1))
-                        )
-                    }
-                }
-                
-                VStack(spacing: 8) {
-                    ForEach(workItems) { work in
-                        WorkItemCompactRow(work: work, modelContext: modelContext)
-                    }
-                }
-                
-                // Practice sessions for this presentation's work
-                let practiceSessions = presentation.fetchRelatedPracticeSessions(from: modelContext)
-                if !practiceSessions.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 14, weight: .medium))
-                            Text("Practice Sessions (\(practiceSessions.count))")
-                                .font(AppTheme.ScaledFont.captionSemibold)
-                        }
-                        .foregroundStyle(.purple)
-                        
-                        ForEach(practiceSessions.prefix(3)) { session in
-                            PracticeSessionCompactRow(session: session)
-                        }
-                        
-                        if practiceSessions.count > 3 {
-                            Text("+ \(practiceSessions.count - 3) more sessions")
-                                .font(AppTheme.ScaledFont.captionSmall)
-                                .foregroundStyle(.tertiary)
-                                .padding(.leading, 8)
-                        }
-                    }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.purple.opacity(0.05))
-                    )
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func unifiedNoteRow(_ note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Note body first (like WorkDetailView)
-            Text(note.body)
-                .font(AppTheme.ScaledFont.body)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Display image if available
-            if let imagePath = note.imagePath {
-                AsyncCachedImage(filename: imagePath)
-                    .frame(maxWidth: 300, maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-
-            // Metadata row
-            HStack(spacing: 8) {
-                // Tag badges
-                if !note.tags.isEmpty {
-                    ForEach(note.tags.prefix(2), id: \.self) { tag in
-                        TagBadge(tag: tag, compact: true)
-                    }
-                }
-
-                Text(note.createdAt, style: .date)
-                    .font(AppTheme.ScaledFont.captionSmall)
-                    .foregroundStyle(.tertiary)
-
-                Spacer()
-
-                Button {
-                    noteBeingEdited = note
-                } label: {
-                    Image(systemName: "pencil.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
-        .contextMenu {
-            Button {
-                noteBeingEdited = note
-            } label: {
-                Label("Edit Note", systemImage: SFSymbol.Education.pencil)
-            }
-        }
-    }
-
-
-    @MainActor
-    private func reloadNotes() {
-        guard let assignment = assignment else { return }
-
-        // Load unified Note objects from relationship
-        // Refresh the assignment object to get updated relationships
-        let targetID = assignment.id
-        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate<LessonAssignment> { $0.id == targetID })
-        descriptor.fetchLimit = 1
-        do {
-            if let refreshed = try modelContext.fetch(descriptor).first {
-                if let notes = refreshed.unifiedNotes {
-                    self.unifiedNotes = Array(notes)
-                } else {
-                    self.unifiedNotes = []
-                }
-            } else {
-                self.unifiedNotes = []
-            }
-        } catch {
-            Self.logger.warning("Failed to fetch refreshed assignment: \(error)")
-            self.unifiedNotes = []
         }
     }
     

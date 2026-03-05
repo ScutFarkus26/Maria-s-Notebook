@@ -12,7 +12,7 @@ public enum LessonDetailInitialMode {
 }
 
 struct LessonDetailCard: View {
-    private static let logger = Logger.lessons
+    static let logger = Logger.lessons
 
     var lesson: Lesson
     var onSave: (Lesson) -> Void
@@ -20,33 +20,33 @@ struct LessonDetailCard: View {
     var onGiveLesson: ((Lesson) -> Void)? = nil
     var initialMode: LessonDetailInitialMode = .normal
 
-    @Environment(\.modelContext) private var modelContext
-    @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.modelContext) var modelContext
+    @Environment(SaveCoordinator.self) var saveCoordinator
 
-    @State private var isEditing = false
-    @State private var draftName: String = ""
-    @State private var draftSubject: String = ""
-    @State private var draftGroup: String = ""
-    @State private var draftSubheading: String = ""
-    @State private var draftWriteUp: String = ""
-    @State private var showDeleteAlert = false
+    @State var isEditing = false
+    @State var draftName: String = ""
+    @State var draftSubject: String = ""
+    @State var draftGroup: String = ""
+    @State var draftSubheading: String = ""
+    @State var draftWriteUp: String = ""
+    @State var showDeleteAlert = false
 
-    @State private var draftSource: LessonSource = .album
-    @State private var draftPersonalKind: PersonalLessonKind = .personal
-    @State private var draftMaterials: String = ""
-    @State private var draftPurpose: String = ""
-    @State private var draftAgeRange: String = ""
-    @State private var draftTeacherNotes: String = ""
-    @State private var showingExerciseEditor = false
-    @State private var editingExercise: LessonExercise? = nil
+    @State var draftSource: LessonSource = .album
+    @State var draftPersonalKind: PersonalLessonKind = .personal
+    @State var draftMaterials: String = ""
+    @State var draftPurpose: String = ""
+    @State var draftAgeRange: String = ""
+    @State var draftTeacherNotes: String = ""
+    @State var showingExerciseEditor = false
+    @State var editingExercise: LessonExercise? = nil
 
-    @State private var showingPagesImporter = false
-    @State private var resolvedPagesURL: URL?
-    @State private var importError: String?
-    @State private var previousManagedURL: URL?
+    @State var showingPagesImporter = false
+    @State var resolvedPagesURL: URL?
+    @State var importError: String?
+    @State var previousManagedURL: URL?
 
 #if canImport(UniformTypeIdentifiers)
-    private var pagesAllowedTypes: [UTType] {
+    var pagesAllowedTypes: [UTType] {
         var set: Set<UTType> = []
         if let t = UTType("com.apple.iwork.pages.sffpages") { set.insert(t) }
         if let t2 = UTType(filenameExtension: "pages") { set.insert(t2) }
@@ -282,293 +282,7 @@ struct LessonDetailCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var infoSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let url = resolvedPagesURL {
-                HStack { Spacer() }
-                OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
-                    .padding(.vertical, 8)
-                HStack { Spacer() }
-            }
-
-            // Purpose
-            if !lesson.purpose.trimmed().isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "target")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Purpose")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(lesson.purpose)
-                        .font(AppTheme.ScaledFont.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.top, 6)
-            }
-
-            // Materials
-            if !lesson.materialsItems.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "tray.full")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Materials")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(lesson.materialsItems, id: \.self) { item in
-                            HStack(alignment: .top, spacing: 8) {
-                                Text("•").font(AppTheme.ScaledFont.body)
-                                Text(item)
-                                    .font(AppTheme.ScaledFont.body)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                }
-                .padding(.top, 6)
-            }
-
-            // Presentation Notes (writeUp)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 10) {
-                    Image(systemName: "doc.plaintext")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 20)
-                    Text("Presentation Notes")
-                        .font(AppTheme.ScaledFont.calloutSemibold)
-                        .foregroundStyle(.secondary)
-                }
-                if lesson.writeUp.trimmed().isEmpty {
-                    Text("No notes yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ScrollView {
-                        Text(lesson.writeUp)
-                            .font(AppTheme.ScaledFont.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(minHeight: 180, maxHeight: 360)
-                }
-            }
-            .padding(.top, 6)
-
-            // Teacher Notes
-            if !lesson.teacherNotes.trimmed().isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "note.text")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Teacher Notes")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(lesson.teacherNotes)
-                        .font(AppTheme.ScaledFont.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.top, 6)
-            }
-
-            // Exercises
-            if !lesson.sortedExercises.isEmpty {
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(lesson.sortedExercises) { exercise in
-                            LessonExerciseRow(exercise: exercise)
-                        }
-                    }
-                    .padding(.top, 4)
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "list.number")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Exercises (\(lesson.sortedExercises.count))")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.top, 6)
-            }
-
-            // Prerequisites
-            if !lesson.prerequisiteLessonUUIDs.isEmpty {
-                LessonRelationshipsSection(
-                    title: "Prerequisites",
-                    icon: "arrow.backward.circle",
-                    lessonIDs: lesson.prerequisiteLessonUUIDs,
-                    modelContext: modelContext
-                )
-            }
-
-            // Related Lessons
-            if !lesson.relatedLessonUUIDs.isEmpty {
-                LessonRelationshipsSection(
-                    title: "Related Lessons",
-                    icon: "link",
-                    lessonIDs: lesson.relatedLessonUUIDs,
-                    modelContext: modelContext
-                )
-            }
-        }
-    }
-
-    private var editForm: some View {
-        VStack(spacing: 12) {
-            TextField("Lesson Name", text: $draftName)
-                .textFieldStyle(.roundedBorder)
-            HStack {
-                TextField("Subject", text: $draftSubject)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Group", text: $draftGroup)
-                    .textFieldStyle(.roundedBorder)
-            }
-            TextField("Subheading", text: $draftSubheading)
-                .textFieldStyle(.roundedBorder)
-
-            Picker("Source", selection: $draftSource) {
-                ForEach(LessonSource.allCases) { s in
-                    Text(s.label).tag(s)
-                }
-            }
-            if draftSource == .personal {
-                Picker("Personal Type", selection: $draftPersonalKind) {
-                    ForEach(PersonalLessonKind.allCases) { k in
-                        Text(k.label).tag(k)
-                    }
-                }
-            }
-
-            TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
-                .textFieldStyle(.roundedBorder)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Purpose / Learning Objective")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $draftPurpose)
-                    .frame(minHeight: 60)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Materials")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                Text("Enter one material per line")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.tertiary)
-                TextEditor(text: $draftMaterials)
-                    .frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Imported Pages File")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        if resolvedPagesURL != nil {
-                            Button("Remove") {
-                                if let url = resolvedPagesURL {
-                                    do {
-                                        try LessonFileStorage.deleteIfManaged(url)
-                                    } catch {
-                                        Self.logger.warning("Failed to delete managed file: \(error)")
-                                    }
-                                }
-                                lesson.pagesFileBookmark = nil
-                                lesson.pagesFileRelativePath = nil
-                                resolvedPagesURL = nil
-                                previousManagedURL = nil
-                                _ = saveCoordinator.save(modelContext, reason: "Clear Pages link")
-                            }
-                        }
-                        Button("Import…") {
-                            #if os(macOS)
-                            presentMacOpenPanel()
-                            #else
-                            showingPagesImporter = true
-                            #endif
-                        }
-                    }
-                    if let url = resolvedPagesURL {
-                        OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
-                            .padding(.top, 4)
-                    } else {
-                        Text("No file selected")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Presentation Notes")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $draftWriteUp)
-                    .frame(minHeight: 140)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Teacher Notes")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $draftTeacherNotes)
-                    .frame(minHeight: 100)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
-            }
-
-            // Exercises Editor
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Exercises")
-                        .font(AppTheme.ScaledFont.calloutSemibold)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        editingExercise = nil
-                        showingExerciseEditor = true
-                    } label: {
-                        Label("Add", systemImage: "plus.circle")
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                if lesson.sortedExercises.isEmpty {
-                    Text("No exercises yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(lesson.sortedExercises) { exercise in
-                        LessonExerciseRow(exercise: exercise)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                editingExercise = exercise
-                                showingExerciseEditor = true
-                            }
-                    }
-                }
-            }
-            .sheet(isPresented: $showingExerciseEditor) {
-                LessonExerciseEditorSheet(
-                    lesson: lesson,
-                    existingExercise: editingExercise,
-                    onSave: {}
-                )
-            }
-        }
-    }
-
-    private func seedDrafts() {
+    func seedDrafts() {
         draftName = lesson.name
         draftSubject = lesson.subject
         draftGroup = lesson.group
@@ -582,7 +296,7 @@ struct LessonDetailCard: View {
         draftTeacherNotes = lesson.teacherNotes
     }
 
-    private func resolvePagesURL() -> URL? {
+    func resolvePagesURL() -> URL? {
         guard let bookmark = lesson.pagesFileBookmark else { return nil }
         var stale = false
         do {
@@ -606,7 +320,7 @@ struct LessonDetailCard: View {
         }
     }
 
-    private func resolveLessonFileURL() -> URL? {
+    func resolveLessonFileURL() -> URL? {
         // Prefer relative path inside managed container
         if let rel = lesson.pagesFileRelativePath, !rel.isEmpty {
             do {
@@ -619,7 +333,7 @@ struct LessonDetailCard: View {
         return resolvePagesURL()
     }
 
-    private func migrateLegacyLinkedFileIfNeeded() {
+    func migrateLegacyLinkedFileIfNeeded() {
         // Only migrate if we don't already have a relative path but do have a bookmark
         guard lesson.pagesFileRelativePath == nil, lesson.pagesFileBookmark != nil else { return }
         // Resolve the legacy bookmark URL directly (do not prefer relative path here)
@@ -642,7 +356,7 @@ struct LessonDetailCard: View {
         }
     }
 
-    private var cardBackgroundColor: Color {
+    var cardBackgroundColor: Color {
         #if os(macOS)
         return Color(NSColor.windowBackgroundColor)
         #else
@@ -651,7 +365,7 @@ struct LessonDetailCard: View {
     }
     
     #if os(macOS)
-    private func presentMacOpenPanel() {
+    func presentMacOpenPanel() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -687,7 +401,7 @@ struct LessonDetailCard: View {
     }
     #endif
 
-    private func openInPages(_ url: URL) {
+    func openInPages(_ url: URL) {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
         #if os(iOS)

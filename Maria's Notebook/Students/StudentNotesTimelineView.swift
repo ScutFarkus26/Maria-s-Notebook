@@ -59,9 +59,9 @@ struct StudentNotesTimelineView: View {
 }
 
 // MARK: - Internal List View
-private struct StudentNotesTimelineList: View {
+struct StudentNotesTimelineList: View {
     @Bindable var viewModel: StudentNotesViewModel
-    @Environment(\.calendar) private var calendar
+    @Environment(\.calendar) var calendar
 
     enum NoteFilter: String, CaseIterable, Identifiable {
         case all = "All Notes"
@@ -71,135 +71,24 @@ private struct StudentNotesTimelineList: View {
         var id: String { rawValue }
     }
 
-    @State private var selectedFilter: NoteFilter = .all
+    @State var selectedFilter: NoteFilter = .all
     @State private var newNoteText: String = ""
     @State private var noteBeingEdited: Note?
 
     // Search and tag filtering state
-    @State private var searchText: String = ""
-    @State private var debouncedSearchText: String = ""
-    @State private var selectedFilterTags: Set<String> = []
+    @State var searchText: String = ""
+    @State var debouncedSearchText: String = ""
+    @State var selectedFilterTags: Set<String> = []
     @State private var showingTagFilter: Bool = false
 
     // Batch selection state
-    @State private var isSelecting: Bool = false
-    @State private var selectedNoteIDs: Set<UUID> = []
+    @State var isSelecting: Bool = false
+    @State var selectedNoteIDs: Set<UUID> = []
     @State private var showingDeleteConfirmation: Bool = false
 
-    // All filtered items (for counting)
-    /// All unique tag strings used across current items
-    private var allUsedTags: [String] {
-        let tagSet = Set(viewModel.items.flatMap { $0.tags })
-        return tagSet.sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
-    }
-
-    var allFilteredItems: [UnifiedNoteItem] {
-        var items = viewModel.items
-
-        // Apply report filter
-        if selectedFilter == .reportItems {
-            items = items.filter { $0.includeInReport }
-        } else if selectedFilter == .followUp {
-            items = items.filter { $0.needsFollowUp }
-        }
-
-        // Apply tag filter
-        if !selectedFilterTags.isEmpty {
-            items = items.filter { item in
-                !selectedFilterTags.isDisjoint(with: item.tags)
-            }
-        }
-
-        // Apply search filter
-        if !debouncedSearchText.isEmpty {
-            let searchLower = debouncedSearchText.lowercased()
-            items = items.filter {
-                $0.body.localizedCaseInsensitiveContains(searchLower) ||
-                $0.contextText.localizedCaseInsensitiveContains(searchLower)
-            }
-        }
-
-        return items
-    }
-
-    // Paginated filtered items for display
-    var filteredItems: [UnifiedNoteItem] {
-        Array(allFilteredItems.prefix(displayedCount))
-    }
-
     // Pagination state
-    @State private var displayedCount: Int = 30
-    private let pageSize: Int = 30
-
-    var hasMoreItems: Bool {
-        displayedCount < allFilteredItems.count
-    }
-
-    private func loadMoreItems() {
-        let newCount = min(displayedCount + pageSize, allFilteredItems.count)
-        adaptiveWithAnimation {
-            displayedCount = newCount
-        }
-    }
-
-    private func resetPagination() {
-        displayedCount = pageSize
-    }
-
-    private var hasActiveFilters: Bool {
-        !selectedFilterTags.isEmpty || !debouncedSearchText.isEmpty || selectedFilter != .all
-    }
-
-    // Separate pinned and unpinned items
-    private var pinnedItems: [UnifiedNoteItem] {
-        filteredItems.filter { $0.isPinned }
-    }
-
-    private var unpinnedItems: [UnifiedNoteItem] {
-        filteredItems.filter { !$0.isPinned }
-    }
-
-    // Group unpinned items by month and year
-    private var groupedItems: [(key: String, items: [UnifiedNoteItem])] {
-        let items = unpinnedItems
-        let grouped = items.grouped { monthYearKey(for: $0.date) }
-        .mapValues { items in
-            items.sorted { $0.date > $1.date } // Sort items within each group (newest first)
-        }
-        
-        // Sort groups by date (newest first)
-        let sortedKeys = grouped.keys.sorted { key1, key2 in
-            // Parse the keys to compare dates properly
-            key1 > key2
-        }
-        
-        return sortedKeys.map { key in
-            (key: key, items: grouped[key] ?? [])
-        }
-    }
-    
-    private func monthYearKey(for date: Date) -> String {
-        let components = calendar.dateComponents([.year, .month], from: date)
-        let year = components.year ?? 0
-        let month = components.month ?? 0
-        return String(format: "%04d-%02d", year, month)
-    }
-    
-    private func monthYearHeader(for key: String) -> String {
-        let parts = key.split(separator: "-")
-        guard parts.count == 2,
-              let year = Int(parts[0]),
-              let month = Int(parts[1]) else {
-            return key
-        }
-        
-        let dateComponents = DateComponents(year: year, month: month)
-        guard let date = calendar.date(from: dateComponents) else {
-            return key
-        }
-        
-        return DateFormatters.monthYear.string(from: date)
-    }
+    @State var displayedCount: Int = 30
+    let pageSize: Int = 30
 
     var body: some View {
         VStack(spacing: 0) {
@@ -436,41 +325,6 @@ private struct StudentNotesTimelineList: View {
         }
     }
 
-    // MARK: - Batch Operations
-
-    private func performBatchAction(_ action: (Set<UUID>) -> Void) {
-        adaptiveWithAnimation {
-            action(selectedNoteIDs)
-            selectedNoteIDs.removeAll()
-            isSelecting = false
-        }
-    }
-
-    private func batchDelete() {
-        performBatchAction(viewModel.batchDelete(ids:))
-    }
-
-    private func batchAddTag(_ tag: String) {
-        performBatchAction { viewModel.batchAddTags([tag], for: $0) }
-    }
-
-    private func batchRemoveTag(_ tag: String) {
-        performBatchAction { viewModel.batchRemoveTags([tag], for: $0) }
-    }
-
-    private func batchToggleFollowUp() {
-        performBatchAction(viewModel.batchToggleFollowUp(for:))
-    }
-
-    private func batchToggleReportFlag() {
-        performBatchAction(viewModel.batchToggleReportFlag(for:))
-    }
-
-    private func batchTogglePin() {
-        performBatchAction(viewModel.batchTogglePin(for:))
-    }
-
-    
     private var canAdd: Bool {
         !newNoteText.trimmed().isEmpty
     }
@@ -624,79 +478,8 @@ private struct StudentNotesTimelineList: View {
         }
     }
 
-    // MARK: - Tag Filter Section
-
-    private var tagFilterSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(allUsedTags, id: \.self) { tag in
-                    Button {
-                        adaptiveWithAnimation {
-                            if selectedFilterTags.contains(tag) {
-                                selectedFilterTags.remove(tag)
-                            } else {
-                                selectedFilterTags.insert(tag)
-                            }
-                            resetPagination()
-                        }
-                    } label: {
-                        TagBadge(tag: tag, compact: true)
-                            .opacity(selectedFilterTags.contains(tag) ? 1.0 : 0.5)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                // Clear all button
-                if !selectedFilterTags.isEmpty {
-                    Button {
-                        adaptiveWithAnimation {
-                            selectedFilterTags.removeAll()
-                            resetPagination()
-                        }
-                    } label: {
-                        Text("Clear")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-        }
-        .background(Color.primary.opacity(0.03))
-    }
-
-    // MARK: - Active Filters Summary
-
-    private var activeFiltersSummary: some View {
-        HStack {
-            Text("Showing \(allFilteredItems.count) of \(viewModel.items.count) notes")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Button {
-                adaptiveWithAnimation {
-                    searchText = ""
-                    debouncedSearchText = ""
-                    selectedFilterTags.removeAll()
-                    selectedFilter = .all
-                    resetPagination()
-                }
-            } label: {
-                Text("Clear All")
-                    .font(.caption)
-                    .foregroundStyle(Color.accentColor)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-        .background(Color.accentColor.opacity(0.08))
-    }
 }
+
 
 extension StudentNotesViewModel {
     @MainActor

@@ -12,19 +12,17 @@ import OSLog
 public final class CloudBackupService {
 
     // MARK: - Types
-    
+
     /// Modern event-based notification for cloud backup operations
     public struct CloudBackupEvent: Sendable {
         public let timestamp: Date
         public let result: CloudBackupEventResult
-        
+
         public enum CloudBackupEventResult: Sendable {
             case completed(URL)
             case failed(Error)
         }
     }
-
-
 
     public struct CloudBackupInfo: Identifiable, Sendable {
         public let id: UUID
@@ -45,61 +43,20 @@ public final class CloudBackupService {
         }
     }
 
-    /// Configuration for retry logic
-    public struct RetryConfiguration: Sendable {
-        public var maxRetries: Int
-        public var baseDelaySeconds: Double
-        public var maxDelaySeconds: Double
-        public var backoffMultiplier: Double
-
-        public static let `default` = RetryConfiguration(
-            maxRetries: 3,
-            baseDelaySeconds: 1.0,
-            maxDelaySeconds: 30.0,
-            backoffMultiplier: 2.0
-        )
-
-        public init(maxRetries: Int, baseDelaySeconds: Double, maxDelaySeconds: Double, backoffMultiplier: Double) {
-            self.maxRetries = maxRetries
-            self.baseDelaySeconds = baseDelaySeconds
-            self.maxDelaySeconds = maxDelaySeconds
-            self.backoffMultiplier = backoffMultiplier
-        }
-    }
-
-    /// Configuration for scheduled cloud backups
-    public struct ScheduleConfiguration: Codable, Sendable {
-        public var enabled: Bool
-        public var intervalHours: Int
-        public var retentionCount: Int
-
-        public static let `default` = ScheduleConfiguration(
-            enabled: false,
-            intervalHours: 24,
-            retentionCount: 7
-        )
-
-        public init(enabled: Bool, intervalHours: Int, retentionCount: Int) {
-            self.enabled = enabled
-            self.intervalHours = intervalHours
-            self.retentionCount = retentionCount
-        }
-    }
-
     // MARK: - Observable State
 
-    public private(set) var isPerformingBackup = false
-    public private(set) var lastCloudBackupDate: Date?
-    public private(set) var nextScheduledBackupDate: Date?
-    public private(set) var currentRetryAttempt: Int = 0
-    
+    public var isPerformingBackup = false
+    public var lastCloudBackupDate: Date?
+    public var nextScheduledBackupDate: Date?
+    public var currentRetryAttempt: Int = 0
+
     /// Modern event stream - SwiftUI views can observe this
-    public private(set) var lastBackupEvent: CloudBackupEvent?
+    public var lastBackupEvent: CloudBackupEvent?
 
     // MARK: - Properties
 
-    private let backupService: BackupService
-    private let fileManager = FileManager.default
+    let backupService: BackupService
+    let fileManager = FileManager.default
 
     /// The iCloud Drive backup directory name
     private static let backupFolderName = "Backups"
@@ -115,7 +72,7 @@ public final class CloudBackupService {
                     let config = try JSONDecoder().decode(ScheduleConfiguration.self, from: data)
                     return config
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to decode schedule configuration: \(error)")
+                    print("Warning [Backup:\(#function)] Failed to decode schedule configuration: \(error)")
                 }
             }
             return .default
@@ -125,21 +82,21 @@ public final class CloudBackupService {
                 let data = try JSONEncoder().encode(newValue)
                 UserDefaults.standard.set(data, forKey: "CloudBackup.scheduleConfig")
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to encode schedule configuration: \(error)")
+                print("Warning [Backup:\(#function)] Failed to encode schedule configuration: \(error)")
             }
             updateScheduledBackups()
         }
     }
 
     /// Scheduled backup task
-    private var scheduledBackupTask: Task<Void, Never>?
+    var scheduledBackupTask: Task<Void, Never>?
 
     /// Model context for scheduled backups
-    private var modelContext: ModelContext?
+    var scheduledModelContext: ModelContext?
 
     // MARK: - UserDefaults Keys
 
-    private enum Keys {
+    enum Keys {
         static let lastCloudBackupDate = "CloudBackup.lastBackupDate"
         static let scheduleConfig = "CloudBackup.scheduleConfig"
     }
@@ -265,7 +222,7 @@ public final class CloudBackupService {
             do {
                 resourceValues = try fileURL.resourceValues(forKeys: resourceKeys)
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to get resource values for \(fileURL.lastPathComponent): \(error)")
+                print("Warning [Backup:\(#function)] Failed to get resource values for \(fileURL.lastPathComponent): \(error)")
                 continue
             }
 
@@ -316,20 +273,20 @@ public final class CloudBackupService {
                     Task.detached(priority: .userInitiated) {
                         let coordinator = NSFileCoordinator()
                         var coordinatorError: NSError?
-                        
+
                         // Use actor for thread-safe single resumption
                         actor ResumeTracker {
                             var hasResumed = false
-                            
+
                             func tryResume(with result: Result<URL, Error>) -> Bool {
                                 guard !hasResumed else { return false }
                                 hasResumed = true
                                 return true
                             }
                         }
-                        
+
                         let tracker = ResumeTracker()
-                        
+
                         coordinator.coordinate(
                             readingItemAt: backup.fileURL,
                             options: [.withoutChanges],
@@ -339,7 +296,7 @@ public final class CloudBackupService {
                                 // Check download status one final time
                                 do {
                                     let resourceValues = try url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
-                                    if resourceValues.ubiquitousItemDownloadingStatus == .current || 
+                                    if resourceValues.ubiquitousItemDownloadingStatus == .current ||
                                        resourceValues.ubiquitousItemDownloadingStatus == nil {
                                         if await tracker.tryResume(with: .success(url)) {
                                             continuation.resume(returning: url)
@@ -358,7 +315,7 @@ public final class CloudBackupService {
                                 }
                             }
                         }
-                        
+
                         // Handle coordination error
                         if let error = coordinatorError {
                             Task {
@@ -371,13 +328,13 @@ public final class CloudBackupService {
                     }
                 }
             }
-            
+
             // Add timeout task using structured concurrency
             group.addTask {
                 try await Task.sleep(for: .seconds(60))
                 throw BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: NSError(domain: "CloudBackup", code: 408, userInfo: [NSLocalizedDescriptionKey: "Download timed out for '\(backup.fileName)'"])))
             }
-            
+
             // Return the first result (either success or timeout)
             guard let result = try await group.next() else {
                 throw BackupOperationError.cloudOperationFailed(.downloadFailed(underlying: NSError(domain: "CloudBackup", code: 500, userInfo: [NSLocalizedDescriptionKey: "No task result available"])))
@@ -409,7 +366,7 @@ public final class CloudBackupService {
                 do {
                     try deleteCloudBackup(backup)
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to delete backup during retention: \(error)")
+                    print("Warning [Backup:\(#function)] Failed to delete backup during retention: \(error)")
                 }
             }
         }
@@ -441,176 +398,10 @@ public final class CloudBackupService {
         return destinationURL
     }
 
-    // MARK: - Retry Logic with Exponential Backoff
+    // MARK: - Private Helpers
 
-    /// Executes an operation with automatic retry and exponential backoff.
-    ///
-    /// - Parameters:
-    ///   - operation: The async operation to perform
-    ///   - shouldRetry: Closure to determine if error is retryable (default: true for all errors)
-    /// - Returns: The result of the operation
-    public func withRetry<T>(
-        operation: @escaping () async throws -> T,
-        shouldRetry: @escaping (Error) -> Bool = { _ in true }
-    ) async throws -> T {
-        var lastError: Error?
-        var delay = retryConfiguration.baseDelaySeconds
-
-        for attempt in 0...retryConfiguration.maxRetries {
-            currentRetryAttempt = attempt
-
-            do {
-                let result = try await operation()
-                currentRetryAttempt = 0
-                return result
-            } catch {
-                lastError = error
-
-                // Check if we should retry
-                if attempt < retryConfiguration.maxRetries && shouldRetry(error) {
-                    // Wait with exponential backoff
-                    let jitter = Double.random(in: 0...0.5)
-                    let actualDelay = min(delay + jitter, retryConfiguration.maxDelaySeconds)
-
-                    Logger.backup.error("Attempt \(attempt + 1) failed: \(error.localizedDescription). Retrying in \(actualDelay)s...")
-
-                    try await Task.sleep(for: .seconds(actualDelay))
-                    delay *= retryConfiguration.backoffMultiplier
-                } else {
-                    break
-                }
-            }
-        }
-
-        currentRetryAttempt = 0
-        throw BackupOperationError.cloudOperationFailed(.uploadFailed(underlying: lastError!))
-    }
-
-    /// Exports a backup to iCloud with automatic retry on failure.
-    public func exportToCloudWithRetry(
-        modelContext: ModelContext,
-        password: String? = nil,
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> URL {
-        try await withRetry {
-            try await self.exportToCloud(
-                modelContext: modelContext,
-                password: password,
-                progress: progress
-            )
-        } shouldRetry: { error in
-            // Use the error's shouldRetry property if available
-            if let backupError = error as? BackupOperationError {
-                return backupError.shouldRetry
-            }
-            return true
-        }
-    }
-
-    // MARK: - Scheduled Cloud Backups
-
-    /// Starts scheduled cloud backups.
-    ///
-    /// - Parameter modelContext: The SwiftData model context to use for backups
-    public func startScheduledBackups(modelContext: ModelContext) {
-        self.modelContext = modelContext
-        stopScheduledBackups()
-
-        guard scheduleConfiguration.enabled && scheduleConfiguration.intervalHours > 0 else {
-            return
-        }
-
-        // Load last backup date
-        let timestamp = UserDefaults.standard.double(forKey: Keys.lastCloudBackupDate)
-        if timestamp > 0 {
-            lastCloudBackupDate = Date(timeIntervalSinceReferenceDate: timestamp)
-        }
-
-        scheduledBackupTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self = self else { break }
-
-                // Calculate time until next backup
-                let intervalSeconds = TimeInterval(self.scheduleConfiguration.intervalHours * 3600)
-                let nextBackupTime: Date
-
-                if let lastBackup = self.lastCloudBackupDate {
-                    nextBackupTime = lastBackup.addingTimeInterval(intervalSeconds)
-                } else {
-                    // First backup after interval from now
-                    nextBackupTime = Date().addingTimeInterval(intervalSeconds)
-                }
-
-                self.nextScheduledBackupDate = nextBackupTime
-
-                let waitTime = max(0, nextBackupTime.timeIntervalSinceNow)
-
-                // Wait until next backup time
-                if waitTime > 0 {
-                    do {
-                        try await Task.sleep(for: .seconds(waitTime))
-                    } catch {
-                        print("⚠️ [Backup:\(#function)] Task sleep interrupted: \(error)")
-                    }
-                }
-
-                // Check if still enabled and not cancelled
-                guard !Task.isCancelled, self.scheduleConfiguration.enabled else { break }
-
-                // Perform scheduled backup
-                await self.performScheduledCloudBackup()
-            }
-        }
-    }
-
-    /// Stops scheduled cloud backups.
-    public func stopScheduledBackups() {
-        scheduledBackupTask?.cancel()
-        scheduledBackupTask = nil
-        nextScheduledBackupDate = nil
-    }
-
-    /// Performs a scheduled cloud backup.
-    private func performScheduledCloudBackup() async {
-        guard let modelContext = modelContext else { return }
-        guard !isPerformingBackup else { return }
-
-        isPerformingBackup = true
-        defer { isPerformingBackup = false }
-
-        do {
-            let backupURL = try await exportToCloudWithRetry(
-                modelContext: modelContext,
-                password: nil,
-                progress: { _, _ in }
-            )
-
-            // Update last backup date
-            lastCloudBackupDate = Date()
-            UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: Keys.lastCloudBackupDate)
-
-            // Apply retention policy
-            try await applyRetentionPolicy(maxCount: scheduleConfiguration.retentionCount)
-
-            // Publish event using modern Observation pattern
-            lastBackupEvent = CloudBackupEvent(
-                timestamp: Date(),
-                result: .completed(backupURL)
-            )
-
-        } catch {
-            Logger.backup.error("Scheduled backup failed: \(error.localizedDescription)")
-
-            // Publish event using modern Observation pattern
-            lastBackupEvent = CloudBackupEvent(
-                timestamp: Date(),
-                result: .failed(error)
-            )
-        }
-    }
-
-    private func updateScheduledBackups() {
-        if let modelContext = modelContext {
+    func updateScheduledBackups() {
+        if let modelContext = scheduledModelContext {
             startScheduledBackups(modelContext: modelContext)
         }
     }
@@ -619,7 +410,7 @@ public final class CloudBackupService {
 
     public init(backupService: BackupService) {
         self.backupService = backupService
-        
+
         // Load last cloud backup date
         let timestamp = UserDefaults.standard.double(forKey: Keys.lastCloudBackupDate)
         if timestamp > 0 {
@@ -634,4 +425,3 @@ public final class CloudBackupService {
         // The task holds a weak reference to self, so it will stop naturally
     }
 }
-import SwiftData
