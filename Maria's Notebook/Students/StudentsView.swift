@@ -218,7 +218,7 @@ struct StudentsView<WorkloadContent: View>: View {
                 },
                 onImportConfirm: handleImportCommit
             ))
-            .sheet(item: $selectedStudentForSheet, onDismiss: {}) { student in
+            .sheet(item: $selectedStudentForSheet, onDismiss: {}, content: { student in
                 StudentDetailView(student: student)
                     .id(student.id)
                 #if os(macOS)
@@ -228,7 +228,7 @@ struct StudentsView<WorkloadContent: View>: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                 #endif
-            }
+            })
     }
 
     var body: some View {

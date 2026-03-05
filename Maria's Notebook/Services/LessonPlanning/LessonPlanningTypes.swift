@@ -253,7 +253,7 @@ struct SubjectReadiness: Identifiable, Codable {
     let currentLessonID: UUID?
     let nextLessonName: String?
     let nextLessonID: UUID?
-    let masterySignal: MasterySignal
+    let proficiencySignal: ProficiencySignal
     let activeWorkCount: Int
     let completedInGroup: Int
     let totalInGroup: Int
@@ -265,7 +265,7 @@ struct SubjectReadiness: Identifiable, Codable {
         currentLessonID: UUID?,
         nextLessonName: String?,
         nextLessonID: UUID?,
-        masterySignal: MasterySignal,
+        proficiencySignal: ProficiencySignal,
         activeWorkCount: Int,
         completedInGroup: Int,
         totalInGroup: Int
@@ -277,21 +277,21 @@ struct SubjectReadiness: Identifiable, Codable {
         self.currentLessonID = currentLessonID
         self.nextLessonName = nextLessonName
         self.nextLessonID = nextLessonID
-        self.masterySignal = masterySignal
+        self.proficiencySignal = proficiencySignal
         self.activeWorkCount = activeWorkCount
         self.completedInGroup = completedInGroup
         self.totalInGroup = totalInGroup
     }
 }
 
-// MARK: - Mastery Signal
+// MARK: - Proficiency Signal
 
-/// Indicates a student's mastery status for a particular curriculum position.
-enum MasterySignal: String, Codable {
+/// Indicates a student's proficiency status for a particular curriculum position.
+enum ProficiencySignal: String, Codable {
     case notPresented
     case presented
     case practicing
-    case mastered
+    case proficient = "mastered"
     case needsMorePractice
     case needsReteaching
     
@@ -300,7 +300,7 @@ enum MasterySignal: String, Codable {
         case .notPresented: return "Not Presented"
         case .presented: return "Presented"
         case .practicing: return "Practicing"
-        case .mastered: return "Mastered"
+        case .proficient: return "Mastered"
         case .needsMorePractice: return "Needs Practice"
         case .needsReteaching: return "Needs Reteaching"
         }
@@ -360,7 +360,7 @@ struct CurriculumMap: Codable {
     struct PresentationStatus: Codable {
         let studentID: UUID
         let studentName: String
-        let mastery: MasterySignal
+        let proficiency: ProficiencySignal
     }
 }
 

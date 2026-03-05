@@ -161,8 +161,8 @@ class ClassSubjectChecklistViewModel {
         clearSelection()
     }
 
-    func batchMarkMastered(context: ModelContext) {
-        ChecklistBatchActionExecutor.batchMarkMastered(
+    func batchMarkProficient(context: ModelContext) {
+        ChecklistBatchActionExecutor.batchMarkProficient(
             selectedCells: selectedCells,
             students: students,
             lessons: lessons,
@@ -264,7 +264,7 @@ class ClassSubjectChecklistViewModel {
             work.completedAt = AppCalendar.startOfDay(Date())
         }
 
-        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .mastered, context: context)
+        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .proficient, context: context)
         GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
         GroupTrackService.checkAndCompleteTrackIfNeeded(lesson: lesson, studentID: studentIDString, modelContext: context)
     }
@@ -398,8 +398,8 @@ class ClassSubjectChecklistViewModel {
         let existing = context.safeFetch(descriptor).first
 
         if let existing = existing {
-            if state == .mastered && existing.state != .mastered {
-                existing.state = .mastered
+            if state == .proficient && existing.state != .proficient {
+                existing.state = .proficient
                 existing.masteredAt = Date()
             }
             existing.lastObservedAt = Date()
@@ -411,7 +411,7 @@ class ClassSubjectChecklistViewModel {
                 state: state,
                 presentedAt: Date(),
                 lastObservedAt: Date(),
-                masteredAt: state == .mastered ? Date() : nil
+                masteredAt: state == .proficient ? Date() : nil
             )
             context.insert(lp)
         }

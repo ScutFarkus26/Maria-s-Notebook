@@ -217,10 +217,8 @@ final class ChatContextAssembler {
                         lines.append("    Notes: \(pres.notes.prefix(120))")
                     }
                     // Include attached unified notes
-                    for note in (pres.unifiedNotes ?? []).prefix(2) {
-                        if !note.body.isEmpty {
-                            lines.append("    Observation: \(note.body.prefix(120))")
-                        }
+                    for note in (pres.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
+                        lines.append("    Observation: \(note.body.prefix(120))")
                     }
 
                     // Show who else was in this presentation
@@ -252,10 +250,8 @@ final class ChatContextAssembler {
                     lines.append(line)
 
                     // Include work notes
-                    for note in (work.unifiedNotes ?? []).prefix(2) {
-                        if !note.body.isEmpty {
-                            lines.append("    Note: \(note.body.prefix(100))")
-                        }
+                    for note in (work.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
+                        lines.append("    Note: \(note.body.prefix(100))")
                     }
                 }
             }

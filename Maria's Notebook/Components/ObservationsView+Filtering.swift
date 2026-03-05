@@ -11,14 +11,14 @@ extension ObservationsView {
         HStack(spacing: 12) {
             Menu {
                 ForEach(ObservationsFilterService.ScopeFilter.allCases) { sf in
-                    Button(action: { selectedScope = sf }) {
+                    Button(action: { selectedScope = sf }, label: {
                         HStack {
                             if selectedScope == sf {
                                 Image(systemName: "checkmark")
                             }
                             Text(sf.rawValue)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -45,14 +45,14 @@ extension ObservationsView {
                         } else {
                             selectedFilterTags.insert(tag)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedFilterTags.contains(tag) {
                                 Image(systemName: "checkmark")
                             }
                             Text(TagHelper.tagName(tag))
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {

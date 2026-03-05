@@ -138,7 +138,7 @@ struct TagPicker: View {
             pendingNewTagName = ""
             pendingTagColor = .blue
             editingOriginalTag = nil
-        }) {
+        }, content: {
             CustomTagSheet(
                 selectedTags: $selectedTags,
                 initialName: pendingNewTagName,
@@ -148,7 +148,7 @@ struct TagPicker: View {
                     handleSavedTag(savedTag)
                 }
             )
-        }
+        })
         #if os(macOS)
         .onExitCommand {
             searchText = ""

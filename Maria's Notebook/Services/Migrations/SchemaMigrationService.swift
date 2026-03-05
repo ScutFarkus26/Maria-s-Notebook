@@ -58,11 +58,9 @@ enum SchemaMigrationService {
             let tracks = context.safeFetch(FetchDescriptor<GroupTrack>())
             var updated = 0
 
-            for track in tracks {
-                if track.isExplicitlyDisabled {
-                    track.isExplicitlyDisabled = false
-                    updated += 1
-                }
+            for track in tracks where track.isExplicitlyDisabled {
+                track.isExplicitlyDisabled = false
+                updated += 1
             }
 
             if updated > 0 {
@@ -114,13 +112,11 @@ enum SchemaMigrationService {
             // Migrate NoteTemplates
             let templates = context.safeFetch(FetchDescriptor<NoteTemplate>())
             var templatesChanged = 0
-            for template in templates {
-                if template.tags.isEmpty {
-                    let categoryRaw = template.legacyCategoryRaw
-                    if !categoryRaw.isEmpty && categoryRaw != "general" {
-                        template.tags = [TagHelper.tagFromNoteCategory(categoryRaw)]
-                        templatesChanged += 1
-                    }
+            for template in templates where template.tags.isEmpty {
+                let categoryRaw = template.legacyCategoryRaw
+                if !categoryRaw.isEmpty && categoryRaw != "general" {
+                    template.tags = [TagHelper.tagFromNoteCategory(categoryRaw)]
+                    templatesChanged += 1
                 }
             }
 

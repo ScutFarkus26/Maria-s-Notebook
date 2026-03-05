@@ -77,11 +77,9 @@ struct PresentationNotesSectionUnified: View {
         var seenIDs: Set<UUID> = []
         var merged: [Note] = []
         
-        for note in lessonNotes + workNotes + presentationNotes {
-            if !seenIDs.contains(note.id) {
-                seenIDs.insert(note.id)
-                merged.append(note)
-            }
+        for note in lessonNotes + workNotes + presentationNotes where !seenIDs.contains(note.id) {
+            seenIDs.insert(note.id)
+            merged.append(note)
         }
         
         // Sort by createdAt descending

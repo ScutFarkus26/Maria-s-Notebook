@@ -65,10 +65,8 @@ final class ProgressionRootViewModel {
             // Collect unique visible students who have presentations in this group
             var studentIDsInGroup = Set<String>()
             for la in groupPresentations {
-                for sid in la.studentIDs {
-                    if visibleStudentIDs.contains(sid) {
-                        studentIDsInGroup.insert(sid)
-                    }
+                for sid in la.studentIDs where visibleStudentIDs.contains(sid) {
+                    studentIDsInGroup.insert(sid)
                 }
             }
 

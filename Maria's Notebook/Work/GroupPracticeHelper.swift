@@ -29,7 +29,7 @@ struct GroupPracticeBadge: View {
     var action: (() -> Void)?
     
     var body: some View {
-        Button(action: { action?() }) {
+        Button(action: { action?() }, label: {
             HStack(spacing: 4) {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 10, weight: .semibold))
@@ -43,7 +43,7 @@ struct GroupPracticeBadge: View {
                 Capsule()
                     .fill(Color.blue)
             )
-        }
+        })
         .buttonStyle(.plain)
         .help("Start group practice with \(partnerCount) partner\(partnerCount == 1 ? "" : "s")")
     }

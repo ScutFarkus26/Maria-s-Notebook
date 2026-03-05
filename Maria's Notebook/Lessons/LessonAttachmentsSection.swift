@@ -100,10 +100,10 @@ struct LessonAttachmentsSection: View {
 
                 Spacer()
 
-                Button(action: { showingScopeSheet = true }) {
+                Button(action: { showingScopeSheet = true }, label: {
                     Label("Add", systemImage: "plus.circle.fill")
                         .font(AppTheme.ScaledFont.bodySemibold)
-                }
+                })
                 .buttonStyle(.borderless)
             }
 
@@ -299,12 +299,10 @@ struct LessonAttachmentsSection: View {
         ]
         
         var foundType: String?
-        for typeId in typeIdentifiers {
-            if provider.hasItemConformingToTypeIdentifier(typeId) {
-                Self.logger.info("Found conforming type: \(typeId)")
-                foundType = typeId
-                break
-            }
+        for typeId in typeIdentifiers where provider.hasItemConformingToTypeIdentifier(typeId) {
+            Self.logger.info("Found conforming type: \(typeId)")
+            foundType = typeId
+            break
         }
         
         guard let typeIdentifier = foundType else {

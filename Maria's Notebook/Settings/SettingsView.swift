@@ -20,7 +20,7 @@ struct SettingsView: View {
     }
 
     var selectedCategory: SettingsCategory {
-        get { SettingsCategory(rawValue: selectedCategoryRaw) ?? .general }
+        SettingsCategory(rawValue: selectedCategoryRaw) ?? .general
     }
 
     var selectedCategoryBinding: Binding<SettingsCategory?> {

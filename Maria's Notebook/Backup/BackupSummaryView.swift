@@ -92,7 +92,7 @@ struct BackupSummaryView: View {
                     adaptiveWithAnimation {
                         warningsExpanded.toggle()
                     }
-                }) {
+                }, label: {
                     HStack(spacing: AppTheme.Spacing.small) {
                         Text("Warnings")
                             .font(.headline)
@@ -107,7 +107,7 @@ struct BackupSummaryView: View {
                         Image(systemName: warningsExpanded ? "chevron.up" : "chevron.down")
                             .foregroundStyle(.secondary)
                     }
-                }
+                })
                 if warningsExpanded {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                         ForEach(summary.warnings, id: \.self) { w in

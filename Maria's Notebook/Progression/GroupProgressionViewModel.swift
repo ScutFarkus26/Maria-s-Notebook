@@ -132,7 +132,7 @@ final class GroupProgressionViewModel {
                 if presented {
                     furthestPresentedOrder = max(furthestPresentedOrder, lesson.orderInGroup)
                     if allWorkComplete {
-                        status = .mastered
+                        status = .proficient
                     } else if !reviewWork.isEmpty {
                         status = .workReview
                         hasActiveWork = true

@@ -118,7 +118,7 @@ struct LessonPickerPopover: View {
                     searchText = lesson.name
                     adaptiveWithAnimation(.easeInOut) { isPresented = false }
                     isFocused = false
-                }) {
+                }, label: {
                     HStack {
                         Text(lessonDisplayTitle(lesson))
                             .foregroundStyle(.primary)
@@ -128,7 +128,7 @@ struct LessonPickerPopover: View {
                                 .foregroundStyle(Color.accentColor)
                         }
                     }
-                }
+                })
                 .buttonStyle(.plain)
             }
             .listStyle(.plain)

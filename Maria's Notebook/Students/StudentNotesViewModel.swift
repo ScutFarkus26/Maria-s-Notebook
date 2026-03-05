@@ -118,11 +118,9 @@ final class StudentNotesViewModel {
         // Combine results, deduplicating by note ID
         var seenIDs = Set(primaryNotes.map { $0.id })
         var visibleNotes = primaryNotes
-        for note in linkedNotes {
-            if !seenIDs.contains(note.id) {
-                seenIDs.insert(note.id)
-                visibleNotes.append(note)
-            }
+        for note in linkedNotes where !seenIDs.contains(note.id) {
+            seenIDs.insert(note.id)
+            visibleNotes.append(note)
         }
         
         // FILTERING: Exclude notes attached to specific contexts that have their own fetch blocks.

@@ -160,7 +160,7 @@ struct StudentReadinessAssessor {
             // Find the furthest presented lesson for this student in this group
             var currentLesson: Lesson?
             var nextLesson: Lesson?
-            var mastery: MasterySignal = .notPresented
+            var proficiency: ProficiencySignal = .notPresented
             var activeWorkInGroup = 0
             var completedInGroup = 0
             
@@ -184,19 +184,19 @@ struct StudentReadinessAssessor {
                     if let latest = completedWork.max(by: { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }) {
                         if let outcome = latest.completionOutcome {
                             switch outcome {
-                            case .mastered: mastery = .mastered
-                            case .needsMorePractice: mastery = .needsMorePractice
-                            case .needsReview: mastery = .needsReteaching
-                            case .incomplete: mastery = .practicing
-                            case .notApplicable: mastery = .presented
+                            case .proficient: proficiency = .proficient
+                            case .needsMorePractice: proficiency = .needsMorePractice
+                            case .needsReview: proficiency = .needsReteaching
+                            case .incomplete: proficiency = .practicing
+                            case .notApplicable: proficiency = .presented
                             }
                         } else {
-                            mastery = .practicing
+                            proficiency = .practicing
                         }
                     } else if !activeWork.isEmpty {
-                        mastery = .practicing
+                        proficiency = .practicing
                     } else {
-                        mastery = .presented
+                        proficiency = .presented
                     }
                 } else if currentLesson != nil && nextLesson == nil {
                     // First unpresented lesson after the current one is the "next"
@@ -221,7 +221,7 @@ struct StudentReadinessAssessor {
                 currentLessonID: currentLesson?.id,
                 nextLessonName: nextLesson?.name,
                 nextLessonID: nextLesson?.id,
-                masterySignal: mastery,
+                proficiencySignal: proficiency,
                 activeWorkCount: activeWorkInGroup,
                 completedInGroup: completedInGroup,
                 totalInGroup: sorted.count
@@ -268,7 +268,7 @@ struct StudentReadinessAssessor {
             let frontierSubjects = profile.subjectReadiness.filter { $0.nextLessonID != nil }
             for sr in frontierSubjects.prefix(8) {
                 let progress = "\(sr.completedInGroup)/\(sr.totalInGroup)"
-                let current = sr.currentLessonName.map { "current: \($0) (\(sr.masterySignal.shortCode))" } ?? "not started"
+                let current = sr.currentLessonName.map { "current: \($0) (\(sr.proficiencySignal.shortCode))" } ?? "not started"
                 let next = sr.nextLessonName.map { "next: \($0)" } ?? ""
                 lines.append("  \(sr.subject)/\(sr.group) \(progress) \(current) \(next)")
             }

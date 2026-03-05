@@ -119,8 +119,8 @@ struct ProgressStateRow: View {
 }
 
 /// Mastery status row with Presented/Practicing/Mastered options
-struct MasteryStateRow: View {
-    @Binding var masteryState: LessonPresentationState
+struct ProficiencyStateRow: View {
+    @Binding var proficiencyState: LessonPresentationState
     
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -159,63 +159,63 @@ struct MasteryStateRow: View {
     
     private var compactButtons: some View {
         VStack(spacing: 8) {
-            FullWidthStatePillButton(action: { masteryState = .presented }) {
+            FullWidthStatePillButton(action: { proficiencyState = .presented }, content: {
                 StatePill(
                     title: "Presented",
                     systemImage: "eye.fill",
                     tint: .blue,
-                    active: masteryState == .presented
+                    active: proficiencyState == .presented
                 )
-            }
-            
-            FullWidthStatePillButton(action: { masteryState = .practicing }) {
+            })
+
+            FullWidthStatePillButton(action: { proficiencyState = .practicing }, content: {
                 StatePill(
                     title: "Practicing",
                     systemImage: "arrow.triangle.2.circlepath",
                     tint: .purple,
-                    active: masteryState == .practicing
+                    active: proficiencyState == .practicing
                 )
-            }
-            
-            FullWidthStatePillButton(action: { masteryState = .mastered }) {
+            })
+
+            FullWidthStatePillButton(action: { proficiencyState = .proficient }, content: {
                 StatePill(
                     title: "Mastered",
                     systemImage: "checkmark.seal.fill",
                     tint: .green,
-                    active: masteryState == .mastered
+                    active: proficiencyState == .proficient
                 )
-            }
+            })
         }
     }
     
     private var regularButtons: some View {
         HStack(spacing: 12) {
-            Button { masteryState = .presented } label: {
+            Button { proficiencyState = .presented } label: {
                 StatePill(
                     title: "Presented",
                     systemImage: "eye.fill",
                     tint: .blue,
-                    active: masteryState == .presented
+                    active: proficiencyState == .presented
                 )
             }
             .buttonStyle(.plain)
             
-            Button { masteryState = .practicing } label: {
+            Button { proficiencyState = .practicing } label: {
                 StatePill(
                     title: "Practicing",
                     systemImage: "arrow.triangle.2.circlepath",
                     tint: .purple,
-                    active: masteryState == .practicing
+                    active: proficiencyState == .practicing
                 )
             }
             .buttonStyle(.plain)
             
-            Button { masteryState = .mastered } label: {
+            Button { proficiencyState = .proficient } label: {
                 StatePill(
                     title: "Mastered",
                     systemImage: "checkmark.seal.fill",
                     tint: .green,
-                    active: masteryState == .mastered
+                    active: proficiencyState == .proficient
                 )
             }
             .buttonStyle(.plain)

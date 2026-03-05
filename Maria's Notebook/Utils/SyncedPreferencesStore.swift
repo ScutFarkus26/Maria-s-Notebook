@@ -135,16 +135,14 @@ public final class SyncedPreferencesStore {
         let allUserDefaultsKeys = userDefaults.dictionaryRepresentation().keys
         for key in allUserDefaultsKeys {
             // Check if this key matches any synced prefix
-            for prefix in Self.syncedKeyPrefixes {
-                if key.hasPrefix(prefix) {
-                    // Check if value exists in UserDefaults but not in KVS
-                    if let value = userDefaults.object(forKey: key), kvStore.object(forKey: key) == nil {
-                        kvStore.set(value, forKey: key)
-                        migratedCount += 1
-                        logger.debug("Migrated key: \(key)")
-                    }
-                    break
+            for prefix in Self.syncedKeyPrefixes where key.hasPrefix(prefix) {
+                // Check if value exists in UserDefaults but not in KVS
+                if let value = userDefaults.object(forKey: key), kvStore.object(forKey: key) == nil {
+                    kvStore.set(value, forKey: key)
+                    migratedCount += 1
+                    logger.debug("Migrated key: \(key)")
                 }
+                break
             }
         }
         
@@ -375,10 +373,8 @@ public final class SyncedPreferencesStore {
             return true
         }
         // Check prefix match for dynamic keys
-        for prefix in Self.syncedKeyPrefixes {
-            if key.hasPrefix(prefix) {
-                return true
-            }
+        for prefix in Self.syncedKeyPrefixes where key.hasPrefix(prefix) {
+            return true
         }
         return false
     }

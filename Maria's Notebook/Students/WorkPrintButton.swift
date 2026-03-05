@@ -15,9 +15,9 @@ struct WorkPrintButton: View {
     var body: some View {
         Button(action: {
             showPrintSheet = true
-        }) {
+        }, label: {
             Label("Print", systemImage: "printer")
-        }
+        })
         .disabled(workItems.isEmpty)
         .sheet(isPresented: $showPrintSheet) {
             WorkPrintSheet(

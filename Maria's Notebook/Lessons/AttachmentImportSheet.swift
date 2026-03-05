@@ -109,7 +109,7 @@ struct ScopeOptionButton: View {
     }
 
     var body: some View {
-        Button(action: { selectedScope = scope }) {
+        Button(action: { selectedScope = scope }, label: {
             HStack(spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20))
@@ -136,7 +136,7 @@ struct ScopeOptionButton: View {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: 1.5)
             )
-        }
+        })
         .buttonStyle(.plain)
     }
 }

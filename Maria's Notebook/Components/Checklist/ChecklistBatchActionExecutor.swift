@@ -57,7 +57,7 @@ enum ChecklistBatchActionExecutor {
     // MARK: - Batch Mark Mastered
 
     /// Marks selected cells as mastered/complete.
-    static func batchMarkMastered(
+    static func batchMarkProficient(
         selectedCells: Set<CellIdentifier>,
         students: [Student],
         lessons: [Lesson],
@@ -170,7 +170,7 @@ enum ChecklistBatchActionExecutor {
         }
 
         // Create/update LessonPresentation with mastered state
-        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .mastered, context: context)
+        upsertLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, state: .proficient, context: context)
 
         // Auto-enroll in track if lesson belongs to a track
         GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: [studentIDString], modelContext: context)
@@ -266,8 +266,8 @@ enum ChecklistBatchActionExecutor {
         }
 
         if let existing = existing {
-            if state == .mastered && existing.state != .mastered {
-                existing.state = .mastered
+            if state == .proficient && existing.state != .proficient {
+                existing.state = .proficient
                 existing.masteredAt = Date()
             }
             existing.lastObservedAt = Date()
@@ -279,7 +279,7 @@ enum ChecklistBatchActionExecutor {
                 state: state,
                 presentedAt: Date(),
                 lastObservedAt: Date(),
-                masteredAt: state == .mastered ? Date() : nil
+                masteredAt: state == .proficient ? Date() : nil
             )
             context.insert(lp)
         }

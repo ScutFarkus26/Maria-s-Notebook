@@ -63,7 +63,7 @@ struct ClassSubjectChecklistView: View {
                     .buttonStyle(.bordered)
 
                     Button {
-                        viewModel.batchMarkMastered(context: modelContext)
+                        viewModel.batchMarkProficient(context: modelContext)
                     } label: {
                         Label("Mastered", systemImage: "checkmark.circle.fill")
                     }

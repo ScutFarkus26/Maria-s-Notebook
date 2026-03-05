@@ -1,7 +1,7 @@
 import Foundation
 
-/// Extensions for safe UUID ↔ String conversion.
-/// Consolidates all UUID/String helpers into a single file.
+// Extensions for safe UUID ↔ String conversion.
+// Consolidates all UUID/String helpers into a single file.
 
 // MARK: - String → UUID
 

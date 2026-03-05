@@ -133,10 +133,10 @@ struct StudentDetailView: View {
                 .font(AppTheme.ScaledFont.titleSmall)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            Button(action: { showAIPlanning = true }) {
+            Button(action: { showAIPlanning = true }, label: {
                 Label("Plan Lessons", systemImage: "sparkles")
                     .font(AppTheme.ScaledFont.captionSemibold)
-            }
+            })
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
         }

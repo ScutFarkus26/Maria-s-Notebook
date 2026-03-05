@@ -214,12 +214,10 @@ struct LessonsViewModel {
         
         // Pre-compute group indices for all unique subjects in fetched results
         let uniqueSubjects = Set(fetched.map { norm($0.subject) })
-        for subject in uniqueSubjects {
-            if groupIndexCache[subject] == nil {
-                // Find the original (non-normalized) subject name for lookup
-                if let originalSubject = scoped.first(where: { norm($0.subject) == subject })?.subject {
-                    groupIndexCache[subject] = groupIndex(for: originalSubject, lessons: scoped)
-                }
+        for subject in uniqueSubjects where groupIndexCache[subject] == nil {
+            // Find the original (non-normalized) subject name for lookup
+            if let originalSubject = scoped.first(where: { norm($0.subject) == subject })?.subject {
+                groupIndexCache[subject] = groupIndex(for: originalSubject, lessons: scoped)
             }
         }
 
@@ -315,8 +313,8 @@ struct LessonsViewModel {
                 let sorted = arr.sorted { lhs, rhs in
                     lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
                 }
-                for (idx, l) in sorted.enumerated() {
-                    if l.orderInGroup != idx { l.orderInGroup = idx; changed = true }
+                for (idx, l) in sorted.enumerated() where l.orderInGroup != idx {
+                    l.orderInGroup = idx; changed = true
                 }
                 continue
             }

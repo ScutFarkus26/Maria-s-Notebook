@@ -246,7 +246,7 @@ struct StudentProgressTab: View {
 
                 if progress.totalSteps > 0 {
                     VStack(alignment: .leading, spacing: 12) {
-                        ProgressStatsSection(completed: progress.masteredCount, total: progress.totalSteps, color: trackColor, completionLabel: "")
+                        ProgressStatsSection(completed: progress.proficientCount, total: progress.totalSteps, color: trackColor, completionLabel: "")
                         StepDotsVisualization(steps: progress.trackSteps, completedStepIDs: progress.completedStepIDs, color: trackColor)
                     }
                     .padding(.bottom, AppTheme.Spacing.xsmall)

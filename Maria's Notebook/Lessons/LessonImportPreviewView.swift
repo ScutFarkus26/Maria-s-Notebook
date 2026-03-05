@@ -101,10 +101,10 @@ struct LessonImportPreviewView: View {
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(.yellow)
                 Spacer()
-                Button(action: { adaptiveWithAnimation { showWarnings.toggle() } }) {
+                Button(action: { adaptiveWithAnimation { showWarnings.toggle() } }, label: {
                     Image(systemName: showWarnings ? "chevron.down" : "chevron.right")
                         .foregroundStyle(.secondary)
-                }
+                })
                 .buttonStyle(.plain)
             }
 

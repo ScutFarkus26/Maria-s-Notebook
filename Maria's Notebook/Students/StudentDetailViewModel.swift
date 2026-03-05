@@ -26,8 +26,8 @@ final class StudentDetailViewModel {
     private(set) var nextLessonsForStudent: [LessonAssignmentSnapshot] = []
     /// Lessons that have been presented to this student
     private(set) var presentedLessonIDs: Set<UUID> = []
-    /// Lessons that this student has mastered (based on LessonPresentation.state == .mastered)
-    private(set) var masteredLessonIDs: Set<UUID> = []
+    /// Lessons that this student has mastered (based on LessonPresentation.state == .proficient)
+    private(set) var proficientLessonIDs: Set<UUID> = []
     private(set) var plannedLessonIDs: Set<UUID> = []
 
     private(set) var workModelsForStudent: [WorkModel] = []
@@ -75,24 +75,24 @@ final class StudentDetailViewModel {
         self.lessonAssignments = filteredLAs
 
         updateData(lessons: fetchedLessons, lessonAssignments: filteredLAs)
-        loadMasteredLessonIDs(modelContext: modelContext)
+        loadProficientLessonIDs(modelContext: modelContext)
     }
 
     /// Loads lesson IDs that have been mastered by this student from LessonPresentation records.
-    private func loadMasteredLessonIDs(modelContext: ModelContext) {
+    private func loadProficientLessonIDs(modelContext: ModelContext) {
         let studentIDString = student.id.uuidString
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
         // Note: Must use stateRaw (stored property) not state (computed property) in predicates
-        let masteredStateRaw = LessonPresentationState.mastered.rawValue
+        let proficientStateRaw = LessonPresentationState.proficient.rawValue
         let descriptor = FetchDescriptor<LessonPresentation>(
             predicate: #Predicate { lp in
-                lp.studentID == studentIDString && lp.stateRaw == masteredStateRaw
+                lp.studentID == studentIDString && lp.stateRaw == proficientStateRaw
             }
         )
-        let masteredPresentations = safeFetch(descriptor, context: modelContext)
+        let proficientPresentations = safeFetch(descriptor, context: modelContext)
 
-        masteredLessonIDs = Set(
-            masteredPresentations.compactMap { UUID(uuidString: $0.lessonID) }
+        proficientLessonIDs = Set(
+            proficientPresentations.compactMap { UUID(uuidString: $0.lessonID) }
         )
     }
 
@@ -225,7 +225,7 @@ final class StudentDetailViewModel {
         }
     }
 
-    func openMastered(for lesson: Lesson, modelContext: ModelContext) {
+    func openProficient(for lesson: Lesson, modelContext: ModelContext) {
         let studentIDString = student.id.uuidString
         let lessonIDString = lesson.id.uuidString
         let presented = lessonAssignmentsByID.values
@@ -241,7 +241,7 @@ final class StudentDetailViewModel {
 
     func togglePresented(for lesson: Lesson, modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
         if presentedLessonIDs.contains(lesson.id) {
-            openMastered(for: lesson, modelContext: modelContext)
+            openProficient(for: lesson, modelContext: modelContext)
             return
         }
         let presentedDate = AppCalendar.startOfDay(Date())

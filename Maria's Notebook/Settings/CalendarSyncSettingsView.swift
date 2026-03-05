@@ -164,7 +164,7 @@ private struct CalendarToggleRow: View {
     let onToggle: (Bool) -> Void
 
     var body: some View {
-        Button(action: { onToggle(!isSelected) }) {
+        Button(action: { onToggle(!isSelected) }, label: {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isSelected ? .blue : .secondary)
@@ -182,7 +182,7 @@ private struct CalendarToggleRow: View {
                 Spacer()
             }
             .contentShape(Rectangle())
-        }
+        })
         .buttonStyle(.plain)
     }
 }

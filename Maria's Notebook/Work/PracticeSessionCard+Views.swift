@@ -8,7 +8,7 @@ extension PracticeSessionCard {
     // MARK: - Compact View
 
     var compactView: some View {
-        Button(action: { onTap?() }) {
+        Button(action: { onTap?() }, label: {
             HStack(spacing: 8) {
                 // Session type icon
                 Image(systemName: session.isGroupSession ? "person.2.fill" : "person.fill")
@@ -41,14 +41,14 @@ extension PracticeSessionCard {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.primary.opacity(0.03))
             )
-        }
+        })
         .buttonStyle(.plain)
     }
 
     // MARK: - Standard View
 
     var standardView: some View {
-        Button(action: { onTap?() }) {
+        Button(action: { onTap?() }, label: {
             VStack(alignment: .leading, spacing: 12) {
                 sessionHeader
 
@@ -134,7 +134,7 @@ extension PracticeSessionCard {
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(session.isGroupSession ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
             )
-        }
+        })
         .buttonStyle(.plain)
     }
 

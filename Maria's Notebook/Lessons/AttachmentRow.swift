@@ -50,17 +50,17 @@ struct AttachmentRow: View {
             // Actions
             if isHovering || isInherited {
                 HStack(spacing: 8) {
-                    Button(action: { openAttachment() }) {
+                    Button(action: { openAttachment() }, label: {
                         Image(systemName: "eye")
                             .font(.system(size: 12))
-                    }
+                    })
                     .buttonStyle(.borderless)
                     .help("View")
 
-                    Button(action: { shareAttachment() }) {
+                    Button(action: { shareAttachment() }, label: {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 12))
-                    }
+                    })
                     .buttonStyle(.borderless)
                     .help("Share")
 

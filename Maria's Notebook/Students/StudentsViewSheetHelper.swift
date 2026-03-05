@@ -9,7 +9,7 @@ struct StudentsViewSheetHelper {
         @ViewBuilder content: @escaping (Student) -> Content
     ) -> some View {
         EmptyView()
-            .sheet(item: item, onDismiss: {}) { student in
+            .sheet(item: item, onDismiss: {}, content: { student in
                 content(student)
                     .id(student.id)
                 #if os(macOS)
@@ -19,7 +19,7 @@ struct StudentsViewSheetHelper {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                 #endif
-            }
+            })
     }
 
     /// Standard sheet modifiers for import preview views
@@ -28,9 +28,9 @@ struct StudentsViewSheetHelper {
         @ViewBuilder content: @escaping (StudentCSVImporter.Parsed) -> Content
     ) -> some View {
         EmptyView()
-            .sheet(item: item, onDismiss: {}) { parsed in
+            .sheet(item: item, onDismiss: {}, content: { parsed in
                 content(parsed)
                     .frame(minWidth: 620, minHeight: 520)
-            }
+            })
     }
 }

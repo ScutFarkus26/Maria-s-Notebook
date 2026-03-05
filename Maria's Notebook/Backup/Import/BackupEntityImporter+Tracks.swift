@@ -8,13 +8,13 @@ extension BackupEntityImporter {
     // MARK: - Tracks
 
     static func importTracks(_ dtos: [TrackDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Track>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let t = Track()
             t.id = dto.id
             t.title = dto.title
             t.createdAt = dto.createdAt
             return t
-        }
+        })
     }
 
     // MARK: - Track Steps
@@ -48,7 +48,7 @@ extension BackupEntityImporter {
     // MARK: - Student Track Enrollments
 
     static func importStudentTrackEnrollments(_ dtos: [StudentTrackEnrollmentDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<StudentTrackEnrollment>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let e = StudentTrackEnrollment()
             e.id = dto.id
             e.createdAt = dto.createdAt
@@ -57,13 +57,13 @@ extension BackupEntityImporter {
             e.startedAt = dto.startedAt
             e.isActive = dto.isActive
             return e
-        }
+        })
     }
 
     // MARK: - Group Tracks
 
     static func importGroupTracks(_ dtos: [GroupTrackDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<GroupTrack>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let g = GroupTrack(
                 id: dto.id,
                 subject: dto.subject,
@@ -73,6 +73,6 @@ extension BackupEntityImporter {
                 createdAt: dto.createdAt
             )
             return g
-        }
+        })
     }
 }

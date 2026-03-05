@@ -135,18 +135,18 @@ struct WeekPlanOverviewView: View {
             // Accept/reject buttons
             if rec.decision == nil {
                 HStack(spacing: 4) {
-                    Button(action: { onAcceptRecommendation?(rec.id) }) {
+                    Button(action: { onAcceptRecommendation?(rec.id) }, label: {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10))
-                    }
+                    })
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
                     .tint(.green)
                     
-                    Button(action: { onRejectRecommendation?(rec.id) }) {
+                    Button(action: { onRejectRecommendation?(rec.id) }, label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 10))
-                    }
+                    })
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
                     .tint(.secondary)

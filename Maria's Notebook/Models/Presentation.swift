@@ -313,13 +313,13 @@ struct LessonAssignmentSnapshot: Identifiable, Sendable {
 /// Lifecycle states for a presentation.
 enum LessonAssignmentState: String, Codable, CaseIterable, Sendable {
     /// Created but not yet scheduled.
-    case draft = "draft"
+    case draft
 
     /// Has a scheduled date for presentation.
-    case scheduled = "scheduled"
+    case scheduled
 
     /// Has been given to students (historical record).
-    case presented = "presented"
+    case presented
 }
 
 // MARK: - Debug Extensions

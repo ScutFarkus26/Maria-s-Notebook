@@ -91,7 +91,7 @@ extension TodayView {
         switch note.scope {
         case .all: return ""
         case .student(let id):
-            if let _ = viewModel.recentNoteStudentsByID[id] { return displayNameForID(id) }
+            if viewModel.recentNoteStudentsByID[id] != nil { return displayNameForID(id) }
             return ""
         case .students(let ids):
             let names = ids.compactMap { sid in viewModel.recentNoteStudentsByID[sid].map { _ in displayNameForID(sid) } }

@@ -41,7 +41,7 @@ struct WorkDetailView: View {
     var unlockInfo: (lessonID: UUID, studentID: UUID)? {
         guard viewModel.status == .complete,
               let outcome = viewModel.completionOutcome,
-              outcome == .mastered || outcome == .needsReview,
+              outcome == .proficient || outcome == .needsReview,
               let work = viewModel.work,
               let lessonID = UUID(uuidString: work.lessonID),
               let studentID = UUID(uuidString: work.studentID) else {

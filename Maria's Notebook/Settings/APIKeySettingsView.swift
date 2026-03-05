@@ -53,10 +53,10 @@ struct APIKeySettingsView: View {
                             .autocorrectionDisabled()
                     }
                     
-                    Button(action: { showingKey.toggle() }) {
+                    Button(action: { showingKey.toggle() }, label: {
                         Image(systemName: showingKey ? "eye.slash" : "eye")
                             .foregroundStyle(.secondary)
-                    }
+                    })
                     .buttonStyle(.plain)
                 }
                 

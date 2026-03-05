@@ -111,11 +111,9 @@ struct ProjectRolesEditorView: View {
     }
 
     private func deleteAtOffsets(_ offsets: IndexSet) {
-        for i in offsets {
-            if roles.indices.contains(i) {
-                let role = roles[i]
-                delete(role)
-            }
+        for i in offsets where roles.indices.contains(i) {
+            let role = roles[i]
+            delete(role)
         }
     }
 }

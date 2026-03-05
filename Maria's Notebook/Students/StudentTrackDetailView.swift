@@ -13,16 +13,16 @@ struct StudentTrackDetailView: View {
 
     // Pre-computed data loaded on appear for better performance
     @State private var trackLessons: [Lesson] = []
-    @State private var masteredLessonIDs: Set<String> = []
+    @State private var proficientLessonIDs: Set<String> = []
     @State private var presentedLessonIDs: Set<String> = []
     @State private var isLoaded = false
 
-    private var masteredCount: Int { masteredLessonIDs.count }
+    private var proficientCount: Int { proficientLessonIDs.count }
     private var totalLessons: Int { trackLessons.count }
 
     private var progressPercent: Int {
         guard totalLessons > 0 else { return 0 }
-        return Int((Double(masteredCount) / Double(totalLessons)) * 100)
+        return Int((Double(proficientCount) / Double(totalLessons)) * 100)
     }
 
     var body: some View {
@@ -107,7 +107,7 @@ struct StudentTrackDetailView: View {
         }
 
         presentedLessonIDs = Set(studentPresentations.map { $0.lessonID })
-        masteredLessonIDs = Set(studentPresentations.filter { $0.state == .mastered }.map { $0.lessonID })
+        proficientLessonIDs = Set(studentPresentations.filter { $0.state == .proficient }.map { $0.lessonID })
 
         isLoaded = true
     }
@@ -192,7 +192,7 @@ struct StudentTrackDetailView: View {
 
                 // Progress circle
                 Circle()
-                    .trim(from: 0, to: CGFloat(masteredCount) / CGFloat(max(totalLessons, 1)))
+                    .trim(from: 0, to: CGFloat(proficientCount) / CGFloat(max(totalLessons, 1)))
                     .stroke(
                         LinearGradient(
                             colors: [.green, .mint],
@@ -219,7 +219,7 @@ struct StudentTrackDetailView: View {
             HStack(spacing: 24) {
                 statPill(
                     icon: "checkmark.circle.fill",
-                    value: "\(masteredCount)",
+                    value: "\(proficientCount)",
                     label: "Mastered",
                     color: .green
                 )
@@ -298,17 +298,17 @@ struct StudentTrackDetailView: View {
 
     private func lessonRow(lesson: Lesson, index: Int) -> some View {
         let lessonID = lesson.id.uuidString
-        let isMastered = masteredLessonIDs.contains(lessonID)
+        let isProficient = proficientLessonIDs.contains(lessonID)
         let isPresented = presentedLessonIDs.contains(lessonID)
 
         return HStack(spacing: 12) {
             // Step number or checkmark
             ZStack {
                 Circle()
-                    .fill(isMastered ? Color.green : (isPresented ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1)))
+                    .fill(isProficient ? Color.green : (isPresented ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1)))
                     .frame(width: 32, height: 32)
 
-                if isMastered {
+                if isProficient {
                     Image(systemName: "checkmark")
                         .font(.caption.bold())
                         .foregroundStyle(.white)
@@ -323,10 +323,10 @@ struct StudentTrackDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(lesson.name)
                     .font(.subheadline)
-                    .fontWeight(isMastered ? .medium : .regular)
-                    .foregroundStyle(isMastered ? .primary : .secondary)
+                    .fontWeight(isProficient ? .medium : .regular)
+                    .foregroundStyle(isProficient ? .primary : .secondary)
 
-                if isMastered {
+                if isProficient {
                     Label("Mastered", systemImage: "star.fill")
                         .font(.caption2)
                         .foregroundStyle(AppColors.success)
@@ -340,7 +340,7 @@ struct StudentTrackDetailView: View {
             Spacer()
 
             // Status indicator
-            if isMastered {
+            if isProficient {
                 Image(systemName: "sparkles")
                     .font(.caption)
                     .foregroundStyle(.yellow)
@@ -350,11 +350,11 @@ struct StudentTrackDetailView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isMastered ? Color.green.opacity(0.08) : Color.primary.opacity(0.02))
+                .fill(isProficient ? Color.green.opacity(0.08) : Color.primary.opacity(0.02))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isMastered ? Color.green.opacity(0.2) : Color.clear, lineWidth: 1)
+                .strokeBorder(isProficient ? Color.green.opacity(0.2) : Color.clear, lineWidth: 1)
         )
     }
 

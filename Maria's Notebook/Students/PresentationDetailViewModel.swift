@@ -27,8 +27,8 @@ final class PresentationDetailViewModel {
 
     // MARK: - Mastery State
     /// The mastery state for progress tracking. Only applies when lesson is presented.
-    /// nil = not yet loaded, .presented = shown but not mastered, .mastered = student has mastered
-    var masteryState: LessonPresentationState = .presented
+    /// nil = not yet loaded, .presented = shown but not mastered, .proficient = student has mastered
+    var proficiencyState: LessonPresentationState = .presented
 
     // MARK: - UI State
     var showLessonPicker: Bool = false
@@ -73,7 +73,7 @@ final class PresentationDetailViewModel {
         self.showLessonPicker = autoFocusLessonPicker
 
         // Load mastery state from existing LessonPresentation records
-        self.masteryState = Self.loadMasteryState(
+        self.proficiencyState = Self.loadProficiencyState(
             lessonID: lessonAssignment.lessonID,
             studentIDs: lessonAssignment.studentIDs,
             modelContext: modelContext
@@ -92,8 +92,8 @@ final class PresentationDetailViewModel {
     }
 
     /// Loads the "highest" mastery state from all students' LessonPresentation records.
-    /// If any student has mastered, returns .mastered. Otherwise returns .presented or the highest state found.
-    private static func loadMasteryState(
+    /// If any student has mastered, returns .proficient. Otherwise returns .presented or the highest state found.
+    private static func loadProficiencyState(
         lessonID: String,
         studentIDs: [String],
         modelContext: ModelContext
@@ -112,8 +112,8 @@ final class PresentationDetailViewModel {
         }
 
         // Return the "highest" state found (mastered > readyForAssessment > practicing > presented)
-        if matching.contains(where: { $0.state == .mastered }) {
-            return .mastered
+        if matching.contains(where: { $0.state == .proficient }) {
+            return .proficient
         } else if matching.contains(where: { $0.state == .readyForAssessment }) {
             return .readyForAssessment
         } else if matching.contains(where: { $0.state == .practicing }) {
@@ -184,10 +184,10 @@ final class PresentationDetailViewModel {
             }
 
             // Update mastery state on LessonPresentation records
-            updateMasteryState(
+            updateProficiencyState(
                 lessonID: lessonAssignment.lessonID,
                 studentIDs: lessonAssignment.studentIDs,
-                state: masteryState
+                state: proficiencyState
             )
 
             // Auto-enroll students in track if lesson belongs to a track
@@ -424,7 +424,7 @@ final class PresentationDetailViewModel {
     // MARK: - Mastery State Management
 
     /// Updates the mastery state on all LessonPresentation records for this lesson and students.
-    private func updateMasteryState(
+    private func updateProficiencyState(
         lessonID: String,
         studentIDs: [String],
         state: LessonPresentationState
@@ -437,9 +437,9 @@ final class PresentationDetailViewModel {
             if let existing = allLessonPresentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentID }) {
                 existing.state = state
                 existing.lastObservedAt = Date()
-                if state == .mastered && existing.masteredAt == nil {
+                if state == .proficient && existing.masteredAt == nil {
                     existing.masteredAt = Date()
-                } else if state != .mastered {
+                } else if state != .proficient {
                     existing.masteredAt = nil
                 }
             } else {
@@ -450,14 +450,14 @@ final class PresentationDetailViewModel {
                     state: state,
                     presentedAt: Date(),
                     lastObservedAt: Date(),
-                    masteredAt: state == .mastered ? Date() : nil
+                    masteredAt: state == .proficient ? Date() : nil
                 )
                 modelContext.insert(lp)
             }
         }
 
         // If marking as mastered, check if track is now complete
-        if state == .mastered, let lesson = lessonAssignment.lesson {
+        if state == .proficient, let lesson = lessonAssignment.lesson {
             for studentID in studentIDs {
                 GroupTrackService.checkAndCompleteTrackIfNeeded(
                     lesson: lesson,

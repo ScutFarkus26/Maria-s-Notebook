@@ -73,7 +73,7 @@ extension BackupEntityImporter {
     // MARK: - Note Templates
 
     static func importNoteTemplates(_ dtos: [NoteTemplateDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<NoteTemplate>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let templateTags: [String]
             if let dtoTags = dto.tags, !dtoTags.isEmpty {
                 templateTags = dtoTags
@@ -91,7 +91,7 @@ extension BackupEntityImporter {
                 sortOrder: dto.sortOrder,
                 isBuiltIn: dto.isBuiltIn
             )
-        }
+        })
     }
 
     // MARK: - Community Topics
@@ -102,12 +102,12 @@ extension BackupEntityImporter {
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<CommunityTopic>
     ) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let topic = CommunityTopic(id: dto.id, title: dto.title, issueDescription: dto.issueDescription, createdAt: dto.createdAt, addressedDate: dto.addressedDate, resolution: dto.resolution)
             topic.raisedBy = dto.raisedBy
             topic.tags = dto.tags
             return topic
-        }
+        })
     }
 
     // MARK: - Proposed Solutions
@@ -206,7 +206,7 @@ extension BackupEntityImporter {
     // MARK: - Issues
 
     static func importIssues(_ dtos: [IssueDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Issue>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let i = Issue(
                 title: dto.title,
                 description: dto.issueDescription,
@@ -223,7 +223,7 @@ extension BackupEntityImporter {
             i.resolvedAt = dto.resolvedAt
             i.resolutionSummary = dto.resolutionSummary
             return i
-        }
+        })
     }
 
     // MARK: - Issue Actions
@@ -267,7 +267,7 @@ extension BackupEntityImporter {
     // MARK: - Development Snapshots
 
     static func importDevelopmentSnapshots(_ dtos: [DevelopmentSnapshotDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<DevelopmentSnapshot>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let s = DevelopmentSnapshot(
                 id: dto.id,
                 studentID: dto.studentID,
@@ -296,6 +296,6 @@ extension BackupEntityImporter {
             s.sharedWithParents = dto.sharedWithParents
             s.sharedAt = dto.sharedAt
             return s
-        }
+        })
     }
 }

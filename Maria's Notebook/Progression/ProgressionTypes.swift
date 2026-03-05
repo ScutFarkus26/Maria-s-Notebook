@@ -57,7 +57,7 @@ enum GroupCellStatus: Sendable {
     case presented
     case workActive
     case workReview
-    case mastered
+    case proficient
 
     var color: Color {
         switch self {
@@ -66,7 +66,7 @@ enum GroupCellStatus: Sendable {
         case .presented:    return .orange
         case .workActive:   return .blue
         case .workReview:   return .yellow
-        case .mastered:     return .green
+        case .proficient:     return .green
         }
     }
 
@@ -77,7 +77,7 @@ enum GroupCellStatus: Sendable {
         case .presented:    return "Presented"
         case .workActive:   return "Work Active"
         case .workReview:   return "In Review"
-        case .mastered:     return "Mastered"
+        case .proficient:     return "Mastered"
         }
     }
 }

@@ -199,7 +199,7 @@ struct WorksAgendaView: View {
                     }
                 }
                 .navigationTitle("Work Agenda")
-                .sheet(item: $selected, onDismiss: { selected = nil }) { token in
+                .sheet(item: $selected, onDismiss: { selected = nil }, content: { token in
                     let id = token.workID
                     let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
                     if let w = modelContext.safeFetchFirst(fetch) {
@@ -208,7 +208,7 @@ struct WorksAgendaView: View {
                     } else {
                         ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
                     }
-                }
+                })
             }
         }
         .onAppear {

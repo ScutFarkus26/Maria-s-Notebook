@@ -136,9 +136,9 @@ struct QuickAttachmentImportButton: View {
     @State private var showingFilePicker = false
     
     var body: some View {
-        Button(action: { showingFilePicker = true }) {
+        Button(action: { showingFilePicker = true }, label: {
             Label("Add Attachment", systemImage: "paperclip")
-        }
+        })
         .fileImporter(
             isPresented: $showingFilePicker,
             allowedContentTypes: [.pdf, .png, .jpeg, UTType(filenameExtension: "pages") ?? .data],

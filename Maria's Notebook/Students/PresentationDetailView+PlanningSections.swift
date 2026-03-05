@@ -135,8 +135,8 @@ extension PresentationDetailContentView {
 
     // MARK: - Mastery Status Row
 
-    var masteryStatusRow: some View {
-        MasteryStateRow(masteryState: $vm.masteryState)
+    var proficiencyStatusRow: some View {
+        ProficiencyStateRow(proficiencyState: $vm.proficiencyState)
     }
 
     // MARK: - Progress State Logic

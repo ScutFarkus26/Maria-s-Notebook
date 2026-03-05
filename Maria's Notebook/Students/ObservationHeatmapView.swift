@@ -223,13 +223,11 @@ struct ObservationHeatmapView: View {
                 }
                 
                 // 3) Check LessonAssignment notes
-                for (assignmentID, assignment) in lessonAssignmentsByID {
-                    if assignment.studentIDs.contains(studentIDString) {
-                        if let note = presentationNotesByPresentationID[assignmentID] {
-                            let noteDate = max(note.updatedAt, note.createdAt)
-                            if mostRecentDate == nil || noteDate > mostRecentDate! {
-                                mostRecentDate = noteDate
-                            }
+                for (assignmentID, assignment) in lessonAssignmentsByID where assignment.studentIDs.contains(studentIDString) {
+                    if let note = presentationNotesByPresentationID[assignmentID] {
+                        let noteDate = max(note.updatedAt, note.createdAt)
+                        if mostRecentDate == nil || noteDate > mostRecentDate! {
+                            mostRecentDate = noteDate
                         }
                     }
                 }

@@ -12,9 +12,9 @@ struct GroupTrackProgressResolver {
     /// Returns the count of mastered lessons for a given student in a group track.
     /// A lesson is mastered if there exists a LessonPresentation where:
     /// - studentID matches
-    /// - (masteredAt != nil OR state == .mastered)
+    /// - (masteredAt != nil OR state == .proficient)
     /// - lessonID matches the lesson's ID
-    static func masteredCount(
+    static func proficientCount(
         track: GroupTrack,
         studentID: String,
         lessons: [Lesson],
@@ -23,7 +23,7 @@ struct GroupTrackProgressResolver {
         let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons)
         
         return trackLessons.filter { lesson in
-            isLessonMastered(lesson: lesson, studentID: studentID, lessonPresentations: lessonPresentations)
+            isLessonProficient(lesson: lesson, studentID: studentID, lessonPresentations: lessonPresentations)
         }.count
     }
     
@@ -39,19 +39,19 @@ struct GroupTrackProgressResolver {
         let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons)
         
         return trackLessons.first { lesson in
-            !isLessonMastered(lesson: lesson, studentID: studentID, lessonPresentations: lessonPresentations)
+            !isLessonProficient(lesson: lesson, studentID: studentID, lessonPresentations: lessonPresentations)
         }
     }
     
     /// Helper function to determine if a lesson is mastered.
-    private static func isLessonMastered(lesson: Lesson, studentID: String, lessonPresentations: [LessonPresentation]) -> Bool {
+    private static func isLessonProficient(lesson: Lesson, studentID: String, lessonPresentations: [LessonPresentation]) -> Bool {
         let lessonIDStr = lesson.id.uuidString
         return lessonPresentations.contains { lp in
             // Check student ID matches
             guard lp.studentID == studentID else { return false }
             
             // Check if mastered (either masteredAt is set or state is mastered)
-            guard lp.masteredAt != nil || lp.state == .mastered else { return false }
+            guard lp.masteredAt != nil || lp.state == .proficient else { return false }
             
             // Check if this presentation matches the lesson
             return lp.lessonID == lessonIDStr

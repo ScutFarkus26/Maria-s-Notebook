@@ -25,8 +25,7 @@ struct AppColors {
         case "grace & courtesy", "grace and courtesy": return .yellow
         case "geometry": return .blue
         case "botany": return .green
-        case "zoology": fallthrough
-        case "reading": return .blue
+        case "zoology", "reading": return .blue
         case "writing": return .orange
         default:
             return colorFromPalette(for: key)

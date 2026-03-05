@@ -92,10 +92,8 @@ extension DataCleanupService {
                 if validParticipants.count != participants.count {
                     work.participants = validParticipants.isEmpty ? nil : validParticipants
                     // Delete orphaned participants from context
-                    for participant in participants {
-                        if !validStudentIDs.contains(participant.studentID) {
-                            context.delete(participant)
-                        }
+                    for participant in participants where !validStudentIDs.contains(participant.studentID) {
+                        context.delete(participant)
                     }
                     modified = true
                 }

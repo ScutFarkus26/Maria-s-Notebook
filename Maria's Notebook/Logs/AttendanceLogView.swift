@@ -223,14 +223,14 @@ struct AttendanceLogView: View {
                         } else {
                             selectedStudentIDs.insert(student.id)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedStudentIDs.contains(student.id) {
                                 Image(systemName: "checkmark")
                             }
                             Text(displayName(for: student))
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -254,14 +254,14 @@ struct AttendanceLogView: View {
                         } else {
                             selectedStatuses.insert(status)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedStatuses.contains(status) {
                                 Image(systemName: "checkmark")
                             }
                             Text(status.displayName)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -277,14 +277,14 @@ struct AttendanceLogView: View {
             // Date Range Menu
             Menu {
                 ForEach(DateRangeFilter.allCases) { range in
-                    Button(action: { selectedDateRange = range }) {
+                    Button(action: { selectedDateRange = range }, label: {
                         HStack {
                             if selectedDateRange == range {
                                 Image(systemName: "checkmark")
                             }
                             Text(range.rawValue)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {

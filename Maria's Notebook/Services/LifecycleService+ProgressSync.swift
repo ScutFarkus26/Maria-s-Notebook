@@ -10,10 +10,10 @@ extension LifecycleService {
     /// This ensures all presented/completed lessons are properly tracked in the progress system.
     /// - Parameters:
     ///   - context: The ModelContext to operate on
-    /// - Returns: A tuple with counts of (presentations created/updated, presentations marked as mastered)
-    static func syncAllStudentProgress(context: ModelContext) throws -> (presentationsUpdated: Int, mastered: Int) {
+    /// - Returns: A tuple with counts of (presentations created/updated, presentations marked as proficient)
+    static func syncAllStudentProgress(context: ModelContext) throws -> (presentationsUpdated: Int, proficient: Int) {
         var presentationsUpdated = 0
-        var mastered = 0
+        var proficientCount = 0
 
         // 1. Find all LessonAssignment records where lesson is presented (isGiven == true)
         let presentedRaw = LessonAssignmentState.presented.rawValue
@@ -215,10 +215,10 @@ extension LifecycleService {
                         if let lp = allLessonPresentations.first(where: {
                             $0.lessonID == lessonIDStr && $0.studentID == studentIDStr
                         }) {
-                            if lp.state != .mastered || lp.masteredAt == nil {
-                                lp.state = .mastered
+                            if lp.state != .proficient || lp.masteredAt == nil {
+                                lp.state = .proficient
                                 lp.masteredAt = work.completedAt ?? work.lastTouchedAt ?? Date()
-                                mastered += 1
+                                proficientCount += 1
                             }
                         }
                     }
@@ -238,10 +238,10 @@ extension LifecycleService {
                         if let lp = allLessonPresentations.first(where: {
                             $0.lessonID == lessonIDStr && $0.studentID == studentIDStr
                         }) {
-                            if lp.state != .mastered || lp.masteredAt == nil {
-                                lp.state = .mastered
+                            if lp.state != .proficient || lp.masteredAt == nil {
+                                lp.state = .proficient
                                 lp.masteredAt = participant.completedAt ?? work.completedAt ?? work.lastTouchedAt ?? Date()
-                                mastered += 1
+                                proficientCount += 1
                             }
                         }
                     }
@@ -252,6 +252,6 @@ extension LifecycleService {
         // Save all changes
         try context.save()
 
-        return (presentationsUpdated, mastered)
+        return (presentationsUpdated, proficientCount)
     }
 }

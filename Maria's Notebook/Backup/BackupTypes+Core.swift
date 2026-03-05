@@ -81,7 +81,7 @@ public struct LessonPresentationDTO: Codable, Sendable {
     public var stateRaw: String
     public var presentedAt: Date
     public var lastObservedAt: Date?
-    public var masteredAt: Date?
+    public var masteredAt: Date? // swiftlint:disable:this inclusive_language — Codable DTO property, must match JSON key
     public var notes: String?
 }
 

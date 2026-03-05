@@ -165,7 +165,7 @@ final class WorkDetailViewModel {
         allLessonAssignments: [LessonAssignment]
     ) {
         guard status == .complete,
-              completionOutcome == .mastered,
+              completionOutcome == .proficient,
               relatedLesson != nil,
               let studentID = UUID(uuidString: work?.studentID ?? ""),
               let nextLesson = likelyNextLesson(allLessons: allLessons) else {

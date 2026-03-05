@@ -210,7 +210,7 @@ struct ProjectSessionDetailView: View {
                         return vm
                     }()
                 ) { chosenID in
-                    if let _ = chosenID {
+                    if chosenID != nil {
                         // WorkModel is writable but editing is disabled for now
                     }
                 }

@@ -79,11 +79,9 @@ extension DataCleanupService {
         // Fast duplicate detection pass (avoids extra work if no duplicates exist)
         var seen = Set<UUID>()
         var hasDuplicates = false
-        for item in all {
-            if !seen.insert(item.id).inserted {
-                hasDuplicates = true
-                break
-            }
+        for item in all where !seen.insert(item.id).inserted {
+            hasDuplicates = true
+            break
         }
         guard hasDuplicates else { return 0 }
 

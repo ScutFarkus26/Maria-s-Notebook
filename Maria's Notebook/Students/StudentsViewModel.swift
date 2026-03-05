@@ -141,8 +141,8 @@ final class StudentsViewModel {
         if allZero {
             let sorted = all.sorted(by: StudentSortComparator.byFirstName)
             var changed = false
-            for (idx, s) in sorted.enumerated() {
-                if s.manualOrder != idx { s.manualOrder = idx; changed = true }
+            for (idx, s) in sorted.enumerated() where s.manualOrder != idx {
+                s.manualOrder = idx; changed = true
             }
             return changed
         }
@@ -321,9 +321,9 @@ final class StudentsViewModel {
         }
     }
 
-    /// Computes days since last lesson for multiple students efficiently.
-    /// Fetches all lesson assignments once and filters in memory to avoid repeated queries.
     // MARK: - Shared Helper for Lesson Queries
+    // Computes days since last lesson for multiple students efficiently.
+    // Fetches all lesson assignments once and filters in memory to avoid repeated queries.
     
     /// Shared data structure containing pre-fetched lesson data for efficient computation.
     private struct LessonQueryContext {

@@ -274,14 +274,14 @@ struct AgeFilterPicker: View {
                     } else {
                         selectedAgeRanges.insert(range)
                     }
-                }) {
+                }, label: {
                     HStack {
                         if selectedAgeRanges.contains(range) {
                             Image(systemName: "checkmark")
                         }
                         Text(range.rawValue)
                     }
-                }
+                })
             }
         } label: {
             HStack(spacing: 6) {

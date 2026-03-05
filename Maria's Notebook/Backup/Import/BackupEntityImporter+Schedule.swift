@@ -9,27 +9,27 @@ extension BackupEntityImporter {
 
     /// Imports non-school days from DTOs.
     static func importNonSchoolDays(_ dtos: [NonSchoolDayDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<NonSchoolDay>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let day = NonSchoolDay(id: dto.id, date: dto.date)
             day.reason = dto.reason
             return day
-        }
+        })
     }
 
     // MARK: - School Day Overrides
 
     /// Imports school day overrides from DTOs.
     static func importSchoolDayOverrides(_ dtos: [SchoolDayOverrideDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<SchoolDayOverride>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let override = SchoolDayOverride(id: dto.id, date: dto.date)
             return override
-        }
+        })
     }
 
     // MARK: - Schedules
 
     static func importSchedules(_ dtos: [ScheduleDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<Schedule>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let s = Schedule(
                 id: dto.id,
                 name: dto.name,
@@ -40,7 +40,7 @@ extension BackupEntityImporter {
                 modifiedAt: dto.modifiedAt
             )
             return s
-        }
+        })
     }
 
     // MARK: - Schedule Slots

@@ -191,22 +191,23 @@ extension WorkDetailView {
                 }
                 .accessibilityLabel("Add note")
                 .buttonStyle(.plain)
-            }
-        ) {
-            if viewModel.workModelNotes.isEmpty {
-                EmptyStateView(
-                    icon: "note.text",
-                    title: "No notes yet",
-                    subtitle: "Add notes to track progress"
-                )
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(viewModel.workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
-                        noteRow(note)
+            },
+            content: {
+                if viewModel.workModelNotes.isEmpty {
+                    EmptyStateView(
+                        icon: "note.text",
+                        title: "No notes yet",
+                        subtitle: "Add notes to track progress"
+                    )
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(viewModel.workModelNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                            noteRow(note)
+                        }
                     }
                 }
             }
-        }
+        )
     }
 
     @ViewBuilder

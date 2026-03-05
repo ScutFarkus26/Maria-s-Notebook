@@ -61,9 +61,9 @@ enum CheckInMigrationService {
     
     // MARK: - Backfill Migration (Phase 1) - COMPLETED
 
-    /// PHASE 6 NOTE: This method has been disabled because legacy check-in model has been removed.
-    /// The backfill migration was completed in Phase 1 and is no longer needed.
-    /// This code is preserved for historical reference only.
+    // PHASE 6 NOTE: This method has been disabled because legacy check-in model has been removed.
+    // The backfill migration was completed in Phase 1 and is no longer needed.
+    // This code is preserved for historical reference only.
     /*
     @MainActor
     static func backfillWorkCheckInsFromLegacyCheckIns(using context: ModelContext) {
@@ -74,8 +74,8 @@ enum CheckInMigrationService {
 
     // MARK: - Phase 6: Final Cleanup - COMPLETED
 
-    /// PHASE 6 NOTE: Cleanup methods have been disabled because legacy check-in model has been removed.
-    /// All migration phases are complete. This code is preserved for historical reference only.
+    // PHASE 6 NOTE: Cleanup methods have been disabled because legacy check-in model has been removed.
+    // All migration phases are complete. This code is preserved for historical reference only.
     /*
     @MainActor
     static func deleteAllLegacyCheckIns(using context: ModelContext) {

@@ -57,42 +57,43 @@ extension WorkDetailView {
                 }
                 .accessibilityLabel("Add step")
                 .buttonStyle(.plain)
-            }
-        ) {
-            if let work = viewModel.work {
-                let orderedSteps = work.orderedSteps
-                if orderedSteps.isEmpty {
-                    EmptyStateView(
-                        icon: "checklist",
-                        title: "No steps yet",
-                        subtitle: "Add steps to track progress"
-                    )
-                } else {
-                    VStack(spacing: 8) {
-                        ForEach(orderedSteps) { step in
-                            WorkStepRow(step: step) {
-                                viewModel.stepBeingEdited = step
+            },
+            content: {
+                if let work = viewModel.work {
+                    let orderedSteps = work.orderedSteps
+                    if orderedSteps.isEmpty {
+                        EmptyStateView(
+                            icon: "checklist",
+                            title: "No steps yet",
+                            subtitle: "Add steps to track progress"
+                        )
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(orderedSteps) { step in
+                                WorkStepRow(step: step) {
+                                    viewModel.stepBeingEdited = step
+                                }
                             }
                         }
                     }
-                }
 
-                // Progress indicator
-                let progress = work.stepProgress
-                if progress.total > 0 {
-                    HStack(spacing: 10) {
-                        ProgressView(value: Double(progress.completed), total: Double(progress.total))
-                            .progressViewStyle(.linear)
-                            .tint(.green)
+                    // Progress indicator
+                    let progress = work.stepProgress
+                    if progress.total > 0 {
+                        HStack(spacing: 10) {
+                            ProgressView(value: Double(progress.completed), total: Double(progress.total))
+                                .progressViewStyle(.linear)
+                                .tint(.green)
 
-                        Text("\(progress.completed)/\(progress.total)")
-                            .font(AppTheme.ScaledFont.captionSemibold)
-                            .foregroundStyle(.secondary)
+                            Text("\(progress.completed)/\(progress.total)")
+                                .font(AppTheme.ScaledFont.captionSemibold)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 8)
                     }
-                    .padding(.top, 8)
                 }
             }
-        }
+        )
     }
 
     @ViewBuilder

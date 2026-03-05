@@ -45,7 +45,7 @@ public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, S
 // MARK: - Completion Outcome
 /// Describes the outcome when work is completed
 public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
-    case mastered
+    case proficient = "mastered"
     case needsMorePractice
     case needsReview
     case incomplete
@@ -55,7 +55,7 @@ public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifi
 
     public var displayName: String {
         switch self {
-        case .mastered: return "Mastered"
+        case .proficient: return "Mastered"
         case .needsMorePractice: return "Keep Practicing"
         case .needsReview: return "Needs Review"
         case .incomplete: return "Incomplete"
@@ -237,7 +237,7 @@ public extension CompletionOutcome {
     /// Standard color for this outcome
     var color: Color {
         switch self {
-        case .mastered: return .green
+        case .proficient: return .green
         case .needsMorePractice: return .orange
         case .needsReview: return .yellow
         case .incomplete: return .red
@@ -248,7 +248,7 @@ public extension CompletionOutcome {
     /// System icon name for this outcome
     var iconName: String {
         switch self {
-        case .mastered: return "star.fill"
+        case .proficient: return "star.fill"
         case .needsMorePractice: return "arrow.clockwise"
         case .needsReview: return "eye"
         case .incomplete: return "xmark.circle"

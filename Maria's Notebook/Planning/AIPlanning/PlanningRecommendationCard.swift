@@ -167,10 +167,10 @@ struct PlanningRecommendationCard: View {
                 // Undo button
                 Button(action: {
                     if isAccepted { onReject() } else { onAccept() }
-                }) {
+                }, label: {
                     Text("Change")
                         .font(.caption)
-                }
+                })
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.accentColor)
             }

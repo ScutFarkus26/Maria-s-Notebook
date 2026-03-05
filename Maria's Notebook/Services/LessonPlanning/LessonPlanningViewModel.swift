@@ -187,10 +187,8 @@ final class LessonPlanningViewModel {
         var scheduledDates: [UUID: Date] = [:]
         if let plan = weekPlan {
             for day in plan.days {
-                for rec in day.recommendations {
-                    if toApply.contains(where: { $0.id == rec.id }) {
-                        scheduledDates[rec.id] = day.date
-                    }
+                for rec in day.recommendations where toApply.contains(where: { $0.id == rec.id }) {
+                    scheduledDates[rec.id] = day.date
                 }
             }
         }

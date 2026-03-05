@@ -34,10 +34,8 @@ final class ChecklistDragSelectionManager {
         )
 
         var selection = Set<CellIdentifier>()
-        for (cellId, frame) in cellFrames {
-            if dragRect.intersects(frame) {
-                selection.insert(cellId)
-            }
+        for (cellId, frame) in cellFrames where dragRect.intersects(frame) {
+            selection.insert(cellId)
         }
 
         return selection

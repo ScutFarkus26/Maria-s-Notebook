@@ -458,7 +458,7 @@ public final class BackupTelemetryService {
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var model = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.model", &model, &size, nil, 0)
-        return String(decoding: model.prefix(while: { $0 != 0 }).map(UInt8.init), as: UTF8.self)
+        return String(cString: model)
         #else
         return UIDevice.current.model
         #endif

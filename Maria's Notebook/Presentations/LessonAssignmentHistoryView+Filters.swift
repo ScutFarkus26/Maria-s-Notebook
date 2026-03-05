@@ -48,14 +48,14 @@ extension LessonAssignmentHistoryView {
                         } else {
                             selectedStudentIDs.insert(student.id)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedStudentIDs.contains(student.id) {
                                 Image(systemName: "checkmark")
                             }
                             Text(displayName(for: student))
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -78,14 +78,14 @@ extension LessonAssignmentHistoryView {
                         } else {
                             selectedSubjects.insert(subject)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedSubjects.contains(subject) {
                                 Image(systemName: "checkmark")
                             }
                             Text(subject)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {

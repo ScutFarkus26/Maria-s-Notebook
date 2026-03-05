@@ -118,10 +118,8 @@ enum BlockingCacheBuilder {
                     }
                 }
             } else {
-                for studentID in la.resolvedStudentIDs {
-                    if blocking[studentID] == nil {
-                        blocking[studentID] = work
-                    }
+                for studentID in la.resolvedStudentIDs where blocking[studentID] == nil {
+                    blocking[studentID] = work
                 }
             }
         }

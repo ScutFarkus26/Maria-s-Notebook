@@ -240,11 +240,9 @@ extension UnifiedPresentationWorkflowPanel {
 
     func applyUnderstandingToAll(level: Int) {
         var count = 0
-        for student in students {
-            if presentationViewModel.entries[student.id] != nil {
-                presentationViewModel.entries[student.id]?.understandingLevel = level
-                count += 1
-            }
+        for student in students where presentationViewModel.entries[student.id] != nil {
+            presentationViewModel.entries[student.id]?.understandingLevel = level
+            count += 1
         }
 
         // Show toast notification

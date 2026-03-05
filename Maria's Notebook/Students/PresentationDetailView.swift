@@ -191,7 +191,7 @@ struct PresentationDetailContentView: View {
 
                     // 7. Mastery status row (only shown when presented)
                     if vm.isPresented {
-                        masteryStatusRow
+                        proficiencyStatusRow
                             .padding(.horizontal, progressButtonsHorizontalPadding)
                             .padding(.top, 16)
                             .padding(.bottom, 24)

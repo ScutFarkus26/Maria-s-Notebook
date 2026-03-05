@@ -163,7 +163,7 @@ private struct DayCell: View {
                         return false
                     }
                 }()
-                Button(action: { onTap(d) }) {
+                Button(action: { onTap(d) }, label: {
                     Text(label)
                         .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(isNS ? Color.red : Color.primary)
@@ -173,7 +173,7 @@ private struct DayCell: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(isNS ? Color.red.opacity(0.15) : (isToday(d) ? Color.primary.opacity(0.06) : Color.clear))
                         )
-                }
+                })
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("\(label), \(isNS ? "No School" : "School Day")"))
             } else {

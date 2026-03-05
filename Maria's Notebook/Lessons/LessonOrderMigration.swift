@@ -51,11 +51,9 @@ enum LessonOrderMigration {
             }
             
             // Assign sequential indices starting from 0
-            for (index, lesson) in sorted.enumerated() {
-                if lesson.sortIndex != index {
-                    lesson.sortIndex = index
-                    updatedCount += 1
-                }
+            for (index, lesson) in sorted.enumerated() where lesson.sortIndex != index {
+                lesson.sortIndex = index
+                updatedCount += 1
             }
         }
         
@@ -88,10 +86,8 @@ enum LessonOrderMigration {
         }
         
         // Assign sequential indices
-        for (index, lesson) in sorted.enumerated() {
-            if lesson.sortIndex != index {
-                lesson.sortIndex = index
-            }
+        for (index, lesson) in sorted.enumerated() where lesson.sortIndex != index {
+            lesson.sortIndex = index
         }
         
         do {
@@ -119,10 +115,8 @@ enum LessonOrderMigration {
         }
         
         // Assign sequential indices
-        for (index, lesson) in sorted.enumerated() {
-            if lesson.orderInGroup != index {
-                lesson.orderInGroup = index
-            }
+        for (index, lesson) in sorted.enumerated() where lesson.orderInGroup != index {
+            lesson.orderInGroup = index
         }
         
         do {

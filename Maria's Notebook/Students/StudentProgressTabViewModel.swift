@@ -164,7 +164,7 @@ final class StudentProgressTabViewModel {
     struct TrackProgress {
         let trackSteps: [TrackStep]
         let completedStepIDs: Set<String>
-        let masteredCount: Int
+        let proficientCount: Int
         let totalSteps: Int
         let progressPercent: Double
         let isComplete: Bool
@@ -176,7 +176,7 @@ final class StudentProgressTabViewModel {
         guard let studentID = studentID else {
             return TrackProgress(
                 trackSteps: [], completedStepIDs: [],
-                masteredCount: 0, totalSteps: 0, progressPercent: 0,
+                proficientCount: 0, totalSteps: 0, progressPercent: 0,
                 isComplete: false, currentStep: nil, currentLesson: nil
             )
         }
@@ -202,27 +202,27 @@ final class StudentProgressTabViewModel {
         }
 
         // Count mastered lessons
-        let masteredLessonIDs = Set(filteredPresentations
-            .filter { $0.state == .mastered }
+        let proficientLessonIDs = Set(filteredPresentations
+            .filter { $0.state == .proficient }
             .map { $0.lessonID })
 
         // Find which steps are completed (lesson is mastered)
         let completedStepIDs = Set(trackSteps
             .filter { step in
                 guard let lessonID = step.lessonTemplateID?.uuidString else { return false }
-                return masteredLessonIDs.contains(lessonID)
+                return proficientLessonIDs.contains(lessonID)
             }
             .map { $0.id.uuidString })
 
-        let masteredCount = completedStepIDs.count
+        let proficientCount = completedStepIDs.count
         let totalSteps = trackSteps.count
-        let progressPercent = totalSteps > 0 ? Double(masteredCount) / Double(totalSteps) : 0.0
-        let isComplete = masteredCount == totalSteps && totalSteps > 0
+        let progressPercent = totalSteps > 0 ? Double(proficientCount) / Double(totalSteps) : 0.0
+        let isComplete = proficientCount == totalSteps && totalSteps > 0
 
         // Find current/next step (first step whose lesson is not mastered)
         let currentStep = trackSteps.first { step in
             guard let lessonID = step.lessonTemplateID?.uuidString else { return true }
-            return !masteredLessonIDs.contains(lessonID)
+            return !proficientLessonIDs.contains(lessonID)
         }
 
         let currentLesson = currentStep?.lessonTemplateID.flatMap { lessonID in
@@ -232,7 +232,7 @@ final class StudentProgressTabViewModel {
         return TrackProgress(
             trackSteps: trackSteps,
             completedStepIDs: completedStepIDs,
-            masteredCount: masteredCount,
+            proficientCount: proficientCount,
             totalSteps: totalSteps,
             progressPercent: progressPercent,
             isComplete: isComplete,

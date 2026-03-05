@@ -476,13 +476,13 @@ struct GroupTrackService {
 
         // Check if all lessons in the track are mastered
         let trackLessonIDs = Set(trackLessons.map { $0.id.uuidString })
-        let masteredLessonIDs = Set(studentPresentations
-            .filter { $0.state == .mastered && trackLessonIDs.contains($0.lessonID) }
+        let proficientLessonIDs = Set(studentPresentations
+            .filter { $0.state == .proficient && trackLessonIDs.contains($0.lessonID) }
             .map { $0.lessonID })
 
-        let allMastered = trackLessonIDs.isSubset(of: masteredLessonIDs)
+        let allProficient = trackLessonIDs.isSubset(of: proficientLessonIDs)
 
-        guard allMastered else { return }
+        guard allProficient else { return }
 
         // All lessons mastered - mark enrollment as inactive (completed)
         let trackID = track.id.uuidString

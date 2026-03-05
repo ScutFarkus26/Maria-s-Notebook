@@ -60,10 +60,8 @@ enum ResponseQualityValidator {
 
         // Check for failure phrases
         let lowered = trimmed.lowercased()
-        for phrase in failurePhrases {
-            if lowered.contains(phrase) {
-                return ValidationResult(isAdequate: false, reason: "Response indicates inability to answer")
-            }
+        for phrase in failurePhrases where lowered.contains(phrase) {
+            return ValidationResult(isAdequate: false, reason: "Response indicates inability to answer")
         }
 
         // Disproportionately short: question > 50 chars but answer < 30 chars

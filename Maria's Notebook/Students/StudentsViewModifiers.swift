@@ -44,13 +44,13 @@ struct CSVImportSheets: ViewModifier {
                     onConfirm: onMappingConfirm
                 )
             }
-            .sheet(item: $pendingParsedImport, onDismiss: {}) { parsed in
+            .sheet(item: $pendingParsedImport, onDismiss: {}, content: { parsed in
                 StudentImportPreviewView(
                     parsed: parsed,
                     onCancel: onImportCancel,
                     onConfirm: onImportConfirm
                 )
                 .frame(minWidth: 620, minHeight: 520)
-            }
+            })
     }
 }

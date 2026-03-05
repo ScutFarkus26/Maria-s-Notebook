@@ -129,17 +129,17 @@ extension StudentInsightsView {
 
             // Actions
             HStack {
-                Button(action: { markAsReviewed(snapshot) }) {
+                Button(action: { markAsReviewed(snapshot) }, label: {
                     Label(snapshot.isReviewed ? "Reviewed" : "Mark Reviewed", systemImage: "checkmark.circle")
-                }
+                })
                 .buttonStyle(.bordered)
                 .disabled(snapshot.isReviewed)
 
                 Spacer()
 
-                Button(action: { generateParentSummary(snapshot) }) {
+                Button(action: { generateParentSummary(snapshot) }, label: {
                     Label("Share with Parents", systemImage: "square.and.arrow.up")
-                }
+                })
                 .buttonStyle(.borderedProminent)
             }
         }
@@ -276,12 +276,12 @@ extension StudentInsightsView {
 
             // Show settings button if API key is missing
             if message.contains("API key") {
-                Button(action: { showingAPIKeySettings = true }) {
+                Button(action: { showingAPIKeySettings = true }, label: {
                     Label("Configure API Key", systemImage: SFSymbol.Settings.gear)
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                }
+                })
                 .buttonStyle(.borderedProminent)
             }
         }
@@ -298,7 +298,7 @@ extension StudentInsightsView {
                 .font(.headline)
 
             ForEach(Array(snapshots.dropFirst()), id: \.id) { snapshot in
-                Button(action: { /* Navigate to detail view */ }) {
+                Button(action: { /* Navigate to detail view */ }, label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(snapshot.generatedAt, style: .date)
@@ -322,7 +322,7 @@ extension StudentInsightsView {
                     .background(Color(NSColor.controlColor))
                     #endif
                     .cornerRadius(8)
-                }
+                })
                 .buttonStyle(.plain)
             }
         }

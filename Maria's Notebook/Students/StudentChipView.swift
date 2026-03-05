@@ -14,7 +14,7 @@ struct ChipView: View {
 
     var body: some View {
         // If tappable (has blocking contract), wrap in button to capture touch
-        if let _ = blockingWork {
+        if blockingWork != nil {
             Button {
                 onTap?()
             } label: {

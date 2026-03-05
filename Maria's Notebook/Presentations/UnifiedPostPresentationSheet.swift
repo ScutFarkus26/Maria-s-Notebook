@@ -458,14 +458,12 @@ struct UnifiedPostPresentationSheet: View {
             Button("Done") {
                 // Apply default dates to entries that don't have them but have assignments
                 var finalEntries = Array(viewModel.entries.values)
-                for i in finalEntries.indices {
-                    if !finalEntries[i].assignment.isEmpty {
-                        if viewModel.defaultCheckInEnabled && finalEntries[i].checkInDate == nil {
-                            finalEntries[i].checkInDate = viewModel.defaultCheckInDate
-                        }
-                        if viewModel.defaultDueEnabled && finalEntries[i].dueDate == nil {
-                            finalEntries[i].dueDate = viewModel.defaultDueDate
-                        }
+                for i in finalEntries.indices where !finalEntries[i].assignment.isEmpty {
+                    if viewModel.defaultCheckInEnabled && finalEntries[i].checkInDate == nil {
+                        finalEntries[i].checkInDate = viewModel.defaultCheckInDate
+                    }
+                    if viewModel.defaultDueEnabled && finalEntries[i].dueDate == nil {
+                        finalEntries[i].dueDate = viewModel.defaultDueDate
                     }
                 }
                 

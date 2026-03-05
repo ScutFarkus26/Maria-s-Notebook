@@ -47,7 +47,7 @@ struct CurriculumDataAssembler {
                     var studentStatuses: [CurriculumMap.PresentationStatus] = []
                     
                     for studentIDString in studentIDs {
-                        let mastery = determineMastery(
+                        let proficiency = determineProficiency(
                             lessonID: lesson.id,
                             studentID: studentIDString,
                             presentations: allPresentations,
@@ -58,12 +58,12 @@ struct CurriculumDataAssembler {
                         studentStatuses.append(.init(
                             studentID: UUID(uuidString: studentIDString) ?? UUID(),
                             studentName: name,
-                            mastery: mastery
+                            proficiency: proficiency
                         ))
                     }
                     
                     // Count as completed if all students have been presented or beyond
-                    let allPresented = studentStatuses.allSatisfy { $0.mastery != .notPresented }
+                    let allPresented = studentStatuses.allSatisfy { $0.proficiency != .notPresented }
                     if allPresented && !studentStatuses.isEmpty {
                         completedCount += 1
                     }
@@ -112,7 +112,7 @@ struct CurriculumDataAssembler {
                 // Only show frontier lessons (first not-presented or practicing)
                 let frontierLessons = group.lessons.filter { lesson in
                     lesson.studentStatuses.contains { status in
-                        status.mastery == .notPresented || status.mastery == .practicing || status.mastery == .needsMorePractice
+                        status.proficiency == .notPresented || status.proficiency == .practicing || status.proficiency == .needsMorePractice
                     }
                 }.prefix(3)
                 
@@ -122,8 +122,8 @@ struct CurriculumDataAssembler {
                     var detail = "  \(group.group) \(progress):"
                     for lesson in frontierLessons {
                         let studentSummaries = lesson.studentStatuses
-                            .filter { $0.mastery != .mastered }
-                            .map { "\($0.studentName.components(separatedBy: " ").first ?? $0.studentName):\($0.mastery.shortCode)" }
+                            .filter { $0.proficiency != .proficient }
+                            .map { "\($0.studentName.components(separatedBy: " ").first ?? $0.studentName):\($0.proficiency.shortCode)" }
                         if !studentSummaries.isEmpty {
                             detail += " \(lesson.lessonName)[\(studentSummaries.joined(separator: ","))]"
                         }
@@ -174,13 +174,13 @@ struct CurriculumDataAssembler {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
     
-    /// Determines the mastery signal for a specific student on a specific lesson.
-    private static func determineMastery(
+    /// Determines the proficiency signal for a specific student on a specific lesson.
+    private static func determineProficiency(
         lessonID: UUID,
         studentID: String,
         presentations: [LessonAssignment],
         work: [WorkModel]
-    ) -> MasterySignal {
+    ) -> ProficiencySignal {
         let lessonIDStr = lessonID.uuidString
         
         // Find relevant presentations for this lesson + student
@@ -214,8 +214,8 @@ struct CurriculumDataAssembler {
         for w in allRelevantWork {
             if let outcome = w.completionOutcome {
                 switch outcome {
-                case .mastered:
-                    return .mastered
+                case .proficient:
+                    return .proficient
                 case .needsMorePractice:
                     return .needsMorePractice
                 case .needsReview:
@@ -238,16 +238,16 @@ struct CurriculumDataAssembler {
     }
 }
 
-// MARK: - MasterySignal Short Codes
+// MARK: - ProficiencySignal Short Codes
 
-extension MasterySignal {
+extension ProficiencySignal {
     /// Short code for compressed summaries
     var shortCode: String {
         switch self {
         case .notPresented: return "NP"
         case .presented: return "P"
         case .practicing: return "PR"
-        case .mastered: return "M"
+        case .proficient: return "M"
         case .needsMorePractice: return "NMP"
         case .needsReteaching: return "NR"
         }

@@ -173,14 +173,14 @@ struct WorksLogView: View {
                         } else {
                             selectedStudentIDs.insert(student.id)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedStudentIDs.contains(student.id) {
                                 Image(systemName: "checkmark")
                             }
                             Text(displayName(for: student))
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -197,14 +197,14 @@ struct WorksLogView: View {
                 Button("All Types") { selectedKind = nil }
                 Divider()
                 ForEach(WorkKind.allCases) { kind in
-                    Button(action: { selectedKind = kind }) {
+                    Button(action: { selectedKind = kind }, label: {
                         HStack {
                             if selectedKind == kind {
                                 Image(systemName: "checkmark")
                             }
                             Text(kind.displayName)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -227,14 +227,14 @@ struct WorksLogView: View {
                         } else {
                             selectedStatuses.insert(status)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedStatuses.contains(status) {
                                 Image(systemName: "checkmark")
                             }
                             Text(status.displayName)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {

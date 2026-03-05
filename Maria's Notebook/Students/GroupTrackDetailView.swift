@@ -75,21 +75,19 @@ struct GroupTrackDetailView: View {
         let studentIDString = student.id.uuidString
 
         var result: [String: LessonPresentationState] = [:]
-        for lp in allLessonPresentations {
-            if lp.studentID == studentIDString {
-                result[lp.lessonID] = lp.state
-            }
+        for lp in allLessonPresentations where lp.studentID == studentIDString {
+            result[lp.lessonID] = lp.state
         }
         return result
     }
 
     /// Progress summary for the header
-    private var progressSummary: (presented: Int, practicing: Int, mastered: Int, total: Int) {
+    private var progressSummary: (presented: Int, practicing: Int, proficient: Int, total: Int) {
         guard student != nil else { return (0, 0, 0, lessons.count) }
 
         var presented = 0
         var practicing = 0
-        var mastered = 0
+        var proficient = 0
 
         for lesson in lessons {
             if let state = progressByLessonID[lesson.id.uuidString] {
@@ -98,13 +96,13 @@ struct GroupTrackDetailView: View {
                     presented += 1
                 case .practicing, .readyForAssessment:
                     practicing += 1
-                case .mastered:
-                    mastered += 1
+                case .proficient:
+                    proficient += 1
                 }
             }
         }
 
-        return (presented, practicing, mastered, lessons.count)
+        return (presented, practicing, proficient, lessons.count)
     }
 
     var body: some View {
@@ -138,10 +136,10 @@ struct GroupTrackDetailView: View {
             if student != nil {
                 Section("Progress") {
                     let summary = progressSummary
-                    let remaining = summary.total - summary.presented - summary.practicing - summary.mastered
+                    let remaining = summary.total - summary.presented - summary.practicing - summary.proficient
 
                     HStack(spacing: 16) {
-                        progressBadge(count: summary.mastered, label: "Mastered", color: .green, icon: "checkmark.seal.fill")
+                        progressBadge(count: summary.proficient, label: "Mastered", color: .green, icon: "checkmark.seal.fill")
                         progressBadge(count: summary.practicing, label: "Practicing", color: .purple, icon: "arrow.triangle.2.circlepath")
                         progressBadge(count: summary.presented, label: "Presented", color: .blue, icon: "eye.fill")
                         progressBadge(count: remaining, label: "Remaining", color: .gray, icon: "circle.dashed")
@@ -150,16 +148,16 @@ struct GroupTrackDetailView: View {
 
                     // Progress bar
                     if summary.total > 0 {
-                        let masteredPercent = Double(summary.mastered) / Double(summary.total)
+                        let proficientPercent = Double(summary.proficient) / Double(summary.total)
                         let practicingPercent = Double(summary.practicing) / Double(summary.total)
                         let presentedPercent = Double(summary.presented) / Double(summary.total)
 
                         GeometryReader { geometry in
                             HStack(spacing: 2) {
-                                if summary.mastered > 0 {
+                                if summary.proficient > 0 {
                                     RoundedRectangle(cornerRadius: 4)
                                         .fill(Color.green)
-                                        .frame(width: geometry.size.width * masteredPercent)
+                                        .frame(width: geometry.size.width * proficientPercent)
                                 }
                                 if summary.practicing > 0 {
                                     RoundedRectangle(cornerRadius: 4)
@@ -242,8 +240,8 @@ private struct LessonStepRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.body)
-                    .foregroundStyle(progressState == .mastered ? .secondary : .primary)
-                    .strikethrough(progressState == .mastered, color: .secondary.opacity(0.5))
+                    .foregroundStyle(progressState == .proficient ? .secondary : .primary)
+                    .strikethrough(progressState == .proficient, color: .secondary.opacity(0.5))
 
                 if !lesson.subheading.isEmpty {
                     Text(lesson.subheading)
@@ -278,7 +276,7 @@ private struct LessonStepRow: View {
             Image(systemName: "arrow.triangle.2.circlepath")
                 .font(.system(size: 14))
                 .foregroundStyle(.purple)
-        case .mastered:
+        case .proficient:
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 14))
                 .foregroundStyle(AppColors.success)
@@ -293,7 +291,7 @@ private struct LessonStepRow: View {
             return "Practicing"
         case .readyForAssessment:
             return "Ready"
-        case .mastered:
+        case .proficient:
             return "Mastered"
         }
     }
@@ -304,7 +302,7 @@ private struct LessonStepRow: View {
             return .blue
         case .practicing, .readyForAssessment:
             return .purple
-        case .mastered:
+        case .proficient:
             return .green
         }
     }

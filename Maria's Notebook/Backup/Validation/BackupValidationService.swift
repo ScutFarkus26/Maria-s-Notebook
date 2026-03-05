@@ -106,16 +106,14 @@ public final class BackupValidationService {
             }
         }
 
-        for lesson in payload.lessons {
-            if lesson.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                errors.append(ValidationError(
-                    entityType: "Lesson",
-                    entityID: lesson.id,
-                    field: "name",
-                    message: "Lesson has empty name",
-                    severity: .error
-                ))
-            }
+        for lesson in payload.lessons where lesson.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors.append(ValidationError(
+                entityType: "Lesson",
+                entityID: lesson.id,
+                field: "name",
+                message: "Lesson has empty name",
+                severity: .error
+            ))
         }
 
         return errors
@@ -143,16 +141,14 @@ public final class BackupValidationService {
 
         // Validate attendance status values
         let validStatuses = ["present", "absent", "tardy", "excused"]
-        for record in payload.attendance {
-            if !validStatuses.contains(record.status.lowercased()) {
-                errors.append(ValidationError(
-                    entityType: "AttendanceRecord",
-                    entityID: record.id,
-                    field: "status",
-                    message: "Invalid attendance status: '\(record.status)'",
-                    severity: .error
-                ))
-            }
+        for record in payload.attendance where !validStatuses.contains(record.status.lowercased()) {
+            errors.append(ValidationError(
+                entityType: "AttendanceRecord",
+                entityID: record.id,
+                field: "status",
+                message: "Invalid attendance status: '\(record.status)'",
+                severity: .error
+            ))
         }
 
         // Validate student level values
@@ -179,16 +175,14 @@ public final class BackupValidationService {
         // Validate circular references in student next lessons
         let lessonIDs = Set(payload.lessons.map { $0.id })
         for student in payload.students {
-            for nextLessonID in student.nextLessons {
-                if !lessonIDs.contains(nextLessonID) {
-                    errors.append(ValidationError(
-                        entityType: "Student",
-                        entityID: student.id,
-                        field: "nextLessons",
-                        message: "References non-existent lesson in nextLessons: \(nextLessonID)",
-                        severity: .warning
-                    ))
-                }
+            for nextLessonID in student.nextLessons where !lessonIDs.contains(nextLessonID) {
+                errors.append(ValidationError(
+                    entityType: "Student",
+                    entityID: student.id,
+                    field: "nextLessons",
+                    message: "References non-existent lesson in nextLessons: \(nextLessonID)",
+                    severity: .warning
+                ))
             }
         }
 
@@ -246,16 +240,12 @@ public final class BackupValidationService {
         var conflicts: [UUID] = []
 
         // Check for ID conflicts with existing data
-        for student in payload.students {
-            if try entityExists(Student.self, id: student.id, in: context) {
-                conflicts.append(student.id)
-            }
+        for student in payload.students where try entityExists(Student.self, id: student.id, in: context) {
+            conflicts.append(student.id)
         }
 
-        for lesson in payload.lessons {
-            if try entityExists(Lesson.self, id: lesson.id, in: context) {
-                conflicts.append(lesson.id)
-            }
+        for lesson in payload.lessons where try entityExists(Lesson.self, id: lesson.id, in: context) {
+            conflicts.append(lesson.id)
         }
 
         // Add more as needed...

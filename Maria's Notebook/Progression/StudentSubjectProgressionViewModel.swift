@@ -103,7 +103,7 @@ final class StudentSubjectProgressionViewModel {
 
             // Determine status
             let status: LessonNodeStatus
-            if let _ = presentation {
+            if presentation != nil {
                 let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status == .complete }
                 let hasReview = lessonWork.contains { $0.status == .review }
                 let hasActive = lessonWork.contains { $0.status != .complete }

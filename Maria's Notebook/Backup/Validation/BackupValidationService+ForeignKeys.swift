@@ -30,16 +30,14 @@ extension BackupValidationService {
             }
 
             // Check student references
-            for studentID in sl.studentIDs {
-                if !studentIDs.contains(studentID) {
-                    errors.append(ValidationError(
-                        entityType: "LegacyPresentation",
-                        entityID: sl.id,
-                        field: "studentIDs",
-                        message: "References non-existent student: \(studentID)",
-                        severity: .critical
-                    ))
-                }
+            for studentID in sl.studentIDs where !studentIDs.contains(studentID) {
+                errors.append(ValidationError(
+                    entityType: "LegacyPresentation",
+                    entityID: sl.id,
+                    field: "studentIDs",
+                    message: "References non-existent student: \(studentID)",
+                    severity: .critical
+                ))
             }
         }
 
@@ -83,16 +81,14 @@ extension BackupValidationService {
         }
 
         // Validate AttendanceRecord references
-        for record in payload.attendance {
-            if !studentIDs.contains(record.studentID) {
-                errors.append(ValidationError(
-                    entityType: "AttendanceRecord",
-                    entityID: record.id,
-                    field: "studentID",
-                    message: "References non-existent student: \(record.studentID)",
-                    severity: .critical
-                ))
-            }
+        for record in payload.attendance where !studentIDs.contains(record.studentID) {
+            errors.append(ValidationError(
+                entityType: "AttendanceRecord",
+                entityID: record.id,
+                field: "studentID",
+                message: "References non-existent student: \(record.studentID)",
+                severity: .critical
+            ))
         }
 
         // Validate ProposedSolution references
@@ -139,29 +135,25 @@ extension BackupValidationService {
         }
 
         // Validate ProjectRole references
-        for role in payload.projectRoles {
-            if !projectIDs.contains(role.projectID) {
-                errors.append(ValidationError(
-                    entityType: "ProjectRole",
-                    entityID: role.id,
-                    field: "projectID",
-                    message: "References non-existent project: \(role.projectID)",
-                    severity: .critical
-                ))
-            }
+        for role in payload.projectRoles where !projectIDs.contains(role.projectID) {
+            errors.append(ValidationError(
+                entityType: "ProjectRole",
+                entityID: role.id,
+                field: "projectID",
+                message: "References non-existent project: \(role.projectID)",
+                severity: .critical
+            ))
         }
 
         // Validate ProjectTemplateWeek references
-        for week in payload.projectTemplateWeeks {
-            if !projectIDs.contains(week.projectID) {
-                errors.append(ValidationError(
-                    entityType: "ProjectTemplateWeek",
-                    entityID: week.id,
-                    field: "projectID",
-                    message: "References non-existent project: \(week.projectID)",
-                    severity: .critical
-                ))
-            }
+        for week in payload.projectTemplateWeeks where !projectIDs.contains(week.projectID) {
+            errors.append(ValidationError(
+                entityType: "ProjectTemplateWeek",
+                entityID: week.id,
+                field: "projectID",
+                message: "References non-existent project: \(week.projectID)",
+                severity: .critical
+            ))
         }
 
         // Validate ProjectWeekRoleAssignment references

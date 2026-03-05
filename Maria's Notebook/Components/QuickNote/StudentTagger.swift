@@ -82,10 +82,8 @@ actor StudentTagger {
                 "\\b\(f) \(firstInitial)\\.\\b" // "Sara S."
             ]
             
-            for pattern in patterns {
-                if self.containsWithBoundary(source: lowerText, pattern: pattern) {
-                    exact.insert(student.id)
-                }
+            for pattern in patterns where self.containsWithBoundary(source: lowerText, pattern: pattern) {
+                exact.insert(student.id)
             }
         }
         

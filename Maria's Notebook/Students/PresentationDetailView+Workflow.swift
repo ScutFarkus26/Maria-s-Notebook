@@ -129,10 +129,8 @@ extension PresentationDetailContentView {
     // MARK: - Keyboard Shortcut Helper
 
     func applyUnderstandingToAll(level: Int, presentationVM: PostPresentationFormViewModel) {
-        for student in selectedStudentsList {
-            if presentationVM.entries[student.id] != nil {
-                presentationVM.entries[student.id]?.understandingLevel = level
-            }
+        for student in selectedStudentsList where presentationVM.entries[student.id] != nil {
+            presentationVM.entries[student.id]?.understandingLevel = level
         }
     }
 

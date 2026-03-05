@@ -37,12 +37,12 @@ enum CloudKitConfigurationService {
         let retryCount: Int
 
         enum ErrorCategory: String, Codable {
-            case authentication = "authentication"
-            case network = "network"
-            case quota = "quota"
-            case conflict = "conflict"
-            case schema = "schema"
-            case unknown = "unknown"
+            case authentication
+            case network
+            case quota
+            case conflict
+            case schema
+            case unknown
         }
     }
 

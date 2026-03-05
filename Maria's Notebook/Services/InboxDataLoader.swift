@@ -83,9 +83,9 @@ final class InboxDataLoader {
         return context.safeFetch(descriptor)
     }
     
-    /// Loads scheduled check-ins only for the specified work IDs.
     // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
     // so we fetch all and filter in memory
+    /// Loads scheduled check-ins only for the specified work IDs.
     func loadCheckIns(for workIDs: Set<UUID>) -> [WorkCheckIn] {
         guard !workIDs.isEmpty else { return [] }
 
@@ -117,9 +117,9 @@ final class InboxDataLoader {
         }
     }
     
-    /// Loads students by their IDs.
     // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
     // so we fetch all and filter in memory
+    /// Loads students by their IDs.
     func loadStudents(ids: Set<UUID>) -> [Student] {
         guard !ids.isEmpty else { return [] }
 
@@ -130,9 +130,9 @@ final class InboxDataLoader {
         return TestStudentsFilter.filterVisible(filtered)
     }
 
-    /// Loads lessons by their IDs.
     // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
     // so we fetch all and filter in memory
+    /// Loads lessons by their IDs.
     func loadLessons(ids: Set<UUID>) -> [Lesson] {
         guard !ids.isEmpty else { return [] }
 

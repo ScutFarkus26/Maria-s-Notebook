@@ -148,14 +148,14 @@ struct MeetingsLogView: View {
                         } else {
                             selectedStudentIDs.insert(student.id)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedStudentIDs.contains(student.id) {
                                 Image(systemName: "checkmark")
                             }
                             Text(displayName(for: student))
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -178,14 +178,14 @@ struct MeetingsLogView: View {
                         } else {
                             selectedAgeRanges.insert(range)
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             if selectedAgeRanges.contains(range) {
                                 Image(systemName: "checkmark")
                             }
                             Text(range.rawValue)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -201,14 +201,14 @@ struct MeetingsLogView: View {
             // Completion Menu
             Menu {
                 ForEach(CompletionFilter.allCases) { filter in
-                    Button(action: { selectedCompletion = filter }) {
+                    Button(action: { selectedCompletion = filter }, label: {
                         HStack {
                             if selectedCompletion == filter {
                                 Image(systemName: "checkmark")
                             }
                             Text(filter.rawValue)
                         }
-                    }
+                    })
                 }
             } label: {
                 HStack(spacing: 6) {

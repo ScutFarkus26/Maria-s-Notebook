@@ -18,7 +18,7 @@ final class LessonPresentation: Identifiable {
     var stateRaw: String = LessonPresentationState.presented.rawValue
     var presentedAt: Date = Date()
     var lastObservedAt: Date?
-    var masteredAt: Date?
+    var masteredAt: Date? // swiftlint:disable:this inclusive_language — persisted SwiftData property name
     var notes: String?
     
     var state: LessonPresentationState {
@@ -37,7 +37,7 @@ final class LessonPresentation: Identifiable {
         state: LessonPresentationState = .presented,
         presentedAt: Date = Date(),
         lastObservedAt: Date? = nil,
-        masteredAt: Date? = nil,
+        masteredAt: Date? = nil, // swiftlint:disable:this inclusive_language — persisted SwiftData property name
         notes: String? = nil
     ) {
         self.id = id
@@ -56,8 +56,8 @@ final class LessonPresentation: Identifiable {
 }
 
 enum LessonPresentationState: String, Codable, CaseIterable, Sendable {
-    case presented = "presented"
-    case practicing = "practicing"
-    case readyForAssessment = "readyForAssessment"
-    case mastered = "mastered"
+    case presented
+    case practicing
+    case readyForAssessment
+    case proficient = "mastered"
 }

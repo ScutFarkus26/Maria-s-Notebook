@@ -9,12 +9,12 @@ import SwiftData
     var id: UUID = UUID()
 
     // MARK: - Foreign Keys (soft references)
-    /// The identifier of the work item that was completed.
     // CloudKit compatibility: Store UUID as string
+    /// The identifier of the work item that was completed.
     var workID: String = ""
 
-    /// The identifier of the student who completed the work.
     // CloudKit compatibility: Store UUID as string
+    /// The identifier of the student who completed the work.
     var studentID: String = ""
 
     // MARK: - Payload

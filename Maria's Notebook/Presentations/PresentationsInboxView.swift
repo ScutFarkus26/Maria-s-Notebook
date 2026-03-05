@@ -70,10 +70,10 @@ struct PresentationsInboxView: View {
     }
 
     private var aiSuggestButton: some View {
-        Button(action: { showAIPlanning = true }) {
+        Button(action: { showAIPlanning = true }, label: {
             Label("Suggest Next", systemImage: "sparkles")
                 .font(AppTheme.ScaledFont.captionSemibold)
-        }
+        })
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
     }

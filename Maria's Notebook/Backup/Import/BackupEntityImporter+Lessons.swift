@@ -11,7 +11,7 @@ extension BackupEntityImporter {
         into modelContext: ModelContext,
         existingCheck: EntityExistsCheck<Lesson>
     ) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let lesson = Lesson(id: dto.id, name: dto.name, subject: dto.subject, group: dto.group, orderInGroup: dto.orderInGroup, subheading: dto.subheading, writeUp: dto.writeUp)
             if let pages = dto.pagesFileRelativePath { lesson.pagesFileRelativePath = pages }
             // Format v9+ fields
@@ -26,7 +26,7 @@ extension BackupEntityImporter {
             if let v = dto.prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = v }
             if let v = dto.relatedLessonIDs { lesson.relatedLessonIDs = v }
             return lesson
-        }
+        })
     }
 
     // MARK: - Lesson Exercises
@@ -254,7 +254,7 @@ extension BackupEntityImporter {
     // MARK: - Lesson Presentations
 
     static func importLessonPresentations(_ dtos: [LessonPresentationDTO], into modelContext: ModelContext, existingCheck: EntityExistsCheck<LessonPresentation>) rethrows {
-        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }) { dto in
+        try importSimpleEntities(dtos, into: modelContext, existingCheck: existingCheck, idExtractor: { $0.id }, entityBuilder: { dto in
             let lp = LessonPresentation(
                 id: dto.id,
                 createdAt: dto.createdAt,
@@ -270,6 +270,6 @@ extension BackupEntityImporter {
                 notes: dto.notes
             )
             return lp
-        }
+        })
     }
 }
