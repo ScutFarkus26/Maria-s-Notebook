@@ -198,29 +198,35 @@ private struct WorkloadContentView: View {
         return result
     }
     
-    private var counts: [UUID: (practice: Int, follow: Int, research: Int)] {
-        var result: [UUID: (practice: Int, follow: Int, research: Int)] = [:]
+    private struct WorkCounts {
+        var practice: Int = 0
+        var follow: Int = 0
+        var research: Int = 0
+    }
+
+    private var counts: [UUID: WorkCounts] {
+        var result: [UUID: WorkCounts] = [:]
         for work in openWork {
             guard let sid = UUID(uuidString: work.studentID) else { continue }
-            
+
             switch work.kind {
             case .practiceLesson:
-                result[sid, default: (0, 0, 0)].practice += 1
+                result[sid, default: WorkCounts()].practice += 1
             case .followUpAssignment:
-                result[sid, default: (0, 0, 0)].follow += 1
+                result[sid, default: WorkCounts()].follow += 1
             case .research, .report:
-                result[sid, default: (0, 0, 0)].research += 1
+                result[sid, default: WorkCounts()].research += 1
             case nil:
-                result[sid, default: (0, 0, 0)].follow += 1
+                result[sid, default: WorkCounts()].follow += 1
             }
         }
         return result
     }
-    
+
     private var summaries: [StudentWorkSummary] {
         let countsMap = counts
         return studentsByID.values.map { s in
-            let c = countsMap[s.id, default: (0, 0, 0)]
+            let c = countsMap[s.id, default: WorkCounts()]
             return StudentWorkSummary(
                 id: s.id, student: s,
                 practiceOpen: c.practice, followUpOpen: c.follow,

@@ -154,9 +154,10 @@ enum BackupPreviewAnalyzer {
         }
         let lessonsInPayload = Set(payload.lessons.map { $0.id })
         // LegacyPresentation model removed — old backup DTOs will be imported as LessonAssignment
+        struct ImportAnalysis { var ins = 0; var sk = 0; var missingLesson = 0 }
         let legacyPresentationAnalysis = payload.legacyPresentations.reduce(
-            into: (ins: 0, sk: 0, missingLesson: 0)
-        ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), sl: LegacyPresentationDTO) in
+            into: ImportAnalysis()
+        ) { (acc: inout ImportAnalysis, sl: LegacyPresentationDTO) in
             let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
             if !hasLesson {
                 acc.sk += 1
@@ -178,8 +179,8 @@ enum BackupPreviewAnalyzer {
 
         // LessonAssignments - similar handling for missing lesson references
         let lessonAssignmentAnalysis = payload.lessonAssignments.reduce(
-            into: (ins: 0, sk: 0, missingLesson: 0)
-        ) { (acc: inout (ins: Int, sk: Int, missingLesson: Int), la: LessonAssignmentDTO) in
+            into: ImportAnalysis()
+        ) { (acc: inout ImportAnalysis, la: LessonAssignmentDTO) in
             guard let lessonUUID = UUID(uuidString: la.lessonID) else {
                 acc.sk += 1
                 acc.missingLesson += 1

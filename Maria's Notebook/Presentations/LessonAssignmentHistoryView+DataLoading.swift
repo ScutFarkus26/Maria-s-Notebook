@@ -61,8 +61,11 @@ extension LessonAssignmentHistoryView {
         // Extract primitive/Sendable values on main thread before background processing
         // This avoids passing SwiftData model objects across actor boundaries
         let assignmentIDs: [String] = recentNotes.compactMap { $0.lessonAssignment?.id.uuidString }
-        let studentData: [(UUID, String, String)] = safeStudents.map { ($0.id, $0.firstName, $0.lastName) }
-        let lessonData: [(UUID, String)] = lessons.map { ($0.id, $0.name) }
+        let studentIDs = safeStudents.map { $0.id }
+        let studentFirstNames = safeStudents.map { $0.firstName }
+        let studentLastNames = safeStudents.map { $0.lastName }
+        let lessonIDs = lessons.map { $0.id }
+        let lessonNames = lessons.map { $0.name }
 
         // Build caches on background thread using only Sendable data
         let (counts, sNames, lTitles) = await Task.detached(priority: .userInitiated) {
@@ -74,17 +77,17 @@ extension LessonAssignmentHistoryView {
 
             // Build student name cache
             var sNames: [UUID: String] = [:]
-            for (id, firstName, lastName) in studentData {
-                let first = firstName.trimmed()
-                let last = lastName.trimmed()
+            for idx in studentIDs.indices {
+                let first = studentFirstNames[idx].trimmed()
+                let last = studentLastNames[idx].trimmed()
                 let li = last.first.map { String($0).uppercased() } ?? ""
-                sNames[id] = li.isEmpty ? first : "\(first) \(li)."
+                sNames[studentIDs[idx]] = li.isEmpty ? first : "\(first) \(li)."
             }
 
             // Build lesson title cache
             var lTitles: [UUID: String] = [:]
-            for (id, name) in lessonData {
-                lTitles[id] = LessonFormatter.titleOrFallback(name, fallback: "Lesson")
+            for idx in lessonIDs.indices {
+                lTitles[lessonIDs[idx]] = LessonFormatter.titleOrFallback(lessonNames[idx], fallback: "Lesson")
             }
 
             return (counts, sNames, lTitles)

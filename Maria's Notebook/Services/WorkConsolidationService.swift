@@ -7,19 +7,24 @@ import SwiftData
 struct WorkConsolidationService {
     let context: ModelContext
     
+    struct ConsolidationResult {
+        let groupsConsolidated: Int
+        let totalMerged: Int
+        let errors: [String]
+    }
+
     /// Consolidates duplicate works in the database.
-    /// - Returns: A tuple containing (groupsConsolidated, totalMerged, errors)
-    func consolidateDuplicates() -> (groupsConsolidated: Int, totalMerged: Int, errors: [String]) {
+    func consolidateDuplicates() -> ConsolidationResult {
         var groupsConsolidated = 0
         var totalMerged = 0
         var errors: [String] = []
-        
+
         // Fetch all WorkModel records
         let descriptor = FetchDescriptor<WorkModel>()
         let allWorks = context.safeFetch(descriptor)
-        
+
         guard !allWorks.isEmpty else {
-            return (0, 0, [])
+            return ConsolidationResult(groupsConsolidated: 0, totalMerged: 0, errors: [])
         }
         
         // Group works by duplicate criteria: title, studentLessonID, and kind
@@ -209,6 +214,6 @@ struct WorkConsolidationService {
             errors.append("Failed to save changes: \(error.localizedDescription)")
         }
         
-        return (groupsConsolidated, totalMerged, errors)
+        return ConsolidationResult(groupsConsolidated: groupsConsolidated, totalMerged: totalMerged, errors: errors)
     }
 }

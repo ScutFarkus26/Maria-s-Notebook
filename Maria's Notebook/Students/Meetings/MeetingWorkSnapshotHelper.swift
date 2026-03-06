@@ -5,20 +5,22 @@ import Foundation
 /// Helper for computing work statistics for student meetings.
 enum MeetingWorkSnapshotHelper {
 
+    // MARK: - Types
+
+    struct WorkStats {
+        let open: [WorkModel]
+        let overdue: [WorkModel]
+        let recentCompleted: [WorkModel]
+    }
+
     // MARK: - Work Statistics
 
     /// Computes work statistics for a student.
-    ///
-    /// - Parameters:
-    ///   - studentID: Student ID
-    ///   - allWorkModels: All work models
-    ///   - workOverdueDays: Days after which work is considered overdue
-    /// - Returns: Tuple of (open, overdue, recentCompleted) work arrays
     static func computeWorkStats(
         for studentID: UUID,
         allWorkModels: [WorkModel],
         workOverdueDays: Int
-    ) -> (open: [WorkModel], overdue: [WorkModel], recentCompleted: [WorkModel]) {
+    ) -> WorkStats {
         let sid = studentID.uuidString
         let workModelsForStudent = allWorkModels.filter { $0.studentID == sid }
 
@@ -36,7 +38,7 @@ enum MeetingWorkSnapshotHelper {
             $0.status == .complete && ($0.completedAt ?? .distantPast) >= recentThreshold
         }
 
-        return (open: openWork, overdue: overdueWork, recentCompleted: recentCompleted)
+        return WorkStats(open: openWork, overdue: overdueWork, recentCompleted: recentCompleted)
     }
 
     // MARK: - Lessons Since Last Meeting

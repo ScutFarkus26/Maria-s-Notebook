@@ -97,16 +97,17 @@ public final class IncrementalBackupService {
         progress(0.0, isFullBackup ? "Creating full backup…" : "Scanning for changes…")
 
         // Collect all entities and filter by updatedAt if incremental
-        let (payload, changedCounts, totalCounts) = try collectPayload(
+        let collectionResult = try collectPayload(
             modelContext: modelContext,
             sinceDate: sinceDate,
             progress: { subProgress, message in
                 progress(subProgress * 0.3, message)
             }
         )
+        let payload = collectionResult.payload
 
-        let changedCount = changedCounts.values.reduce(0, +)
-        let totalCount = totalCounts.values.reduce(0, +)
+        let changedCount = collectionResult.changedCounts.values.reduce(0, +)
+        let totalCount = collectionResult.totalCounts.values.reduce(0, +)
 
         progress(0.3, "Encoding \(changedCount) entities…")
 
@@ -141,7 +142,7 @@ public final class IncrementalBackupService {
             backupID: backupID,
             parentBackupID: lastBackupID,
             isFullBackup: isFullBackup,
-            changedEntityCounts: changedCounts
+            changedEntityCounts: collectionResult.changedCounts
         )
 
         // Build envelope with incremental metadata in manifest notes
@@ -152,7 +153,7 @@ public final class IncrementalBackupService {
             payload: finalPayload,
             encryptedPayload: finalEncrypted,
             compressedPayload: finalCompressed,
-            entityCounts: changedCounts,
+            entityCounts: collectionResult.changedCounts,
             sha256: sha,
             notes: metadataString
         )
@@ -167,7 +168,7 @@ public final class IncrementalBackupService {
         progress(1.0, "Incremental backup complete")
 
         // Calculate saved bytes (estimate based on total vs changed)
-        let estimatedFullSize = backupService.estimateBackupSizeFromCounts(totalCounts)
+        let estimatedFullSize = backupService.estimateBackupSizeFromCounts(collectionResult.totalCounts)
         let actualSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 ?? 0
         let savedBytes = max(0, estimatedFullSize - actualSize)
 

@@ -131,6 +131,14 @@ struct LessonsViewModel {
         return #Predicate<Lesson> { $0.sourceRaw == sourceFilterRaw }
     }
 
+    private struct LessonSortKey {
+        let subjectIdx: Int
+        let groupIdx: Int
+        let orderInGroup: Int
+        let name: String
+        let id: String
+    }
+
     // MARK: - Sorting Pipelines
 
     func filteredLessons(
@@ -234,12 +242,14 @@ struct LessonsViewModel {
 
         // Sorting logic with pre-computed indices
         if !query.isEmpty {
-            // OPTIMIZATION: Pre-compute all sort keys to avoid repeated calculations during comparison
-            typealias SortKey = (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String)
-            let sortKeys = fetched.map { lesson -> SortKey in
+            let sortKeys = fetched.map { lesson -> LessonSortKey in
                 let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
                 let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
-                return (subjectIdx, groupIdx, lesson.orderInGroup, lesson.name, lesson.id.uuidString)
+                return LessonSortKey(
+                    subjectIdx: subjectIdx, groupIdx: groupIdx,
+                    orderInGroup: lesson.orderInGroup,
+                    name: lesson.name, id: lesson.id.uuidString
+                )
             }
             
             let indexedLessons = zip(fetched, sortKeys).map { ($0, $1) }
@@ -280,12 +290,14 @@ struct LessonsViewModel {
                 return nameOrder == .orderedAscending
             }
         } else {
-            // OPTIMIZATION: Pre-compute all sort keys to avoid repeated calculations during comparison
-            typealias SortKey = (subjectIdx: Int, groupIdx: Int, orderInGroup: Int, name: String, id: String)
-            let sortKeys = fetched.map { lesson -> SortKey in
+            let sortKeys = fetched.map { lesson -> LessonSortKey in
                 let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
                 let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
-                return (subjectIdx, groupIdx, lesson.orderInGroup, lesson.name, lesson.id.uuidString)
+                return LessonSortKey(
+                    subjectIdx: subjectIdx, groupIdx: groupIdx,
+                    orderInGroup: lesson.orderInGroup,
+                    name: lesson.name, id: lesson.id.uuidString
+                )
             }
             
             let indexedLessons = zip(fetched, sortKeys).map { ($0, $1) }

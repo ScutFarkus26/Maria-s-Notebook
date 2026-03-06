@@ -25,12 +25,18 @@ struct WorkCardPillContent: View {
         return "Work"
     }
 
-    private var studentChips: [(UUID, String, Bool)] {
+    private struct StudentChipData: Identifiable {
+        let id: UUID
+        let name: String
+        let isAbsent: Bool
+    }
+
+    private var studentChips: [StudentChipData] {
         let isToday = calendar.isDate(config.item.checkIn.date, inSameDayAs: Date())
         guard let sid = UUID(uuidString: config.item.work.studentID) else { return [] }
         let name = config.nameForStudentID(sid).trimmed()
         let absent = isToday && config.absentTodayIDs.contains(sid)
-        return name.isEmpty ? [] : [(sid, name, absent)]
+        return name.isEmpty ? [] : [StudentChipData(id: sid, name: name, isAbsent: absent)]
     }
 
     var body: some View {
@@ -57,8 +63,8 @@ struct WorkCardPillContent: View {
                     if !studentChips.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
-                                ForEach(studentChips, id: \.0) { chip in
-                                    StudentChipView(label: chip.1, isAbsent: chip.2, tint: workKind.color)
+                                ForEach(studentChips) { chip in
+                                    StudentChipView(label: chip.name, isAbsent: chip.isAbsent, tint: workKind.color)
                                 }
                             }
                         }

@@ -112,7 +112,15 @@ struct AttendanceLogView: View {
     }
 
     // Summary stats for filtered records
-    private var summaryStats: (present: Int, absent: Int, tardy: Int, leftEarly: Int, total: Int) {
+    private struct AttendanceSummary {
+        var present = 0
+        var absent = 0
+        var tardy = 0
+        var leftEarly = 0
+        var total: Int
+    }
+
+    private var summaryStats: AttendanceSummary {
         var present = 0, absent = 0, tardy = 0, leftEarly = 0
         for record in filteredRecords {
             switch record.status {
@@ -123,7 +131,10 @@ struct AttendanceLogView: View {
             case .unmarked: break
             }
         }
-        return (present, absent, tardy, leftEarly, filteredRecords.count)
+        return AttendanceSummary(
+            present: present, absent: absent, tardy: tardy,
+            leftEarly: leftEarly, total: filteredRecords.count
+        )
     }
 
     // Group records by day

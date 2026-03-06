@@ -4,6 +4,13 @@
 import Foundation
 import SwiftData
 
+    struct ImportResult {
+        let imported: Int
+        let skipped: Int
+        let warning: String
+    }
+}
+
 extension SelectiveRestoreService {
 
     // MARK: - Import Entity Type
@@ -13,7 +20,7 @@ extension SelectiveRestoreService {
         from payload: BackupPayload,
         into modelContext: ModelContext,
         mode: BackupService.RestoreMode
-    ) async throws -> (imported: Int, skipped: Int, warning: String) {
+    ) async throws -> ImportResult {
 
         var imported = 0
         var skipped = 0
@@ -259,6 +266,6 @@ extension SelectiveRestoreService {
                 payload.projectTemplateWeeks.count + payload.projectWeekRoleAssignments.count
         }
 
-        return (imported, skipped, warning)
+        return ImportResult(imported: imported, skipped: skipped, warning: warning)
     }
 }

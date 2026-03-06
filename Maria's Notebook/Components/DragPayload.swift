@@ -16,13 +16,19 @@ struct DragPayload {
         return "\(prefix):\(sourceID.uuidString):\(lessonID.uuidString):\(studentID.uuidString)"
     }
 
-    nonisolated static func decode(_ string: String) -> (sourceID: UUID, lessonID: UUID, studentID: UUID)? {
+    struct Decoded {
+        let sourceID: UUID
+        let lessonID: UUID
+        let studentID: UUID
+    }
+
+    nonisolated static func decode(_ string: String) -> Decoded? {
         let parts = string.split(separator: ":")
         guard parts.count == 4,
               parts[0] == prefix,
               let sourceID = UUID(uuidString: String(parts[1])),
               let lessonID = UUID(uuidString: String(parts[2])),
               let studentID = UUID(uuidString: String(parts[3])) else { return nil }
-        return (sourceID, lessonID, studentID)
+        return Decoded(sourceID: sourceID, lessonID: lessonID, studentID: studentID)
     }
 }
