@@ -103,7 +103,7 @@ struct StudentMeetingsTab: View {
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
 
-    private var workStats: (open: [WorkModel], overdue: [WorkModel], recentCompleted: [WorkModel]) {
+    private var workStats: MeetingWorkSnapshotHelper.WorkStats {
         MeetingWorkSnapshotHelper.computeWorkStats(
             for: student.id,
             allWorkModels: allWorkModels,

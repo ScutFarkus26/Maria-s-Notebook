@@ -84,8 +84,15 @@ struct GroupTrackDetailView: View {
     }
 
     /// Progress summary for the header
-    private var progressSummary: (presented: Int, practicing: Int, proficient: Int, total: Int) {
-        guard student != nil else { return (0, 0, 0, lessons.count) }
+    private struct ProgressSummary {
+        var presented = 0
+        var practicing = 0
+        var proficient = 0
+        var total: Int
+    }
+
+    private var progressSummary: ProgressSummary {
+        guard student != nil else { return ProgressSummary(total: lessons.count) }
 
         var presented = 0
         var practicing = 0
@@ -104,7 +111,10 @@ struct GroupTrackDetailView: View {
             }
         }
 
-        return (presented, practicing, proficient, lessons.count)
+        return ProgressSummary(
+            presented: presented, practicing: practicing,
+            proficient: proficient, total: lessons.count
+        )
     }
 
     var body: some View {

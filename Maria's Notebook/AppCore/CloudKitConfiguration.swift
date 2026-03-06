@@ -19,8 +19,7 @@ final class CloudKitConfiguration {
     }
 
     /// Returns a summary of CloudKit sync status
-    static func getCloudKitStatus() -> (enabled: Bool, active: Bool, containerID: String) {
-        let status = CloudKitConfigurationService.getStatus()
-        return (enabled: status.enabled, active: status.active, containerID: status.containerID)
+    static func getCloudKitStatus() -> CloudKitConfigurationService.Status {
+        CloudKitConfigurationService.getStatus()
     }
 }

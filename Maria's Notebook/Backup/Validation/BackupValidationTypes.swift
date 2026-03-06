@@ -26,19 +26,19 @@ extension BackupValidationService {
         public let issues: [String]
     }
 
+    public enum ValidationSeverity {
+        case critical  // Will prevent restore
+        case error     // Should prevent restore
+        case warning   // Can proceed with caution
+    }
+
     public struct ValidationError: Identifiable {
         public let id = UUID()
         public let entityType: String
         public let entityID: UUID?
         public let field: String?
         public let message: String
-        public let severity: Severity
-
-        public enum Severity {
-            case critical  // Will prevent restore
-            case error     // Should prevent restore
-            case warning   // Can proceed with caution
-        }
+        public let severity: ValidationSeverity
     }
 
     public struct ValidationWarning: Identifiable {

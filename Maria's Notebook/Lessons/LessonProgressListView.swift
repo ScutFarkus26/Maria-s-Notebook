@@ -338,9 +338,14 @@ struct LessonProgressListView: View {
 
 #Preview("Lesson Progress List") {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: AppSchema.schema, configurations: config)
+    let container: ModelContainer
+    do {
+        container = try ModelContainer(for: AppSchema.schema, configurations: config)
+    } catch {
+        fatalError("Preview ModelContainer failed: \(error)")
+    }
     let context = container.mainContext
-    
+
     // Create sample lessons
     let math1 = Lesson()
     math1.name = "Long Division"

@@ -2,6 +2,12 @@ import Foundation
 import SwiftData
 import OSLog
 
+struct AvailableTrack {
+    let subject: String
+    let group: String
+    let isSequential: Bool
+}
+
 /// Service for managing group-based tracks
 @MainActor
 struct GroupTrackService {
@@ -147,7 +153,7 @@ struct GroupTrackService {
     static func getAllAvailableTracks(
         from lessons: [Lesson],
         modelContext: ModelContext
-    ) throws -> [(subject: String, group: String, isSequential: Bool)] {
+    ) throws -> [AvailableTrack] {
         // PERFORMANCE: Fetch all GroupTracks ONCE to avoid N+1 queries in the loop below
         let allTracks = try modelContext.fetch(FetchDescriptor<GroupTrack>())
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
@@ -194,7 +200,7 @@ struct GroupTrackService {
         let uniqueGroups = Array(uniqueGroupsDict.values)
 
         // Build list of available tracks using cached lookups (O(1) per iteration)
-        var availableTracks: [(subject: String, group: String, isSequential: Bool)] = []
+        var availableTracks: [AvailableTrack] = []
 
         for (subject, group) in uniqueGroups {
             // Check if this group is a track (all groups are tracks by default unless explicitly disabled)
@@ -204,7 +210,7 @@ struct GroupTrackService {
 
             // Get effective settings (sequential by default if no record exists)
             let settings = getSettingsCached(subject: subject, group: group)
-            availableTracks.append((subject: subject, group: group, isSequential: settings.isSequential))
+            availableTracks.append(AvailableTrack(subject: subject, group: group, isSequential: settings.isSequential))
         }
 
         // Sort by subject, then group

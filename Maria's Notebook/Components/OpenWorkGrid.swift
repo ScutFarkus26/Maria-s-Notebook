@@ -255,33 +255,22 @@ struct OpenWorkGrid: View {
 }
 
 #Preview {
-    // Encapsulate data setup in a closure to avoid Void return statements in ViewBuilder
-    let previewData: (ModelContainer, Student, Lesson, WorkModel, WorkModel) = {
-        let schema = AppSchema.schema
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container: ModelContainer
+    let schema = AppSchema.schema
+    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container: ModelContainer = {
         do {
-            container = try ModelContainer(for: schema, configurations: configuration)
+            return try ModelContainer(for: schema, configurations: configuration)
         } catch {
             fatalError("Failed to create preview container: \(error)")
         }
-        let ctx = container.mainContext
-        let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-        let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
-        ctx.insert(s)
-        ctx.insert(l)
-        let w1 = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
-        let w2 = WorkModel(status: .review, studentID: s.id.uuidString, lessonID: l.id.uuidString)
-        ctx.insert(w1)
-        ctx.insert(w2)
-        return (container, s, l, w1, w2)
     }()
-    
-    let container = previewData.0
-    let s = previewData.1
-    let l = previewData.2
-    let w1 = previewData.3
-    let w2 = previewData.4
+    let ctx = container.mainContext
+    let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
+    let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
+    _ = { ctx.insert(s); ctx.insert(l) }()
+    let w1 = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
+    let w2 = WorkModel(status: .review, studentID: s.id.uuidString, lessonID: l.id.uuidString)
+    _ = { ctx.insert(w1); ctx.insert(w2) }()
     
     Group {
         OpenWorkGrid(

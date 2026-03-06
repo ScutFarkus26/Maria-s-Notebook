@@ -25,7 +25,7 @@ struct MeetingSessionView: View {
 
     // MARK: - Work Stats (delegated to helper)
 
-    private var workStats: (open: [WorkModel], overdue: [WorkModel], recentCompleted: [WorkModel]) {
+    private var workStats: MeetingWorkSnapshotHelper.WorkStats {
         MeetingWorkSnapshotHelper.computeWorkStats(
             for: student.id,
             allWorkModels: allWorkModels,

@@ -8,7 +8,13 @@ public final class SmartRetentionManager {
     private static let logger = Logger.backup
 
     // MARK: - Types
-    
+
+    struct BackupFileEntry {
+        let url: URL
+        let date: Date
+        let size: Int64
+    }
+
     public struct RetentionPolicy: Codable, Sendable {
         public var dailyRetention: Int = 7      // Keep last 7 daily backups
         public var weeklyRetention: Int = 4     // Keep 4 weekly backups
@@ -119,7 +125,7 @@ public final class SmartRetentionManager {
         let backupFiles = files.filter { $0.pathExtension == BackupFile.fileExtension }
         
         // Extract metadata for each backup
-        var backups: [(url: URL, date: Date, size: Int64)] = []
+        var backups: [BackupFileEntry] = []
         for file in backupFiles {
             let date: Date
             let size: Int64
@@ -132,7 +138,7 @@ public final class SmartRetentionManager {
                 date = Date.distantPast
                 size = 0
             }
-            backups.append((file, date, size))
+            backups.append(BackupFileEntry(url: file, date: date, size: size))
         }
         
         // Sort by date (newest first)
@@ -186,7 +192,7 @@ public final class SmartRetentionManager {
     
     // MARK: - Classification
     
-    private func classifyBackups(_ backups: [(url: URL, date: Date, size: Int64)]) -> [BackupClassification] {
+    private func classifyBackups(_ backups: [BackupFileEntry]) -> [BackupClassification] {
         let now = Date()
         let calendar = Calendar.current
         
@@ -196,7 +202,8 @@ public final class SmartRetentionManager {
         var monthlyBuckets: [String: BackupClassification] = [:]
         var yearlyBuckets: [String: BackupClassification] = [:]
         
-        for (url, date, size) in backups {
+        for backup in backups {
+            let (url, date, size) = (backup.url, backup.date, backup.size)
             let age = calendar.dateComponents([.day], from: date, to: now).day ?? 0
             
             // Recent backups - keep all

@@ -2,19 +2,22 @@ import SwiftUI
 import SwiftData
 
 // MARK: - WorkModel Check-in Counts
+
+struct CheckInCounts {
+    let completed: Int
+    let total: Int
+    let upcoming: Int
+}
+
 extension WorkModel {
-    /// Returns (completed, total, upcoming) counts for this work based on current participants.
-    /// - completed: Number of participants who have completed this work.
-    /// - total: Total number of participants attached to this work.
-    /// - upcoming: Participants who have not yet completed (total - completed), clamped to >= 0.
-    func checkInCounts() -> (completed: Int, total: Int, upcoming: Int) {
+    func checkInCounts() -> CheckInCounts {
         let list = participants ?? []
         let total = list.count
         let completed = list.reduce(0) { partial, p in
             partial + (p.completedAt != nil ? 1 : 0)
         }
         let upcoming = max(0, total - completed)
-        return (completed, total, upcoming)
+        return CheckInCounts(completed: completed, total: total, upcoming: upcoming)
     }
 }
 
@@ -25,7 +28,7 @@ extension WorkModel {
 struct WorkCheckInSummary: View {
     let work: WorkModel
 
-    private var counts: (completed: Int, total: Int, upcoming: Int) {
+    private var counts: CheckInCounts {
         work.checkInCounts()
     }
 

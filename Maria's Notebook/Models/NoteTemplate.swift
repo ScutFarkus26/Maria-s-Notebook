@@ -67,36 +67,42 @@ final class NoteTemplate: Identifiable {
 
     // MARK: - Built-in Templates
 
+    struct BuiltInTemplate {
+        let title: String
+        let body: String
+        let tags: [String]
+    }
+
     // swiftlint:disable line_length
-    static let builtInTemplates: [(title: String, body: String, tags: [String])] = [
+    static let builtInTemplates: [BuiltInTemplate] = [
         // Academic
-        ("Completed independently", "Completed work independently with confidence.", [TagHelper.tagFromNoteCategory("academic")]),
-        ("Showed mastery", "Demonstrated strong mastery of the material.", [TagHelper.tagFromNoteCategory("academic")]),
-        ("Needs more practice", "Would benefit from additional practice with this concept.", [TagHelper.tagFromNoteCategory("academic")]),
-        ("Made great progress", "Made excellent progress today.", [TagHelper.tagFromNoteCategory("academic")]),
+        .init(title: "Completed independently", body: "Completed work independently with confidence.", tags: [TagHelper.tagFromNoteCategory("academic")]),
+        .init(title: "Showed mastery", body: "Demonstrated strong mastery of the material.", tags: [TagHelper.tagFromNoteCategory("academic")]),
+        .init(title: "Needs more practice", body: "Would benefit from additional practice with this concept.", tags: [TagHelper.tagFromNoteCategory("academic")]),
+        .init(title: "Made great progress", body: "Made excellent progress today.", tags: [TagHelper.tagFromNoteCategory("academic")]),
 
         // Behavioral
-        ("Needed redirection", "Required redirection to stay focused on task.", [TagHelper.tagFromNoteCategory("behavioral")]),
-        ("Followed directions", "Followed directions well and stayed on task.", [TagHelper.tagFromNoteCategory("behavioral")]),
-        ("Showed focus", "Demonstrated excellent focus and concentration.", [TagHelper.tagFromNoteCategory("behavioral")]),
+        .init(title: "Needed redirection", body: "Required redirection to stay focused on task.", tags: [TagHelper.tagFromNoteCategory("behavioral")]),
+        .init(title: "Followed directions", body: "Followed directions well and stayed on task.", tags: [TagHelper.tagFromNoteCategory("behavioral")]),
+        .init(title: "Showed focus", body: "Demonstrated excellent focus and concentration.", tags: [TagHelper.tagFromNoteCategory("behavioral")]),
 
         // Social
-        ("Worked well with peers", "Collaborated effectively with classmates.", [TagHelper.tagFromNoteCategory("social")]),
-        ("Helped others", "Showed kindness by helping a classmate.", [TagHelper.tagFromNoteCategory("social")]),
-        ("Participated actively", "Actively participated in group discussion.", [TagHelper.tagFromNoteCategory("social")]),
+        .init(title: "Worked well with peers", body: "Collaborated effectively with classmates.", tags: [TagHelper.tagFromNoteCategory("social")]),
+        .init(title: "Helped others", body: "Showed kindness by helping a classmate.", tags: [TagHelper.tagFromNoteCategory("social")]),
+        .init(title: "Participated actively", body: "Actively participated in group discussion.", tags: [TagHelper.tagFromNoteCategory("social")]),
 
         // Emotional
-        ("Showed confidence", "Displayed confidence in their abilities.", [TagHelper.tagFromNoteCategory("emotional")]),
-        ("Seemed frustrated", "Appeared frustrated; may need additional support.", [TagHelper.tagFromNoteCategory("emotional")]),
-        ("Very enthusiastic", "Showed great enthusiasm for the activity.", [TagHelper.tagFromNoteCategory("emotional")]),
+        .init(title: "Showed confidence", body: "Displayed confidence in their abilities.", tags: [TagHelper.tagFromNoteCategory("emotional")]),
+        .init(title: "Seemed frustrated", body: "Appeared frustrated; may need additional support.", tags: [TagHelper.tagFromNoteCategory("emotional")]),
+        .init(title: "Very enthusiastic", body: "Showed great enthusiasm for the activity.", tags: [TagHelper.tagFromNoteCategory("emotional")]),
 
         // Attendance
-        ("Arrived late", "Arrived late to class.", [TagHelper.tagFromNoteCategory("attendance")]),
-        ("Left early", "Left class early.", [TagHelper.tagFromNoteCategory("attendance")]),
+        .init(title: "Arrived late", body: "Arrived late to class.", tags: [TagHelper.tagFromNoteCategory("attendance")]),
+        .init(title: "Left early", body: "Left class early.", tags: [TagHelper.tagFromNoteCategory("attendance")]),
 
         // General
-        ("Parent request", "Per parent request: ", [TagHelper.tagFromNoteCategory("general")]),
-        ("Follow up needed", "Requires follow-up: ", [TagHelper.tagFromNoteCategory("general")])
+        .init(title: "Parent request", body: "Per parent request: ", tags: [TagHelper.tagFromNoteCategory("general")]),
+        .init(title: "Follow up needed", body: "Requires follow-up: ", tags: [TagHelper.tagFromNoteCategory("general")])
     ]
     // swiftlint:enable line_length
 

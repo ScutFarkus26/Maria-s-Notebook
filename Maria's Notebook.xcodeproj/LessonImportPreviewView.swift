@@ -92,17 +92,20 @@ struct LessonImportPreviewView: View {
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(Color.yellow)
                 Spacer()
-                Button(action: { withAnimation { showWarnings.toggle() } }) {
-                    Image(systemName: showWarnings ? "chevron.down" : "chevron.right")
-                        .foregroundStyle(.secondary)
-                }
+                Button(
+                    action: { withAnimation { showWarnings.toggle() } },
+                    label: {
+                        Image(systemName: showWarnings ? "chevron.down" : "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                )
                 .buttonStyle(.plain)
             }
 
             if showWarnings {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(parsed.warnings.indices, id: \.self) { i in
-                        Text("• \(parsed.warnings[i])")
+                    ForEach(parsed.warnings.indices, id: \.self) { index in
+                        Text("• \(parsed.warnings[index])")
                             .font(.system(size: 12, weight: .regular, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
@@ -127,9 +130,9 @@ struct LessonImportPreviewView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
-                ForEach(parsed.rows.indices, id: \.self) { i in
-                    let r = parsed.rows[i]
-                    LessonRowView(row: r, isPotentialDuplicate: isPotentialDuplicate(row: r))
+                ForEach(parsed.rows.indices, id: \.self) { rowIndex in
+                    let row = parsed.rows[rowIndex]
+                    LessonRowView(row: row, isPotentialDuplicate: isPotentialDuplicate(row: row))
                         .padding(10)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -211,10 +214,33 @@ private struct LessonRowView: View {
 
 #Preview {
     let rows = [
-        LessonCSVImporter.Row(name: "The Story of Numerals", subject: "Math", group: "Introduction", subheading: "", writeUp: "A foundational story."),
-        LessonCSVImporter.Row(name: "Introduce the Materials", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: ""),
-        LessonCSVImporter.Row(name: "Three Period Lesson and Layered Layout", subject: "Math", group: "Wooden Hierarchal Materials", subheading: "", writeUp: ""),
+        LessonCSVImporter.Row(
+            name: "The Story of Numerals",
+            subject: "Math",
+            group: "Introduction",
+            subheading: "",
+            writeUp: "A foundational story."
+        ),
+        LessonCSVImporter.Row(
+            name: "Introduce the Materials",
+            subject: "Math",
+            group: "Wooden Hierarchal Materials",
+            subheading: "",
+            writeUp: ""
+        ),
+        LessonCSVImporter.Row(
+            name: "Three Period Lesson and Layered Layout",
+            subject: "Math",
+            group: "Wooden Hierarchal Materials",
+            subheading: "",
+            writeUp: ""
+        )
     ]
-    let parsed = LessonCSVImporter.Parsed(rows: rows, totalRows: rows.count, potentialDuplicates: ["The Story of Numerals — Math"], warnings: ["Row 4: Missing required Name or Subject; row skipped."])
+    let parsed = LessonCSVImporter.Parsed(
+        rows: rows,
+        totalRows: rows.count,
+        potentialDuplicates: ["The Story of Numerals — Math"],
+        warnings: ["Row 4: Missing required Name or Subject; row skipped."]
+    )
     return LessonImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: {})
 }

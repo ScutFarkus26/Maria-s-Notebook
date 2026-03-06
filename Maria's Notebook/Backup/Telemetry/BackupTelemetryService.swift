@@ -9,11 +9,36 @@ public final class BackupTelemetryService {
     
     // MARK: - Types
     
+    public enum TelemetryEventType: String, Codable, Sendable {
+        case backupStarted
+        case backupCompleted
+        case backupFailed
+        case restoreStarted
+        case restoreCompleted
+        case restoreFailed
+        case validationPerformed
+        case integrityCheckPerformed
+        case cloudSyncStarted
+        case cloudSyncCompleted
+        case migrationPerformed
+    }
+
+    public enum TelemetryOperationType: String, Codable, Sendable {
+        case standardBackup
+        case streamingBackup
+        case incrementalBackup
+        case standardRestore
+        case transactionalRestore
+        case cloudSync
+        case integrityCheck
+        case migration
+    }
+
     public struct TelemetryEvent: Codable, Identifiable, Sendable {
         public let id: UUID
         public let timestamp: Date
-        public let eventType: EventType
-        public let operation: OperationType
+        public let eventType: TelemetryEventType
+        public let operation: TelemetryOperationType
         public let success: Bool
         public let duration: TimeInterval?
         public let entityCount: Int?
@@ -21,12 +46,12 @@ public final class BackupTelemetryService {
         public let uncompressedSize: Int64?
         public let errorMessage: String?
         public let metadata: [String: String]
-        
+
         public init(
             id: UUID = UUID(),
             timestamp: Date,
-            eventType: EventType,
-            operation: OperationType,
+            eventType: TelemetryEventType,
+            operation: TelemetryOperationType,
             success: Bool,
             duration: TimeInterval? = nil,
             entityCount: Int? = nil,
@@ -48,30 +73,6 @@ public final class BackupTelemetryService {
             self.metadata = metadata
         }
         
-        public enum EventType: String, Codable, Sendable {
-            case backupStarted
-            case backupCompleted
-            case backupFailed
-            case restoreStarted
-            case restoreCompleted
-            case restoreFailed
-            case validationPerformed
-            case integrityCheckPerformed
-            case cloudSyncStarted
-            case cloudSyncCompleted
-            case migrationPerformed
-        }
-        
-        public enum OperationType: String, Codable, Sendable {
-            case standardBackup
-            case streamingBackup
-            case incrementalBackup
-            case standardRestore
-            case transactionalRestore
-            case cloudSync
-            case integrityCheck
-            case migration
-        }
     }
     
     public struct PerformanceMetrics: Codable, Sendable {
@@ -207,7 +208,7 @@ public final class BackupTelemetryService {
     
     /// Records a backup operation
     public func recordBackup(
-        operation: TelemetryEvent.OperationType,
+        operation: TelemetryOperationType,
         success: Bool,
         duration: TimeInterval,
         entityCount: Int,
@@ -216,7 +217,7 @@ public final class BackupTelemetryService {
         error: Error? = nil,
         metadata: [String: String] = [:]
     ) {
-        let eventType: TelemetryEvent.EventType = success ? .backupCompleted : .backupFailed
+        let eventType: TelemetryEventType = success ? .backupCompleted : .backupFailed
         
         record(TelemetryEvent(
             timestamp: Date(),
@@ -234,14 +235,14 @@ public final class BackupTelemetryService {
     
     /// Records a restore operation
     public func recordRestore(
-        operation: TelemetryEvent.OperationType,
+        operation: TelemetryOperationType,
         success: Bool,
         duration: TimeInterval,
         entityCount: Int,
         error: Error? = nil,
         metadata: [String: String] = [:]
     ) {
-        let eventType: TelemetryEvent.EventType = success ? .restoreCompleted : .restoreFailed
+        let eventType: TelemetryEventType = success ? .restoreCompleted : .restoreFailed
         
         record(TelemetryEvent(
             timestamp: Date(),
@@ -465,7 +466,7 @@ public final class BackupTelemetryService {
         var model = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.model", &model, &size, nil, 0)
         return model.withUnsafeBufferPointer { buffer in
-            String(decoding: buffer.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
+            String(bytes: buffer.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, encoding: .utf8) ?? ""
         }
         #else
         return UIDevice.current.model

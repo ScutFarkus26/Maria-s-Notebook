@@ -141,7 +141,12 @@ struct StudentInsightsView: View {
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: AppSchema.schema, configurations: config)
+    let container: ModelContainer
+    do {
+        container = try ModelContainer(for: AppSchema.schema, configurations: config)
+    } catch {
+        fatalError("Preview ModelContainer failed: \(error)")
+    }
     let context = container.mainContext
 
     let student = Student(

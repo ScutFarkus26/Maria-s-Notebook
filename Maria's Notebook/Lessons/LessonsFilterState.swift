@@ -69,29 +69,28 @@ final class LessonsFilterState {
         self.needsAttentionFilter = needsAttentionRaw == "true"
     }
 
+    struct PersistedFilterState {
+        let subjectRaw: String
+        let groupRaw: String
+        let searchRaw: String
+        let expandedRaw: String
+        let sourceRaw: String
+        let personalKindRaw: String
+        let hasAttachmentRaw: String
+        let needsAttentionRaw: String
+    }
+
     /// Create the raw strings suitable for persistence
-    func makePersisted() -> (
-        subjectRaw: String,
-        groupRaw: String,
-        searchRaw: String,
-        expandedRaw: String,
-        sourceRaw: String,
-        personalKindRaw: String,
-        hasAttachmentRaw: String,
-        needsAttentionRaw: String
-    ) {
-        let subjectRaw = (selectedSubject?.trimmed() ?? "")
-        let groupRaw = (selectedGroup?.trimmed() ?? "")
-        let searchRaw = searchText
-        let expandedRaw = LessonsFilterPersistence.serializeExpandedSubjects(expandedSubjects)
-        let sourceRaw = sourceFilter?.rawValue ?? ""
-        let personalKindRaw = personalKindFilter?.rawValue ?? ""
-        let hasAttachmentRaw = hasAttachmentFilter ? "true" : ""
-        let needsAttentionRaw = needsAttentionFilter ? "true" : ""
-        return (
-            subjectRaw, groupRaw, searchRaw, expandedRaw,
-            sourceRaw, personalKindRaw,
-            hasAttachmentRaw, needsAttentionRaw
+    func makePersisted() -> PersistedFilterState {
+        PersistedFilterState(
+            subjectRaw: selectedSubject?.trimmed() ?? "",
+            groupRaw: selectedGroup?.trimmed() ?? "",
+            searchRaw: searchText,
+            expandedRaw: LessonsFilterPersistence.serializeExpandedSubjects(expandedSubjects),
+            sourceRaw: sourceFilter?.rawValue ?? "",
+            personalKindRaw: personalKindFilter?.rawValue ?? "",
+            hasAttachmentRaw: hasAttachmentFilter ? "true" : "",
+            needsAttentionRaw: needsAttentionFilter ? "true" : ""
         )
     }
 }

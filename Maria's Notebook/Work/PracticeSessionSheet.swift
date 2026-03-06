@@ -323,9 +323,14 @@ struct PracticeSessionSheet: View {
 
 #Preview("Group Practice Sheet") {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: AppSchema.schema, configurations: config)
+    let container: ModelContainer
+    do {
+        container = try ModelContainer(for: AppSchema.schema, configurations: config)
+    } catch {
+        fatalError("Preview ModelContainer failed: \(error)")
+    }
     let context = container.mainContext
-    
+
     // Create sample students
     let mary = Student(firstName: "Mary", lastName: "Smith", birthday: Date(), level: .lower)
     let danny = Student(firstName: "Danny", lastName: "Jones", birthday: Date(), level: .lower)

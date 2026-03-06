@@ -70,7 +70,15 @@ final class MeetingTemplate: Identifiable {
 
     // MARK: - Built-in Templates
 
-    static let defaultTemplate = (
+    struct BuiltInTemplate {
+        let name: String
+        let reflectionPrompt: String
+        let focusPrompt: String
+        let requestsPrompt: String
+        let guideNotesPrompt: String
+    }
+
+    static let defaultTemplate = BuiltInTemplate(
         name: "Default",
         reflectionPrompt: "What went well? What was hard?",
         focusPrompt: "1–3 priorities for this week…",
@@ -78,7 +86,7 @@ final class MeetingTemplate: Identifiable {
         guideNotesPrompt: "Observations only…"
     )
 
-    static let goalSettingTemplate = (
+    static let goalSettingTemplate = BuiltInTemplate(
         name: "Goal Setting",
         reflectionPrompt: "What goals did you work on? How did it go?",
         focusPrompt: "What new goals would you like to set?",
@@ -86,7 +94,7 @@ final class MeetingTemplate: Identifiable {
         guideNotesPrompt: "Notes on student's goal progress…"
     )
 
-    static let endOfWeekTemplate = (
+    static let endOfWeekTemplate = BuiltInTemplate(
         name: "End of Week",
         reflectionPrompt: "What was your biggest accomplishment this week?",
         focusPrompt: "What do you want to carry into next week?",
@@ -94,13 +102,7 @@ final class MeetingTemplate: Identifiable {
         guideNotesPrompt: "Weekly summary notes…"
     )
 
-    static let builtInTemplates: [(
-        name: String,
-        reflectionPrompt: String,
-        focusPrompt: String,
-        requestsPrompt: String,
-        guideNotesPrompt: String
-    )] = [
+    static let builtInTemplates: [BuiltInTemplate] = [
         defaultTemplate,
         goalSettingTemplate,
         endOfWeekTemplate

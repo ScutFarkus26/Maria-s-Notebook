@@ -396,7 +396,8 @@ private struct TrackFilteredListSheet: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        let (enrollment, track, filterType) = extractParams()
+        let params = extractParams()
+        let (enrollment, track, filterType) = (params.enrollment, params.track, params.filterType)
 
         // Fetch data on-demand
         let allLessonAssignments = modelContext.safeFetch(FetchDescriptor<LessonAssignment>(
@@ -425,14 +426,20 @@ private struct TrackFilteredListSheet: View {
         .studentDetailSheetSizing()
     }
 
-    private func extractParams() -> (StudentTrackEnrollment, Track, TrackFilterType) {
+    private struct SheetParams {
+        let enrollment: StudentTrackEnrollment
+        let track: Track
+        let filterType: TrackFilterType
+    }
+
+    private func extractParams() -> SheetParams {
         switch sheet {
         case .presentations(let enrollment, let track):
-            return (enrollment, track, .presentations)
+            return SheetParams(enrollment: enrollment, track: track, filterType: .presentations)
         case .work(let enrollment, let track):
-            return (enrollment, track, .work)
+            return SheetParams(enrollment: enrollment, track: track, filterType: .work)
         case .notes(let enrollment, let track):
-            return (enrollment, track, .notes)
+            return SheetParams(enrollment: enrollment, track: track, filterType: .notes)
         }
     }
 }

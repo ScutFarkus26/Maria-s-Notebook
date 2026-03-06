@@ -28,6 +28,15 @@ enum CloudKitConfigurationService {
     // MARK: - Structured Error Log Entry
 
     /// Represents a structured CloudKit error for logging and diagnostics
+    enum ErrorCategory: String, Codable {
+        case authentication
+        case network
+        case quota
+        case conflict
+        case schema
+        case unknown
+    }
+
     struct ErrorLogEntry: Codable {
         let timestamp: Date
         let errorMessage: String
@@ -35,15 +44,6 @@ enum CloudKitConfigurationService {
         let errorDomain: String?
         let category: ErrorCategory
         let retryCount: Int
-
-        enum ErrorCategory: String, Codable {
-            case authentication
-            case network
-            case quota
-            case conflict
-            case schema
-            case unknown
-        }
     }
 
     /// Maximum number of error log entries to keep
@@ -97,7 +97,7 @@ enum CloudKitConfigurationService {
     }
 
     /// Categorizes a CloudKit error for structured logging
-    private static func categorizeError(_ error: NSError) -> ErrorLogEntry.ErrorCategory {
+    private static func categorizeError(_ error: NSError) -> ErrorCategory {
         // CloudKit error codes (CKError)
         // https://developer.apple.com/documentation/cloudkit/ckerror
         switch error.code {
@@ -209,9 +209,9 @@ enum CloudKitConfigurationService {
     }
 
     /// Returns a summary of recent errors by category
-    static func getErrorSummary() -> [ErrorLogEntry.ErrorCategory: Int] {
+    static func getErrorSummary() -> [ErrorCategory: Int] {
         let logs = getErrorLogs()
-        var summary: [ErrorLogEntry.ErrorCategory: Int] = [:]
+        var summary: [ErrorCategory: Int] = [:]
         for log in logs {
             summary[log.category, default: 0] += 1
         }

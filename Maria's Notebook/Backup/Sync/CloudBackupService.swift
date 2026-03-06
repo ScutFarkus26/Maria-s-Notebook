@@ -14,14 +14,14 @@ public final class CloudBackupService {
     // MARK: - Types
 
     /// Modern event-based notification for cloud backup operations
+    public enum CloudBackupEventResult: Sendable {
+        case completed(URL)
+        case failed(Error)
+    }
+
     public struct CloudBackupEvent: Sendable {
         public let timestamp: Date
         public let result: CloudBackupEventResult
-
-        public enum CloudBackupEventResult: Sendable {
-            case completed(URL)
-            case failed(Error)
-        }
     }
 
     public struct CloudBackupInfo: Identifiable, Sendable {

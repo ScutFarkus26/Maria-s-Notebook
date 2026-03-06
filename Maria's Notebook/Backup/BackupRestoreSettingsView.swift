@@ -252,9 +252,8 @@ struct BackupRestoreSettingsView: View {
     // MARK: - Progress Bar
 
     private var progressBar: some View {
-        let (progress, _, color): (Double, String, Color) = backupProgress > 0
-            ? (backupProgress, backupMessage, .blue)
-            : (importProgress, importMessage, .green)
+        let progress: Double = backupProgress > 0 ? backupProgress : importProgress
+        let color: Color = backupProgress > 0 ? .blue : .green
 
         return HStack(spacing: AppTheme.Spacing.small + 2) {
             ProgressView(value: progress)

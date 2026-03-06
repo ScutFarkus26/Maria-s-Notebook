@@ -77,15 +77,15 @@ import Testing
         var label: String
     }
 
-    struct RestoreEnvelope: Codable {
-        var manifest: Manifest
-        var payload: TestPayload
+    struct RestoreManifest: Codable {
+        var version: Int
+        var date: Date
+        var checksum: String
+    }
 
-        struct Manifest: Codable {
-            var version: Int
-            var date: Date
-            var checksum: String
-        }
+    struct RestoreEnvelope: Codable {
+        var manifest: RestoreManifest
+        var payload: TestPayload
     }
 
     enum MergeMode {
@@ -196,17 +196,17 @@ import Testing
         )
     }
 
-    func makeManifest(payload: TestPayload) -> RestoreEnvelope.Manifest {
+    func makeManifest(payload: TestPayload) -> RestoreManifest {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         // Encoding should always succeed for valid payloads, but handle gracefully
         guard let data = try? encoder.encode(payload) else {
             // Return manifest with empty checksum if encoding fails (test will fail appropriately)
-            return RestoreEnvelope.Manifest(version: 1, date: Date(), checksum: "")
+            return RestoreManifest(version: 1, date: Date(), checksum: "")
         }
         let digest = SHA256.hash(data: data)
         let checksum = digest.compactMap { String(format: "%02x", $0) }.joined()
-        return RestoreEnvelope.Manifest(version: 1, date: Date(), checksum: checksum)
+        return RestoreManifest(version: 1, date: Date(), checksum: checksum)
     }
 
     func writeEnvelopeToDisk(envelope: RestoreEnvelope) throws -> URL {

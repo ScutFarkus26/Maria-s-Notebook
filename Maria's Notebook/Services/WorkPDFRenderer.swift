@@ -44,7 +44,9 @@ enum WorkPDFRenderer {
         let lightGrayColor = NSColor(white: 0.6, alpha: 1.0)
 
         // Group and sort
-        let (_, groups, groupOrder) = groupItems(items, by: sortMode)
+        let grouped = groupItems(items, by: sortMode)
+        let groups = grouped.groups
+        let groupOrder = grouped.groupOrder
 
         // Create PDF
         let pdfData = NSMutableData()
@@ -163,10 +165,16 @@ enum WorkPDFRenderer {
 
     // MARK: - Helpers
 
+    private struct GroupedItems {
+        let sorted: [PrintItem]
+        let groups: [String: [PrintItem]]
+        let groupOrder: [String]
+    }
+
     private static func groupItems(
         _ items: [PrintItem],
         by sortMode: WorkAgendaSortMode
-    ) -> ([PrintItem], [String: [PrintItem]], [String]) {
+    ) -> GroupedItems {
         let sorted = items.sorted { lhs, rhs in
             switch sortMode {
             case .lesson: return lhs.lessonTitle.localizedCaseInsensitiveCompare(rhs.lessonTitle) == .orderedAscending
@@ -190,7 +198,7 @@ enum WorkPDFRenderer {
             groups[key]?.append(item)
         }
 
-        return (sorted, groups, groupOrder)
+        return GroupedItems(sorted: sorted, groups: groups, groupOrder: groupOrder)
     }
 
     private static func groupKey(for item: PrintItem, sortMode: WorkAgendaSortMode) -> String {

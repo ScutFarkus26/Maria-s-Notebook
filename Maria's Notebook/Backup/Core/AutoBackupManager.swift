@@ -38,15 +38,15 @@ final class AutoBackupManager {
     // MARK: - Types
     
     /// Modern event-based notification system replacing NotificationCenter
+    enum BackupEventResult: Sendable {
+        case success(URL)
+        case failure(Error)
+    }
+
     struct BackupEvent: Sendable {
         let trigger: BackupTrigger
         let result: BackupEventResult
         let timestamp: Date
-        
-        enum BackupEventResult: Sendable {
-            case success(URL)
-            case failure(Error)
-        }
     }
 
     enum BackupResult {

@@ -39,10 +39,10 @@ enum LessonCSVImporter {
             switch self {
             case .empty:
                 return "The file appears to be empty."
-            case .missingHeader(let h):
-                return "Missing required column: \(h)"
-            case .malformedRow(let n):
-                return "Malformed row at line \(n)."
+            case .missingHeader(let header):
+                return "Missing required column: \(header)"
+            case .malformedRow(let line):
+                return "Malformed row at line \(line)."
             case .encoding(let msg):
                 return msg
             }
@@ -51,10 +51,17 @@ enum LessonCSVImporter {
 
     // MARK: - Public API
     /// Convenience one-shot import: parse then commit.
-    static func importLessons(from data: Data, existingLessons: [Lesson], into context: ModelContext) throws -> Summary {
+    static func importLessons(
+        from data: Data, existingLessons: [Lesson], into context: ModelContext
+    ) throws -> Summary {
         let parsed = try parse(data: data, existingLessons: existingLessons)
         let inserted = try commit(parsed: parsed, into: context)
-        return Summary(totalRows: parsed.totalRows, insertedCount: inserted, potentialDuplicates: parsed.potentialDuplicates, warnings: parsed.warnings)
+        return Summary(
+            totalRows: parsed.totalRows,
+            insertedCount: inserted,
+            potentialDuplicates: parsed.potentialDuplicates,
+            warnings: parsed.warnings
+        )
     }
 
     /// Parse CSV into rows and detect potential duplicates against existing lessons.
@@ -81,16 +88,18 @@ enum LessonCSVImporter {
         let headerMap = try mapHeaders(header, synonyms: synonyms)
 
         // Build existing keys for duplicate detection
-        func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-        let existingKeys: Set<String> = Set(existingLessons.map { l in
-            [norm(l.name), norm(l.subject), norm(l.group)].joined(separator: "|")
+        func norm(_ str: String) -> String {
+            str.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        let existingKeys: Set<String> = Set(existingLessons.map { lesson in
+            [norm(lesson.name), norm(lesson.subject), norm(lesson.group)].joined(separator: "|")
         })
 
         var rows: [Row] = []
         var potentialDupTitles: [String] = []
         var warnings: [String] = []
 
-        for (i, record) in records.dropFirst().enumerated() {
+        for (recordIndex, record) in records.dropFirst().enumerated() {
             // Tolerate blank lines
             if record.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { continue }
 
@@ -105,7 +114,7 @@ enum LessonCSVImporter {
             let writeUp = value("writeup").trimmingCharacters(in: .whitespacesAndNewlines)
 
             if name.isEmpty || subject.isEmpty {
-                warnings.append("Row \(i + 2): Missing required Name or Subject; row skipped.")
+                warnings.append("Row \(recordIndex + 2): Missing required Name or Subject; row skipped.")
                 continue
             }
 
@@ -124,8 +133,11 @@ enum LessonCSVImporter {
 
     /// Commit parsed rows by inserting new Lesson objects; always inserts (does not skip duplicates).
     static func commit(parsed: Parsed, into context: ModelContext) throws -> Int {
-        for r in parsed.rows {
-            let lesson = Lesson(name: r.name, subject: r.subject, group: r.group, subheading: r.subheading, writeUp: r.writeUp)
+        for row in parsed.rows {
+            let lesson = Lesson(
+                name: row.name, subject: row.subject, group: row.group,
+                subheading: row.subheading, writeUp: row.writeUp
+            )
             context.insert(lesson)
         }
         try context.save()
@@ -139,7 +151,7 @@ enum LessonCSVImporter {
         var row: [String] = []
         var field = ""
         var inQuotes = false
-        var i = text.startIndex
+        var cursor = text.startIndex
 
         func endField() {
             row.append(field)
@@ -150,33 +162,33 @@ enum LessonCSVImporter {
             row = []
         }
 
-        while i < text.endIndex {
-            let c = text[i]
-            if c == "\"" {
+        while cursor < text.endIndex {
+            let char = text[cursor]
+            if char == "\"" {
                 if inQuotes {
-                    let next = text.index(after: i)
+                    let next = text.index(after: cursor)
                     if next < text.endIndex, text[next] == "\"" {
                         field.append("\"")
-                        i = next
+                        cursor = next
                     } else {
                         inQuotes = false
                     }
                 } else {
                     inQuotes = true
                 }
-            } else if c == "," && !inQuotes {
+            } else if char == "," && !inQuotes {
                 endField()
-            } else if (c == "\n" || c == "\r") && !inQuotes {
+            } else if (char == "\n" || char == "\r") && !inQuotes {
                 endField()
                 endRow()
-                if c == "\r" {
-                    let next = text.index(after: i)
-                    if next < text.endIndex, text[next] == "\n" { i = next }
+                if char == "\r" {
+                    let next = text.index(after: cursor)
+                    if next < text.endIndex, text[next] == "\n" { cursor = next }
                 }
             } else {
-                field.append(c)
+                field.append(char)
             }
-            i = text.index(after: i)
+            cursor = text.index(after: cursor)
         }
 
         // Flush last field/row if any content
@@ -189,10 +201,14 @@ enum LessonCSVImporter {
     /// Map header names to canonical keys using synonyms; requires name and subject.
     private static func mapHeaders(_ header: [String], synonyms: [String: [String]]) throws -> [String: Int] {
         var lowerMap: [String: Int] = [:]
-        for (i, h) in header.enumerated() { lowerMap[h.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] = i }
+        for (col, headerName) in header.enumerated() {
+            lowerMap[headerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] = col
+        }
 
         func findIndex(for keys: [String]) -> Int? {
-            for k in keys { if let idx = lowerMap[k.lowercased()] { return idx } }
+            for key in keys {
+                if let idx = lowerMap[key.lowercased()] { return idx }
+            }
             return nil
         }
 

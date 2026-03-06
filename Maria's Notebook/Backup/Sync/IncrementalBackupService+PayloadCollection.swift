@@ -3,13 +3,20 @@ import SwiftData
 
 // MARK: - Payload Collection
 
+    struct PayloadCollectionResult {
+        let payload: BackupPayload
+        let changedCounts: [String: Int]
+        let totalCounts: [String: Int]
+    }
+}
+
 extension IncrementalBackupService {
 
     func collectPayload(
         modelContext: ModelContext,
         sinceDate: Date?,
         progress: @escaping BackupService.ProgressCallback
-    ) throws -> (BackupPayload, [String: Int], [String: Int]) {
+    ) throws -> PayloadCollectionResult {
 
         var changedCounts: [String: Int] = [:]
         var totalCounts: [String: Int] = [:]
@@ -166,6 +173,6 @@ extension IncrementalBackupService {
             preferences: preferences
         )
 
-        return (payload, changedCounts, totalCounts)
+        return PayloadCollectionResult(payload: payload, changedCounts: changedCounts, totalCounts: totalCounts)
     }
 }
