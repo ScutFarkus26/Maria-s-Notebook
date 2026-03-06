@@ -28,19 +28,19 @@ public final class CloudSyncConflictResolver {
         }
     }
     
+    public enum ConflictType {
+        case simultaneousModification  // Both devices modified at same time
+        case divergentHistory         // Backups have different lineage
+        case duplicateEntity          // Same entity modified differently
+        case deletionConflict         // Entity deleted in one, modified in other
+    }
+
     public struct Conflict: Identifiable {
         public let id = UUID()
         public let localBackup: BackupInfo
         public let remoteBackup: BackupInfo
         public let conflictType: ConflictType
         public let description: String
-        
-        public enum ConflictType {
-            case simultaneousModification  // Both devices modified at same time
-            case divergentHistory         // Backups have different lineage
-            case duplicateEntity          // Same entity modified differently
-            case deletionConflict         // Entity deleted in one, modified in other
-        }
     }
     
     public struct BackupInfo: Codable {

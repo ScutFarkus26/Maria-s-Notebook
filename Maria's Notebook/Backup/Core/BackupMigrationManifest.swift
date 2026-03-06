@@ -207,12 +207,13 @@ extension BackupMigrationManifest {
             )
         ]
 
-        public struct EntityChange: Identifiable, Sendable {
-            public let id = UUID()
-            public let version: Int
-            public let entity: String
-            public let change: String
-        }
+    }
+
+    public struct EntityChange: Identifiable, Sendable {
+        public let id = UUID()
+        public let version: Int
+        public let entity: String
+        public let change: String
     }
 }
 
