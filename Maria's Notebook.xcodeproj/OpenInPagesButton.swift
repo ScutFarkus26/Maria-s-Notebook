@@ -68,7 +68,7 @@ public struct WhimsicalButton: View {
     private var sparklesOverlay: some View {
         GeometryReader { geo in
             ZStack {
-                ForEach(0..<14, id: \.self) { i in
+                ForEach(0..<14, id: \.self) { _ in
                     Circle()
                         .fill([Color.white, .yellow, .mint, .cyan].randomElement()!.opacity(0.55))
                         .frame(width: CGFloat(Int.random(in: 3...6)), height: CGFloat(Int.random(in: 3...6)))

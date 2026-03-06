@@ -66,8 +66,8 @@ extension SettingsView {
                     store.set(WorkAgeDefaults.warningColorHex, forKey: "WorkAge.warningColorHex")
                     store.set(WorkAgeDefaults.overdueColorHex, forKey: "WorkAge.overdueColorHex")
                     SettingsCategory.markModified(.general)
-                }
-            ) {
+                },
+                content: {
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Lesson Age Indicators")
