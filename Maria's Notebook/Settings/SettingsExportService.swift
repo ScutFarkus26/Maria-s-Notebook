@@ -19,6 +19,63 @@ enum SettingsExportService {
         }
     }
 
+    // MARK: - Setting Descriptors
+
+    private enum Store { case synced, userDefaults }
+    private enum ValueType { case int, string, double, bool }
+
+    private struct Descriptor {
+        let jsonKey: String
+        let storeKey: String
+        let store: Store
+        let type: ValueType
+    }
+
+    // Each setting is declared once — used for both export and import.
+    private static let descriptors: [Descriptor] = [
+        // General — Age Indicators (Lesson)
+        .init(jsonKey: "lessonAgeWarningDays", storeKey: "LessonAge.warningDays", store: .synced, type: .int),
+        .init(jsonKey: "lessonAgeOverdueDays", storeKey: "LessonAge.overdueDays", store: .synced, type: .int),
+        .init(jsonKey: "lessonAgeFreshColorHex", storeKey: "LessonAge.freshColorHex", store: .synced, type: .string),
+        .init(jsonKey: "lessonAgeWarningColorHex", storeKey: "LessonAge.warningColorHex",
+              store: .synced, type: .string),
+        .init(jsonKey: "lessonAgeOverdueColorHex", storeKey: "LessonAge.overdueColorHex",
+              store: .synced, type: .string),
+        // General — Age Indicators (Work)
+        .init(jsonKey: "workAgeWarningDays", storeKey: "WorkAge.warningDays", store: .synced, type: .int),
+        .init(jsonKey: "workAgeOverdueDays", storeKey: "WorkAge.overdueDays", store: .synced, type: .int),
+        .init(jsonKey: "workAgeFreshColorHex", storeKey: "WorkAge.freshColorHex", store: .synced, type: .string),
+        .init(jsonKey: "workAgeWarningColorHex", storeKey: "WorkAge.warningColorHex", store: .synced, type: .string),
+        .init(jsonKey: "workAgeOverdueColorHex", storeKey: "WorkAge.overdueColorHex", store: .synced, type: .string),
+        // AI Models (no API keys!)
+        .init(jsonKey: "aiModelChat", storeKey: UserDefaultsKeys.aiModelChat, store: .userDefaults, type: .string),
+        .init(jsonKey: "aiModelLessonPlanning", storeKey: UserDefaultsKeys.aiModelLessonPlanning,
+              store: .userDefaults, type: .string),
+        .init(jsonKey: "aiModelBackgroundTasks", storeKey: UserDefaultsKeys.aiModelBackgroundTasks,
+              store: .userDefaults, type: .string),
+        .init(jsonKey: "ollamaBaseURL", storeKey: UserDefaultsKeys.ollamaBaseURL,
+              store: .userDefaults, type: .string),
+        .init(jsonKey: "ollamaModelName", storeKey: UserDefaultsKeys.ollamaModelName,
+              store: .userDefaults, type: .string),
+        // Lesson Planning
+        .init(jsonKey: "lessonPlanningTimeout", storeKey: UserDefaultsKeys.lessonPlanningTimeout,
+              store: .userDefaults, type: .int),
+        .init(jsonKey: "lessonPlanningDefaultDepth", storeKey: UserDefaultsKeys.lessonPlanningDefaultDepth,
+              store: .userDefaults, type: .string),
+        .init(jsonKey: "lessonPlanningTemperature", storeKey: UserDefaultsKeys.lessonPlanningTemperature,
+              store: .userDefaults, type: .double),
+        // Backup
+        .init(jsonKey: "autoBackupEnabled", storeKey: UserDefaultsKeys.autoBackupEnabled,
+              store: .userDefaults, type: .bool),
+        .init(jsonKey: "autoBackupRetentionCount", storeKey: UserDefaultsKeys.autoBackupRetentionCount,
+              store: .userDefaults, type: .int),
+        .init(jsonKey: "backupEncrypt", storeKey: "Backup.encrypt", store: .synced, type: .bool),
+        // Communication
+        .init(jsonKey: "attendanceEmailEnabled", storeKey: "AttendanceEmail.enabled", store: .synced, type: .bool),
+        .init(jsonKey: "attendanceEmailTo", storeKey: "AttendanceEmail.to", store: .synced, type: .string),
+        .init(jsonKey: "attendanceEmailFrom", storeKey: "AttendanceEmail.from", store: .synced, type: .string)
+    ]
+
     // MARK: - Export
 
     static func exportSettings() -> Data? {
@@ -29,52 +86,12 @@ enum SettingsExportService {
         settings["exportDate"] = ISO8601DateFormatter().string(from: Date())
         settings["appVersion"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
 
-        // General — Age Indicators
         let syncStore = SyncedPreferencesStore.shared
-        settings["lessonAgeWarningDays"] = syncStore.integer(forKey: "LessonAge.warningDays")
-        settings["lessonAgeOverdueDays"] = syncStore.integer(forKey: "LessonAge.overdueDays")
-        settings["lessonAgeFreshColorHex"] = syncStore.string(forKey: "LessonAge.freshColorHex")
-        settings["lessonAgeWarningColorHex"] = syncStore.string(forKey: "LessonAge.warningColorHex")
-        settings["lessonAgeOverdueColorHex"] = syncStore.string(forKey: "LessonAge.overdueColorHex")
-        settings["workAgeWarningDays"] = syncStore.integer(forKey: "WorkAge.warningDays")
-        settings["workAgeOverdueDays"] = syncStore.integer(forKey: "WorkAge.overdueDays")
-        settings["workAgeFreshColorHex"] = syncStore.string(forKey: "WorkAge.freshColorHex")
-        settings["workAgeWarningColorHex"] = syncStore.string(forKey: "WorkAge.warningColorHex")
-        settings["workAgeOverdueColorHex"] = syncStore.string(forKey: "WorkAge.overdueColorHex")
+        let ud = UserDefaults.standard
 
-        // AI Models (no API keys!)
-        settings["aiModelChat"] = UserDefaults.standard.string(forKey: UserDefaultsKeys.aiModelChat)
-        settings["aiModelLessonPlanning"] = UserDefaults.standard.string(
-            forKey: UserDefaultsKeys.aiModelLessonPlanning
-        )
-        settings["aiModelBackgroundTasks"] = UserDefaults.standard.string(
-            forKey: UserDefaultsKeys.aiModelBackgroundTasks
-        )
-        settings["ollamaBaseURL"] = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaBaseURL)
-        settings["ollamaModelName"] = UserDefaults.standard.string(forKey: UserDefaultsKeys.ollamaModelName)
-
-        // Lesson Planning
-        settings["lessonPlanningTimeout"] = UserDefaults.standard.integer(
-            forKey: UserDefaultsKeys.lessonPlanningTimeout
-        )
-        settings["lessonPlanningDefaultDepth"] = UserDefaults.standard.string(
-            forKey: UserDefaultsKeys.lessonPlanningDefaultDepth
-        )
-        settings["lessonPlanningTemperature"] = UserDefaults.standard.double(
-            forKey: UserDefaultsKeys.lessonPlanningTemperature
-        )
-
-        // Backup
-        settings["autoBackupEnabled"] = UserDefaults.standard.bool(forKey: UserDefaultsKeys.autoBackupEnabled)
-        settings["autoBackupRetentionCount"] = UserDefaults.standard.integer(
-            forKey: UserDefaultsKeys.autoBackupRetentionCount
-        )
-        settings["backupEncrypt"] = syncStore.bool(forKey: "Backup.encrypt")
-
-        // Communication
-        settings["attendanceEmailEnabled"] = syncStore.bool(forKey: "AttendanceEmail.enabled")
-        settings["attendanceEmailTo"] = syncStore.string(forKey: "AttendanceEmail.to")
-        settings["attendanceEmailFrom"] = syncStore.string(forKey: "AttendanceEmail.from")
+        for desc in descriptors {
+            settings[desc.jsonKey] = readValue(desc, syncStore: syncStore, userDefaults: ud)
+        }
 
         return try? JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
     }
@@ -93,68 +110,41 @@ enum SettingsExportService {
         let syncStore = SyncedPreferencesStore.shared
         let ud = UserDefaults.standard
 
-        // General — Age Indicators
-        if let v = settings["lessonAgeWarningDays"] as? Int { syncStore.set(v, forKey: "LessonAge.warningDays") }
-        if let v = settings["lessonAgeOverdueDays"] as? Int { syncStore.set(v, forKey: "LessonAge.overdueDays") }
-        if let v = settings["lessonAgeFreshColorHex"] as? String {
-            syncStore.set(v, forKey: "LessonAge.freshColorHex")
+        for desc in descriptors {
+            guard let value = settings[desc.jsonKey] else { continue }
+            writeValue(desc, value: value, syncStore: syncStore, userDefaults: ud)
         }
-        if let v = settings["lessonAgeWarningColorHex"] as? String {
-            syncStore.set(v, forKey: "LessonAge.warningColorHex")
-        }
-        if let v = settings["lessonAgeOverdueColorHex"] as? String {
-            syncStore.set(v, forKey: "LessonAge.overdueColorHex")
-        }
-        if let v = settings["workAgeWarningDays"] as? Int { syncStore.set(v, forKey: "WorkAge.warningDays") }
-        if let v = settings["workAgeOverdueDays"] as? Int { syncStore.set(v, forKey: "WorkAge.overdueDays") }
-        if let v = settings["workAgeFreshColorHex"] as? String {
-            syncStore.set(v, forKey: "WorkAge.freshColorHex")
-        }
-        if let v = settings["workAgeWarningColorHex"] as? String {
-            syncStore.set(v, forKey: "WorkAge.warningColorHex")
-        }
-        if let v = settings["workAgeOverdueColorHex"] as? String {
-            syncStore.set(v, forKey: "WorkAge.overdueColorHex")
-        }
+    }
 
-        // AI Models
-        if let v = settings["aiModelChat"] as? String { ud.set(v, forKey: UserDefaultsKeys.aiModelChat) }
-        if let v = settings["aiModelLessonPlanning"] as? String {
-            ud.set(v, forKey: UserDefaultsKeys.aiModelLessonPlanning)
-        }
-        if let v = settings["aiModelBackgroundTasks"] as? String {
-            ud.set(v, forKey: UserDefaultsKeys.aiModelBackgroundTasks)
-        }
-        if let v = settings["ollamaBaseURL"] as? String { ud.set(v, forKey: UserDefaultsKeys.ollamaBaseURL) }
-        if let v = settings["ollamaModelName"] as? String { ud.set(v, forKey: UserDefaultsKeys.ollamaModelName) }
+    // MARK: - Read/Write Helpers
 
-        // Lesson Planning
-        if let v = settings["lessonPlanningTimeout"] as? Int {
-            ud.set(v, forKey: UserDefaultsKeys.lessonPlanningTimeout)
+    private static func readValue(
+        _ desc: Descriptor, syncStore: SyncedPreferencesStore, userDefaults ud: UserDefaults
+    ) -> Any {
+        switch (desc.store, desc.type) {
+        case (.synced, .int):         return syncStore.integer(forKey: desc.storeKey)
+        case (.synced, .string):      return syncStore.string(forKey: desc.storeKey) as Any
+        case (.synced, .double):      return syncStore.double(forKey: desc.storeKey)
+        case (.synced, .bool):        return syncStore.bool(forKey: desc.storeKey)
+        case (.userDefaults, .int):    return ud.integer(forKey: desc.storeKey)
+        case (.userDefaults, .string): return ud.string(forKey: desc.storeKey) as Any
+        case (.userDefaults, .double): return ud.double(forKey: desc.storeKey)
+        case (.userDefaults, .bool):   return ud.bool(forKey: desc.storeKey)
         }
-        if let v = settings["lessonPlanningDefaultDepth"] as? String {
-            ud.set(v, forKey: UserDefaultsKeys.lessonPlanningDefaultDepth)
-        }
-        if let v = settings["lessonPlanningTemperature"] as? Double {
-            ud.set(v, forKey: UserDefaultsKeys.lessonPlanningTemperature)
-        }
+    }
 
-        // Backup
-        if let v = settings["autoBackupEnabled"] as? Bool { ud.set(v, forKey: UserDefaultsKeys.autoBackupEnabled) }
-        if let v = settings["autoBackupRetentionCount"] as? Int {
-            ud.set(v, forKey: UserDefaultsKeys.autoBackupRetentionCount)
-        }
-        if let v = settings["backupEncrypt"] as? Bool { syncStore.set(v, forKey: "Backup.encrypt") }
-
-        // Communication
-        if let v = settings["attendanceEmailEnabled"] as? Bool {
-            syncStore.set(v, forKey: "AttendanceEmail.enabled")
-        }
-        if let v = settings["attendanceEmailTo"] as? String {
-            syncStore.set(v, forKey: "AttendanceEmail.to")
-        }
-        if let v = settings["attendanceEmailFrom"] as? String {
-            syncStore.set(v, forKey: "AttendanceEmail.from")
+    private static func writeValue(
+        _ desc: Descriptor, value: Any, syncStore: SyncedPreferencesStore, userDefaults ud: UserDefaults
+    ) {
+        switch (desc.store, desc.type) {
+        case (.synced, .int):         if let v = value as? Int { syncStore.set(v, forKey: desc.storeKey) }
+        case (.synced, .string):      if let v = value as? String { syncStore.set(v, forKey: desc.storeKey) }
+        case (.synced, .double):      if let v = value as? Double { syncStore.set(v, forKey: desc.storeKey) }
+        case (.synced, .bool):        if let v = value as? Bool { syncStore.set(v, forKey: desc.storeKey) }
+        case (.userDefaults, .int):    if let v = value as? Int { ud.set(v, forKey: desc.storeKey) }
+        case (.userDefaults, .string): if let v = value as? String { ud.set(v, forKey: desc.storeKey) }
+        case (.userDefaults, .double): if let v = value as? Double { ud.set(v, forKey: desc.storeKey) }
+        case (.userDefaults, .bool):   if let v = value as? Bool { ud.set(v, forKey: desc.storeKey) }
         }
     }
 }

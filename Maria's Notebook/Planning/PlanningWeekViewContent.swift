@@ -9,10 +9,10 @@ struct PlanningWeekViewContent: View {
     private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
-    @Environment(\.modelContext) private var modelContext
-    @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.modelContext) var modelContext
+    @Environment(SaveCoordinator.self) var saveCoordinator
 
-    private var presentationRepository: PresentationRepository {
+    var presentationRepository: PresentationRepository {
         PresentationRepository(context: modelContext, saveCoordinator: saveCoordinator)
     }
 
@@ -35,114 +35,6 @@ struct PlanningWeekViewContent: View {
     // OPTIMIZATION: Load lesson assignments for the entire week at once using database-level predicate
     // This avoids 7 separate per-day queries and significantly reduces memory usage
     @State private var weekLessonAssignments: [LessonAssignment] = []
-    
-    enum ActiveSheet: Identifiable {
-        case presentationDetail(UUID)
-        case quickActions(UUID)
-        case giveLessonDraft(UUID)
-        case addLesson
-        case inbox
-        case aiPlanning
-
-        var id: String {
-            switch self {
-            case .presentationDetail(let id): return "detail_\(id.uuidString)"
-            case .quickActions(let id): return "quick_\(id.uuidString)"
-            case .giveLessonDraft(let id): return "giveLessonDraft_\(id.uuidString)"
-            case .addLesson: return "addLesson"
-            case .inbox: return "inbox"
-            case .aiPlanning: return "aiPlanning"
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private func sheetContent(for sheet: ActiveSheet) -> some View {
-        switch sheet {
-        case .presentationDetail(let id):
-            if let la = fetchLessonAssignment(by: id) {
-                PresentationDetailView(lessonAssignment: la) { activeSheet = nil }
-            } else {
-                ProgressView("Loading…")
-                    .frame(minWidth: 320, minHeight: 240)
-                    .task {
-                        do { try await Task.sleep(for: .milliseconds(100)) } catch {}
-                        if case .presentationDetail(let currentId) = activeSheet, currentId == id {
-                            activeSheet = nil
-                        }
-                    }
-            }
-        case .quickActions(let id):
-            if let la = fetchLessonAssignment(by: id) {
-                PresentationQuickActionsView(lessonAssignment: la) { activeSheet = nil }
-            } else {
-                ProgressView("Loading…")
-                    .frame(minWidth: 320, minHeight: 240)
-                    .task {
-                        do { try await Task.sleep(for: .milliseconds(100)) } catch {}
-                        if case .quickActions(let currentId) = activeSheet, currentId == id {
-                            activeSheet = nil
-                        }
-                    }
-            }
-        case .giveLessonDraft(let id):
-            if let la = fetchLessonAssignment(by: id) {
-                PresentationDetailView(lessonAssignment: la) { activeSheet = nil }
-                    .largeSheetSizing()
-                    .onDisappear {
-                        if let current = fetchLessonAssignment(by: id) {
-                            if current.lesson == nil && current.studentIDs.isEmpty {
-                                modelContext.delete(current)
-                                presentationRepository.save(reason: "Deleting empty draft")
-                                onRefreshNeeded?()
-                            }
-                        }
-                    }
-            } else {
-                ProgressView("Preparing…")
-                    .frame(minWidth: 320, minHeight: 240)
-                    .task {
-                        do { try await Task.sleep(for: .milliseconds(100)) } catch {}
-                        if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
-                            activeSheet = nil
-                        }
-                    }
-            }
-        case .addLesson:
-            AddLessonView(defaultSubject: nil, defaultGroup: nil)
-                .largeSheetSizing()
-                .onDisappear {
-                    onRefreshNeeded?()
-                }
-        case .inbox:
-            InboxViewContent(
-                lessonAssignments: inboxLessons,
-                orderedUnscheduledLessons: orderedUnscheduledLessons,
-                inboxOrderRaw: $inboxOrderRaw,
-                onOpenDetails: { id in activeSheet = .presentationDetail(id) },
-                onQuickActions: { id in activeSheet = .quickActions(id) },
-                onPlanNext: { la in planNextLesson(for: la) },
-                onUpdateOrder: { newOrderRaw in
-                    inboxOrderRaw = newOrderRaw
-                    saveCoordinator.save(modelContext, reason: "Updating inbox order")
-                    onRefreshNeeded?()
-                }
-            )
-            .largeSheetSizing()
-        case .aiPlanning:
-            AIPlanningAssistantView(mode: .wholeClass)
-        }
-    }
-    
-    // Helper to fetch a specific lesson assignment by ID on-demand
-    private func fetchLessonAssignment(by id: UUID) -> LessonAssignment? {
-        // First check inboxLessons (common case)
-        if let found = inboxLessons.first(where: { $0.id == id }) {
-            return found
-        }
-        // If not in inbox, fetch from database via repository
-        return presentationRepository.fetchLessonAssignment(id: id)
-    }
     
     private var days: [Date] {
         var result: [Date] = []
@@ -185,7 +77,7 @@ struct PlanningWeekViewContent: View {
         }
     }
     
-    @MainActor private func planNextLesson(for la: LessonAssignment) {
+    @MainActor func planNextLesson(for la: LessonAssignment) {
         // Fetch existing LessonAssignments for duplicate checking
         let existingLessonAssignments = presentationRepository.fetchActiveAssignments()
 
@@ -203,7 +95,7 @@ struct PlanningWeekViewContent: View {
         }
     }
     
-    private var orderedUnscheduledLessons: [LessonAssignment] {
+    var orderedUnscheduledLessons: [LessonAssignment] {
         InboxOrderStore.orderedUnscheduled(from: inboxLessons, orderRaw: inboxOrderRaw)
     }
     
