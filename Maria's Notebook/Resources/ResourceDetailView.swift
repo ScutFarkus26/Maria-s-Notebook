@@ -325,54 +325,65 @@ struct ResourceDetailView: View {
                     }
                 }
 
-                Section("Tags") {
-                    TagPicker(selectedTags: $editTags)
+                Section("Notes") {
+                    TextField("Description or usage notes", text: $editDescription, axis: .vertical)
+                        .lineLimit(3...6)
                 }
 
-                Section("Link to Subjects") {
-                    if availableSubjects.isEmpty {
-                        Text("No subjects available")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(availableSubjects, id: \.self) { subject in
-                            Button {
-                                if editSubjects.contains(subject) {
-                                    editSubjects.remove(subject)
-                                } else {
-                                    editSubjects.insert(subject)
-                                }
-                            } label: {
-                                HStack {
-                                    Text(subject)
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    if editSubjects.contains(subject) {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Color.accentColor)
-                                    }
-                                }
+                Section("Organization") {
+                    NavigationLink {
+                        ResourceTagPicker(selectedTags: $editTags)
+                    } label: {
+                        HStack {
+                            Label("Tags", systemImage: "tag")
+                            Spacer()
+                            if editTags.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(editTags.count) tag\(editTags.count == 1 ? "" : "s")")
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
-                }
 
-                Section("Link to Lessons") {
-                    if allLessons.isEmpty {
-                        Text("No lessons available")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
+                    NavigationLink {
+                        ResourceSubjectPicker(
+                            availableSubjects: availableSubjects,
+                            selectedSubjects: $editSubjects
+                        )
+                    } label: {
+                        HStack {
+                            Label("Subjects", systemImage: "graduationcap")
+                            Spacer()
+                            if editSubjects.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(editSubjects.count)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    NavigationLink {
                         ResourceLessonPicker(
                             allLessons: allLessons,
                             selectedLessonIDs: $editLessonIDs
                         )
+                    } label: {
+                        HStack {
+                            Label("Lessons", systemImage: "book")
+                            Spacer()
+                            if editLessonIDs.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(editLessonIDs.count) linked")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
-                }
-
-                Section("Notes") {
-                    TextField("Description or usage notes", text: $editDescription, axis: .vertical)
-                        .lineLimit(3...6)
                 }
             }
             .navigationTitle("Edit Resource")
