@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Compact lesson picker for linking resources to lessons.
-/// Groups lessons by subject and allows multi-select with search.
+/// Multi-select lesson picker grouped by subject.
+/// Shown as a NavigationLink destination inside import/edit sheets.
 struct ResourceLessonPicker: View {
     let allLessons: [Lesson]
     @Binding var selectedLessonIDs: Set<UUID>
@@ -34,78 +34,91 @@ struct ResourceLessonPicker: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Selected count
+        List {
             if !selectedLessonIDs.isEmpty {
-                HStack {
-                    Text("\(selectedLessonIDs.count) lesson\(selectedLessonIDs.count == 1 ? "" : "s") linked")
+                Section {
+                    HStack {
+                        Text("\(selectedLessonIDs.count) lesson\(selectedLessonIDs.count == 1 ? "" : "s") linked")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Clear All") {
+                            selectedLessonIDs.removeAll()
+                        }
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Clear All") {
-                        selectedLessonIDs.removeAll()
                     }
-                    .font(.caption)
                 }
             }
 
-            // Search
-            TextField("Search lessons...", text: $searchText)
-                .font(.subheadline)
-
-            // Grouped lessons
             ForEach(groupedLessons, id: \.subject) { group in
-                DisclosureGroup(
-                    isExpanded: Binding(
-                        get: { expandedSubjects.contains(group.subject) || !searchText.isEmpty },
-                        set: { newValue in
-                            if newValue {
-                                expandedSubjects.insert(group.subject)
-                            } else {
-                                expandedSubjects.remove(group.subject)
+                Section {
+                    DisclosureGroup(
+                        isExpanded: Binding(
+                            get: { expandedSubjects.contains(group.subject) || !searchText.isEmpty },
+                            set: { newValue in
+                                if newValue {
+                                    expandedSubjects.insert(group.subject)
+                                } else {
+                                    expandedSubjects.remove(group.subject)
+                                }
                             }
-                        }
-                    )
-                ) {
-                    ForEach(group.lessons) { lesson in
-                        Button {
-                            if selectedLessonIDs.contains(lesson.id) {
-                                selectedLessonIDs.remove(lesson.id)
-                            } else {
-                                selectedLessonIDs.insert(lesson.id)
-                            }
-                        } label: {
-                            HStack {
-                                Text(lesson.name)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                Spacer()
-                                if selectedLessonIDs.contains(lesson.id) {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(Color.accentColor)
-                                        .font(.caption)
+                        )
+                    ) {
+                        ForEach(group.lessons) { lesson in
+                            Button {
+                                toggleLesson(lesson.id)
+                            } label: {
+                                HStack {
+                                    Text(lesson.name)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    if selectedLessonIDs.contains(lesson.id) {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(Color.accentColor)
+                                            .font(.caption)
+                                    }
                                 }
                             }
                         }
-                    }
-                } label: {
-                    HStack {
-                        Text(group.subject)
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Text("\(group.lessons.count)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    } label: {
+                        HStack {
+                            Text(group.subject.isEmpty ? "Ungrouped" : group.subject)
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                            Text("\(group.lessons.count)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
 
-            if groupedLessons.isEmpty && !searchText.isEmpty {
-                Text("No matching lessons")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if groupedLessons.isEmpty {
+                if searchText.isEmpty {
+                    Text("No lessons available")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("No matching lessons")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
+        }
+        .searchable(text: $searchText, prompt: "Search lessons")
+        .navigationTitle("Link to Lessons")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+
+    private func toggleLesson(_ id: UUID) {
+        if selectedLessonIDs.contains(id) {
+            selectedLessonIDs.remove(id)
+        } else {
+            selectedLessonIDs.insert(id)
         }
     }
 }

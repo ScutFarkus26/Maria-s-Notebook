@@ -63,54 +63,65 @@ struct ResourceImportSheet: View {
                     }
                 }
 
-                Section("Tags") {
-                    TagPicker(selectedTags: $selectedTags)
+                Section("Notes") {
+                    TextField("Description or usage notes", text: $descriptionText, axis: .vertical)
+                        .lineLimit(3...6)
                 }
 
-                Section("Link to Subjects") {
-                    if availableSubjects.isEmpty {
-                        Text("No subjects available")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(availableSubjects, id: \.self) { subject in
-                            Button {
-                                if selectedSubjects.contains(subject) {
-                                    selectedSubjects.remove(subject)
-                                } else {
-                                    selectedSubjects.insert(subject)
-                                }
-                            } label: {
-                                HStack {
-                                    Text(subject)
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    if selectedSubjects.contains(subject) {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Color.accentColor)
-                                    }
-                                }
+                Section("Organization") {
+                    NavigationLink {
+                        ResourceTagPicker(selectedTags: $selectedTags)
+                    } label: {
+                        HStack {
+                            Label("Tags", systemImage: "tag")
+                            Spacer()
+                            if selectedTags.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(selectedTags.count) tag\(selectedTags.count == 1 ? "" : "s")")
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
-                }
 
-                Section("Link to Lessons") {
-                    if allLessons.isEmpty {
-                        Text("No lessons available")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
+                    NavigationLink {
+                        ResourceSubjectPicker(
+                            availableSubjects: availableSubjects,
+                            selectedSubjects: $selectedSubjects
+                        )
+                    } label: {
+                        HStack {
+                            Label("Subjects", systemImage: "graduationcap")
+                            Spacer()
+                            if selectedSubjects.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(selectedSubjects.count)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    NavigationLink {
                         ResourceLessonPicker(
                             allLessons: allLessons,
                             selectedLessonIDs: $selectedLessonIDs
                         )
+                    } label: {
+                        HStack {
+                            Label("Lessons", systemImage: "book")
+                            Spacer()
+                            if selectedLessonIDs.isEmpty {
+                                Text("None")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(selectedLessonIDs.count) linked")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
-                }
-
-                Section("Notes (Optional)") {
-                    TextField("Description or usage notes", text: $descriptionText, axis: .vertical)
-                        .lineLimit(3...6)
                 }
 
                 if let importError {
