@@ -28,6 +28,7 @@ extension Logger {
     nonisolated static let community = Logger.app(category: "community")
     nonisolated static let schedules = Logger.app(category: "schedules")
     nonisolated static let issues = Logger.app(category: "issues")
+    nonisolated static let resources = Logger.app(category: "resources")
 
     // MARK: - Services
     nonisolated static let ai = Logger.app(category: "ai")

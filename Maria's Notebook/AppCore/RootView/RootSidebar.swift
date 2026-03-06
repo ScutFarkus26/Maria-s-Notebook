@@ -102,6 +102,10 @@ struct RootSidebar: View {
             }
 
             Section("Resources") {
+                NavigationLink(value: RootView.NavigationItem.resourceLibrary) {
+                    Label("Resources", systemImage: "tray.2")
+                }
+
                 NavigationLink(value: RootView.NavigationItem.supplies) {
                     Label("Supplies", systemImage: "shippingbox")
                 }
@@ -211,6 +215,12 @@ struct RootSidebar: View {
             }
 
             Section("Resources") {
+                Button { selection = .resourceLibrary } label: {
+                    Label("Resources", systemImage: "tray.2")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Browse and organize classroom resource documents")
+
                 Button { selection = .supplies } label: {
                     Label("Supplies", systemImage: "shippingbox")
                 }

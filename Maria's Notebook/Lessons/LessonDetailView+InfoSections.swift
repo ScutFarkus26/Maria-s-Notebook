@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Info Display Sections
 
@@ -174,6 +175,9 @@ extension LessonDetailView {
                     modelContext: modelContext
                 )
             }
+
+            // Related Resources
+            RelatedResourcesSection(lessonID: lesson.id, lessonSubject: lesson.subject)
 
             if let url = resolvedPagesURL {
                 HStack { Spacer() }
