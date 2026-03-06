@@ -29,10 +29,26 @@ struct WorkStepRow: View {
 
             // Step content
             VStack(alignment: .leading, spacing: 2) {
-                Text(step.title.isEmpty ? "Untitled Step" : step.title)
-                    .font(AppTheme.ScaledFont.bodySemibold)
-                    .strikethrough(step.isCompleted)
-                    .foregroundStyle(step.isCompleted ? .secondary : .primary)
+                HStack(spacing: 6) {
+                    Text(step.title.isEmpty ? "Untitled Step" : step.title)
+                        .font(AppTheme.ScaledFont.bodySemibold)
+                        .strikethrough(step.isCompleted)
+                        .foregroundStyle(step.isCompleted ? .secondary : .primary)
+
+                    // Completion outcome badge
+                    if step.isCompleted, let outcome = step.completionOutcome {
+                        HStack(spacing: 3) {
+                            Image(systemName: outcome.iconName)
+                                .font(.system(size: 10))
+                            Text(outcome.displayName)
+                                .font(AppTheme.ScaledFont.captionSemibold)
+                        }
+                        .foregroundStyle(outcome.color)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(outcome.color.opacity(0.12)))
+                    }
+                }
 
                 if !step.instructions.isEmpty {
                     Text(step.instructions)

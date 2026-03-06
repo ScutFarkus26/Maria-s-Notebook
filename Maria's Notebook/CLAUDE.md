@@ -101,7 +101,7 @@ Maria's Notebook/
 
 **Community Models:** CommunityTopic, ProposedSolution, CommunityAttachment (in Models/CommunityModels.swift)
 
-**Curriculum Models:** Track, TrackStep, GroupTrack, StudentTrackEnrollment, LessonPresentation, LessonAttachment, LessonExercise
+**Curriculum Models:** Track, TrackStep, GroupTrack, StudentTrackEnrollment, LessonPresentation, LessonAttachment, SampleWork, SampleWorkStep
 
 **Planning/Scheduling:** Schedule, ScheduleSlot, TodoItem, TodoSubtask, TodoTemplate, CalendarEvent, TodayAgendaOrder, NonSchoolDay, SchoolDayOverride, Procedure
 

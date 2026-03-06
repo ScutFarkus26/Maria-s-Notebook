@@ -34,8 +34,8 @@ struct LessonDetailView: View {
     @State var draftAgeRange: String = ""
     @State var draftTeacherNotes: String = ""
     @State private var showDeleteAlert = false
-    @State var showingExerciseEditor = false
-    @State var editingExercise: LessonExercise?
+    @State var showingSampleWorkEditor = false
+    @State var editingSampleWork: SampleWork?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?

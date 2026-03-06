@@ -197,8 +197,11 @@ public final class StreamingBackupWriter {
         )
         let lessonPresentationDTOs = BackupDTOTransformers.toDTOs(lessonPresentations)
 
-        let lessonExercises: [LessonExercise] = try await streamFetchRaw(LessonExercise.self, from: modelContext)
-        let lessonExerciseDTOs = BackupDTOTransformers.toDTOs(lessonExercises)
+        let sampleWorks: [SampleWork] = try await streamFetchRaw(SampleWork.self, from: modelContext)
+        let sampleWorkDTOs = BackupDTOTransformers.toDTOs(sampleWorks)
+
+        let sampleWorkSteps: [SampleWorkStep] = try await streamFetchRaw(SampleWorkStep.self, from: modelContext)
+        let sampleWorkStepDTOs = BackupDTOTransformers.toDTOs(sampleWorkSteps)
 
         progress(0.46, "Processing templates…", processedEntities, nil)
         
@@ -316,7 +319,8 @@ public final class StreamingBackupWriter {
         payload.practiceSessions = practiceSessionDTOs
         payload.lessonAttachments = lessonAttachmentDTOs
         payload.lessonPresentations = lessonPresentationDTOs
-        payload.lessonExercises = lessonExerciseDTOs
+        payload.sampleWorks = sampleWorkDTOs
+        payload.sampleWorkSteps = sampleWorkStepDTOs
         payload.noteTemplates = noteTemplateDTOs
         payload.meetingTemplates = meetingTemplateDTOs
         payload.reminders = reminderDTOs

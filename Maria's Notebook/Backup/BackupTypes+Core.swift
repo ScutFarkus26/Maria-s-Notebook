@@ -46,14 +46,22 @@ public struct LessonDTO: Codable, Sendable {
     public var relatedLessonIDs: String?
 }
 
-public struct LessonExerciseDTO: Codable, Sendable {
+public struct SampleWorkDTO: Codable, Sendable {
     public var id: UUID
     public var lessonID: UUID?
-    public var orderIndex: Int
     public var title: String
-    public var preparation: String
-    public var presentationSteps: String
+    public var workKindRaw: String
+    public var orderIndex: Int
     public var notes: String
+    public var createdAt: Date
+}
+
+public struct SampleWorkStepDTO: Codable, Sendable {
+    public var id: UUID
+    public var sampleWorkID: UUID?
+    public var title: String
+    public var orderIndex: Int
+    public var instructions: String
     public var createdAt: Date
 }
 

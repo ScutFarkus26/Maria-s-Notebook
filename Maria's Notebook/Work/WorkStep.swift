@@ -27,22 +27,39 @@ final class WorkStep: Identifiable {
     /// Notes about this step
     var notes: String = ""
 
+    /// Completion outcome for this step (mastered, needsMorePractice, etc.)
+    var completionOutcomeRaw: String?
+
     /// Creation timestamp
     var createdAt: Date = Date()
 
     /// Computed convenience for completion check
     var isCompleted: Bool { completedAt != nil }
 
-    // MARK: - Styling
-
-    /// Icon name based on completion status
-    var iconName: String {
-        isCompleted ? "checkmark.circle.fill" : "circle"
+    /// Completion outcome (reuses CompletionOutcome enum from WorkTypes)
+    var completionOutcome: CompletionOutcome? {
+        get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
+        set { completionOutcomeRaw = newValue?.rawValue }
     }
 
-    /// Color based on completion status
+    // MARK: - Styling
+
+    /// Icon name based on completion status and outcome
+    var iconName: String {
+        guard isCompleted else { return "circle" }
+        if let outcome = completionOutcome {
+            return outcome.iconName
+        }
+        return "checkmark.circle.fill"
+    }
+
+    /// Color based on completion status and outcome
     var statusColor: Color {
-        isCompleted ? .green : .secondary
+        guard isCompleted else { return .secondary }
+        if let outcome = completionOutcome {
+            return outcome.color
+        }
+        return .green
     }
 
     init(
@@ -53,6 +70,7 @@ final class WorkStep: Identifiable {
         instructions: String = "",
         completedAt: Date? = nil,
         notes: String = "",
+        completionOutcomeRaw: String? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -64,6 +82,7 @@ final class WorkStep: Identifiable {
         let cal = Calendar.current
         self.completedAt = completedAt.map { cal.startOfDay(for: $0) }
         self.notes = notes
+        self.completionOutcomeRaw = completionOutcomeRaw
         self.createdAt = createdAt
     }
 }

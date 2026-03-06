@@ -130,7 +130,9 @@ struct WorkDetailView: View {
                     nextPresentationStatusSection
 
                     if viewModel.status == .complete { completionSection() }
-                    if viewModel.workKind == .report { stepsSection() }
+                    if let work = viewModel.work, !(work.steps ?? []).isEmpty || viewModel.workKind == .report {
+                        stepsSection()
+                    }
                     if !practiceSessions.isEmpty { practiceOverviewSection() }
                     practiceHistorySection()
                     notesSection()

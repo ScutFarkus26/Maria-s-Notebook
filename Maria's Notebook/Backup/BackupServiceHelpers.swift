@@ -392,7 +392,8 @@ enum BackupPayloadDeduplicator {
         result.practiceSessions = payload.practiceSessions.map { uniqueBy($0) { $0.id } }
         result.lessonAttachments = payload.lessonAttachments.map { uniqueBy($0) { $0.id } }
         result.lessonPresentations = payload.lessonPresentations.map { uniqueBy($0) { $0.id } }
-        result.lessonExercises = payload.lessonExercises.map { uniqueBy($0) { $0.id } }
+        result.sampleWorks = payload.sampleWorks.map { uniqueBy($0) { $0.id } }
+        result.sampleWorkSteps = payload.sampleWorkSteps.map { uniqueBy($0) { $0.id } }
         result.noteTemplates = payload.noteTemplates.map { uniqueBy($0) { $0.id } }
         result.meetingTemplates = payload.meetingTemplates.map { uniqueBy($0) { $0.id } }
         result.reminders = payload.reminders.map { uniqueBy($0) { $0.id } }

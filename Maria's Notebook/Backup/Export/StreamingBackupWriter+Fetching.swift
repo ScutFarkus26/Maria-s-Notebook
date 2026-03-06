@@ -35,6 +35,8 @@ extension StreamingBackupWriter {
         counts["PracticeSession"] = try modelContext.fetchCount(FetchDescriptor<PracticeSession>())
         counts["LessonAttachment"] = try modelContext.fetchCount(FetchDescriptor<LessonAttachment>())
         counts["LessonPresentation"] = try modelContext.fetchCount(FetchDescriptor<LessonPresentation>())
+        counts["SampleWork"] = try modelContext.fetchCount(FetchDescriptor<SampleWork>())
+        counts["SampleWorkStep"] = try modelContext.fetchCount(FetchDescriptor<SampleWorkStep>())
         counts["NoteTemplate"] = try modelContext.fetchCount(FetchDescriptor<NoteTemplate>())
         counts["MeetingTemplate"] = try modelContext.fetchCount(FetchDescriptor<MeetingTemplate>())
         counts["Reminder"] = try modelContext.fetchCount(FetchDescriptor<Reminder>())

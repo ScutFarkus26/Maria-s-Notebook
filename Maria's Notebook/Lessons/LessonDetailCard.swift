@@ -29,6 +29,7 @@ struct LessonDetailCard: View {
     @State var draftGroup: String = ""
     @State var draftSubheading: String = ""
     @State var draftWriteUp: String = ""
+    @State var draftSuggestedFollowUpWork: String = ""
     @State var showDeleteAlert = false
 
     @State var draftSource: LessonSource = .album
@@ -37,8 +38,8 @@ struct LessonDetailCard: View {
     @State var draftPurpose: String = ""
     @State var draftAgeRange: String = ""
     @State var draftTeacherNotes: String = ""
-    @State var showingExerciseEditor = false
-    @State var editingExercise: LessonExercise?
+    @State var showingSampleWorkEditor = false
+    @State var editingSampleWork: SampleWork?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?
@@ -154,6 +155,7 @@ struct LessonDetailCard: View {
                         updated.group = draftGroup.trimmed()
                         updated.subheading = draftSubheading.trimmed()
                         updated.writeUp = draftWriteUp
+                        updated.suggestedFollowUpWork = draftSuggestedFollowUpWork
                         updated.source = draftSource
                         if draftSource == .personal {
                             updated.personalKind = draftPersonalKind
@@ -292,6 +294,7 @@ struct LessonDetailCard: View {
         draftGroup = lesson.group
         draftSubheading = lesson.subheading
         draftWriteUp = lesson.writeUp
+        draftSuggestedFollowUpWork = lesson.suggestedFollowUpWork
         draftSource = lesson.source
         draftPersonalKind = lesson.personalKind ?? .personal
         draftMaterials = lesson.materials

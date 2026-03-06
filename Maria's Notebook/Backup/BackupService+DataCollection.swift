@@ -133,8 +133,11 @@ extension BackupService {
         let lessonPresentationDTOs = fetchAndTransformInBatches(
             LessonPresentation.self, using: modelContext
         ) { BackupDTOTransformers.toDTOs($0) }
-        let lessonExerciseDTOs = fetchAndTransformInBatches(
-            LessonExercise.self, using: modelContext
+        let sampleWorkDTOs = fetchAndTransformInBatches(
+            SampleWork.self, using: modelContext
+        ) { BackupDTOTransformers.toDTOs($0) }
+        let sampleWorkStepDTOs = fetchAndTransformInBatches(
+            SampleWorkStep.self, using: modelContext
         ) { BackupDTOTransformers.toDTOs($0) }
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.55),
@@ -245,7 +248,8 @@ extension BackupService {
         payload.practiceSessions = practiceSessionDTOs
         payload.lessonAttachments = lessonAttachmentDTOs
         payload.lessonPresentations = lessonPresentationDTOs
-        payload.lessonExercises = lessonExerciseDTOs
+        payload.sampleWorks = sampleWorkDTOs
+        payload.sampleWorkSteps = sampleWorkStepDTOs
         payload.noteTemplates = noteTemplateDTOs
         payload.meetingTemplates = meetingTemplateDTOs
         payload.reminders = reminderDTOs
@@ -319,7 +323,8 @@ extension BackupService {
         counts["PracticeSession"] = practiceSessionDTOs.count
         counts["LessonAttachment"] = lessonAttachmentDTOs.count
         counts["LessonPresentation"] = lessonPresentationDTOs.count
-        counts["LessonExercise"] = lessonExerciseDTOs.count
+        counts["SampleWork"] = sampleWorkDTOs.count
+        counts["SampleWorkStep"] = sampleWorkStepDTOs.count
         counts["NoteTemplate"] = noteTemplateDTOs.count
         counts["MeetingTemplate"] = meetingTemplateDTOs.count
         counts["Reminder"] = reminderDTOs.count

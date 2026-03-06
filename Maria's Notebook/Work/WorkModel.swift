@@ -70,6 +70,8 @@ import SwiftUI
     var sourceContextTypeRaw: String?
     /// Source context ID (e.g., project session ID)
     var sourceContextID: String?
+    /// ID of the SampleWork template this work was created from (optional reference, not a relationship)
+    var sampleWorkID: String?
     /// Legacy assignment ID for traceability
     var legacyStudentLessonID: String?
     /// Check-in style: how multi-student work check-ins are displayed (individual, group, flexible)

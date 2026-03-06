@@ -119,7 +119,8 @@ struct WorkRepository {
         title: String? = nil,
         kind: WorkKind? = nil,
         presentationID: UUID? = nil,
-        scheduledDate: Date? = nil
+        scheduledDate: Date? = nil,
+        sampleWorkID: UUID? = nil
     ) throws -> WorkModel {
         // Use WorkKind directly (new system), with smart defaults
         let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
@@ -158,10 +159,24 @@ struct WorkRepository {
         linkWorkToTrack(work, lessonID: lessonID)
 
         context.insert(work)
+
+        // If a sample work template was specified, copy its steps into the new work
+        if let swID = sampleWorkID {
+            var swDescriptor = FetchDescriptor<SampleWork>(
+                predicate: #Predicate { $0.id == swID }
+            )
+            swDescriptor.fetchLimit = 1
+            if let sampleWork = safeFetchFirst(swDescriptor) {
+                let stepService = WorkStepService(context: context)
+                let swService = SampleWorkService(context: context)
+                try swService.instantiate(sampleWork: sampleWork, into: work, stepService: stepService)
+            }
+        }
+
         try context.save()
         return work
     }
-    
+
     // MARK: - Update
 
     /// Mark a WorkModel as completed

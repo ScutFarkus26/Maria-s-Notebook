@@ -69,6 +69,7 @@ extension BackupEntityImporter {
                 instructions: dto.instructions,
                 completedAt: dto.completedAt,
                 notes: dto.notes,
+                completionOutcomeRaw: dto.completionOutcomeRaw,
                 createdAt: dto.createdAt
             )
             if let workID = dto.workID {
@@ -142,6 +143,7 @@ extension BackupEntityImporter {
             session.checkInScheduledFor = dto.checkInScheduledFor
             session.followUpActions = dto.followUpActions
             session.materialsUsed = dto.materialsUsed
+            session.workStepID = dto.workStepID
             return session
         })
     }

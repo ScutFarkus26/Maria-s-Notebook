@@ -6,9 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		51F924312F1C43F900E480A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;

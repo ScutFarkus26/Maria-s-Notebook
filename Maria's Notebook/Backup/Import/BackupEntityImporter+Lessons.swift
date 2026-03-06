@@ -39,36 +39,66 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - Lesson Exercises
+    // MARK: - Sample Works
 
-    /// Imports lesson exercises from DTOs.
-    static func importLessonExercises(
-        _ dtos: [LessonExerciseDTO],
+    /// Imports sample works from DTOs.
+    static func importSampleWorks(
+        _ dtos: [SampleWorkDTO],
         into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<LessonExercise>,
+        existingCheck: EntityExistsCheck<SampleWork>,
         lessonCheck: EntityExistsCheck<Lesson>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let exercise = LessonExercise(
+            let sw = SampleWork(
                 id: dto.id,
-                orderIndex: dto.orderIndex,
                 title: dto.title,
-                preparation: dto.preparation,
-                presentationSteps: dto.presentationSteps,
+                workKind: WorkKind(rawValue: dto.workKindRaw) ?? .practiceLesson,
+                orderIndex: dto.orderIndex,
                 notes: dto.notes,
                 createdAt: dto.createdAt
             )
             if let lessonID = dto.lessonID {
                 do {
                     if let lesson = try lessonCheck(lessonID) {
-                        exercise.lesson = lesson
+                        sw.lesson = lesson
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check lesson for exercise: \(error)")
+                    print("⚠️ [Backup:\(#function)] Failed to check lesson for sample work: \(error)")
                 }
             }
-            modelContext.insert(exercise)
+            modelContext.insert(sw)
+        }
+    }
+
+    // MARK: - Sample Work Steps
+
+    /// Imports sample work steps from DTOs.
+    static func importSampleWorkSteps(
+        _ dtos: [SampleWorkStepDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<SampleWorkStep>,
+        sampleWorkCheck: EntityExistsCheck<SampleWork>
+    ) rethrows {
+        for dto in dtos {
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
+            let step = SampleWorkStep(
+                id: dto.id,
+                title: dto.title,
+                orderIndex: dto.orderIndex,
+                instructions: dto.instructions,
+                createdAt: dto.createdAt
+            )
+            if let sampleWorkID = dto.sampleWorkID {
+                do {
+                    if let sw = try sampleWorkCheck(sampleWorkID) {
+                        step.sampleWork = sw
+                    }
+                } catch {
+                    print("⚠️ [Backup:\(#function)] Failed to check sample work for step: \(error)")
+                }
+            }
+            modelContext.insert(step)
         }
     }
 

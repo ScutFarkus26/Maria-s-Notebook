@@ -9,7 +9,7 @@ import OSLog
 ///
 /// Transformers are organized into domain-specific extensions:
 /// - `BackupDTOTransformers+Core.swift` — Student, Lesson, Note,
-///   LessonExercise, LessonAttachment, LessonPresentation
+///   LessonAttachment, LessonPresentation, SampleWork, SampleWorkStep
 /// - `BackupDTOTransformers+Work.swift` — WorkCheckIn, WorkStep,
 ///   WorkParticipant, PracticeSession
 /// - `BackupDTOTransformers+Projects.swift` — Project, ProjectSession,

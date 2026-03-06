@@ -117,29 +117,7 @@ extension LessonDetailView {
                 .padding(.top, AppTheme.Spacing.verySmall)
             }
 
-            // Exercises
-            if !lesson.sortedExercises.isEmpty {
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                        ForEach(lesson.sortedExercises) { exercise in
-                            LessonExerciseRow(exercise: exercise)
-                        }
-                    }
-                    .padding(.top, AppTheme.Spacing.xsmall)
-                } label: {
-                    HStack(spacing: AppTheme.Spacing.small + 2) {
-                        Image(systemName: "list.number")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Exercises (\(lesson.sortedExercises.count))")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.top, AppTheme.Spacing.verySmall)
-            }
-
-            // Suggested Follow-Up Work
+            // Suggested Follow-Up Work (unified: text suggestions + sample works)
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 HStack(spacing: AppTheme.Spacing.small + 2) {
                     Image(systemName: SFSymbol.Action.checkmarkCircle)
@@ -149,18 +127,28 @@ extension LessonDetailView {
                         .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                 }
-                if lesson.suggestedFollowUpWorkItems.isEmpty {
+
+                let textItems = lesson.suggestedFollowUpWorkItems
+                let sampleWorks = lesson.sortedSampleWorks
+
+                if textItems.isEmpty && sampleWorks.isEmpty {
                     Text("No suggestions yet.")
                         .foregroundStyle(.secondary)
                 } else {
-                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-                        ForEach(lesson.suggestedFollowUpWorkItems, id: \.self) { item in
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                        // Text-based suggestions
+                        ForEach(textItems, id: \.self) { item in
                             HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
                                 Text("\u{2022}").font(AppTheme.ScaledFont.body)
                                 Text(item)
                                     .font(AppTheme.ScaledFont.body)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                        }
+
+                        // Structured sample works (with steps)
+                        ForEach(sampleWorks) { sw in
+                            SampleWorkRow(sampleWork: sw)
                         }
                     }
                 }

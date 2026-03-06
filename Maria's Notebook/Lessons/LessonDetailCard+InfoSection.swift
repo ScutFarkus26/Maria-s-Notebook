@@ -96,27 +96,8 @@ extension LessonDetailCard {
                 .padding(.top, 6)
             }
 
-            // Exercises
-            if !lesson.sortedExercises.isEmpty {
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(lesson.sortedExercises) { exercise in
-                            LessonExerciseRow(exercise: exercise)
-                        }
-                    }
-                    .padding(.top, 4)
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "list.number")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-                        Text("Exercises (\(lesson.sortedExercises.count))")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.top, 6)
-            }
+            // Suggested Follow-Up Work (unified: text suggestions + sample works)
+            suggestedFollowUpSection
 
             // Prerequisites
             if !lesson.prerequisiteLessonUUIDs.isEmpty {
@@ -137,6 +118,43 @@ extension LessonDetailCard {
                     modelContext: modelContext
                 )
             }
+        }
+    }
+
+    @ViewBuilder
+    private var suggestedFollowUpSection: some View {
+        let textItems = lesson.suggestedFollowUpWorkItems
+        let sampleWorks = lesson.sortedSampleWorks
+
+        if !textItems.isEmpty || !sampleWorks.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+                    Text("Suggested Follow-Up Work")
+                        .font(AppTheme.ScaledFont.calloutSemibold)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    // Text-based suggestions
+                    ForEach(textItems, id: \.self) { item in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\u{2022}").font(AppTheme.ScaledFont.body)
+                            Text(item)
+                                .font(AppTheme.ScaledFont.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    // Structured sample works (with steps)
+                    ForEach(sampleWorks) { sw in
+                        SampleWorkRow(sampleWork: sw)
+                    }
+                }
+            }
+            .padding(.top, 6)
         }
     }
 }

@@ -111,40 +111,42 @@ extension LessonDetailCard {
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
             }
 
-            // Exercises Editor
+            // Suggested Follow-Up Work (unified)
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("Exercises")
+                    Text("Suggested Follow-Up Work")
                         .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
-                        editingExercise = nil
-                        showingExerciseEditor = true
+                        editingSampleWork = nil
+                        showingSampleWorkEditor = true
                     } label: {
-                        Label("Add", systemImage: "plus.circle")
+                        Label("Add Work with Steps", systemImage: "plus.circle")
                     }
                     .buttonStyle(.bordered)
                 }
+                Text("Enter one suggestion per line")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+                TextEditor(text: $draftSuggestedFollowUpWork)
+                    .frame(minHeight: 80)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
 
-                if lesson.sortedExercises.isEmpty {
-                    Text("No exercises yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(lesson.sortedExercises) { exercise in
-                        LessonExerciseRow(exercise: exercise)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                editingExercise = exercise
-                                showingExerciseEditor = true
-                            }
-                    }
+                // Structured sample works (with steps)
+                ForEach(lesson.sortedSampleWorks) { sw in
+                    SampleWorkRow(sampleWork: sw)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editingSampleWork = sw
+                            showingSampleWorkEditor = true
+                        }
                 }
             }
-            .sheet(isPresented: $showingExerciseEditor) {
-                LessonExerciseEditorSheet(
+            .sheet(isPresented: $showingSampleWorkEditor) {
+                SampleWorkEditorSheet(
                     lesson: lesson,
-                    existingExercise: editingExercise,
+                    existingSampleWork: editingSampleWork,
                     onSave: {}
                 )
             }

@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import OSLog
 
-// MARK: - Core Transformers (Student, Lesson, Note, LessonExercise, LessonAttachment, LessonPresentation)
+// MARK: - Core Transformers (Student, Lesson, Note, LessonAttachment, LessonPresentation)
 
 extension BackupDTOTransformers {
 
@@ -51,18 +51,30 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - LessonExercise
+    // MARK: - SampleWork
 
-    static func toDTO(_ exercise: LessonExercise) -> LessonExerciseDTO {
-        LessonExerciseDTO(
-            id: exercise.id,
-            lessonID: exercise.lesson?.id,
-            orderIndex: exercise.orderIndex,
-            title: exercise.title,
-            preparation: exercise.preparation,
-            presentationSteps: exercise.presentationSteps,
-            notes: exercise.notes,
-            createdAt: exercise.createdAt
+    static func toDTO(_ sw: SampleWork) -> SampleWorkDTO {
+        SampleWorkDTO(
+            id: sw.id,
+            lessonID: sw.lesson?.id,
+            title: sw.title,
+            workKindRaw: sw.workKindRaw,
+            orderIndex: sw.orderIndex,
+            notes: sw.notes,
+            createdAt: sw.createdAt
+        )
+    }
+
+    // MARK: - SampleWorkStep
+
+    static func toDTO(_ step: SampleWorkStep) -> SampleWorkStepDTO {
+        SampleWorkStepDTO(
+            id: step.id,
+            sampleWorkID: step.sampleWork?.id,
+            title: step.title,
+            orderIndex: step.orderIndex,
+            instructions: step.instructions,
+            createdAt: step.createdAt
         )
     }
 
@@ -141,8 +153,12 @@ extension BackupDTOTransformers {
         notes.map { toDTO($0) }
     }
 
-    static func toDTOs(_ exercises: [LessonExercise]) -> [LessonExerciseDTO] {
-        exercises.map { toDTO($0) }
+    static func toDTOs(_ sampleWorks: [SampleWork]) -> [SampleWorkDTO] {
+        sampleWorks.map { toDTO($0) }
+    }
+
+    static func toDTOs(_ sampleWorkSteps: [SampleWorkStep]) -> [SampleWorkStepDTO] {
+        sampleWorkSteps.map { toDTO($0) }
     }
 
     static func toDTOs(_ attachments: [LessonAttachment]) -> [LessonAttachmentDTO] {

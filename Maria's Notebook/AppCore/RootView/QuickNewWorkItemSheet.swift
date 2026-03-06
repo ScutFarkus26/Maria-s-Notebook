@@ -41,6 +41,9 @@ struct QuickNewWorkItemSheet: View {
     @State private var lessonSearchText: String = ""
     @State private var isSaving: Bool = false
     
+    // Sample work template selection
+    @State private var selectedSampleWorkID: UUID?
+
     // Check-in states
     @State private var hasCheckIn: Bool = false
     @State private var checkInDate: Date = Date()
@@ -188,6 +191,37 @@ struct QuickNewWorkItemSheet: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            // Sample work picker (when lesson has templates)
+            if let lesson = selectedLesson, !lesson.sortedSampleWorks.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Template")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.secondary)
+
+                    Picker("Sample Work", selection: $selectedSampleWorkID) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(lesson.sortedSampleWorks) { sw in
+                            HStack {
+                                Text(sw.title)
+                                if sw.stepCount > 0 {
+                                    Text("(\(sw.stepCount) steps)")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .tag(UUID?.some(sw.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                .onChange(of: selectedSampleWorkID) { _, newID in
+                    guard let id = newID,
+                          let lesson = selectedLesson,
+                          let sw = lesson.sortedSampleWorks.first(where: { $0.id == id }) else { return }
+                    workTitle = sw.title
+                    if let kind = sw.workKind { workKind = kind }
+                }
+            }
         }
     }
 
@@ -235,6 +269,7 @@ struct QuickNewWorkItemSheet: View {
         lessonSearchText = lesson.name
         showingLessonPopover = false
         lessonFieldFocused = false
+        selectedSampleWorkID = nil
 
         // Auto-set work title if empty
         if workTitle.isEmpty {
@@ -464,7 +499,8 @@ struct QuickNewWorkItemSheet: View {
                     lessonID: lessonID,
                     title: workTitle.isEmpty ? nil : workTitle,
                     kind: workKind,
-                    scheduledDate: hasDueDate ? dueDate : nil
+                    scheduledDate: hasDueDate ? dueDate : nil,
+                    sampleWorkID: selectedSampleWorkID
                 )
                 
                 // Set check-in style for multi-student work

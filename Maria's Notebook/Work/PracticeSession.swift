@@ -27,6 +27,9 @@ final class PracticeSession: Identifiable {
     
     /// Work item IDs that were practiced during this session (CloudKit compatible strings)
     var workItemIDs: [String] = []
+
+    /// Optional link to a specific work step this observation pertains to (CloudKit compatible string)
+    var workStepID: String?
     
     /// Shared observations and notes about the group practice session
     var sharedNotes: String = ""
@@ -233,6 +236,11 @@ final class PracticeSession: Identifiable {
     /// Returns work item UUIDs from the stored string IDs
     var workItemUUIDs: [UUID] {
         workItemIDs.compactMap { UUID(uuidString: $0) }
+    }
+
+    /// Returns the work step UUID if set
+    var workStepUUID: UUID? {
+        workStepID.flatMap { UUID(uuidString: $0) }
     }
     
     /// Adds a student to the practice session if not already present

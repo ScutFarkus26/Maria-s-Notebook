@@ -57,6 +57,10 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(attachments)
         case let presentations as [LessonPresentation]:
             return BackupDTOTransformers.toDTOs(presentations)
+        case let sampleWorks as [SampleWork]:
+            return BackupDTOTransformers.toDTOs(sampleWorks)
+        case let sampleWorkSteps as [SampleWorkStep]:
+            return BackupDTOTransformers.toDTOs(sampleWorkSteps)
         case let templates as [NoteTemplate]:
             return BackupDTOTransformers.toDTOs(templates)
         case let templates as [MeetingTemplate]:

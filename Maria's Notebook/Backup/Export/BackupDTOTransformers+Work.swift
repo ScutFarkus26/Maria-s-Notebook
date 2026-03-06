@@ -28,6 +28,7 @@ extension BackupDTOTransformers {
             instructions: step.instructions,
             completedAt: step.completedAt,
             notes: step.notes,
+            completionOutcomeRaw: step.completionOutcomeRaw,
             createdAt: step.createdAt
         )
     }
@@ -66,7 +67,8 @@ extension BackupDTOTransformers {
             readyForAssessment: session.readyForAssessment,
             checkInScheduledFor: session.checkInScheduledFor,
             followUpActions: session.followUpActions,
-            materialsUsed: session.materialsUsed
+            materialsUsed: session.materialsUsed,
+            workStepID: session.workStepID
         )
     }
 

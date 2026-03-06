@@ -34,6 +34,7 @@ public struct WorkStepDTO: Codable, Sendable {
     public var instructions: String
     public var completedAt: Date?
     public var notes: String
+    public var completionOutcomeRaw: String?
     public var createdAt: Date
 }
 
@@ -65,6 +66,7 @@ public struct PracticeSessionDTO: Codable, Sendable {
     public var checkInScheduledFor: Date?
     public var followUpActions: String
     public var materialsUsed: String
+    public var workStepID: String?
 }
 
 public struct WorkCompletionRecordDTO: Codable, Sendable {

@@ -278,12 +278,21 @@ extension BackupService {
             )
         }
 
-        if let lessonExercises = payload.lessonExercises {
-            try BackupEntityImporter.importLessonExercises(
-                lessonExercises,
+        if let sampleWorks = payload.sampleWorks {
+            try BackupEntityImporter.importSampleWorks(
+                sampleWorks,
                 into: modelContext,
-                existingCheck: { try fetchOne(LessonExercise.self, id: $0, using: modelContext) },
+                existingCheck: { try fetchOne(SampleWork.self, id: $0, using: modelContext) },
                 lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let sampleWorkSteps = payload.sampleWorkSteps {
+            try BackupEntityImporter.importSampleWorkSteps(
+                sampleWorkSteps,
+                into: modelContext,
+                existingCheck: { try fetchOne(SampleWorkStep.self, id: $0, using: modelContext) },
+                sampleWorkCheck: { try fetchOne(SampleWork.self, id: $0, using: modelContext) }
             )
         }
 

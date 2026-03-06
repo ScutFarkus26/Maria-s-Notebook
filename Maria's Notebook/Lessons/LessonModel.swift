@@ -130,10 +130,10 @@ final class Lesson: Identifiable {
         }
     }
 
-    /// Exercises sorted by orderIndex
+    /// Sample works sorted by orderIndex
     @Transient
-    var sortedExercises: [LessonExercise] {
-        (exercises ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    var sortedSampleWorks: [SampleWork] {
+        (sampleWorks ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     // FIX: Made optional for CloudKit
@@ -148,9 +148,9 @@ final class Lesson: Identifiable {
     @Relationship(deleteRule: .cascade, inverse: \LessonAttachment.lesson)
     var attachments: [LessonAttachment]? = []
 
-    // Relationship to LessonExercise - cascade delete exercises when lesson is deleted
-    @Relationship(deleteRule: .cascade, inverse: \LessonExercise.lesson)
-    var exercises: [LessonExercise]? = []
+    // Relationship to SampleWork - cascade delete sample works when lesson is deleted
+    @Relationship(deleteRule: .cascade, inverse: \SampleWork.lesson)
+    var sampleWorks: [SampleWork]? = []
 
     // MARK: - Initializer
 
@@ -198,6 +198,6 @@ final class Lesson: Identifiable {
         self.relatedLessonIDs = relatedLessonIDs
         self.notes = []
         self.lessonAssignments = []
-        self.exercises = []
+        self.sampleWorks = []
     }
 }
