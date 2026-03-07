@@ -267,10 +267,10 @@ struct OpenWorkGrid: View {
     let ctx = container.mainContext
     let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
     let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
-    let _ = { ctx.insert(s); ctx.insert(l) }()
+    let _ = { ctx.insert(s); ctx.insert(l) }() // swiftlint:disable:this redundant_discardable_let
     let w1 = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
     let w2 = WorkModel(status: .review, studentID: s.id.uuidString, lessonID: l.id.uuidString)
-    let _ = { ctx.insert(w1); ctx.insert(w2) }()
+    let _ = { ctx.insert(w1); ctx.insert(w2) }() // swiftlint:disable:this redundant_discardable_let
     
     Group {
         OpenWorkGrid(

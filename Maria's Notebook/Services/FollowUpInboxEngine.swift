@@ -97,6 +97,14 @@ struct FollowUpInboxEngine {
         var reviewStaleDays: Int = 3
     }
 
+    // MARK: - Helper Types
+
+    private struct WorkDisplayFields {
+        let childID: UUID?
+        let childName: String
+        let lessonTitle: String
+    }
+
     // MARK: - Compute Context
 
     /// Bundles shared lookup data used across all follow-up rules.
@@ -270,7 +278,7 @@ struct FollowUpInboxEngine {
     /// Shared by Rules 2/3 and Rule 4 to avoid duplication.
     private static func resolveWorkDisplayFields(
         work: WorkModel, ctx: ComputeContext
-    ) -> (childID: UUID?, childName: String, lessonTitle: String) {
+    ) -> WorkDisplayFields {
         let participantIDs: [UUID] = (work.participants ?? []).compactMap {
             UUID(uuidString: $0.studentID)
         }
@@ -294,7 +302,7 @@ struct FollowUpInboxEngine {
             let trimmed = work.title.trimmed()
             return !trimmed.isEmpty ? trimmed : "Work"
         }()
-        return (studentIDs.first, studentName, lessonTitle)
+        return WorkDisplayFields(childID: studentIDs.first, childName: studentName, lessonTitle: lessonTitle)
     }
 
     private static func sortResults(_ results: [FollowUpInboxItem]) -> [FollowUpInboxItem] {
@@ -381,14 +389,14 @@ struct FollowUpInboxEngine {
             let threshold = isActive ? ctx.constants.workStaleOverdueDays : ctx.constants.reviewStaleDays
             guard let bucket = computeBucket(days: days, threshold: threshold) else { continue }
 
-            let (cid, cname, lessonTitle) = resolveWorkDisplayFields(work: work, ctx: ctx)
+            let fields = resolveWorkDisplayFields(work: work, ctx: ctx)
             let kind: FollowUpInboxItem.Kind = isActive ? .workCheckIn : .workReview
             let statusText = formatStatusText(
                 bucket: bucket, days: days, threshold: threshold, suffix: "since touched"
             )
             results.append(FollowUpInboxItem(
                 id: "\(kind.rawValue):\(work.id.uuidString)", underlyingID: work.id,
-                childID: cid, childName: cname, title: lessonTitle, kind: kind,
+                childID: fields.childID, childName: fields.childName, title: fields.lessonTitle, kind: kind,
                 statusText: statusText, ageDays: days, bucket: bucket
             ))
             addedWorkIDs.insert(work.id)
@@ -412,7 +420,7 @@ struct FollowUpInboxEngine {
             let hasScheduledCheckIns = workCheckIns.contains { $0.status == .scheduled }
             guard !hasScheduledCheckIns && work.dueAt == nil else { continue }
 
-            let (cid, cname, lessonTitle) = resolveWorkDisplayFields(work: work, ctx: ctx)
+            let fields = resolveWorkDisplayFields(work: work, ctx: ctx)
             let days = WorkAgingPolicy.daysSinceLastTouch(
                 for: work, modelContext: ctx.modelContext,
                 checkIns: workCheckIns, notes: []
@@ -421,7 +429,7 @@ struct FollowUpInboxEngine {
             let kind: FollowUpInboxItem.Kind = status == .active ? .workCheckIn : .workReview
             results.append(FollowUpInboxItem(
                 id: "inbox:\(work.id.uuidString)", underlyingID: work.id,
-                childID: cid, childName: cname, title: lessonTitle, kind: kind,
+                childID: fields.childID, childName: fields.childName, title: fields.lessonTitle, kind: kind,
                 statusText: statusText, ageDays: days, bucket: .inbox
             ))
         }

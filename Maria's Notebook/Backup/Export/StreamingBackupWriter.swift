@@ -153,7 +153,8 @@ public final class StreamingBackupWriter {
         let nonSchoolDays: [NonSchoolDay] = try await streamFetchRaw(NonSchoolDay.self, from: modelContext)
         collector.payload.nonSchoolDays = BackupDTOTransformers.toDTOs(nonSchoolDays)
 
-        let schoolDayOverrides: [SchoolDayOverride] = try await streamFetchRaw(SchoolDayOverride.self, from: modelContext)
+        let schoolDayOverrides: [SchoolDayOverride] =
+            try await streamFetchRaw(SchoolDayOverride.self, from: modelContext)
         collector.payload.schoolDayOverrides = BackupDTOTransformers.toDTOs(schoolDayOverrides)
 
         let studentMeetings: [StudentMeeting] = try await streamFetchRaw(StudentMeeting.self, from: modelContext)
@@ -408,7 +409,8 @@ public final class StreamingBackupWriter {
             do {
                 try FileManager.default.removeItem(at: url)
             } catch {
-                print("\u{26a0}\u{fe0f} [Backup:streamingExport] Failed to remove existing file at \(url.lastPathComponent): \(error)")
+                print("\u{26a0}\u{fe0f} [Backup:streamingExport] Failed to remove existing file" +
+                      " at \(url.lastPathComponent): \(error)")
             }
         }
         try envBytes.write(to: url, options: .atomic)

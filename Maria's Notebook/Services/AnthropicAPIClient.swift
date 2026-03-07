@@ -376,7 +376,8 @@ final class AnthropicAPIClient: MCPClientProtocol {
             case .timedOut:
                 return .apiError(statusCode: 0, message: "Request timed out. Please try again.")
             case .secureConnectionFailed:
-                return .apiError(statusCode: 0, message: "Secure connection failed. Check your system date/time settings.")
+                return .apiError(statusCode: 0,
+                                message: "Secure connection failed. Check your system date/time settings.")
             default:
                 return .apiError(statusCode: 0, message: "Network error: \(urlError.localizedDescription)")
             }

@@ -418,7 +418,9 @@ struct ResourceLibraryView: View {
         .buttonStyle(.plain)
     }
 
-    private func sidebarButton(label: String, icon: String, count: Int, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func sidebarButton(
+        label: String, icon: String, count: Int, isSelected: Bool, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
@@ -824,7 +826,8 @@ struct ResourceLibraryView: View {
     private var bulkTagSheet: some View {
         NavigationStack {
             Form {
-                Section("Add Tags to \(selectedResourceIDs.count) Resource\(selectedResourceIDs.count == 1 ? "" : "s")") {
+                let noun = selectedResourceIDs.count == 1 ? "Resource" : "Resources"
+                Section("Add Tags to \(selectedResourceIDs.count) \(noun)") {
                     TagPicker(selectedTags: $bulkTags)
                 }
             }
@@ -873,7 +876,8 @@ struct ResourceLibraryView: View {
             Text("No Resources Yet")
                 .font(.title2.weight(.semibold))
 
-            Text("Add PDF documents to build your classroom resource library.\nOrganize writing papers, templates, guides, and more.")
+            Text("Add PDF documents to build your classroom resource library.\n" +
+                 "Organize writing papers, templates, guides, and more.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -981,23 +985,21 @@ struct ResourceLibraryView: View {
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         var didImport = false
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.pdf.identifier) { url, error in
-                    guard let url else { return }
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
+            provider.loadFileRepresentation(forTypeIdentifier: UTType.pdf.identifier) { url, _ in
+                guard let url else { return }
 
-                    // Copy file to a temp location before the callback closes it
-                    let tempURL = FileManager.default.temporaryDirectory
-                        .appendingPathComponent(UUID().uuidString)
-                        .appendingPathExtension("pdf")
-                    try? FileManager.default.copyItem(at: url, to: tempURL)
+                // Copy file to a temp location before the callback closes it
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension("pdf")
+                try? FileManager.default.copyItem(at: url, to: tempURL)
 
-                    Task { @MainActor in
-                        importDroppedPDF(from: tempURL)
-                    }
+                Task { @MainActor in
+                    importDroppedPDF(from: tempURL)
                 }
-                didImport = true
             }
+            didImport = true
         }
         return didImport
     }

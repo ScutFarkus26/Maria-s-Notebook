@@ -87,7 +87,10 @@ extension BackupService {
         payload.communityAttachments = fetchAndTransformInBatches(
             CommunityAttachment.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
 
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.36), "Collecting attendance and work completions\u{2026}")
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.36),
+            "Collecting attendance and work completions\u{2026}"
+        )
         payload.attendance = fetchAndTransformInBatches(
             AttendanceRecord.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
         payload.workCompletions = fetchAndTransformInBatches(
@@ -163,7 +166,10 @@ extension BackupService {
         using modelContext: ModelContext,
         progress: @escaping ProgressCallback
     ) {
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.65), "Collecting supplies, schedules & issues\u{2026}")
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.65),
+            "Collecting supplies, schedules & issues\u{2026}"
+        )
         payload.documents = fetchAndTransformInBatches(
             Document.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         payload.supplies = fetchAndTransformInBatches(

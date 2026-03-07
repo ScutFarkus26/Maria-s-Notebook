@@ -230,7 +230,7 @@ extension LifecycleService {
                     for studentIDStr in la.studentIDs {
                         proficientCount += markProficientIfNeeded(
                             lessonID: lessonIDStr, studentID: studentIDStr,
-                            masteredAt: work.completedAt ?? work.lastTouchedAt ?? Date(),
+                            achievedAt: work.completedAt ?? work.lastTouchedAt ?? Date(),
                             in: allLessonPresentations
                         )
                     }
@@ -244,7 +244,7 @@ extension LifecycleService {
                     if isParticipantCompleted {
                         proficientCount += markProficientIfNeeded(
                             lessonID: lessonIDStr, studentID: studentIDStr,
-                            masteredAt: participant.completedAt
+                            achievedAt: participant.completedAt
                                 ?? work.completedAt ?? work.lastTouchedAt ?? Date(),
                             in: allLessonPresentations
                         )
@@ -258,7 +258,7 @@ extension LifecycleService {
 
     /// Marks a single LessonPresentation as proficient if not already. Returns 1 if updated, 0 otherwise.
     private static func markProficientIfNeeded(
-        lessonID: String, studentID: String, masteredAt: Date,
+        lessonID: String, studentID: String, achievedAt: Date,
         in presentations: [LessonPresentation]
     ) -> Int {
         if let lp = presentations.first(where: {
@@ -266,7 +266,7 @@ extension LifecycleService {
         }) {
             if lp.state != .proficient || lp.masteredAt == nil {
                 lp.state = .proficient
-                lp.masteredAt = masteredAt
+                lp.masteredAt = achievedAt
                 return 1
             }
         }

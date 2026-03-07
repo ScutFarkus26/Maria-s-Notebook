@@ -213,7 +213,9 @@ struct ResourceDetailView: View {
         }
     }
 
-    private func metadataRow<Content: View>(label: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+    private func metadataRow<Content: View>(
+        label: String, icon: String, @ViewBuilder content: () -> Content
+    ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.subheadline)
