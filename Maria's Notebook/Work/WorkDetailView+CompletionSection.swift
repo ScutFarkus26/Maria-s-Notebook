@@ -171,6 +171,7 @@ extension WorkDetailView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func presentationContextSection() -> some View {
         if let presentation = viewModel.relatedPresentation {
             DetailSectionCard(

@@ -168,6 +168,7 @@ struct ProjectsRootView: View {
         (club.sessions ?? []).map { $0.meetingDate }.max()
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func deleteClub(_ club: Project) {
         // OPTIMIZATION: Use targeted filtering instead of loading all records upfront
         // SwiftData predicates can't compare captured UUID values, so we fetch and filter

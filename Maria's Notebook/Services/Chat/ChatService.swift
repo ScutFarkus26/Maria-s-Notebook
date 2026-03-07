@@ -147,9 +147,10 @@ final class ChatService {
 
     // MARK: - Cloud Escalation
 
-    /// Escalates a question to Claude after optimizing the prompt locally.
-    /// The local model refines the original question using its prior attempt, then
-    /// the optimized prompt is sent directly to Claude for a higher-quality answer.
+    // Escalates a question to Claude after optimizing the prompt locally.
+    // The local model refines the original question using its prior attempt, then
+    // the optimized prompt is sent directly to Claude for a higher-quality answer.
+    // swiftlint:disable:next function_body_length
     func escalateToCloud(
         originalQuestion: String,
         localResponse: String,

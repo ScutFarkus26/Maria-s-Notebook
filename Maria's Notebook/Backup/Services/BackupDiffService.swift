@@ -15,14 +15,15 @@ public final class BackupDiffService {
 
     // MARK: - Public API
 
-    /// Compares the current database state with a backup file.
-    ///
-    /// - Parameters:
-    ///   - backupURL: URL of the backup to compare against
-    ///   - modelContext: The current model context
-    ///   - password: Optional decryption password
-    ///   - progress: Progress callback
-    /// - Returns: Diff showing what changed since the backup
+    // Compares the current database state with a backup file.
+    //
+    // - Parameters:
+    //   - backupURL: URL of the backup to compare against
+    //   - modelContext: The current model context
+    //   - password: Optional decryption password
+    //   - progress: Progress callback
+    // - Returns: Diff showing what changed since the backup
+    // swiftlint:disable:next function_body_length
     public func diffWithCurrentData(
         backupURL: URL,
         modelContext: ModelContext,

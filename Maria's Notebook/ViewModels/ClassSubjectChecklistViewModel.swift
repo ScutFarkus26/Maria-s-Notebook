@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  ClassSubjectChecklistViewModel.swift
 //  Maria's Notebook
@@ -17,6 +18,7 @@ import OSLog
 // - ChecklistDragSelectionManager: Drag selection (used in view)
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 class ClassSubjectChecklistViewModel {
     private static let logger = Logger.lessons
 

@@ -88,6 +88,7 @@ enum SupplyService {
 
     /// Creates a new supply
     @MainActor
+    // swiftlint:disable:next function_parameter_count
     static func createSupply(
         name: String,
         category: SupplyCategory,

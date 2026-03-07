@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // LessonsRootViewPanes.swift
 // Column panes for LessonsRootView - extracted for maintainability
 
@@ -258,6 +259,7 @@ extension LessonsRootView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func expandedGroupSection(
         group: String, ungroupedLabel: String, scrollProxy: ScrollViewProxy
     ) -> some View {

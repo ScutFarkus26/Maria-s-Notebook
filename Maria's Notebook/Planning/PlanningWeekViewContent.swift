@@ -5,6 +5,7 @@ import OSLog
 /// Shared visual component for PlanningWeekView that works with both Mac and iOS data sources.
 /// This contains all the UI logic and presentation, but is data-agnostic.
 @MainActor
+// swiftlint:disable:next type_body_length
 struct PlanningWeekViewContent: View {
     private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar

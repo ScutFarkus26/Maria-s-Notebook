@@ -4,6 +4,7 @@
 import SwiftUI
 import SwiftData
 
+// swiftlint:disable:next type_body_length
 struct QuickNewPresentationSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -111,6 +112,7 @@ struct QuickNewPresentationSheet: View {
     // MARK: - Lesson Section
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func presentationLessonSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Lesson")

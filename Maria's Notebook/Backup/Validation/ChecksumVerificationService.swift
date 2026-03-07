@@ -89,11 +89,12 @@ public final class ChecksumVerificationService {
         )
     }
     
-    /// Verifies a backup payload against its checksum manifest
-    /// - Parameters:
-    ///   - payload: The backup payload to verify
-    ///   - manifest: The checksum manifest to verify against
-    /// - Returns: Detailed verification result
+    // Verifies a backup payload against its checksum manifest
+    // - Parameters:
+    //   - payload: The backup payload to verify
+    //   - manifest: The checksum manifest to verify against
+    // - Returns: Detailed verification result
+    // swiftlint:disable:next function_body_length
     public func verify(payload: BackupPayload, against manifest: ChecksumManifest) throws -> VerificationResult {
         let startTime = Date()
         

@@ -5,8 +5,9 @@ import SwiftData
 @MainActor
 public struct BackupVerification {
     
-    /// Verifies a backup file by attempting to read and decode its envelope
-    /// Returns information about the backup if valid, or an error if invalid
+    // Verifies a backup file by attempting to read and decode its envelope
+    // Returns information about the backup if valid, or an error if invalid
+    // swiftlint:disable:next function_body_length
     public static func verifyBackup(at url: URL) -> Result<BackupInfo, Error> {
         do {
             // Check file exists

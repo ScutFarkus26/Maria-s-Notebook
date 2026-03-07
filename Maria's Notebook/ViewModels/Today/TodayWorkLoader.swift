@@ -36,15 +36,16 @@ enum TodayWorkLoader {
 
     // MARK: - Load Work
 
-    /// Fetches and processes work items for a day.
-    /// - Parameters:
-    ///   - day: Start of the day
-    ///   - nextDay: Start of the next day
-    ///   - referenceDate: The reference date for schedule calculations
-    ///   - studentsByID: Cached students for level filtering
-    ///   - levelFilter: The level filter to apply
-    ///   - context: Model context for fetching and schedule building
-    /// - Returns: Processed work result with schedules and IDs needed for caching
+    // Fetches and processes work items for a day.
+    // - Parameters:
+    //   - day: Start of the day
+    //   - nextDay: Start of the next day
+    //   - referenceDate: The reference date for schedule calculations
+    //   - studentsByID: Cached students for level filtering
+    //   - levelFilter: The level filter to apply
+    //   - context: Model context for fetching and schedule building
+    // - Returns: Processed work result with schedules and IDs needed for caching
+    // swiftlint:disable:next function_parameter_count
     static func loadWork(
         day: Date,
         nextDay: Date,

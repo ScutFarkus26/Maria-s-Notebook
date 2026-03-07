@@ -119,6 +119,7 @@ struct WorkDetailView: View {
     @State var selectedPracticeSession: PracticeSession?
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func mainContent(work: WorkModel) -> some View {
         VStack(spacing: 0) {
             ScrollView {

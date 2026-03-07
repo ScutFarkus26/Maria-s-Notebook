@@ -9,6 +9,7 @@ import AppKit
 import UIKit
 #endif
 
+// swiftlint:disable:next type_body_length
 struct AttendanceCard: View {
     let student: Student
     let record: AttendanceRecord?

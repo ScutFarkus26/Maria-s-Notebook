@@ -6,6 +6,7 @@ import SwiftData
 extension LessonAssignmentDetailSheet {
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func workSummarySection(for presentation: LessonAssignment) -> some View {
         let workItems = presentation.fetchRelatedWork(from: modelContext)
 

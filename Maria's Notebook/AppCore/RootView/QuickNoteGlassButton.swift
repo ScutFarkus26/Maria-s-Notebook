@@ -3,7 +3,8 @@
 
 import SwiftUI
 
-/// Isolated component to prevent RootView re-renders during drag
+// Isolated component to prevent RootView re-renders during drag
+// swiftlint:disable:next type_body_length
 struct QuickNoteGlassButton: View {
     @Binding var isShowingSheet: Bool
     var onNewPresentation: () -> Void

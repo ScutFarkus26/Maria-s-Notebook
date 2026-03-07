@@ -174,6 +174,7 @@ enum BackupPreviewAnalyzer {
 
     private struct ImportAnalysis { var ins = 0; var sk = 0; var missingLesson = 0 }
 
+    // swiftlint:disable:next function_parameter_count
     private static func analyzeLegacyPresentationMerge(
         payload: BackupPayload,
         lessonsInStore: Set<UUID>,
@@ -205,6 +206,7 @@ enum BackupPreviewAnalyzer {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     private static func analyzeLessonAssignmentMerge(
         payload: BackupPayload,
         lessonsInStore: Set<UUID>,

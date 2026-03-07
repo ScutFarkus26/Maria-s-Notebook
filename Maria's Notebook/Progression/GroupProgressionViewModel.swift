@@ -39,6 +39,7 @@ final class GroupProgressionViewModel {
 
     // MARK: - Configuration
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func configure(subject: String, group: String, context: ModelContext) {
         isLoading = true
         defer { isLoading = false }

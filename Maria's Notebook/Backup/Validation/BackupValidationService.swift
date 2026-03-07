@@ -9,6 +9,7 @@ import SwiftData
 /// - BackupValidationTypes.swift - Result types (ValidationResult, EntityTypeValidation, etc.)
 /// - BackupValidationService+ForeignKeys.swift - Foreign key validation method
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class BackupValidationService {
 
     // MARK: - Validation

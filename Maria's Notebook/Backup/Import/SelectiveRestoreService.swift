@@ -74,15 +74,16 @@ public final class SelectiveRestoreService {
         return counts
     }
 
-    /// Previews a selective restore operation.
-    ///
-    /// - Parameters:
-    ///   - url: The backup file URL
-    ///   - options: Selective restore options
-    ///   - modelContext: The model context
-    ///   - password: Optional decryption password
-    ///   - progress: Progress callback
-    /// - Returns: Preview of what would be restored
+    // Previews a selective restore operation.
+    //
+    // - Parameters:
+    //   - url: The backup file URL
+    //   - options: Selective restore options
+    //   - modelContext: The model context
+    //   - password: Optional decryption password
+    //   - progress: Progress callback
+    // - Returns: Preview of what would be restored
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     public func previewSelectiveRestore(
         from url: URL,
         options: SelectiveRestoreOptions,

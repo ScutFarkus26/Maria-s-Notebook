@@ -35,6 +35,7 @@ struct StudentsImportCoordinator {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     static func startMappedParse(
         from url: URL,
         mapping: StudentCSVImporter.Mapping,

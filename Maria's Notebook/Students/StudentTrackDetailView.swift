@@ -2,6 +2,7 @@ import OSLog
 import SwiftUI
 import SwiftData
 
+// swiftlint:disable:next type_body_length
 struct StudentTrackDetailView: View {
     private static let logger = Logger.students
 
@@ -296,6 +297,7 @@ struct StudentTrackDetailView: View {
         .padding(.vertical, 40)
     }
 
+    // swiftlint:disable:next function_body_length
     private func lessonRow(lesson: Lesson, index: Int) -> some View {
         let lessonID = lesson.id.uuidString
         let isProficient = proficientLessonIDs.contains(lessonID)

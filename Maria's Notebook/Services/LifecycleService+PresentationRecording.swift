@@ -73,11 +73,12 @@ extension LifecycleService {
         return lessonAssignment
     }
 
-    /// Record a LessonAssignment as presented and create per-student WorkModel items.
-    /// Idempotent by (presentationID, studentID) on WorkModel.
-    ///
-    /// Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice,
-    /// or the syncAllStudentProgress migration path).
+    // Record a LessonAssignment as presented and create per-student WorkModel items.
+    // Idempotent by (presentationID, studentID) on WorkModel.
+    //
+    // Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice,
+    // or the syncAllStudentProgress migration path).
+    // swiftlint:disable:next function_body_length
     static func recordPresentationAndExplodeWork(
         from lessonAssignment: LessonAssignment,
         presentedAt: Date,

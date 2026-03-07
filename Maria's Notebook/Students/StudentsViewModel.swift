@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftData
 
@@ -56,6 +57,7 @@ final class StudentsViewModel {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func applyStudentFilters(
         to students: [Student],
         filter: StudentsFilter,

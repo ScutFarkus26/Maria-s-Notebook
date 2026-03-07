@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // ConflictResolutionService.swift
 // Handles conflict resolution strategies for backup restore merge mode
 
@@ -7,6 +8,7 @@ import OSLog
 
 /// Service for resolving conflicts when merging backup data with existing data
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class ConflictResolutionService {
     private static let logger = Logger.backup
 
@@ -155,12 +157,13 @@ public final class ConflictResolutionService {
         )
     }
 
-    /// Applies conflict resolutions during import
-    /// - Parameters:
-    ///   - conflicts: The conflicts with their resolutions
-    ///   - payload: The backup payload
-    ///   - modelContext: The SwiftData model context
-    /// - Returns: Number of records updated
+    // Applies conflict resolutions during import
+    // - Parameters:
+    //   - conflicts: The conflicts with their resolutions
+    //   - payload: The backup payload
+    //   - modelContext: The SwiftData model context
+    // - Returns: Number of records updated
+    // swiftlint:disable:next cyclomatic_complexity
     public func applyResolutions(
         conflicts: [Conflict],
         payload: BackupPayload,

@@ -55,7 +55,8 @@ struct PlanningWeekViewiOS: View {
     
     // MARK: - Data Loading
     
-    /// Manually fetch data using FetchDescriptor instead of @Query
+    // Manually fetch data using FetchDescriptor instead of @Query
+    // swiftlint:disable:next function_body_length
     private func loadData() {
         #if DEBUG
         let startTime = Date()

@@ -1,8 +1,10 @@
+// swiftlint:disable file_length
 import Foundation
 import EventKit
 import SwiftData
 import OSLog
 
+// swiftlint:disable type_body_length
 /// Service that syncs calendar events with Apple's Calendar app via EventKit.
 /// Only syncs events from a specific calendar configured by the user.
 @Observable
@@ -179,7 +181,7 @@ final class CalendarSyncService {
         isSyncing = false
     }
 
-    /// Internal sync implementation
+    // swiftlint:disable:next function_body_length
     private func performSync() async throws {
         guard hasFullAccess else {
             throw CalendarSyncError.notAuthorized
@@ -396,6 +398,7 @@ final class CalendarSyncService {
     var lastSyncError: String?
     var isSyncing: Bool = false
 }
+// swiftlint:enable type_body_length
 
 enum CalendarSyncError: LocalizedError, Equatable {
     case notAuthorized

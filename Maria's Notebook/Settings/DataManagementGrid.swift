@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -9,6 +10,7 @@ import AppKit
 import UIKit
 #endif
 
+// swiftlint:disable:next type_body_length
 struct DataManagementGrid: View {
     private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext

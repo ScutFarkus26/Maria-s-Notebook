@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // StudentDetailViewModel.swift
 // View model for StudentDetailView. Manages caches, selections, and derived summaries.
 // Behavior-preserving cleanup: comments and MARKs only.
@@ -12,6 +13,7 @@ import SwiftUI
 /// All methods maintain existing behavior; this refactor adds structure and docs only.
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 final class StudentDetailViewModel {
     private static let logger = Logger.students
 

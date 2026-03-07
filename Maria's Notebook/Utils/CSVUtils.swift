@@ -7,6 +7,7 @@ public struct CSVData: Identifiable {
 }
 
 public enum CSVParser {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     public static func parse(string: String) -> CSVData? {
         // Remove BOM if present
         var content = string

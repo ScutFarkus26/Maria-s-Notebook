@@ -40,6 +40,7 @@ extension StudentInsightsView {
 
     // MARK: - Latest Insights Card
 
+    // swiftlint:disable:next function_body_length
     func latestInsightsCard(_ snapshot: DevelopmentSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header with date

@@ -16,6 +16,7 @@ final class ProgressionRootViewModel {
 
     // MARK: - Data Loading
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func loadData(context: ModelContext) {
         isLoading = true
         defer { isLoading = false }

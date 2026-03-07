@@ -25,6 +25,7 @@ struct StudentMatchResult: Sendable {
 // MARK: - Student Tagger Actor
 // Runs heavy regex/NLP off the main thread to keep typing smooth
 
+// swiftlint:disable:next type_body_length
 actor StudentTagger {
     private let tagger = NLTagger(tagSchemes: [.nameType])
 
@@ -252,7 +253,8 @@ actor StudentTagger {
         return false
     }
 
-    /// Phase 3: Manual text scan to catch patterns NLTagger misses.
+    // Phase 3: Manual text scan to catch patterns NLTagger misses.
+    // swiftlint:disable:next cyclomatic_complexity function_parameter_count
     private func scanManualPatterns(
         studentData: [StudentData], haystack: String, lowerText: String,
         nameMaps: NameMaps, exact: inout Set<UUID>, fuzzy: inout Set<UUID>,

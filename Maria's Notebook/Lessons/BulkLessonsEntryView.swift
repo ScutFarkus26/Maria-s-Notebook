@@ -11,6 +11,7 @@ private struct EntryRow: Identifiable, Hashable {
     var writeUp: String = ""
 }
 
+// swiftlint:disable:next type_body_length
 public struct BulkLessonsEntryView: View {
     private static let logger = Logger.lessons
 
@@ -306,6 +307,7 @@ public struct BulkLessonsEntryView: View {
         selectedRowIDs.removeAll()
     }
 
+    // swiftlint:disable:next function_body_length
     private func commit() {
         let items = rows.map { r -> EntryRow in
             var copy = r

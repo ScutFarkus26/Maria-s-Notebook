@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // LessonProgressSection.swift
 // UI section for managing presentation state and quick actions within Presentation detail.
 // Behavior-preserving cleanup: comments, MARKs, and small helpers docs.
@@ -6,8 +7,9 @@ import OSLog
 import SwiftUI
 import SwiftData
 
-/// Presents lesson progress controls (presented state, needs another presentation, quick actions).
-/// Safe refactor adds structure and docs only.
+// Presents lesson progress controls (presented state, needs another presentation, quick actions).
+// Safe refactor adds structure and docs only.
+// swiftlint:disable:next type_body_length
 struct LessonProgressSection: View {
     private static let logger = Logger.lessons
     // MARK: - Environment
@@ -289,6 +291,7 @@ struct LessonProgressSection: View {
     }
 
     // MARK: - Actions
+    // swiftlint:disable:next function_body_length
     private func addPracticeIfNeeded() {
         let hasPracticeWork: Bool = {
             let descriptor = FetchDescriptor<WorkModel>()

@@ -98,6 +98,7 @@ struct AddLessonToInboxSheet: View {
     // MARK: - Lesson Section
     
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func lessonSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Lesson")

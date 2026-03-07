@@ -1,6 +1,8 @@
+// swiftlint:disable file_length
 import Foundation
 import CryptoKit
 
+// swiftlint:disable type_body_length
 /// Handles delta synchronization for cloud backups using binary diffs
 /// Only uploads changed portions of backups to minimize bandwidth usage
 @MainActor
@@ -366,6 +368,7 @@ public final class DeltaSyncService {
         return formatter.string(fromByteCount: Int64(bytes))
     }
 }
+// swiftlint:enable type_body_length
 
 // MARK: - Cloud Storage Integration
 

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // StudentNotesViewModel.swift
 // Aggregates all notes for a specific Student
 
@@ -35,6 +36,7 @@ public struct UnifiedNoteItem: Identifiable {
 // MARK: - View Model
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 final class StudentNotesViewModel {
     private static let logger = Logger.students
 

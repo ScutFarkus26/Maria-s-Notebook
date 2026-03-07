@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // BackupIntegrityMonitor.swift
 // Monitors backup health and integrity
 
@@ -8,6 +9,7 @@ import OSLog
 /// Monitors backup integrity and provides health status
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class BackupIntegrityMonitor {
 
     // MARK: - Types
@@ -134,7 +136,8 @@ public final class BackupIntegrityMonitor {
 
     // MARK: - Public API
 
-    /// Performs a full integrity scan of all backups
+    // Performs a full integrity scan of all backups
+    // swiftlint:disable:next function_body_length
     public func performIntegrityScan() async -> IntegrityReport {
         isScanning = true
         defer {

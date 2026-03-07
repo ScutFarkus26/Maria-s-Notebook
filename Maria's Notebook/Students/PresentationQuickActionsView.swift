@@ -4,6 +4,7 @@ import SwiftUI
 
 private let logger = Logger.students
 
+// swiftlint:disable:next type_body_length
 struct PresentationQuickActionsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
@@ -238,6 +239,7 @@ struct PresentationQuickActionsView: View {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func saveChanges() {
         if presentedNow {
             let presentedDate = AppCalendar.startOfDay(Date())

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftData
 import OSLog
@@ -7,6 +8,7 @@ import OSLog
 /// - Tier 1: Classroom snapshot (student roster, subjects, weekly summary, todos) — built once per session
 /// - Tier 2: Selective student detail — loaded per-question when student names are detected
 @MainActor
+// swiftlint:disable:next type_body_length
 final class ChatContextAssembler {
     private static let logger = Logger.ai
 

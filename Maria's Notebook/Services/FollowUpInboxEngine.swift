@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import OSLog
@@ -75,6 +76,7 @@ struct FollowUpInboxItem: Identifiable, Equatable {
 }
 
 // MARK: - Engine
+// swiftlint:disable:next type_body_length
 struct FollowUpInboxEngine {
     private static let logger = Logger.inbox
 

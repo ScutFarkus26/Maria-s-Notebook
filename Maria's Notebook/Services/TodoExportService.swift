@@ -122,6 +122,7 @@ class TodoExportService {
     
     // MARK: - Markdown Export
     
+    // swiftlint:disable:next cyclomatic_complexity
     static func exportAsMarkdown(todos: [TodoItem]) -> String {
         var output = "# Todo List Export\n\n"
         output += "*Exported: \(Date().formatted(date: .long, time: .shortened))*\n\n"

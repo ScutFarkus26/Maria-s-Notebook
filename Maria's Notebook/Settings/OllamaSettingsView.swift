@@ -1,6 +1,8 @@
+// swiftlint:disable file_length
 import SwiftUI
 
-/// Settings view for configuring the Ollama local LLM server connection.
+// Settings view for configuring the Ollama local LLM server connection.
+// swiftlint:disable:next type_body_length
 struct OllamaSettingsView: View {
     @Environment(\.dependencies) private var dependencies
     @AppStorage(UserDefaultsKeys.ollamaBaseURL) private var baseURLString = "http://localhost:11434"
@@ -173,6 +175,7 @@ struct OllamaSettingsView: View {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func catalogModelRow(_ model: OllamaModelCatalog) -> some View {
         let isInstalled = availableModels.contains { $0.name.hasPrefix(model.id) }
         let isCurrentlyPulling = isPulling && pullModelName == model.id

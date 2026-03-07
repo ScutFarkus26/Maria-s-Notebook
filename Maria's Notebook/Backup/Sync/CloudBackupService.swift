@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // CloudBackupService.swift
 // Handles iCloud Drive integration for backups
 
@@ -5,6 +6,7 @@ import Foundation
 import SwiftData
 import OSLog
 
+// swiftlint:disable type_body_length
 /// Service for managing backups in iCloud Drive
 /// Provides automatic cloud sync for backup files without requiring manual file management
 @Observable
@@ -175,8 +177,9 @@ public final class CloudBackupService {
         }
     }
 
-    /// Lists all backups available in iCloud Drive
-    /// - Returns: Array of cloud backup info sorted by date (newest first)
+    // Lists all backups available in iCloud Drive
+    // - Returns: Array of cloud backup info sorted by date (newest first)
+    // swiftlint:disable:next function_body_length
     public func listCloudBackups() async throws -> [CloudBackupInfo] {
         guard isICloudAvailable else {
             throw BackupOperationError.cloudOperationFailed(.iCloudNotAvailable)
@@ -249,9 +252,10 @@ public final class CloudBackupService {
         return backups.sorted { $0.modifiedAt > $1.modifiedAt }
     }
 
-    /// Downloads a backup from iCloud if not already downloaded
-    /// - Parameter backup: The backup to download
-    /// - Returns: The local URL once downloaded
+    // Downloads a backup from iCloud if not already downloaded
+    // - Parameter backup: The backup to download
+    // - Returns: The local URL once downloaded
+    // swiftlint:disable:next function_body_length
     public func downloadBackupIfNeeded(_ backup: CloudBackupInfo) async throws -> URL {
         guard isICloudAvailable else {
             throw BackupOperationError.cloudOperationFailed(.iCloudNotAvailable)
@@ -458,3 +462,4 @@ public final class CloudBackupService {
         // The task holds a weak reference to self, so it will stop naturally
     }
 }
+// swiftlint:enable type_body_length

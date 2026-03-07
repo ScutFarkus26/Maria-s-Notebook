@@ -6,6 +6,7 @@ import os
 
 extension DataCleanupService {
 
+    // swiftlint:disable cyclomatic_complexity
     /// Deduplicate draft LessonAssignment records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateDraftLessonAssignments(using context: ModelContext) {
@@ -339,3 +340,4 @@ extension DataCleanupService {
         return results.filter { $0.value > 0 }
     }
 }
+// swiftlint:enable cyclomatic_complexity

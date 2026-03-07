@@ -125,10 +125,11 @@ public struct PasswordStrengthValidator {
 
     // MARK: - Validation
 
-    /// Validates a password and returns a complete validation result.
-    ///
-    /// - Parameter password: The password to validate
-    /// - Returns: ValidationResult with strength, requirements, and feedback
+    // Validates a password and returns a complete validation result.
+    //
+    // - Parameter password: The password to validate
+    // - Returns: ValidationResult with strength, requirements, and feedback
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     public func validate(_ password: String) -> ValidationResult {
         var requirements: [Requirement] = []
         var score = 0

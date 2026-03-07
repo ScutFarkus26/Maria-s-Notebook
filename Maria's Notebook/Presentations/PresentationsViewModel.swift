@@ -80,8 +80,8 @@ final class PresentationsViewModel {
 
     // MARK: - Public API
 
-    /// Fetch data and update the view model.
-    /// PERFORMANCE: Runs asynchronously in background to avoid blocking the main thread
+    // Fetch data and update the view model.
+    // PERFORMANCE: Runs asynchronously in background to avoid blocking the main thread
     // swiftlint:disable:next function_parameter_count
     func update(
         modelContext: ModelContext,
@@ -107,8 +107,8 @@ final class PresentationsViewModel {
         }
     }
 
-    /// Internal async implementation of update logic
-    // swiftlint:disable:next function_parameter_count
+    // Internal async implementation of update logic
+    // swiftlint:disable:next function_parameter_count function_body_length
     private func updateAsync(
         modelContext: ModelContext,
         calendar: Calendar,
@@ -258,7 +258,7 @@ final class PresentationsViewModel {
         for la in allUnscheduled {
             let result = blockingResults[la.id]
                 ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
-            result.isBlocked ? blocked.append(la) : ready.append(la)
+            if result.isBlocked { blocked.append(la) } else { ready.append(la) }
         }
         var ordered = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)
         ordered = ordered.filter { la in

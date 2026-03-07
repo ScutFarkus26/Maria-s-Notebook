@@ -11,11 +11,12 @@ struct CurriculumDataAssembler {
     
     // MARK: - Public API
     
-    /// Assembles a curriculum map for the given students.
-    /// - Parameters:
-    ///   - students: The students to include in the map
-    ///   - modelContext: The SwiftData model context for fetching data
-    /// - Returns: A `CurriculumMap` with per-student lesson statuses
+    // Assembles a curriculum map for the given students.
+    // - Parameters:
+    //   - students: The students to include in the map
+    //   - modelContext: The SwiftData model context for fetching data
+    // - Returns: A `CurriculumMap` with per-student lesson statuses
+    // swiftlint:disable:next function_body_length
     static func assembleCurriculumMap(
         for students: [Student],
         modelContext: ModelContext

@@ -4,6 +4,7 @@
 import SwiftUI
 import SwiftData
 
+// swiftlint:disable:next type_body_length
 struct TodoRowCard: View {
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext

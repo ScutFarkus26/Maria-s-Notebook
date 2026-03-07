@@ -47,7 +47,8 @@ final class LessonsFilterState {
         }
     }
 
-    /// Load from persisted raw strings (typically stored via SceneStorage in the view)
+    // Load from persisted raw strings (typically stored via SceneStorage in the view)
+    // swiftlint:disable:next function_parameter_count
     func loadFromPersisted(
         subjectRaw: String,
         groupRaw: String,

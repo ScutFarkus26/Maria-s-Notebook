@@ -6,6 +6,7 @@ import SwiftData
 
 extension BackupDiffService {
 
+    // swiftlint:disable:next function_body_length
     func analyzeStudentDiff(
         backupStudents: [StudentDTO],
         modelContext: ModelContext
@@ -81,6 +82,7 @@ extension BackupDiffService {
         return EntityDiff(entityType: "Student", added: added, removed: removed, modified: modified)
     }
 
+    // swiftlint:disable:next function_body_length
     func analyzeLessonDiff(
         backupLessons: [LessonDTO],
         modelContext: ModelContext

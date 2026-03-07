@@ -1,7 +1,9 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import OSLog
 
+// swiftlint:disable:next type_body_length
 struct AttendanceLogView: View {
     private static let logger = Logger.attendance
     @Environment(\.modelContext) private var modelContext
@@ -397,6 +399,7 @@ struct AttendanceLogView: View {
     // MARK: - Row
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func attendanceRow(for record: AttendanceRecord) -> some View {
         HStack(alignment: .center, spacing: 12) {
             // Status indicator

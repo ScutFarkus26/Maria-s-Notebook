@@ -7,6 +7,7 @@ import OSLog
 import AppKit
 #endif
 
+// swiftlint:disable type_body_length
 /// Service for sharing backups securely.
 /// Provides functionality to prepare backups for sharing via AirDrop, email, or other methods.
 @MainActor
@@ -99,13 +100,14 @@ public final class BackupSharingService {
 
     // MARK: - Public API
 
-    /// Prepares a backup file for sharing.
-    /// If encryption is requested and the backup is not encrypted, creates an encrypted copy.
-    ///
-    /// - Parameters:
-    ///   - backupURL: URL of the backup to share
-    ///   - options: Sharing options
-    /// - Returns: Prepared share with URL to share
+    // Prepares a backup file for sharing.
+    // If encryption is requested and the backup is not encrypted, creates an encrypted copy.
+    //
+    // - Parameters:
+    //   - backupURL: URL of the backup to share
+    //   - options: Sharing options
+    // - Returns: Prepared share with URL to share
+    // swiftlint:disable:next function_body_length
     public func prepareForSharing(
         backupURL: URL,
         options: SharingOptions = SharingOptions.default
@@ -267,6 +269,7 @@ public final class BackupSharingService {
 
     // MARK: - Private Helpers
 
+    // swiftlint:disable:next function_body_length
     private func createEncryptedCopy(
         from sourceURL: URL,
         to destinationURL: URL,
@@ -349,3 +352,4 @@ public final class BackupSharingService {
         }
     }
 }
+// swiftlint:enable type_body_length

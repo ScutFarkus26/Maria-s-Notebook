@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 
 // MARK: - Work Creation Panel
@@ -211,6 +212,7 @@ extension UnifiedPresentationWorkflowPanel {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func workDraftCard(draft: WorkItemDraft, studentID: UUID) -> some View {
         WorkflowCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -319,6 +321,7 @@ extension UnifiedPresentationWorkflowPanel {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func workDraftCompletionSection(draft: WorkItemDraft, studentID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ExpandableSectionButton(

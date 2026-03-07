@@ -83,6 +83,7 @@ final class SettingsViewModel {
     }
 
     // MARK: - Export
+    // swiftlint:disable:next function_body_length
     func performExport(modelContext: ModelContext, encryptBackups: Bool) async {
         do {
             backupProgress = 0; backupMessage = "Preparing…"; resultSummary = nil

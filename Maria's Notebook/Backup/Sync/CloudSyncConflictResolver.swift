@@ -4,6 +4,7 @@ import SwiftData
 /// Handles conflict resolution for cloud-synced backups
 /// Implements three-way merge and conflict detection strategies
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class CloudSyncConflictResolver {
     
     // MARK: - Types

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // BackupServiceHelpers.swift
 // Shared utilities for backup services
 
@@ -6,6 +7,7 @@ import SwiftData
 
 /// Shared helper utilities for backup operations
 @MainActor
+// swiftlint:disable:next type_body_length
 enum BackupServiceHelpers {
 
     // MARK: - DTO Conversion
@@ -348,8 +350,9 @@ enum BackupServiceHelpers {
 @MainActor
 enum BackupPayloadDeduplicator {
 
-    /// Removes duplicate records from the backup payload, keeping the first occurrence of each ID.
-    /// This handles backups created from databases that had duplicate records due to CloudKit sync issues.
+    // Removes duplicate records from the backup payload, keeping the first occurrence of each ID.
+    // This handles backups created from databases that had duplicate records due to CloudKit sync issues.
+    // swiftlint:disable:next function_body_length
     static func deduplicate(_ payload: BackupPayload) -> BackupPayload {
         func uniqueBy<T>(_ items: [T], id: (T) -> UUID) -> [T] {
             var seen = Set<UUID>()

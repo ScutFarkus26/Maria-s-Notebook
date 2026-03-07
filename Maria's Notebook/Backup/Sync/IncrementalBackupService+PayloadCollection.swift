@@ -157,6 +157,7 @@ extension IncrementalBackupService {
         return result
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func collectCalendarAndCommunityModels(
         into result: inout RemainingEntities,
         using modelContext: ModelContext,
@@ -196,6 +197,7 @@ extension IncrementalBackupService {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func collectRecordAndProjectModels(
         into result: inout RemainingEntities,
         using modelContext: ModelContext,

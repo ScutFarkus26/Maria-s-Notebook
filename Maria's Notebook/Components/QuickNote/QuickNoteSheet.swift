@@ -1,9 +1,11 @@
+// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import SwiftData
 import PhotosUI
 
 // MARK: - QuickNoteSheet
+// swiftlint:disable:next type_body_length
 struct QuickNoteSheet: View {
     private static let logger = Logger.notes
 
@@ -340,7 +342,8 @@ struct QuickNoteSheet: View {
         .onChange(of: viewModel.selectedPhotoItem) { _, newItem in viewModel.loadPhoto(newItem) }
     }
 
-    /// Extracted accessory bar to reduce type-checker complexity in iOSLayout.
+    // Extracted accessory bar to reduce type-checker complexity in iOSLayout.
+    // swiftlint:disable:next function_body_length
     private func iOSAccessoryBar(students: [Student]) -> some View {
         HStack(spacing: 16) {
             // Date

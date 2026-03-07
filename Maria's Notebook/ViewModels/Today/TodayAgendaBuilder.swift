@@ -9,10 +9,11 @@ enum TodayAgendaBuilder {
 
     private static let logger = Logger.app_
 
-    /// Builds the unified agenda by merging items with persisted order.
-    /// Items with a saved position appear first (in position order).
-    /// New items (not in saved order) are appended at the end in default order.
-    /// Work items with group/flexible check-in styles are merged into grouped rows.
+    // Builds the unified agenda by merging items with persisted order.
+    // Items with a saved position appear first (in position order).
+    // New items (not in saved order) are appended at the end in default order.
+    // Work items with group/flexible check-in styles are merged into grouped rows.
+    // swiftlint:disable:next function_parameter_count
     static func buildAgenda(
         lessons: [LessonAssignment],
         overdueSchedule: [ScheduledWorkItem],

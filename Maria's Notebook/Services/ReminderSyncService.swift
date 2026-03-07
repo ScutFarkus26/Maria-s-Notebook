@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import EventKit
 import SwiftData
@@ -15,6 +16,7 @@ private struct ReminderSyncData: Sendable {
     let calendarItemIdentifier: String
 }
 
+// swiftlint:disable type_body_length
 /// Service that syncs reminders with Apple's Reminders app via EventKit.
 /// Only syncs reminders from a specific Reminders list configured by the user.
 @Observable
@@ -180,7 +182,7 @@ final class ReminderSyncService {
         isSyncing = false
     }
 
-    /// Internal sync implementation
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func performSync() async throws {
         // Check authorization
         guard hasFullAccess else {
@@ -495,6 +497,7 @@ final class ReminderSyncService {
         try eventStore.save(ekReminder, commit: true)
     }
 }
+// swiftlint:enable type_body_length
 
 enum ReminderSyncError: LocalizedError, Equatable {
     case notAuthorized

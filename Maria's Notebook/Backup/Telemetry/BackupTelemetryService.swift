@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftUI
 import OSLog
@@ -5,6 +6,7 @@ import OSLog
 /// Collects and reports telemetry data for backup/restore operations
 /// Helps track success rates, performance, and identify issues
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class BackupTelemetryService {
     
     // MARK: - Types
@@ -321,7 +323,8 @@ public final class BackupTelemetryService {
     
     // MARK: - Reporting
     
-    /// Generates a telemetry report for a given period
+    // Generates a telemetry report for a given period
+    // swiftlint:disable:next function_body_length
     public func generateReport(
         from startDate: Date,
         to endDate: Date

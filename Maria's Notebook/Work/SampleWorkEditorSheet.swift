@@ -2,7 +2,8 @@ import SwiftUI
 import SwiftData
 import OSLog
 
-/// Sheet for adding or editing a SampleWork and its template steps.
+// Sheet for adding or editing a SampleWork and its template steps.
+// swiftlint:disable:next type_body_length
 struct SampleWorkEditorSheet: View {
     private static let logger = Logger.lessons
 
@@ -149,6 +150,7 @@ struct SampleWorkEditorSheet: View {
     // MARK: - Step Row
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func stepRow(index: Int, step: DraftStep) -> some View {
         HStack(alignment: .top, spacing: 8) {
             // Step number

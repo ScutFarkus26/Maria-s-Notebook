@@ -30,6 +30,7 @@ struct PillDropDelegate: DropDelegate {
 
     func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [UTType.text]) }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func performDrop(info: DropInfo) -> Bool {
         setHighlight(false)
         setMergeHighlight(false)

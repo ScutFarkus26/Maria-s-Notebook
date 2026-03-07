@@ -129,6 +129,7 @@ extension ProjectSessionDetailView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func workRow(_ work: WorkModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {

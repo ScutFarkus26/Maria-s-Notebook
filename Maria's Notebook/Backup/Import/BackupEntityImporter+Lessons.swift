@@ -5,7 +5,8 @@ import SwiftData
 
 extension BackupEntityImporter {
 
-    /// Imports lessons from DTOs.
+    // Imports lessons from DTOs.
+    // swiftlint:disable:next cyclomatic_complexity
     static func importLessons(
         _ dtos: [LessonDTO],
         into modelContext: ModelContext,
@@ -104,17 +105,18 @@ extension BackupEntityImporter {
 
     // MARK: - Legacy Presentations
 
-    /// Imports legacy presentations from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The legacy presentation DTOs to import
-    ///   - modelContext: The model context for database operations
-    /// Imports old LegacyPresentationDTO records as LessonAssignment records.
-    /// This provides backward compatibility when restoring backups created before
-    /// the LegacyPresentation model was removed.
-    ///   - existingCheck: Function to check if a LessonAssignment already exists with this ID
-    ///   - lessonCheck: Function to check if the referenced lesson exists
-    ///   - studentCheck: Function to look up a student by ID
+    // Imports legacy presentations from DTOs.
+    //
+    // - Parameters:
+    //   - dtos: The legacy presentation DTOs to import
+    //   - modelContext: The model context for database operations
+    // Imports old LegacyPresentationDTO records as LessonAssignment records.
+    // This provides backward compatibility when restoring backups created before
+    // the LegacyPresentation model was removed.
+    //   - existingCheck: Function to check if a LessonAssignment already exists with this ID
+    //   - lessonCheck: Function to check if the referenced lesson exists
+    //   - studentCheck: Function to look up a student by ID
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func importLegacyPresentations(
         _ dtos: [LegacyPresentationDTO],
         into modelContext: ModelContext,

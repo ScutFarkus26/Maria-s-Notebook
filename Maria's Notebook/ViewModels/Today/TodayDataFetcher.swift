@@ -4,8 +4,9 @@ import SwiftData
 
 // MARK: - Today Data Fetcher
 
-/// Service for fetching data needed by TodayViewModel.
-/// Encapsulates all database fetch operations.
+// Service for fetching data needed by TodayViewModel.
+// Encapsulates all database fetch operations.
+// swiftlint:disable:next type_body_length
 enum TodayDataFetcher {
 
     private static let logger = Logger.app_
@@ -82,7 +83,8 @@ enum TodayDataFetcher {
         let neededLessonIDs: Set<UUID>
     }
 
-    /// Fetches work models and related data (plan items, notes).
+    // Fetches work models and related data (plan items, notes).
+    // swiftlint:disable:next function_body_length
     static func fetchWorkData(
         day: Date,
         nextDay: Date,

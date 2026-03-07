@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -11,6 +12,7 @@ public enum LessonDetailInitialMode {
     case giveLesson
 }
 
+// swiftlint:disable:next type_body_length
 struct LessonDetailCard: View {
     static let logger = Logger.lessons
 

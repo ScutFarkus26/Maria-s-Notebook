@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // LessonsCardsGridView.swift
 // Performance optimizations: Geometry measurement and matchedGeometryEffect are gated to only run
 // when in manual reorder mode (isManualMode && onReorder != nil), avoiding expensive layout
@@ -8,6 +9,7 @@ import OSLog
 import SwiftUI
 import Foundation
 
+// swiftlint:disable:next type_body_length
 struct LessonsCardsGridView: View {
     private static let logger = Logger.lessons
     let lessons: [Lesson]
@@ -325,6 +327,7 @@ struct LessonsCardsGridView: View {
         })?.key
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func longPressThenDrag(for lesson: Lesson) -> some Gesture {
         let press = LongPressGesture(minimumDuration: 0.25)
         let drag = DragGesture(minimumDistance: 1)

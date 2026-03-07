@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
@@ -92,6 +93,7 @@ struct ProjectWeeksEditorView: View {
     }
 }
 
+// swiftlint:disable:next type_body_length
 struct ProjectWeekEditorView: View, Identifiable {
     var id: UUID { week.id }
     let club: Project

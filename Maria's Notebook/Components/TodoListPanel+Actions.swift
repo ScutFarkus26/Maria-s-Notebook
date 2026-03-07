@@ -22,6 +22,7 @@ extension TodoListPanel {
         isAddingFocused = true
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func addTodoWithAI() async {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         if #available(macOS 26.0, iOS 26.0, *) {

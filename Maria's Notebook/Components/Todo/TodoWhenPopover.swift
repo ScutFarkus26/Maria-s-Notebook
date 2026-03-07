@@ -1,6 +1,8 @@
+// swiftlint:disable file_length
 import SwiftUI
 
-/// Things-inspired "When" scheduling popover with quick-pick shortcuts and a mini calendar.
+// Things-inspired "When" scheduling popover with quick-pick shortcuts and a mini calendar.
+// swiftlint:disable:next type_body_length
 struct TodoWhenPopover: View {
     @Binding var scheduledDate: Date?
     @Binding var dueDate: Date?

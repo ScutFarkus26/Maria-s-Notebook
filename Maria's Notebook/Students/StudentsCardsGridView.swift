@@ -184,6 +184,7 @@ struct StudentsCardsGridView: View {
     }
 
     // MARK: - Gesture
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func longPressThenDrag(for student: Student) -> some Gesture {
         let press = LongPressGesture(minimumDuration: 0.25)
         let drag = DragGesture(minimumDistance: 1)

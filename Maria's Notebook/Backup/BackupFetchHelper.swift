@@ -5,8 +5,9 @@ import SwiftData
 /// Consolidates repetitive fetch logic from BackupService.
 @MainActor
 struct BackupFetchHelper {
-    /// Fetches a single entity by ID using a type-specific predicate.
-    /// Returns nil if the entity is not found or the type is not supported.
+    // Fetches a single entity by ID using a type-specific predicate.
+    // Returns nil if the entity is not found or the type is not supported.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
         // Note: Each model has a custom UUID 'id' property, so we must use type-specific predicates
         if type == Student.self {

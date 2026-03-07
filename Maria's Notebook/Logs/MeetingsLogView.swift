@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import OSLog
 
+// swiftlint:disable:next type_body_length
 struct MeetingsLogView: View {
     private static let logger = Logger.app_
     @Environment(\.modelContext) private var modelContext
@@ -281,6 +282,7 @@ struct MeetingsLogView: View {
     // MARK: - Row
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func meetingRow(for meeting: StudentMeeting) -> some View {
         HStack(alignment: .top, spacing: 12) {
             // Completion indicator

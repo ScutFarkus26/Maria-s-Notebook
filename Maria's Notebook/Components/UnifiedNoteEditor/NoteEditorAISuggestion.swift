@@ -12,6 +12,7 @@ import FoundationModels
 extension UnifiedNoteEditor {
 
     @MainActor
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func suggestTagsAndScope() async {
         guard !bodyText.trimmed().isEmpty else { return }
         

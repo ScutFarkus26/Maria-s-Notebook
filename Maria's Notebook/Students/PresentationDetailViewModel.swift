@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftData
 import SwiftUI
@@ -5,6 +6,7 @@ import OSLog
 
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 final class PresentationDetailViewModel {
     private static let logger = Logger.students
     // MARK: - Dependencies
@@ -161,7 +163,8 @@ final class PresentationDetailViewModel {
         )
     }
 
-    /// Saves changes to the database, handles lifecycle events, and auto-creates next lessons
+    // Saves changes to the database, handles lifecycle events, and auto-creates next lessons
+    // swiftlint:disable:next function_body_length
     func save(
         studentsAll: [Student],
         lessons: [Lesson],

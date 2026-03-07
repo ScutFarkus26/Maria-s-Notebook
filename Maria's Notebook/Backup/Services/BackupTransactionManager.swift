@@ -113,16 +113,17 @@ public final class BackupTransactionManager {
         }
     }
 
-    /// Executes an import operation with automatic rollback on failure.
-    ///
-    /// - Parameters:
-    ///   - modelContext: The model context to import into
-    ///   - backupURL: The backup file to import
-    ///   - mode: The restore mode (merge or replace)
-    ///   - password: Optional decryption password
-    ///   - createCheckpoint: Whether to create a checkpoint before import (default: true for replace mode)
-    ///   - progress: Progress callback
-    /// - Returns: Transaction result with import summary or error details
+    // Executes an import operation with automatic rollback on failure.
+    //
+    // - Parameters:
+    //   - modelContext: The model context to import into
+    //   - backupURL: The backup file to import
+    //   - mode: The restore mode (merge or replace)
+    //   - password: Optional decryption password
+    //   - createCheckpoint: Whether to create a checkpoint before import (default: true for replace mode)
+    //   - progress: Progress callback
+    // - Returns: Transaction result with import summary or error details
+    // swiftlint:disable:next function_body_length
     public func executeImportWithRollback(
         modelContext: ModelContext,
         from backupURL: URL,

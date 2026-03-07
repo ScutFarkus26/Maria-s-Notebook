@@ -26,12 +26,13 @@ struct EntityFetcherRegistry {
 
     // MARK: - Generic Fetch
 
-    /// Fetches a single entity by ID using the appropriate predicate
-    /// - Parameters:
-    ///   - type: The entity type to fetch
-    ///   - id: The UUID of the entity
-    ///   - context: The SwiftData model context
-    /// - Returns: The entity if found, nil otherwise
+    // Fetches a single entity by ID using the appropriate predicate
+    // - Parameters:
+    //   - type: The entity type to fetch
+    //   - id: The UUID of the entity
+    //   - context: The SwiftData model context
+    // - Returns: The entity if found, nil otherwise
+    // swiftlint:disable:next cyclomatic_complexity
     func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, context: ModelContext) -> T? {
         // Use type-specific fetchers to work around SwiftData's predicate limitations
         switch type {

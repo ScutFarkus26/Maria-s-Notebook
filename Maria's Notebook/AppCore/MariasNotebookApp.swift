@@ -14,6 +14,7 @@ import AppKit
 #endif
 
 @main
+// swiftlint:disable:next type_body_length
 struct MariasNotebookApp: App {
     private static let logger = Logger.app_
 

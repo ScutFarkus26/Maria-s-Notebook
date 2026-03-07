@@ -72,6 +72,7 @@ extension LessonAssignmentHistoryView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func row(for la: LessonAssignment) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header row

@@ -75,14 +75,15 @@ public final class IncrementalBackupService {
 
     // MARK: - Public API
 
-    /// Creates an incremental backup containing only entities changed since the last backup
-    /// - Parameters:
-    ///   - modelContext: The SwiftData model context
-    ///   - url: Destination URL for the backup file
-    ///   - password: Optional encryption password
-    ///   - forceFullBackup: If true, creates a full backup regardless of last backup date
-    ///   - progress: Progress callback
-    /// - Returns: Result containing metadata and statistics
+    // Creates an incremental backup containing only entities changed since the last backup
+    // - Parameters:
+    //   - modelContext: The SwiftData model context
+    //   - url: Destination URL for the backup file
+    //   - password: Optional encryption password
+    //   - forceFullBackup: If true, creates a full backup regardless of last backup date
+    //   - progress: Progress callback
+    // - Returns: Result containing metadata and statistics
+    // swiftlint:disable:next function_body_length
     public func createIncrementalBackup(
         modelContext: ModelContext,
         to url: URL,

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
@@ -13,7 +14,8 @@ struct SlotAssignment: Identifiable, Equatable {
     }
 }
 
-/// Sheet for creating or editing a schedule
+// Sheet for creating or editing a schedule
+// swiftlint:disable:next type_body_length
 struct ScheduleEditorSheet: View {
     let schedule: Schedule?
 

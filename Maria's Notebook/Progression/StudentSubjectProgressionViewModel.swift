@@ -22,6 +22,7 @@ final class StudentSubjectProgressionViewModel {
 
     // MARK: - Configuration
 
+    // swiftlint:disable:next function_body_length
     func configure(for student: Student, subject: String, group: String, context: ModelContext) {
         isLoading = true
         defer { isLoading = false }

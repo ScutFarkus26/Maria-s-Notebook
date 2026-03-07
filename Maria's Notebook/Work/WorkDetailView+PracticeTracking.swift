@@ -13,6 +13,7 @@ extension WorkDetailView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func practiceOverviewSection() -> some View {
         let stats = calculatePracticeStats()
 

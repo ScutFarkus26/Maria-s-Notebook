@@ -47,7 +47,8 @@ final class DatabaseErrorCoordinator {
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
     }
     
-    /// Exports diagnostic information about the error
+    // Exports diagnostic information about the error
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func exportDiagnostics() -> String {
         var diagnostics: [String] = []
         

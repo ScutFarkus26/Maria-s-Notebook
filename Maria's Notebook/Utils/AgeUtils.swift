@@ -20,7 +20,8 @@ enum AgeRange: String, CaseIterable, Identifiable, Hashable {
     
     var id: String { rawValue }
     
-    /// Check if a birthday falls within this age range
+    // Check if a birthday falls within this age range
+    // swiftlint:disable:next cyclomatic_complexity
     func contains(_ birthday: Date, calendar: Calendar = .current) -> Bool {
         let age = AgeUtils.quarterRoundedAgeComponents(birthday: birthday, today: Date(), calendar: calendar)
         let years = age.years

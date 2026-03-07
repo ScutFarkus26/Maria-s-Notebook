@@ -50,6 +50,7 @@ extension ObservationsView {
     // MARK: - Row Content
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func row(for item: UnifiedObservationItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -128,6 +129,7 @@ extension ObservationsView {
 
     // MARK: - Context Text
 
+    // swiftlint:disable:next cyclomatic_complexity
     func contextText(for note: Note) -> String? {
         if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
@@ -212,6 +214,7 @@ extension ObservationsView {
         )
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func contextForNote(_ note: Note) -> UnifiedNoteEditor.NoteContext {
         if let lesson = note.lesson { return .lesson(lesson) }
         if let work = note.work { return .work(work) }

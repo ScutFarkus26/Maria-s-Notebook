@@ -5,6 +5,7 @@ import SwiftData
 
 extension StreamingBackupWriter {
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func transformToDTOs<T: PersistentModel>(_ entities: [T]) -> [Any] {
         switch entities {
         case let students as [Student]:

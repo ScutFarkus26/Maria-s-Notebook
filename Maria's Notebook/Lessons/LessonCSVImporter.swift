@@ -116,7 +116,9 @@ enum LessonCSVImporter {
                 if updateExistingLesson(existingLesson, with: r) { updated += 1 }
             } else {
                 let groupKey = "\(r.subject)|\(r.group)"
-                let order = nextInsertOrder(groupKey: groupKey, explicit: r.orderInGroup, maxOrderByGroup: &maxOrderByGroup)
+                let order = nextInsertOrder(
+                    groupKey: groupKey, explicit: r.orderInGroup, maxOrderByGroup: &maxOrderByGroup
+                )
                 let lesson = Lesson(
                     name: r.name, subject: r.subject, group: r.group,
                     subheading: r.subheading, writeUp: r.writeUp,
@@ -192,7 +194,9 @@ extension LessonCSVImporter {
             ))
             let key = duplicateKey(name: name, subject: subject, group: value("group").trimmed())
             if existingKeys.contains(key) {
-                potentialDupTitles.append(LessonFormatter.duplicateDetectionTitle(name: name, subject: subject, group: value("group").trimmed()))
+                potentialDupTitles.append(LessonFormatter.duplicateDetectionTitle(
+                    name: name, subject: subject, group: value("group").trimmed()
+                ))
             }
         }
         return CSVParseResult(rows: rows, duplicates: potentialDupTitles.removingDuplicates(), warnings: warnings)
@@ -200,13 +204,27 @@ extension LessonCSVImporter {
 
     private static func updateExistingLesson(_ existing: Lesson, with row: Row) -> Bool {
         var changed = false
-        if !row.subheading.isEmpty && row.subheading != existing.subheading { existing.subheading = row.subheading; changed = true }
-        if !row.writeUp.isEmpty && row.writeUp != existing.writeUp { existing.writeUp = row.writeUp; changed = true }
-        if let newOrder = row.orderInGroup, existing.orderInGroup != newOrder { existing.orderInGroup = newOrder; changed = true }
-        if !row.materials.isEmpty && row.materials != existing.materials { existing.materials = row.materials; changed = true }
-        if !row.purpose.isEmpty && row.purpose != existing.purpose { existing.purpose = row.purpose; changed = true }
-        if !row.ageRange.isEmpty && row.ageRange != existing.ageRange { existing.ageRange = row.ageRange; changed = true }
-        if !row.teacherNotes.isEmpty && row.teacherNotes != existing.teacherNotes { existing.teacherNotes = row.teacherNotes; changed = true }
+        if !row.subheading.isEmpty && row.subheading != existing.subheading {
+            existing.subheading = row.subheading; changed = true
+        }
+        if !row.writeUp.isEmpty && row.writeUp != existing.writeUp {
+            existing.writeUp = row.writeUp; changed = true
+        }
+        if let newOrder = row.orderInGroup, existing.orderInGroup != newOrder {
+            existing.orderInGroup = newOrder; changed = true
+        }
+        if !row.materials.isEmpty && row.materials != existing.materials {
+            existing.materials = row.materials; changed = true
+        }
+        if !row.purpose.isEmpty && row.purpose != existing.purpose {
+            existing.purpose = row.purpose; changed = true
+        }
+        if !row.ageRange.isEmpty && row.ageRange != existing.ageRange {
+            existing.ageRange = row.ageRange; changed = true
+        }
+        if !row.teacherNotes.isEmpty && row.teacherNotes != existing.teacherNotes {
+            existing.teacherNotes = row.teacherNotes; changed = true
+        }
         return changed
     }
 
@@ -222,7 +240,7 @@ extension LessonCSVImporter {
     }
 
     // MARK: - CSV Parsing
-    /// RFC4180-ish CSV parser: returns array of records, each record is array of fields.
+    // RFC4180-ish CSV parser: returns array of records, each record is array of fields.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private static func splitCSVIntoRecords(_ text: String) throws -> [[String]] {
         var records: [[String]] = []

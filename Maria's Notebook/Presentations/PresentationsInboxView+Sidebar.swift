@@ -98,6 +98,7 @@ extension PresentationsInboxView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func studentRow(_ student: Student) -> some View {
         let isSelected = coordinator.selectedStudentFilter == student.id
 

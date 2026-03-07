@@ -246,6 +246,7 @@ extension TodoMainView {
         return formatter.date(from: key)
     }
 
+    // swiftlint:disable:next function_body_length
     func todoSection(title: String, todos: [TodoItem]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // Things-style section header

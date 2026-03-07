@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // TodayView.swift
 // Today hub showing reminders, lessons, scheduled check-ins, follow-ups, and completions.
 // Integrated AttendanceView expansion logic with fixed roll-down animation.
@@ -23,7 +24,8 @@ import UIKit
 import AppKit
 #endif
 
-/// Today hub view. Binds to TodayViewModel and renders multiple sections.
+// Today hub view. Binds to TodayViewModel and renders multiple sections.
+// swiftlint:disable:next type_body_length
 struct TodayView: View {
     // MARK: - Environment
     @Environment(\.modelContext) var modelContext

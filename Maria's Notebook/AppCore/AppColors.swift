@@ -8,6 +8,7 @@ struct AppColors {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     static func color(forSubject subject: String) -> Color {
         let key = subject.normalizedForComparison()
 

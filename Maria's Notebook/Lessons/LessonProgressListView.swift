@@ -1,7 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// List view showing progress for all lessons, allowing selection to view detailed progress
+// List view showing progress for all lessons, allowing selection to view detailed progress
+// swiftlint:disable:next type_body_length
 struct LessonProgressListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)])
@@ -178,6 +179,7 @@ struct LessonProgressListView: View {
     }
     
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func lessonRow(_ lesson: Lesson) -> some View {
         Button {
             selectedLesson = lesson

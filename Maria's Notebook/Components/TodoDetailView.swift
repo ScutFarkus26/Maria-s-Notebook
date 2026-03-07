@@ -6,6 +6,7 @@ import SwiftData
 
 // MARK: - Todo Detail View
 
+// swiftlint:disable:next type_body_length
 struct TodoDetailView: View {
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext

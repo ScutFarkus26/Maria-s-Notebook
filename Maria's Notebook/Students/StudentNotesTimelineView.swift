@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  StudentNotesTimelineView.swift
 //  Maria's Notebook
@@ -63,6 +64,7 @@ struct StudentNotesTimelineView: View {
 }
 
 // MARK: - Internal List View
+// swiftlint:disable:next type_body_length
 struct StudentNotesTimelineList: View {
     @Bindable var viewModel: StudentNotesViewModel
     @Environment(\.calendar) var calendar

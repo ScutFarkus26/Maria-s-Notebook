@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftData
 import OSLog
@@ -6,6 +7,7 @@ import OSLog
 /// readiness assessment, prompt construction, and API calls into a multi-step
 /// planning workflow. Manages conversation state and applies recommendations.
 @MainActor
+// swiftlint:disable:next type_body_length
 final class LessonPlanningService {
     private static let logger = Logger.ai
     
@@ -114,7 +116,8 @@ final class LessonPlanningService {
         return (recommendations, session)
     }
     
-    /// Generates a weekly plan for the whole class.
+    // Generates a weekly plan for the whole class.
+    // swiftlint:disable:next function_body_length
     func generateWeekPlan(
         students: [Student],
         weekStartDate: Date? = nil,

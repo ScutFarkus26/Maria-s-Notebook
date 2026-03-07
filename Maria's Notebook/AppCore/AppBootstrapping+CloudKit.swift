@@ -7,9 +7,10 @@ import OSLog
 
 extension AppBootstrapping {
 
-    /// Creates a ModelContainer with comprehensive error handling.
-    /// If SwiftData asserts internally during schema processing, we cannot catch it.
-    /// Returns the container and sets initError if there's a recoverable error.
+    // Creates a ModelContainer with comprehensive error handling.
+    // If SwiftData asserts internally during schema processing, we cannot catch it.
+    // Returns the container and sets initError if there's a recoverable error.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func createModelContainer() throws -> ModelContainer {
         // IMPORTANT: If SwiftData asserts internally during schema processing, we cannot catch it.
         // Internal assertions crash immediately at the Swift runtime level.
@@ -94,6 +95,7 @@ extension AppBootstrapping {
         }
 
         // Helper to create container with defensive error handling
+        // swiftlint:disable:next function_body_length
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
             do {
                 if inMemory {

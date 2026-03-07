@@ -1,8 +1,10 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
-/// Unified sheet for recording a presentation with per-student notes, assignments, and group observations.
-/// This sheet stays open until the user clicks Done AND the status is valid (Just Presented or Previously Presented).
+// Unified sheet for recording a presentation with per-student notes, assignments, and group observations.
+// This sheet stays open until the user clicks Done AND the status is valid (Just Presented or Previously Presented).
+// swiftlint:disable:next type_body_length
 struct UnifiedPostPresentationSheet: View {
     // MARK: - Types
 

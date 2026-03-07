@@ -79,6 +79,7 @@ enum ProcedureService {
 
     /// Creates a new procedure
     @MainActor
+    // swiftlint:disable:next function_parameter_count
     static func createProcedure(
         title: String,
         summary: String,
@@ -101,8 +102,9 @@ enum ProcedureService {
         return procedure
     }
 
-    /// Updates an existing procedure
+    // Updates an existing procedure
     @MainActor
+    // swiftlint:disable:next function_parameter_count
     static func updateProcedure(
         _ procedure: Procedure,
         title: String,

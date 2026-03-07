@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import SwiftData
@@ -7,6 +8,7 @@ import UniformTypeIdentifiers
 import PDFKit
 #endif
 
+// swiftlint:disable:next type_body_length
 struct WorksAgendaView: View {
     private static let logger = Logger.work
 

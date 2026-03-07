@@ -63,17 +63,18 @@ enum StudentsCSVImportHandler {
         }
     }
 
-    /// Handle mapping confirmation and start parsing with the confirmed mapping.
-    ///
-    /// - Parameters:
-    ///   - mapping: The confirmed column mapping
-    ///   - fileURL: The URL of the file to parse
-    ///   - students: Existing students for duplicate detection
-    ///   - existingTask: Reference to any existing parsing task to cancel
-    ///   - onParsed: Called when parsing completes successfully
-    ///   - onError: Called with an ImportAlert when an error occurs
-    ///   - onFinally: Called when the operation completes (success or failure)
-    /// - Returns: The new parsing task, or nil if fileURL was nil
+    // Handle mapping confirmation and start parsing with the confirmed mapping.
+    //
+    // - Parameters:
+    //   - mapping: The confirmed column mapping
+    //   - fileURL: The URL of the file to parse
+    //   - students: Existing students for duplicate detection
+    //   - existingTask: Reference to any existing parsing task to cancel
+    //   - onParsed: Called when parsing completes successfully
+    //   - onError: Called with an ImportAlert when an error occurs
+    //   - onFinally: Called when the operation completes (success or failure)
+    // - Returns: The new parsing task, or nil if fileURL was nil
+    // swiftlint:disable:next function_parameter_count
     static func handleMappingConfirm(
         mapping: StudentCSVImporter.Mapping,
         fileURL: URL?,

@@ -93,7 +93,8 @@ struct AttendanceGrid: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Calculate the optimal grid layout to fill available space without scrolling
+    // Calculate the optimal grid layout to fill available space without scrolling
+    // swiftlint:disable:next function_body_length
     private func calculateLayout(
         studentCount: Int,
         availableWidth: CGFloat,

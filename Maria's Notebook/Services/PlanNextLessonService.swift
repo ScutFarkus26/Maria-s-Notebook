@@ -165,6 +165,7 @@ struct PlanNextLessonService {
     ///   - context: The ModelContext for inserting the new LessonAssignment
     /// - Returns: A PlanResult indicating success or the reason for failure
     @discardableResult
+    // swiftlint:disable:next function_parameter_count
     static func planLesson(
         _ nextLesson: Lesson,
         forStudents studentIDs: Set<UUID>,

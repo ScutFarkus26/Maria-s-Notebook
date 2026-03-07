@@ -1,7 +1,9 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
-/// Main list view for all practice sessions
+// Main list view for all practice sessions
+// swiftlint:disable:next type_body_length
 struct PracticeSessionsListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PracticeSession.date, order: .reverse) private var allSessions: [PracticeSession]

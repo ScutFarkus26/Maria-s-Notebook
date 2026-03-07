@@ -70,7 +70,8 @@ public final class EnhancedBackupService {
 
     // MARK: - Export
 
-    /// Enhanced export with mode selection and automatic verification
+    // Enhanced export with mode selection and automatic verification
+    // swiftlint:disable:next function_body_length
     public func exportBackup(
         modelContext: ModelContext,
         to url: URL,

@@ -67,7 +67,8 @@ enum BackupPreferencesService {
 
     // MARK: - Import
 
-    /// Applies a PreferencesDTO to user preferences.
+    // Applies a PreferencesDTO to user preferences.
+    // swiftlint:disable:next cyclomatic_complexity
     @MainActor static func applyPreferencesDTO(_ dto: PreferencesDTO) {
         let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard

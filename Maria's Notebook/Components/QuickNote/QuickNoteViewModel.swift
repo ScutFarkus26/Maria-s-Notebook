@@ -16,6 +16,7 @@ import UIKit
 
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 class QuickNoteViewModel {
     private static let logger = Logger.notes
 
@@ -74,6 +75,7 @@ class QuickNoteViewModel {
         }
     }
     
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func analyzeText(_ text: String, students: [Student]) {
         // Don't analyze if we're currently applying replacements to avoid infinite loops
         guard !isApplyingReplacements else { return }

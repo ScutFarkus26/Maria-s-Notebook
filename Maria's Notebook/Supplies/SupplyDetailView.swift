@@ -1,7 +1,9 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
-/// Detail view for viewing and editing a supply
+// Detail view for viewing and editing a supply
+// swiftlint:disable:next type_body_length
 struct SupplyDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss

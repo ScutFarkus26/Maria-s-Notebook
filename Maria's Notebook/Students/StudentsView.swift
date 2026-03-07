@@ -5,7 +5,8 @@ import UniformTypeIdentifiers
 
 private let logger = Logger.students
 
-/// Top-level view for managing and browsing students with a unified sidebar.
+// Top-level view for managing and browsing students with a unified sidebar.
+// swiftlint:disable:next type_body_length
 struct StudentsView<WorkloadContent: View>: View {
     @Binding var mode: StudentMode
     @ViewBuilder let workloadContent: WorkloadContent

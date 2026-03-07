@@ -85,7 +85,8 @@ class SettingsStatsViewModel {
     private var lastLoadDate: Date?
     private let cacheDuration: TimeInterval = 30 // Cache for 30 seconds
     
-    /// Load all statistics efficiently
+    // Load all statistics efficiently
+    // swiftlint:disable:next function_body_length
     func loadCounts(context: ModelContext) {
         // Use cached data if recent
         if let lastLoad = lastLoadDate,

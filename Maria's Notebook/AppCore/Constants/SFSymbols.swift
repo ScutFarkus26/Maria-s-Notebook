@@ -1,7 +1,8 @@
 import Foundation
 
-/// Centralized SF Symbol names for type-safe icon usage throughout the app
-/// Eliminates string literal typos and provides autocomplete support
+// Centralized SF Symbol names for type-safe icon usage throughout the app
+// Eliminates string literal typos and provides autocomplete support
+// swiftlint:disable:next type_body_length
 enum SFSymbol {
     // MARK: - Navigation
     enum Navigation {

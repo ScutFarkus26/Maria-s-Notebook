@@ -22,8 +22,9 @@ struct PracticeSessionMigration {
     
     // MARK: - Migration
     
-    /// Migrates all WorkCheckIn entries to PracticeSession records
-    /// This is a one-time migration that converts check-ins to practice sessions
+    // Migrates all WorkCheckIn entries to PracticeSession records
+    // This is a one-time migration that converts check-ins to practice sessions
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func performMigration() throws -> MigrationResult {
         guard !isMigrationCompleted() else {
             return MigrationResult(

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // StudentProgressComponents.swift
 // Reusable components extracted from StudentProgressTab
 

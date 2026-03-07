@@ -108,6 +108,7 @@ struct WeekPlanOverviewView: View {
     
     // MARK: - Compact Lesson Card
     
+    // swiftlint:disable:next function_body_length
     private func compactLessonCard(_ rec: LessonRecommendation) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {

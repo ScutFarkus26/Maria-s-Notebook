@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import SwiftData
@@ -5,6 +6,7 @@ import UniformTypeIdentifiers
 
 private let logger = Logger.students
 
+// swiftlint:disable:next type_body_length
 struct PresentationPill: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter

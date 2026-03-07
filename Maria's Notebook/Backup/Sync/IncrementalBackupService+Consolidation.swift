@@ -30,6 +30,7 @@ extension IncrementalBackupService {
 
         // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
 
+        // swiftlint:disable:next cyclomatic_complexity
         mutating func merge(_ payload: BackupPayload) {
             for dto in payload.students { students[dto.id] = dto }
             for dto in payload.lessons { lessons[dto.id] = dto }

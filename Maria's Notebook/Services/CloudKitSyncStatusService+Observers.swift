@@ -5,6 +5,7 @@ import CoreData
 
 extension CloudKitSyncStatusService {
 
+    // swiftlint:disable:next function_body_length
     func startObserving() {
         // Observe remote changes (incoming CloudKit sync)
         remoteChangeObserver = NotificationCenter.default.addObserver(

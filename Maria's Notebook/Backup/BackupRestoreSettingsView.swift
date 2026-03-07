@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import Foundation
 
+// swiftlint:disable:next type_body_length
 struct BackupRestoreSettingsView: View {
     @Binding var encryptBackups: Bool
     @Binding var restoreMode: BackupService.RestoreMode

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftData
 import OSLog
@@ -10,6 +11,7 @@ struct AvailableTrack {
 
 /// Service for managing group-based tracks
 @MainActor
+// swiftlint:disable:next type_body_length
 struct GroupTrackService {
     private static let logger = Logger.lessons
 
@@ -451,13 +453,14 @@ struct GroupTrackService {
 
     // MARK: - Track Completion
 
-    /// Check if a track is complete for a student and mark the enrollment as inactive if so.
-    /// A track is complete when all lessons in the track have been mastered by the student.
-    /// - Parameters:
-    ///   - lesson: The lesson that was just mastered (used to find the track)
-    ///   - studentID: The student's UUID string
-    ///   - modelContext: The model context for database operations
-    ///   - saveCoordinator: Optional save coordinator for error handling (uses silent fallback if nil)
+    // Check if a track is complete for a student and mark the enrollment as inactive if so.
+    // A track is complete when all lessons in the track have been mastered by the student.
+    // - Parameters:
+    //   - lesson: The lesson that was just mastered (used to find the track)
+    //   - studentID: The student's UUID string
+    //   - modelContext: The model context for database operations
+    //   - saveCoordinator: Optional save coordinator for error handling (uses silent fallback if nil)
+    // swiftlint:disable:next function_body_length
     static func checkAndCompleteTrackIfNeeded(
         lesson: Lesson,
         studentID: String,

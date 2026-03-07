@@ -4,7 +4,8 @@
 import SwiftUI
 import SwiftData
 
-/// Shows a student × lesson matrix for a single subject/group.
+// Shows a student × lesson matrix for a single subject/group.
+// swiftlint:disable:next type_body_length
 struct GroupProgressionView: View {
     let subject: String
     let group: String

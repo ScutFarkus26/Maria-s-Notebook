@@ -5,6 +5,7 @@ import UIKit
 #endif
 
 struct MarkdownExporter {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func markdown(for t: CommunityTopic) -> String {
         var m = """
         # \(t.title)

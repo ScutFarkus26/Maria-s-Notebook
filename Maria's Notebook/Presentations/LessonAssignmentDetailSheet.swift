@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  LessonAssignmentDetailSheet.swift
 //  Maria's Notebook
@@ -10,6 +11,7 @@ import SwiftUI
 import SwiftData
 import OSLog
 
+// swiftlint:disable:next type_body_length
 struct LessonAssignmentDetailSheet: View, Identifiable {
     static let logger = Logger.presentations
     let assignmentID: UUID

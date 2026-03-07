@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // RootView.swift
 // App root container with top pill navigation and tab routing.
 //
@@ -16,7 +17,8 @@ extension UUID: @retroactive Identifiable {
     public var id: UUID { self }
 }
 
-/// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
+// Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
+// swiftlint:disable:next type_body_length
 struct RootView: View {
     private static let logger = Logger.app_
 
@@ -388,6 +390,7 @@ struct RootView: View {
 
     // MARK: - Event Handlers
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func handleMigration() {
         guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
 

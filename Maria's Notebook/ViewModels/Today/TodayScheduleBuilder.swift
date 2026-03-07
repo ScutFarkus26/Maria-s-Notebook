@@ -18,17 +18,18 @@ enum TodayScheduleBuilder {
 
     // MARK: - Build Schedule
 
-    /// Processes work items to determine overdue, due today, and stale items.
-    ///
-    /// - Parameters:
-    ///   - workItems: All work items to process
-    ///   - checkInsByWork: Scheduled work check-ins grouped by work ID (Migration: was planItemsByWork)
-    ///   - notesByWork: Notes grouped by work ID
-    ///   - studentsByID: Cached students for level filtering
-    ///   - levelFilter: Current level filter
-    ///   - referenceDate: The date to use as "today" for calculations
-    ///   - modelContext: Model context for aging policy checks
-    /// - Returns: A ScheduleResult containing overdue, today, and stale items
+    // Processes work items to determine overdue, due today, and stale items.
+    //
+    // - Parameters:
+    //   - workItems: All work items to process
+    //   - checkInsByWork: Scheduled work check-ins grouped by work ID (Migration: was planItemsByWork)
+    //   - notesByWork: Notes grouped by work ID
+    //   - studentsByID: Cached students for level filtering
+    //   - levelFilter: Current level filter
+    //   - referenceDate: The date to use as "today" for calculations
+    //   - modelContext: Model context for aging policy checks
+    // - Returns: A ScheduleResult containing overdue, today, and stale items
+    // swiftlint:disable:next function_parameter_count
     static func buildSchedule(
         workItems: [WorkModel],
         checkInsByWork: [UUID: [WorkCheckIn]],

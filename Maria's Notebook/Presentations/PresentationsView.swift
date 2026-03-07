@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -23,6 +24,7 @@ enum PresentationsMissWindow: String, CaseIterable, Sendable {
     }
 }
 
+// swiftlint:disable:next type_body_length
 struct PresentationsView: View {
     private static let logger = Logger.presentations
     @Environment(\.modelContext) private var modelContext

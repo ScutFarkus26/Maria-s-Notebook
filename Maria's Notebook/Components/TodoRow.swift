@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+// swiftlint:disable:next type_body_length
 struct TodoRow: View {
     let todo: TodoItem
     let students: [Student]

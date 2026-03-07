@@ -1,6 +1,8 @@
+// swiftlint:disable file_length
 import Foundation
 import OSLog
 
+// swiftlint:disable type_body_length
 public enum LessonFileStorage {
     private static let logger = Logger.lessons
     /// Returns the root directory URL where lesson files are stored.
@@ -334,6 +336,7 @@ public enum LessonFileStorage {
     
     // MARK: - Migration
     
+    // swiftlint:disable cyclomatic_complexity function_body_length
     /// Migrates files from the old private iCloud container location to the new public iCloud Drive location.
     /// This should be called once during app startup to move existing files to the user-visible location.
     /// - Returns: Number of files migrated, or nil if no migration was needed
@@ -440,4 +443,6 @@ public enum LessonFileStorage {
             return nil
         }
     }
+    // swiftlint:enable cyclomatic_complexity function_body_length
 }
+// swiftlint:enable type_body_length

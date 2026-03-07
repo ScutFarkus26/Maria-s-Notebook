@@ -47,6 +47,7 @@ struct StudentCategorizer {
     let allPracticeSessions: [PracticeSession]
     let coLearnerIDs: Set<UUID>
 
+    // swiftlint:disable:next function_body_length
     func categorize(_ student: Student) -> CategorizedStudent {
         let lessonID = initialWorkItem.lessonID
 

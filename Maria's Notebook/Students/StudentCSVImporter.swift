@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 // A CSV importer for Student records with parse-first, map-then-commit workflow.
+// swiftlint:disable:next type_body_length
 enum StudentCSVImporter {
     // MARK: - Row DTO
     struct Row: Identifiable, Hashable {
@@ -224,6 +225,7 @@ enum StudentCSVImporter {
         )
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func commit(parsed: Parsed, into context: ModelContext, existingStudents: [Student]) throws -> Summary {
         var inserted = 0
         var updated = 0

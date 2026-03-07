@@ -7,6 +7,7 @@ import Foundation
 extension WorkDetailView {
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func calendarSection() -> some View {
         DetailSectionCard(title: "Scheduled Check-Ins", icon: "calendar.badge.checkmark", accentColor: .blue) {
             VStack(alignment: .leading, spacing: 16) {

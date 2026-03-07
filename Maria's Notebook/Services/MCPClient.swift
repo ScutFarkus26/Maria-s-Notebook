@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  MCPClient.swift
 //  Maria's Notebook
@@ -29,7 +30,7 @@ protocol MCPClientProtocol {
         temperature: Double, maxTokens: Int?
     ) async throws -> String
 
-    /// Generates text with full configuration including model and timeout
+    // Generates text with full configuration including model and timeout
     // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String, systemMessage: String?,
@@ -37,7 +38,7 @@ protocol MCPClientProtocol {
         model: String?, timeout: TimeInterval?
     ) async throws -> String
 
-    /// Generates structured JSON with full configuration
+    // Generates structured JSON with full configuration
     // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String, systemMessage: String?,
@@ -51,7 +52,7 @@ protocol MCPClientProtocol {
     /// Searches external knowledge bases (e.g., educational standards, curriculum frameworks)
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult]
 
-    /// Sends a multi-turn conversation and returns the assistant's response text.
+    // Sends a multi-turn conversation and returns the assistant's response text.
     // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
@@ -62,8 +63,8 @@ protocol MCPClientProtocol {
         timeout: TimeInterval?
     ) async throws -> String
 
-    /// Sends a multi-turn conversation with streaming, calling onDelta for each text chunk.
-    /// Returns the full response text when complete.
+    // Sends a multi-turn conversation with streaming, calling onDelta for each text chunk.
+    // Returns the full response text when complete.
     // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]],

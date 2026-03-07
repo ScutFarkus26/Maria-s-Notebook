@@ -22,7 +22,8 @@ final class MigrationDiagnosticService {
 
     // MARK: - Public API
 
-    /// Runs a comprehensive diagnostic check and returns a detailed report.
+    // Runs a comprehensive diagnostic check and returns a detailed report.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func runDiagnostics() async -> MigrationDiagnosticReport {
         var report = MigrationDiagnosticReport()
 

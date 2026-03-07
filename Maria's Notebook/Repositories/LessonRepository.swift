@@ -120,19 +120,9 @@ struct LessonRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing Lesson's properties
-    /// - Parameters:
-    ///   - id: The UUID of the lesson to update
-    ///   - name: New name (optional)
-    ///   - subject: New subject (optional)
-    ///   - group: New group (optional)
-    ///   - subheading: New subheading (optional)
-    ///   - writeUp: New writeUp (optional)
-    ///   - orderInGroup: New order in group (optional)
-    ///   - sortIndex: New sort index (optional)
-    ///   - defaultWorkKind: New default work kind (optional)
-    /// - Returns: true if update succeeded, false if lesson not found
+    // Update an existing Lesson's properties
     @discardableResult
+    // swiftlint:disable:next cyclomatic_complexity
     func updateLesson(
         id: UUID,
         name: String? = nil,

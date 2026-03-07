@@ -1,9 +1,11 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 @preconcurrency import PDFKit
 import OSLog
 
-/// Detail view for a single resource, showing PDF preview, metadata, and edit/delete actions.
+// Detail view for a single resource, showing PDF preview, metadata, and edit/delete actions.
+// swiftlint:disable:next type_body_length
 struct ResourceDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss

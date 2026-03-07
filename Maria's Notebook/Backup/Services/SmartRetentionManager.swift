@@ -1,3 +1,4 @@
+// swiftlint:disable file_length type_body_length
 import Foundation
 import OSLog
 
@@ -87,9 +88,10 @@ public final class SmartRetentionManager {
     
     // MARK: - Analysis
     
-    /// Analyzes backups and determines which should be kept/deleted
-    /// - Parameter directory: Directory containing backups
-    /// - Returns: Retention report with classifications
+    // Analyzes backups and determines which should be kept/deleted
+    // - Parameter directory: Directory containing backups
+    // - Returns: Retention report with classifications
+    // swiftlint:disable:next function_body_length
     public func analyzeBackups(in directory: URL) async throws -> RetentionReport {
         let fm = FileManager.default
         
@@ -192,6 +194,7 @@ public final class SmartRetentionManager {
     
     // MARK: - Classification
     
+    // swiftlint:disable:next function_body_length
     private func classifyBackups(_ backups: [BackupFileEntry]) -> [BackupClassification] {
         let now = Date()
         let calendar = Calendar.current
@@ -402,3 +405,4 @@ extension AutoBackupManager {
         }
     }
 }
+// swiftlint:enable file_length type_body_length

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // BackupNotificationService.swift
 // Handles backup-related notifications and alerts
 
@@ -11,6 +12,7 @@ import AppKit
 /// Service for managing backup-related notifications
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class BackupNotificationService {
     
     // MARK: - Dependencies

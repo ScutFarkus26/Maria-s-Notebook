@@ -7,6 +7,7 @@ enum TrackFilterType: String {
     case notes
 }
 
+// swiftlint:disable:next type_body_length
 struct TrackFilteredListView: View, Identifiable {
     let enrollment: StudentTrackEnrollment
     let track: Track

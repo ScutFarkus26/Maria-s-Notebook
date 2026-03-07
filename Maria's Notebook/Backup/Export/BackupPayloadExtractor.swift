@@ -41,7 +41,8 @@ enum BackupPayloadExtractor {
 
     // MARK: - Private Helpers
 
-    /// Extracts the payload value (JSON object) starting from the given index.
+    // Extracts the payload value (JSON object) starting from the given index.
+    // swiftlint:disable:next cyclomatic_complexity
     private static func extractPayloadValue(from jsonString: String, startingAt: String.Index) -> Data? {
         var searchStart = startingAt
 

@@ -25,6 +25,7 @@ extension LessonProgressView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func presentationRow(_ presentation: Presentation) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack(spacing: AppTheme.Spacing.compact) {

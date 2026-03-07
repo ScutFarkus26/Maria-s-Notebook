@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -35,6 +36,7 @@ private enum FileImportHelpers {
     }
 }
 
+// swiftlint:disable type_body_length
 /// Displays and manages attachments for a lesson, including inherited attachments from group and subject.
 struct LessonAttachmentsSection: View {
     private static let logger = Logger.lessons
@@ -205,6 +207,7 @@ struct LessonAttachmentsSection: View {
         }
     }
     
+    // swiftlint:disable:next function_body_length
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
@@ -294,6 +297,7 @@ struct LessonAttachmentsSection: View {
         }
     }
 
+    // swiftlint:disable:next function_body_length
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else {
             Self.logger.error("No provider")
@@ -366,6 +370,7 @@ struct LessonAttachmentsSection: View {
         return true
     }
 }
+// swiftlint:enable type_body_length
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)

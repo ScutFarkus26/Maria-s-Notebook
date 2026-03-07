@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  OllamaClient.swift
 //  Maria's Notebook
@@ -9,8 +10,9 @@
 import Foundation
 import OSLog
 
-/// MCPClientProtocol implementation backed by a local Ollama server.
-/// Ollama must be running separately on the user's machine.
+// MCPClientProtocol implementation backed by a local Ollama server.
+// Ollama must be running separately on the user's machine.
+// swiftlint:disable:next type_body_length
 final class OllamaClient: MCPClientProtocol {
     private static let logger = Logger.ai
 

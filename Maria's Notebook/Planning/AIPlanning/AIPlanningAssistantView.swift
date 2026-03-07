@@ -1,9 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Main chat-style AI planning assistant view.
-/// Presents recommendations inline with conversation messages,
-/// supports free-text follow-up questions, and allows accepting/rejecting recommendations.
+// Main chat-style AI planning assistant view.
+// Presents recommendations inline with conversation messages,
+// supports free-text follow-up questions, and allows accepting/rejecting recommendations.
+// swiftlint:disable:next type_body_length
 struct AIPlanningAssistantView: View {
     let mode: PlanningMode
     

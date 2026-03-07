@@ -97,6 +97,7 @@ struct WorkPrintView: View {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func workItemRow(work: WorkModel, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: 8) {

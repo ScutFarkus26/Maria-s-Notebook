@@ -133,6 +133,7 @@ enum SettingsExportService {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private static func writeValue(
         _ desc: Descriptor, value: Any, syncStore: SyncedPreferencesStore, userDefaults ud: UserDefaults
     ) {

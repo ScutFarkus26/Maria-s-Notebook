@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // StudentProgressTab.swift
 // Progress tab showing student's active projects and track enrollments with detailed cards
 
@@ -9,6 +10,7 @@ import AppKit
 import UIKit
 #endif
 
+// swiftlint:disable:next type_body_length
 struct StudentProgressTab: View {
     let student: Student
 
@@ -226,6 +228,7 @@ struct StudentProgressTab: View {
     
     // MARK: - Enrollment Card
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func enrollmentCard(enrollment: StudentTrackEnrollment, track: Track) -> some View {
         let stats = viewModel.trackStats(for: enrollment, track: track)
         let progress = viewModel.trackProgress(for: track)

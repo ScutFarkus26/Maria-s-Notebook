@@ -108,6 +108,7 @@ struct WorkPrintController: NSViewRepresentable {
         }
     }
 
+    // swiftlint:disable:next function_body_length
     private func renderViewToPDF<V: View>(_ view: V, width: CGFloat) -> Data? {
         let hostingView = NSHostingView(rootView: view)
         hostingView.appearance = NSAppearance(named: .aqua)

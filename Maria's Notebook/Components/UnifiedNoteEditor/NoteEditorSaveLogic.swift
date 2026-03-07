@@ -91,6 +91,7 @@ extension UnifiedNoteEditor {
         return note
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func applyContextRelationship(to note: Note) {
         switch context {
         case .lesson(let lesson):

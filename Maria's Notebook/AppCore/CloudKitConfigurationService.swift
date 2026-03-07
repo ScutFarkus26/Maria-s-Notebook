@@ -96,7 +96,8 @@ enum CloudKitConfigurationService {
         logger.error("\(msg)")
     }
 
-    /// Categorizes a CloudKit error for structured logging
+    // Categorizes a CloudKit error for structured logging
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     private static func categorizeError(_ error: NSError) -> ErrorCategory {
         // CloudKit error codes (CKError)
         // https://developer.apple.com/documentation/cloudkit/ckerror

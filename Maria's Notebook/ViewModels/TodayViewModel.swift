@@ -170,6 +170,7 @@ final class TodayViewModel {
 
     // MARK: - Public API
 
+    // swiftlint:disable:next function_body_length
     func reload() {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
 

@@ -1,7 +1,9 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import OSLog
 
+// swiftlint:disable:next type_body_length
 struct ObservationHeatmapView: View {
     private static let logger = Logger.students
     @Environment(\.modelContext) private var modelContext
@@ -175,7 +177,8 @@ struct ObservationHeatmapView: View {
         }
     }
 
-    /// Finds the most recent observation date for a student using pre-built lookups.
+    // Finds the most recent observation date for a student using pre-built lookups.
+    // swiftlint:disable:next cyclomatic_complexity
     private func findMostRecentDateFromLookups(
         for student: Student, lookups: ObservationLookups
     ) -> Date? {

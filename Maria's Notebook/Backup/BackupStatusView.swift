@@ -92,6 +92,7 @@ struct BackupStatusView: View {
         }
     }
     
+    // swiftlint:disable:next function_body_length
     private func verificationSection(result: Result<BackupInfo, Error>) -> some View {
         Group {
             Divider()

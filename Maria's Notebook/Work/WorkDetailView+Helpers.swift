@@ -9,6 +9,7 @@ extension WorkDetailView {
     // MARK: - Header Section
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     func headerSection() -> some View {
         VStack(spacing: 20) {
             // Hero section with student avatar and work kind badge

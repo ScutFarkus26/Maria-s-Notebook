@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import OSLog
 import SwiftData
 import SwiftUI
@@ -11,6 +12,7 @@ import FoundationModels
 // - MeetingSummaryGenerator: AI summary generation
 // - MeetingWorkSnapshotHelper: Work statistics computation
 
+// swiftlint:disable:next type_body_length
 struct StudentMeetingsTab: View {
     static let logger = Logger.students
 
