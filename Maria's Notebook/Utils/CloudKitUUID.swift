@@ -83,8 +83,18 @@ struct CloudKitUUID: Codable, Hashable, Sendable {
 // MARK: - Optional Support
 
 extension CloudKitUUID {
-    /// Initialize with an optional UUID (nil becomes a new UUID)
+    /// Initialize with an optional UUID (nil becomes a new UUID).
+    /// - Warning: Passing `nil` silently generates a new UUID, which can create orphaned
+    ///   CloudKit records. Prefer `init(wrappedValue:)` with a known UUID.
     init(optionalValue: UUID?) {
+        #if DEBUG
+        if optionalValue == nil {
+            assertionFailure(
+                "CloudKitUUID.init(optionalValue:) called with nil — "
+                + "a new UUID will be generated. Verify this is intentional."
+            )
+        }
+        #endif
         self.storage = (optionalValue ?? UUID()).uuidString
     }
 }

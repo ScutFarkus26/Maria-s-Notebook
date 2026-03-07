@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import CloudKit
 
 // MARK: - CloudKit Configuration Service
 
@@ -96,78 +97,53 @@ enum CloudKitConfigurationService {
         logger.error("\(msg)")
     }
 
-    // Categorizes a CloudKit error for structured logging
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    // Categorizes a CloudKit error for structured logging.
+    // Uses CKError.Code enum rather than raw integers so the compiler catches
+    // any code values that change or are removed across SDK versions.
+    // swiftlint:disable:next cyclomatic_complexity
     private static func categorizeError(_ error: NSError) -> ErrorCategory {
-        // CloudKit error codes (CKError)
-        // https://developer.apple.com/documentation/cloudkit/ckerror
-        switch error.code {
-        case 1: // CKError.internalError
-            return .unknown
-        case 2: // CKError.partialFailure
-            return .unknown
-        case 3: // CKError.networkUnavailable
-            return .network
-        case 4: // CKError.networkFailure
-            return .network
-        case 5: // CKError.badContainer
-            return .authentication
-        case 6: // CKError.serviceUnavailable
-            return .network
-        case 7: // CKError.requestRateLimited
-            return .quota
-        case 9: // CKError.notAuthenticated
-            return .authentication
-        case 10: // CKError.permissionFailure
-            return .authentication
-        case 11: // CKError.unknownItem
-            return .conflict
-        case 12: // CKError.invalidArguments
-            return .schema
-        case 14: // CKError.serverRecordChanged
-            return .conflict
-        case 15: // CKError.serverRejectedRequest
-            return .schema
-        case 16: // CKError.assetFileNotFound
-            return .unknown
-        case 17: // CKError.assetFileModified
-            return .conflict
-        case 18: // CKError.incompatibleVersion
-            return .schema
-        case 19: // CKError.constraintViolation
-            return .schema
-        case 20: // CKError.operationCancelled
-            return .unknown
-        case 21: // CKError.changeTokenExpired
-            return .conflict
-        case 22: // CKError.batchRequestFailed
-            return .unknown
-        case 23: // CKError.zoneBusy
-            return .network
-        case 25: // CKError.quotaExceeded
-            return .quota
-        case 26: // CKError.zoneNotFound
-            return .schema
-        case 27: // CKError.limitExceeded
-            return .quota
-        case 28: // CKError.userDeletedZone
-            return .conflict
-        case 29: // CKError.tooManyParticipants
-            return .quota
-        case 30: // CKError.alreadyShared
-            return .conflict
-        case 32: // CKError.managedAccountRestricted
-            return .authentication
-        case 33: // CKError.participantMayNeedVerification
-            return .authentication
-        case 35: // CKError.accountTemporarilyUnavailable
-            return .authentication
-        default:
-            // Check domain for additional categorization
+        // Only treat CKErrorDomain errors as CloudKit errors
+        guard error.domain == CKErrorDomain,
+              let ckCode = CKError.Code(rawValue: error.code) else {
+            // Non-CloudKit domain: fall back to domain heuristics
             if error.domain.contains("NSCocoaError") || error.domain.contains("NSPOSIXError") {
                 return .network
             }
             return .unknown
+        }
+
+        switch ckCode {
+        case .internalError:                    return .unknown
+        case .partialFailure:                   return .unknown
+        case .networkUnavailable:               return .network
+        case .networkFailure:                   return .network
+        case .badContainer:                     return .authentication
+        case .serviceUnavailable:               return .network
+        case .requestRateLimited:               return .quota
+        case .notAuthenticated:                 return .authentication
+        case .permissionFailure:                return .authentication
+        case .unknownItem:                      return .conflict
+        case .invalidArguments:                 return .schema
+        case .serverRecordChanged:              return .conflict
+        case .serverRejectedRequest:            return .schema
+        case .assetFileNotFound:                return .unknown
+        case .assetFileModified:                return .conflict
+        case .incompatibleVersion:              return .schema
+        case .constraintViolation:              return .schema
+        case .operationCancelled:               return .unknown
+        case .changeTokenExpired:               return .conflict
+        case .batchRequestFailed:               return .unknown
+        case .zoneBusy:                         return .network
+        case .quotaExceeded:                    return .quota
+        case .zoneNotFound:                     return .schema
+        case .limitExceeded:                    return .quota
+        case .userDeletedZone:                  return .conflict
+        case .tooManyParticipants:              return .quota
+        case .alreadyShared:                    return .conflict
+        case .managedAccountRestricted:         return .authentication
+        case .participantMayNeedVerification:   return .authentication
+        case .accountTemporarilyUnavailable:    return .authentication
+        @unknown default:                       return .unknown
         }
     }
 
@@ -184,7 +160,7 @@ enum CloudKitConfigurationService {
         // Persist
         do {
             let data = try JSONEncoder().encode(logs)
-            UserDefaults.standard.set(data, forKey: "cloudKitErrorLog")
+            UserDefaults.standard.set(data, forKey: UserDefaultsKeys.cloudKitErrorLog)
         } catch {
             logger.warning("Failed to encode error log: \(error)")
         }
@@ -192,7 +168,7 @@ enum CloudKitConfigurationService {
 
     /// Retrieves the error log history
     static func getErrorLogs() -> [ErrorLogEntry] {
-        guard let data = UserDefaults.standard.data(forKey: "cloudKitErrorLog") else {
+        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKeys.cloudKitErrorLog) else {
             return []
         }
         do {
@@ -206,7 +182,7 @@ enum CloudKitConfigurationService {
 
     /// Clears the error log history
     static func clearErrorLog() {
-        UserDefaults.standard.removeObject(forKey: "cloudKitErrorLog")
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitErrorLog)
     }
 
     /// Returns a summary of recent errors by category

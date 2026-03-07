@@ -45,14 +45,6 @@ extension AppBootstrapping {
 
         // Helper to create CloudKit-enabled container with fallback handling
         func createCloudKitContainer(schema: Schema, storeURL: URL, containerID: String) throws -> ModelContainer {
-            guard #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) else {
-                throw NSError(
-                    domain: "MariasNotebook",
-                    code: 2002,
-                    userInfo: [NSLocalizedDescriptionKey: "CloudKit requires iOS 17 / macOS 14 or later for SwiftData."]
-                )
-            }
-
             do {
                 let cloudKitLogger = Logger.app(category: "CloudKit")
                 let cloudKitStart = Date()
@@ -66,8 +58,13 @@ extension AppBootstrapping {
 
                 // NOTE: CloudKit schema initialization
                 // SwiftData automatically initializes the CloudKit schema when creating a
-                // ModelContainer with cloudKitDatabase: .private(). Unlike raw Core Data,
-                // there is no need to call initializeCloudKitSchema() manually.
+                // ModelContainer with cloudKitDatabase: .private(). Unlike raw Core Data with
+                // NSPersistentCloudKitContainer, there is no need to call
+                // initializeCloudKitSchema() manually for normal setup.
+                //
+                // EXCEPTION: If you observe "partial data loss" or relationships not syncing
+                // after a model change, call initializeCloudKitSchema() once in a #if DEBUG
+                // block to force the cloud schema to match your local model, then remove it.
                 //
                 // IMPORTANT: Before releasing to the App Store, deploy the CloudKit schema
                 // from the Development environment to Production via the CloudKit Dashboard:

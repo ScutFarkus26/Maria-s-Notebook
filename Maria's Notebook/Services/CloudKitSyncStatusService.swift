@@ -153,7 +153,11 @@ final class CloudKitSyncStatusService {
         SyncEventLogger.shared.log("cloudkit", status: "started", message: "Manual sync initiated")
 
         do {
-            let context = ModelContext(container)
+            // Use the container's main context so any pending local changes are actually
+            // committed to the store (and thus queued for CloudKit mirroring).
+            // Creating a fresh ModelContext(container) has no pending changes, making
+            // save() a no-op that never triggers CloudKit sync.
+            let context = container.mainContext
             try context.save()
 
             // Update success state
