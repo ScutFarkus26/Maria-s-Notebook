@@ -175,20 +175,19 @@ final class AnthropicAPIClient: MCPClientProtocol {
     }
     
     // MARK: - Private Helpers
-    
+
     private func sendClaudeRequest(
         prompt: String, systemMessage: String? = nil,
         temperature: Double, maxTokens: Int,
         model: String? = nil, timeout: TimeInterval? = nil
     ) async throws -> String {
-        // Double-check API key
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
-        
+
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 60
-        
+
         Self.logger.debug(
             "Making request to \(self.baseURL, privacy: .public) with model \(resolvedModel, privacy: .public)"
         )
@@ -196,176 +195,35 @@ final class AnthropicAPIClient: MCPClientProtocol {
             // swiftlint:disable:next line_length
             "API Key length: \(self.apiKey.count, privacy: .public), starts with: \(self.apiKey.prefix(7), privacy: .private)"
         )
-        
-        var request = URLRequest(url: baseURL)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.timeoutInterval = resolvedTimeout
-        
-        var requestBody: [String: Any] = [
-            "model": resolvedModel,
-            "max_tokens": maxTokens,
-            "temperature": temperature,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": prompt
-                ]
-            ]
-        ]
-        
-        if let systemMessage, !systemMessage.isEmpty {
-            requestBody["system"] = systemMessage
-        }
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
+
+        let messages: [[String: String]] = [["role": "user", "content": prompt]]
+        let request = try buildAPIRequest(
+            messages: messages, systemMessage: systemMessage,
+            model: resolvedModel, maxTokens: maxTokens,
+            temperature: temperature, timeout: resolvedTimeout
+        )
+
         do {
             Self.logger.debug("Sending request...")
             let (data, response) = try await session.data(for: request)
             Self.logger.debug("Received response")
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw AnthropicAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                // Try to parse error message
-                let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                Self.logger.debug("HTTP Status Code: \(httpResponse.statusCode, privacy: .public)")
-                Self.logger.debug("Error response body: \(responseString, privacy: .public)")
-                
-                let errorBody: [String: Any]?
-                do {
-                    errorBody = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                } catch {
-                    Self.logger.warning("Failed to decode error response: \(error.localizedDescription)")
-                    errorBody = nil
-                }
-                if let errorBody = errorBody,
-                   let error = errorBody["error"] as? [String: Any],
-                   let message = error["message"] as? String,
-                   let errorType = error["type"] as? String {
-                    Self.logger.debug("Error type: \(errorType, privacy: .public)")
-                    Self.logger.debug("Parsed error message: \(message, privacy: .public)")
-                    
-                    // Provide more helpful error messages based on status code
-                    let helpfulMessage: String
-                    switch httpResponse.statusCode {
-                    case 401:
-                        helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
-                    case 429:
-                        helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
-                    case 529:
-                        helpfulMessage = "Claude API is temporarily overloaded. " +
-                            "Please try again in a few moments. \(message)"
-                    default:
-                        helpfulMessage = message
-                    }
-                    throw AnthropicAPIError.apiError(
-                        statusCode: httpResponse.statusCode,
-                        message: helpfulMessage
-                    )
-                }
-                throw AnthropicAPIError.apiError(
-                    statusCode: httpResponse.statusCode,
-                    message: "Unknown error. Response: \(responseString)"
-                )
-            }
 
-            // Parse response
-            let responseBody: [String: Any]?
-            do {
-                responseBody = try JSONSerialization.jsonObject(
-                    with: data
-                ) as? [String: Any]
-            } catch {
-                Self.logger.warning(
-                    "Failed to decode API response: \(error.localizedDescription)"
-                )
-                throw AnthropicAPIError.invalidResponse
-            }
-            guard let responseBody = responseBody,
-                  let content = responseBody["content"] as? [[String: Any]],
-                  let firstContent = content.first,
-                  let text = firstContent["text"] as? String else {
-                throw AnthropicAPIError.invalidResponseFormat
-            }
+            let httpResponse = try validateHTTPResponse(response, data: data)
+            let (responseBody, text) = try parseResponseBody(data)
 
-            // Track API usage
-            let usage = responseBody["usage"] as? [String: Any]
-            let inputTokens = usage?["input_tokens"] as? Int
-            let outputTokens = usage?["output_tokens"] as? Int
-            Task { @MainActor in
-                APIUsageTracker.shared.logUsage(
-                    model: resolvedModel,
-                    inputTokens: inputTokens,
-                    outputTokens: outputTokens
-                )
-            }
-
+            trackAPIUsage(responseBody: responseBody, model: resolvedModel)
+            _ = httpResponse // used for validation only
             return text
         } catch let error as AnthropicAPIError {
             throw error
-        } catch let urlError as URLError {
-            // Provide more specific error messages
-            switch urlError.code {
-            case .notConnectedToInternet:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "No internet connection. Please check your network settings."
-                )
-            case .cannotFindHost, .cannotConnectToHost:
-                Self.logger.debug(
-                    // swiftlint:disable:next line_length
-                    "URLError: \(urlError.code.rawValue, privacy: .public) - \(urlError.localizedDescription, privacy: .public)"
-                )
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Cannot reach api.anthropic.com. Check your internet connection or firewall settings."
-                )
-            case .timedOut:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Request timed out. Please try again."
-                )
-            case .secureConnectionFailed:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Secure connection failed. Check your system date/time settings."
-                )
-            default:
-                Self.logger.debug(
-                    "URLError code: \(urlError.code.rawValue, privacy: .public)"
-                )
-                Self.logger.debug(
-                    "URLError: \(urlError.localizedDescription, privacy: .public)"
-                )
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Network error: \(urlError.localizedDescription)"
-                )
-            }
         } catch {
-            Self.logger.debug("Unknown error: \(error.localizedDescription)")
-            throw AnthropicAPIError.apiError(
-                statusCode: 0,
-                message: "Network error: \(error.localizedDescription)"
-            )
+            throw mapNetworkError(error)
         }
     }
 
     // MARK: - Multi-Turn Conversation
 
     /// Send a multi-turn conversation to the Anthropic API.
-    /// - Parameters:
-    ///   - messages: Array of role/content pairs.
-    ///   - systemMessage: Optional system message.
-    ///   - temperature: Sampling temperature.
-    ///   - maxTokens: Maximum tokens in the response.
-    /// - Returns: The assistant's response text.
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String? = nil,
@@ -377,124 +235,154 @@ final class AnthropicAPIClient: MCPClientProtocol {
         guard !apiKey.isEmpty else {
             throw AnthropicAPIError.noAPIKey
         }
-        
+
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 90
-        
+
         Self.logger.debug(
             "Sending conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
         )
-        
+
+        let request = try buildAPIRequest(
+            messages: messages, systemMessage: systemMessage,
+            model: resolvedModel, maxTokens: maxTokens,
+            temperature: temperature, timeout: resolvedTimeout
+        )
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            _ = try validateHTTPResponse(response, data: data)
+            let (_, text) = try parseResponseBody(data)
+            return text
+        } catch let error as AnthropicAPIError {
+            throw error
+        } catch {
+            throw mapNetworkError(error)
+        }
+    }
+
+    // MARK: - Request Building
+
+    private func buildAPIRequest(
+        messages: Any, systemMessage: String?,
+        model: String, maxTokens: Int,
+        temperature: Double, timeout: TimeInterval,
+        stream: Bool = false
+    ) throws -> URLRequest {
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.timeoutInterval = resolvedTimeout
-        
+        request.timeoutInterval = timeout
+
         var requestBody: [String: Any] = [
-            "model": resolvedModel,
+            "model": model,
             "max_tokens": maxTokens,
             "temperature": temperature,
             "messages": messages
         ]
-        
         if let systemMessage, !systemMessage.isEmpty {
             requestBody["system"] = systemMessage
         }
-        
+        if stream { requestBody["stream"] = true }
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
+        return request
+    }
+
+    // MARK: - Response Handling
+
+    @discardableResult
+    private func validateHTTPResponse(
+        _ response: URLResponse, data: Data
+    ) throws -> HTTPURLResponse {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AnthropicAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw buildHTTPError(statusCode: httpResponse.statusCode, data: data)
+        }
+        return httpResponse
+    }
+
+    private func buildHTTPError(statusCode: Int, data: Data) -> AnthropicAPIError {
+        let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+        Self.logger.debug("HTTP Status Code: \(statusCode, privacy: .public)")
+
+        guard let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = errorBody["error"] as? [String: Any],
+              let message = error["message"] as? String else {
+            return .apiError(statusCode: statusCode, message: "Unknown error. Response: \(responseString)")
+        }
+
+        let helpfulMessage: String
+        switch statusCode {
+        case 401:
+            helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
+        case 429:
+            helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
+        case 529:
+            helpfulMessage = "Claude API is temporarily overloaded. " +
+                "Please try again in a few moments. \(message)"
+        default:
+            helpfulMessage = message
+        }
+        return .apiError(statusCode: statusCode, message: helpfulMessage)
+    }
+
+    private func parseResponseBody(_ data: Data) throws -> ([String: Any], String) {
+        let responseBody: [String: Any]
         do {
-            let (data, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
+            guard let body = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 throw AnthropicAPIError.invalidResponse
             }
-            
-            guard httpResponse.statusCode == 200 else {
-                let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                Self.logger.debug("Conversation HTTP Status: \(httpResponse.statusCode, privacy: .public)")
-                
-                let errorBody: [String: Any]?
-                do {
-                    errorBody = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                } catch {
-                    errorBody = nil
-                }
-                if let errorBody = errorBody,
-                   let error = errorBody["error"] as? [String: Any],
-                   let message = error["message"] as? String {
-                    let helpfulMessage: String
-                    switch httpResponse.statusCode {
-                    case 401:
-                        helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
-                    case 429:
-                        helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
-                    case 529:
-                        helpfulMessage = "Claude API is temporarily overloaded. " +
-                            "Please try again in a few moments. \(message)"
-                    default:
-                        helpfulMessage = message
-                    }
-                    throw AnthropicAPIError.apiError(
-                        statusCode: httpResponse.statusCode,
-                        message: helpfulMessage
-                    )
-                }
-                throw AnthropicAPIError.apiError(
-                    statusCode: httpResponse.statusCode,
-                    message: "Unknown error. Response: \(responseString)"
-                )
-            }
-
-            let responseBody: [String: Any]?
-            do {
-                responseBody = try JSONSerialization.jsonObject(
-                    with: data
-                ) as? [String: Any]
-            } catch {
-                throw AnthropicAPIError.invalidResponse
-            }
-            guard let responseBody = responseBody,
-                  let content = responseBody["content"] as? [[String: Any]],
-                  let firstContent = content.first,
-                  let text = firstContent["text"] as? String else {
-                throw AnthropicAPIError.invalidResponseFormat
-            }
-
-            return text
-        } catch let error as AnthropicAPIError {
-            throw error
-        } catch let urlError as URLError {
-            switch urlError.code {
-            case .notConnectedToInternet:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "No internet connection. Please check your network settings."
-                )
-            case .cannotFindHost, .cannotConnectToHost:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Cannot reach api.anthropic.com. Check your internet connection."
-                )
-            case .timedOut:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Request timed out. Please try again."
-                )
-            default:
-                throw AnthropicAPIError.apiError(
-                    statusCode: 0,
-                    message: "Network error: \(urlError.localizedDescription)"
-                )
-            }
+            responseBody = body
         } catch {
-            throw AnthropicAPIError.apiError(
-                statusCode: 0,
-                message: "Network error: \(error.localizedDescription)"
+            throw AnthropicAPIError.invalidResponse
+        }
+        guard let content = responseBody["content"] as? [[String: Any]],
+              let firstContent = content.first,
+              let text = firstContent["text"] as? String else {
+            throw AnthropicAPIError.invalidResponseFormat
+        }
+        return (responseBody, text)
+    }
+
+    private func trackAPIUsage(responseBody: [String: Any], model: String) {
+        let usage = responseBody["usage"] as? [String: Any]
+        let inputTokens = usage?["input_tokens"] as? Int
+        let outputTokens = usage?["output_tokens"] as? Int
+        Task { @MainActor in
+            APIUsageTracker.shared.logUsage(
+                model: model, inputTokens: inputTokens, outputTokens: outputTokens
             )
         }
+    }
+
+    private func mapNetworkError(_ error: Error) -> AnthropicAPIError {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet:
+                return .apiError(statusCode: 0, message: "No internet connection. Please check your network settings.")
+            case .cannotFindHost, .cannotConnectToHost:
+                Self.logger.debug(
+                    // swiftlint:disable:next line_length
+                    "URLError: \(urlError.code.rawValue, privacy: .public) - \(urlError.localizedDescription, privacy: .public)"
+                )
+                return .apiError(
+                    statusCode: 0,
+                    message: "Cannot reach api.anthropic.com. Check your internet connection or firewall settings."
+                )
+            case .timedOut:
+                return .apiError(statusCode: 0, message: "Request timed out. Please try again.")
+            case .secureConnectionFailed:
+                return .apiError(statusCode: 0, message: "Secure connection failed. Check your system date/time settings.")
+            default:
+                return .apiError(statusCode: 0, message: "Network error: \(urlError.localizedDescription)")
+            }
+        }
+        Self.logger.debug("Unknown error: \(error.localizedDescription)")
+        return .apiError(statusCode: 0, message: "Network error: \(error.localizedDescription)")
     }
     
     // MARK: - Streaming Conversation
@@ -521,26 +409,11 @@ final class AnthropicAPIClient: MCPClientProtocol {
             "Streaming conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
         )
 
-        var request = URLRequest(url: baseURL)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.timeoutInterval = resolvedTimeout
-
-        var requestBody: [String: Any] = [
-            "model": resolvedModel,
-            "max_tokens": maxTokens,
-            "temperature": temperature,
-            "messages": messages,
-            "stream": true
-        ]
-
-        if let systemMessage, !systemMessage.isEmpty {
-            requestBody["system"] = systemMessage
-        }
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let request = try buildAPIRequest(
+            messages: messages, systemMessage: systemMessage,
+            model: resolvedModel, maxTokens: maxTokens,
+            temperature: temperature, timeout: resolvedTimeout, stream: true
+        )
 
         let (bytes, response) = try await session.bytes(for: request)
 
@@ -549,43 +422,21 @@ final class AnthropicAPIClient: MCPClientProtocol {
         }
 
         guard httpResponse.statusCode == 200 else {
-            // Collect error body
             var errorData = Data()
-            for try await byte in bytes {
-                errorData.append(byte)
-            }
-            let responseString = String(data: errorData, encoding: .utf8) ?? "Unable to decode"
-
-            if let errorBody = try? JSONSerialization.jsonObject(with: errorData) as? [String: Any],
-               let error = errorBody["error"] as? [String: Any],
-               let message = error["message"] as? String {
-                let helpfulMessage: String
-                switch httpResponse.statusCode {
-                case 401:
-                    helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
-                case 429:
-                    helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
-                case 529:
-                    helpfulMessage = "Claude API is temporarily overloaded. Please try again. \(message)"
-                default: helpfulMessage = message
-                }
-                throw AnthropicAPIError.apiError(
-                    statusCode: httpResponse.statusCode,
-                    message: helpfulMessage
-                )
-            }
-            throw AnthropicAPIError.apiError(
-                statusCode: httpResponse.statusCode,
-                message: "Unknown error. Response: \(responseString)"
-            )
+            for try await byte in bytes { errorData.append(byte) }
+            throw buildHTTPError(statusCode: httpResponse.statusCode, data: errorData)
         }
 
-        // Parse SSE stream
+        return try await parseSSEStream(bytes: bytes, onDelta: onDelta)
+    }
+
+    private func parseSSEStream(
+        bytes: URLSession.AsyncBytes, onDelta: @escaping @Sendable (String) -> Void
+    ) async throws -> String {
         var fullText = ""
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
             let jsonString = String(line.dropFirst(6))
-
             if jsonString == "[DONE]" { break }
 
             guard let jsonData = jsonString.data(using: .utf8),
@@ -594,22 +445,18 @@ final class AnthropicAPIClient: MCPClientProtocol {
             }
 
             let eventType = event["type"] as? String
-
             if eventType == "content_block_delta",
                let delta = event["delta"] as? [String: Any],
                let text = delta["text"] as? String {
                 fullText += text
                 onDelta(text)
             }
-
-            // Check for errors in the stream
             if eventType == "error",
                let error = event["error"] as? [String: Any],
                let message = error["message"] as? String {
                 throw AnthropicAPIError.apiError(statusCode: 0, message: message)
             }
         }
-
         return fullText
     }
 

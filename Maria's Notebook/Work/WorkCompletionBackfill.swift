@@ -45,7 +45,6 @@ enum WorkCompletionBackfill {
         if !note.trimmed().isEmpty {
             _ = record.setLegacyNoteText(note, in: context)
         }
-        try context.save()
         return record
     }
 }

@@ -23,6 +23,9 @@ final class ChatContextAssembler {
         let queryService = DataQueryService(context: context)
         let students = queryService.fetchAllStudents(excludeTest: true)
         let lessons = queryService.fetchAllLessons()
+        let lessonsDict = queryService.fetchLessonsDictionary()
+        let studentsDict = queryService.fetchStudentsDictionary()
+        let weekStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
 
         var lines: [String] = []
         lines.append("=== CLASSROOM SNAPSHOT ===")
@@ -30,38 +33,50 @@ final class ChatContextAssembler {
         lines.append("Total students: \(students.count)")
         lines.append("")
 
-        // Student roster with birthday for age comparisons
+        appendRosterSection(&lines, students: students)
+        appendSubjectsSection(&lines, lessons: lessons)
+        appendWeeklyActivitySection(
+            &lines, weekStart: weekStart,
+            lessonsDict: lessonsDict, studentsDict: studentsDict
+        )
+        appendOpenWorkSection(&lines, queryService: queryService, studentsDict: studentsDict)
+        appendCompletedWorkSection(&lines, weekStart: weekStart, studentsDict: studentsDict)
+        appendClassNotesSection(&lines)
+        appendTodosSection(&lines, studentsDict: studentsDict)
+
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: - Classroom Snapshot Helpers
+
+    private func appendRosterSection(_ lines: inout [String], students: [Student]) {
         lines.append("--- Student Roster ---")
         for student in students.sorted(by: { $0.firstName < $1.firstName }) {
             let age = ageString(for: student.birthday)
             let nick = student.nickname.map { " (\($0))" } ?? ""
             let bday = formattedDate(student.birthday)
             let nameStr = "\(student.firstName) \(student.lastName.prefix(1))\(nick)"
-            lines.append(
-                "• \(nameStr) — \(student.level.rawValue), age \(age), born \(bday)"
-            )
+            lines.append("• \(nameStr) — \(student.level.rawValue), age \(age), born \(bday)")
         }
         lines.append("")
+    }
 
-        // Subjects taught
+    private func appendSubjectsSection(_ lines: inout [String], lessons: [Lesson]) {
         let subjects = Set(lessons.map { $0.subject }).filter { !$0.isEmpty }.sorted()
         if !subjects.isEmpty {
             lines.append("--- Subjects ---")
             lines.append(subjects.joined(separator: ", "))
             lines.append("")
         }
+    }
 
-        // This week's activity summary
-        let weekStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-
-        // Presentations this week (modern LessonAssignment model)
+    private func appendWeeklyActivitySection(
+        _ lines: inout [String], weekStart: Date,
+        lessonsDict: [UUID: Lesson], studentsDict: [UUID: Student]
+    ) {
         let recentPresentations = fetchPresentations(from: weekStart, to: Date(), state: .presented)
-        let nextWeek = Calendar.current.date(
-            byAdding: .day, value: 7, to: Date()
-        ) ?? Date()
-        let scheduledPresentations = fetchPresentations(
-            from: Date(), to: nextWeek, state: .scheduled
-        )
+        let nextWeek = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+        let scheduledPresentations = fetchPresentations(from: Date(), to: nextWeek, state: .scheduled)
 
         lines.append("--- This Week ---")
         lines.append("Presentations given: \(recentPresentations.count)")
@@ -69,9 +84,6 @@ final class ChatContextAssembler {
             lines.append("Upcoming scheduled: \(scheduledPresentations.count)")
         }
 
-        // Recent presentation details (who got what)
-        let lessonsDict = queryService.fetchLessonsDictionary()
-        let studentsDict = queryService.fetchStudentsDictionary()
         if !recentPresentations.isEmpty {
             lines.append("Recent presentations:")
             for pres in recentPresentations.prefix(10) {
@@ -85,7 +97,6 @@ final class ChatContextAssembler {
             }
         }
 
-        // Attendance summary for the week
         let attendanceRecords = fetchAttendanceRecords(from: weekStart, to: Date())
         let absences = attendanceRecords.filter { $0.status == .absent }
         let tardies = attendanceRecords.filter { $0.status == .tardy }
@@ -96,17 +107,18 @@ final class ChatContextAssembler {
                     guard let uuid = UUID(uuidString: rec.studentID) else { return nil }
                     return studentsDict[uuid]?.firstName
                 }
-                let uniqueAbsent = Array(Set(absentNames)).sorted()
-                lines.append("  Students absent: \(uniqueAbsent.joined(separator: ", "))")
+                lines.append("  Students absent: \(Array(Set(absentNames)).sorted().joined(separator: ", "))")
             }
             lines.append("Tardies this week: \(tardies.count)")
         }
+    }
 
-        // Open work summary
+    private func appendOpenWorkSection(
+        _ lines: inout [String], queryService: DataQueryService, studentsDict: [UUID: Student]
+    ) {
         let openWork = queryService.fetchOpenWorkModels()
         lines.append("Open work items: \(openWork.count)")
         if !openWork.isEmpty {
-            // Group by student
             let workByStudent = Dictionary(grouping: openWork) { $0.studentID }
             for (studentIDStr, works) in workByStudent.sorted(by: { $0.value.count > $1.value.count }).prefix(8) {
                 if let uuid = UUID(uuidString: studentIDStr), let student = studentsDict[uuid] {
@@ -117,56 +129,50 @@ final class ChatContextAssembler {
             }
         }
         lines.append("")
+    }
 
-        // Recent completed work (last 7 days)
+    private func appendCompletedWorkSection(
+        _ lines: inout [String], weekStart: Date, studentsDict: [UUID: Student]
+    ) {
         let recentCompleted = fetchRecentCompletedWork(since: weekStart)
-        if !recentCompleted.isEmpty {
-            lines.append("--- Recently Completed Work ---")
-            for work in recentCompleted.prefix(8) {
-                let studentName = UUID(uuidString: work.studentID).flatMap { studentsDict[$0]?.firstName } ?? "Unknown"
-                let outcome = work.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
-                let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
-                lines.append("  • \(studentName): \(work.title)\(outcomeStr)")
-            }
-            lines.append("")
+        guard !recentCompleted.isEmpty else { return }
+        lines.append("--- Recently Completed Work ---")
+        for work in recentCompleted.prefix(8) {
+            let studentName = UUID(uuidString: work.studentID).flatMap { studentsDict[$0]?.firstName } ?? "Unknown"
+            let outcome = work.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
+            let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
+            lines.append("  • \(studentName): \(work.title)\(outcomeStr)")
         }
+        lines.append("")
+    }
 
-        // Class-wide notes (last 7 days)
+    private func appendClassNotesSection(_ lines: inout [String]) {
         let recentClassNotes = fetchRecentClassNotes(limit: 5)
-        if !recentClassNotes.isEmpty {
-            lines.append("--- Recent Class Notes ---")
-            for note in recentClassNotes {
-                let date = formattedDate(note.createdAt)
-                let body = String(note.body.prefix(150))
-                lines.append("  • \(date): \(body)")
-            }
-            lines.append("")
+        guard !recentClassNotes.isEmpty else { return }
+        lines.append("--- Recent Class Notes ---")
+        for note in recentClassNotes {
+            let date = formattedDate(note.createdAt)
+            let body = String(note.body.prefix(150))
+            lines.append("  • \(date): \(body)")
         }
+        lines.append("")
+    }
 
-        // Open todos
+    private func appendTodosSection(_ lines: inout [String], studentsDict: [UUID: Student]) {
         let openTodos = fetchOpenTodos()
-        if !openTodos.isEmpty {
-            lines.append("--- Teacher Todos ---")
-            for todo in openTodos.prefix(10) {
-                var line = "  • \(todo.title)"
-                if todo.priority != .none {
-                    line += " [\(todo.priority.rawValue)]"
-                }
-                if let due = todo.dueDate {
-                    line += " (due \(formattedDate(due)))"
-                }
-                if !todo.studentIDs.isEmpty {
-                    let names = todo.studentUUIDs.compactMap { studentsDict[$0]?.firstName }
-                    if !names.isEmpty {
-                        line += " — \(names.joined(separator: ", "))"
-                    }
-                }
-                lines.append(line)
+        guard !openTodos.isEmpty else { return }
+        lines.append("--- Teacher Todos ---")
+        for todo in openTodos.prefix(10) {
+            var line = "  • \(todo.title)"
+            if todo.priority != .none { line += " [\(todo.priority.rawValue)]" }
+            if let due = todo.dueDate { line += " (due \(formattedDate(due)))" }
+            if !todo.studentIDs.isEmpty {
+                let names = todo.studentUUIDs.compactMap { studentsDict[$0]?.firstName }
+                if !names.isEmpty { line += " — \(names.joined(separator: ", "))" }
             }
-            lines.append("")
+            lines.append(line)
         }
-
-        return lines.joined(separator: "\n")
+        lines.append("")
     }
 
     // MARK: - Tier 2: Question-Specific Context
@@ -180,7 +186,6 @@ final class ChatContextAssembler {
         let queryService = DataQueryService(context: context)
         let allStudents = queryService.fetchAllStudents(excludeTest: true)
 
-        // Match student names in the question
         let matched = matchStudents(in: question, from: allStudents)
         guard !matched.isEmpty else {
             return ("", existingMentionedIDs)
@@ -194,139 +199,140 @@ final class ChatContextAssembler {
         let lessonsDict = queryService.fetchLessonsDictionary()
         let studentsDict = queryService.fetchStudentsDictionary()
 
-        for student in matched.prefix(3) { // Cap at 3 students per question
+        for student in matched.prefix(3) {
             newMentionedIDs.insert(student.id)
-            lines.append("")
-            lines.append("--- \(student.firstName) \(student.lastName) ---")
-
-            let age = ageString(for: student.birthday)
-            lines.append("Age: \(age), Birthday: \(formattedDate(student.birthday)), Level: \(student.level.rawValue)")
-            if let started = student.dateStarted {
-                lines.append("Started: \(formattedDate(started))")
-            }
-
-            let studentIDString = student.id.uuidString
-
-            // Recent presentations (LessonAssignment model — last 10)
-            let studentPresentations = fetchPresentationsForStudent(studentID: student.id, limit: 10)
-            if !studentPresentations.isEmpty {
-                lines.append("Recent presentations (last \(studentPresentations.count)):")
-                for pres in studentPresentations {
-                    let fallbackLesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
-                    let lessonName = pres.lessonTitleSnapshot
-                        ?? fallbackLesson?.name ?? "Unknown"
-                    let lesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
-                    let subject = lesson?.subject ?? ""
-                    let subjectStr = subject.isEmpty ? "" : " (\(subject))"
-                    let date = formattedDate(pres.presentedAt ?? pres.createdAt)
-                    var line = "  • \(lessonName)\(subjectStr) — \(date)"
-                    if pres.needsPractice { line += " [needs practice]" }
-                    if pres.needsAnotherPresentation { line += " [needs re-presentation]" }
-                    if !pres.followUpWork.isEmpty { line += " → follow-up: \(pres.followUpWork.prefix(80))" }
-                    lines.append(line)
-
-                    // Include presentation notes
-                    if !pres.notes.isEmpty {
-                        lines.append("    Notes: \(pres.notes.prefix(120))")
-                    }
-                    // Include attached unified notes
-                    for note in (pres.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
-                        lines.append("    Observation: \(note.body.prefix(120))")
-                    }
-
-                    // Show who else was in this presentation
-                    let otherStudents = pres.studentUUIDs
-                        .filter { $0 != student.id }
-                        .compactMap { studentsDict[$0]?.firstName }
-                    if !otherStudents.isEmpty {
-                        lines.append("    Also with: \(otherStudents.joined(separator: ", "))")
-                    }
-                }
-            }
-
-            // Active work items (with more detail)
-            let allOpenWork = queryService.fetchOpenWorkModels()
-            let studentWork = allOpenWork.filter { $0.studentID == studentIDString }
-            if !studentWork.isEmpty {
-                lines.append("Active work (\(studentWork.count)):")
-                for work in studentWork.prefix(8) {
-                    let status = WorkStatus(rawValue: work.statusRaw)?.displayName ?? work.statusRaw
-                    let kind = work.kindRaw.flatMap { WorkKind(rawValue: $0)?.displayName } ?? ""
-                    let kindStr = kind.isEmpty ? "" : " (\(kind))"
-                    var line = "  • \(work.title) [\(status)]\(kindStr)"
-                    if let assigned = work.assignedAt as Date? {
-                        line += " assigned \(formattedDate(assigned))"
-                    }
-                    if let due = work.dueAt {
-                        line += " due \(formattedDate(due))"
-                    }
-                    lines.append(line)
-
-                    // Include work notes
-                    for note in (work.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
-                        lines.append("    Note: \(note.body.prefix(100))")
-                    }
-                }
-            }
-
-            // Recently completed work
-            let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-            let completedWork = fetchCompletedWorkForStudent(studentID: studentIDString, since: monthStart)
-            if !completedWork.isEmpty {
-                lines.append("Completed work (last 30 days):")
-                for work in completedWork.prefix(5) {
-                    let outcome = work.completionOutcomeRaw
-                        .flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
-                    let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
-                    let date = work.completedAt.map { formattedDate($0) } ?? ""
-                    lines.append("  • \(work.title)\(outcomeStr) — \(date)")
-                }
-            }
-
-            // Recent notes (more generous limit)
-            let recentNotes = fetchRecentNotes(for: student.id, limit: 5)
-            if !recentNotes.isEmpty {
-                lines.append("Recent notes:")
-                for note in recentNotes {
-                    let date = formattedDate(note.createdAt)
-                    let body = String(note.body.prefix(150))
-                    let context = note.attachedTo
-                    let contextStr = context == "general" ? "" : " [\(context)]"
-                    lines.append("  • \(date)\(contextStr): \(body)")
-                }
-            }
-
-            // Attendance this month
-            let attendance = fetchAttendanceRecords(from: monthStart, to: Date())
-                .filter { $0.studentID == studentIDString }
-            let presentCount = attendance.filter { $0.status == .present }.count
-            let absentCount = attendance.filter { $0.status == .absent }.count
-            let tardyCount = attendance.filter { $0.status == .tardy }.count
-            let totalRecords = attendance.filter { $0.status != .unmarked }.count
-            if totalRecords > 0 {
-                lines.append(
-                    "Attendance (30 days): \(presentCount) present, " +
-                    "\(absentCount) absent, \(tardyCount) tardy " +
-                    "out of \(totalRecords) days"
-                )
-            }
-
-            // Todos linked to this student
-            let studentTodos = fetchTodosForStudent(studentID: student.id)
-            if !studentTodos.isEmpty {
-                lines.append("Todos for \(student.firstName):")
-                for todo in studentTodos.prefix(5) {
-                    let status = todo.isCompleted ? "[done]" : "[open]"
-                    var line = "  • \(todo.title) \(status)"
-                    if let due = todo.dueDate {
-                        line += " due \(formattedDate(due))"
-                    }
-                    lines.append(line)
-                }
-            }
+            appendStudentDetail(
+                &lines, student: student, queryService: queryService,
+                lessonsDict: lessonsDict, studentsDict: studentsDict
+            )
         }
 
         return (lines.joined(separator: "\n"), newMentionedIDs)
+    }
+
+    // MARK: - Question Context Helpers
+
+    private func appendStudentDetail(
+        _ lines: inout [String], student: Student, queryService: DataQueryService,
+        lessonsDict: [UUID: Lesson], studentsDict: [UUID: Student]
+    ) {
+        lines.append("")
+        lines.append("--- \(student.firstName) \(student.lastName) ---")
+        let age = ageString(for: student.birthday)
+        lines.append("Age: \(age), Birthday: \(formattedDate(student.birthday)), Level: \(student.level.rawValue)")
+        if let started = student.dateStarted { lines.append("Started: \(formattedDate(started))") }
+
+        appendStudentPresentations(&lines, student: student, lessonsDict: lessonsDict, studentsDict: studentsDict)
+        appendStudentActiveWork(&lines, student: student, queryService: queryService)
+        appendStudentCompletedWork(&lines, student: student)
+        appendStudentNotes(&lines, student: student)
+        appendStudentAttendance(&lines, student: student)
+        appendStudentTodos(&lines, student: student)
+    }
+
+    private func appendStudentPresentations(
+        _ lines: inout [String], student: Student,
+        lessonsDict: [UUID: Lesson], studentsDict: [UUID: Student]
+    ) {
+        let studentPresentations = fetchPresentationsForStudent(studentID: student.id, limit: 10)
+        guard !studentPresentations.isEmpty else { return }
+        lines.append("Recent presentations (last \(studentPresentations.count)):")
+        for pres in studentPresentations {
+            let fallbackLesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
+            let lessonName = pres.lessonTitleSnapshot ?? fallbackLesson?.name ?? "Unknown"
+            let subject = lessonsDict[pres.lessonIDUUID ?? UUID()]?.subject ?? ""
+            let subjectStr = subject.isEmpty ? "" : " (\(subject))"
+            let date = formattedDate(pres.presentedAt ?? pres.createdAt)
+            var line = "  • \(lessonName)\(subjectStr) — \(date)"
+            if pres.needsPractice { line += " [needs practice]" }
+            if pres.needsAnotherPresentation { line += " [needs re-presentation]" }
+            if !pres.followUpWork.isEmpty { line += " → follow-up: \(pres.followUpWork.prefix(80))" }
+            lines.append(line)
+            if !pres.notes.isEmpty { lines.append("    Notes: \(pres.notes.prefix(120))") }
+            for note in (pres.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
+                lines.append("    Observation: \(note.body.prefix(120))")
+            }
+            let otherStudents = pres.studentUUIDs.filter { $0 != student.id }
+                .compactMap { studentsDict[$0]?.firstName }
+            if !otherStudents.isEmpty { lines.append("    Also with: \(otherStudents.joined(separator: ", "))") }
+        }
+    }
+
+    private func appendStudentActiveWork(
+        _ lines: inout [String], student: Student, queryService: DataQueryService
+    ) {
+        let studentIDString = student.id.uuidString
+        let studentWork = queryService.fetchOpenWorkModels().filter { $0.studentID == studentIDString }
+        guard !studentWork.isEmpty else { return }
+        lines.append("Active work (\(studentWork.count)):")
+        for work in studentWork.prefix(8) {
+            let status = WorkStatus(rawValue: work.statusRaw)?.displayName ?? work.statusRaw
+            let kind = work.kindRaw.flatMap { WorkKind(rawValue: $0)?.displayName } ?? ""
+            let kindStr = kind.isEmpty ? "" : " (\(kind))"
+            var line = "  • \(work.title) [\(status)]\(kindStr)"
+            if let assigned = work.assignedAt as Date? { line += " assigned \(formattedDate(assigned))" }
+            if let due = work.dueAt { line += " due \(formattedDate(due))" }
+            lines.append(line)
+            for note in (work.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
+                lines.append("    Note: \(note.body.prefix(100))")
+            }
+        }
+    }
+
+    private func appendStudentCompletedWork(_ lines: inout [String], student: Student) {
+        let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let completedWork = fetchCompletedWorkForStudent(studentID: student.id.uuidString, since: monthStart)
+        guard !completedWork.isEmpty else { return }
+        lines.append("Completed work (last 30 days):")
+        for work in completedWork.prefix(5) {
+            let outcome = work.completionOutcomeRaw
+                .flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
+            let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
+            let date = work.completedAt.map { formattedDate($0) } ?? ""
+            lines.append("  • \(work.title)\(outcomeStr) — \(date)")
+        }
+    }
+
+    private func appendStudentNotes(_ lines: inout [String], student: Student) {
+        let recentNotes = fetchRecentNotes(for: student.id, limit: 5)
+        guard !recentNotes.isEmpty else { return }
+        lines.append("Recent notes:")
+        for note in recentNotes {
+            let date = formattedDate(note.createdAt)
+            let body = String(note.body.prefix(150))
+            let ctx = note.attachedTo
+            let ctxStr = ctx == "general" ? "" : " [\(ctx)]"
+            lines.append("  • \(date)\(ctxStr): \(body)")
+        }
+    }
+
+    private func appendStudentAttendance(_ lines: inout [String], student: Student) {
+        let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let attendance = fetchAttendanceRecords(from: monthStart, to: Date())
+            .filter { $0.studentID == student.id.uuidString }
+        let presentCount = attendance.filter { $0.status == .present }.count
+        let absentCount = attendance.filter { $0.status == .absent }.count
+        let tardyCount = attendance.filter { $0.status == .tardy }.count
+        let totalRecords = attendance.filter { $0.status != .unmarked }.count
+        if totalRecords > 0 {
+            lines.append(
+                "Attendance (30 days): \(presentCount) present, " +
+                "\(absentCount) absent, \(tardyCount) tardy " +
+                "out of \(totalRecords) days"
+            )
+        }
+    }
+
+    private func appendStudentTodos(_ lines: inout [String], student: Student) {
+        let studentTodos = fetchTodosForStudent(studentID: student.id)
+        guard !studentTodos.isEmpty else { return }
+        lines.append("Todos for \(student.firstName):")
+        for todo in studentTodos.prefix(5) {
+            let status = todo.isCompleted ? "[done]" : "[open]"
+            var line = "  • \(todo.title) \(status)"
+            if let due = todo.dueDate { line += " due \(formattedDate(due))" }
+            lines.append(line)
+        }
     }
 
     // MARK: - Name Matching
