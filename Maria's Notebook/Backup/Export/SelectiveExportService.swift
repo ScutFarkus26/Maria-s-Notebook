@@ -1,5 +1,6 @@
 // SelectiveExportService.swift
 // Handles selective/filtered backup exports
+// swiftlint:disable file_length
 
 import Foundation
 import SwiftData
@@ -7,6 +8,7 @@ import OSLog
 
 /// Service for creating selective backups with filtered entities
 @MainActor
+// swiftlint:disable:next type_body_length
 public final class SelectiveExportService {
     private static let logger = Logger.backup
 
@@ -118,6 +120,7 @@ public final class SelectiveExportService {
 
     // MARK: - Public API
 
+    // swiftlint:disable function_body_length
     /// Creates a selective backup with the given filter
     /// - Parameters:
     ///   - modelContext: The SwiftData model context
@@ -205,7 +208,9 @@ public final class SelectiveExportService {
             warnings: warnings
         )
     }
+    // swiftlint:enable function_body_length
 
+    // swiftlint:disable function_body_length
     /// Previews what would be included in a selective export
     public func previewSelectiveExport(
         modelContext: ModelContext,
@@ -283,6 +288,7 @@ public final class SelectiveExportService {
             relatedEntitiesAdded: relatedEntitiesAdded
         )
     }
+    // swiftlint:enable function_body_length
 
     /// Exports a single project with all related data
     public func exportProject(
@@ -383,6 +389,7 @@ public final class SelectiveExportService {
         return (payload, counts)
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func collectCoreFilteredDTOs(
         into payload: inout BackupPayload,
         counts: inout [String: Int],
@@ -428,6 +435,7 @@ public final class SelectiveExportService {
         counts["WorkCompletionRecord"] = payload.workCompletions.count
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func collectProjectFilteredDTOs(
         into payload: inout BackupPayload,
         counts: inout [String: Int],
@@ -480,8 +488,11 @@ public final class SelectiveExportService {
         return []
     }
 
-    // MARK: - Collection Helpers
+}
 
+// MARK: - Collection Helpers
+
+extension SelectiveExportService {
     private func collectNotes(modelContext: ModelContext, filter: ExportFilter) -> [NoteDTO] {
         let all = safeFetch(FetchDescriptor<Note>(), context: modelContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.createdAt }

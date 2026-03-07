@@ -26,113 +26,82 @@ final class StudentsViewModel {
         showTestStudents: Bool = true,
         testStudentNames: String = ""
     ) -> [Student] {
-        // Build predicate for database-level filtering
-        // Note: level filtering is done in-memory because levelRaw is private
-        // Note: presentNow filtering is done in-memory because SwiftData #Predicate
-        // doesn't support capturing local Set variables
-        let predicate: Predicate<Student>? = nil
-        
-        // Build sort descriptors for database-level sorting where possible
-        let sortDescriptors: [SortDescriptor<Student>] = {
-            switch sortOrder {
-            case .manual:
-                return [SortDescriptor(\.manualOrder)]
-            case .alphabetical:
-                // Sort by firstName, then lastName, then manualOrder as tiebreaker
-                return [
-                    SortDescriptor(\.firstName),
-                    SortDescriptor(\.lastName),
-                    SortDescriptor(\.manualOrder)
-                ]
-            case .age:
-                // Sort by birthday descending (younger first), then manualOrder
-                return [
-                    SortDescriptor(\.birthday, order: .reverse),
-                    SortDescriptor(\.manualOrder)
-                ]
-            case .birthday, .lastLesson:
-                // Complex sorts that require calculations - will sort in-memory
-                // Use manualOrder as initial sort to maintain some order
-                return [SortDescriptor(\.manualOrder)]
-            }
-        }()
-        
-        // Execute fetch with predicate and sort descriptors
+        // Note: level and presentNow filtering are done in-memory;
+        // levelRaw is private and SwiftData #Predicate can't capture local Set variables.
         var descriptor = FetchDescriptor<Student>()
-        if let predicate = predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortDescriptors
-        
+        descriptor.sortBy = buildStudentSortDescriptors(for: sortOrder)
         var fetched = modelContext.safeFetch(descriptor)
-        
-        // PERFORMANCE: Combine all in-memory filters into a single pass to avoid creating intermediate arrays
+
         let query = searchString.trimmed().isEmpty ? nil : searchString.normalizedForComparison()
         let testFilter = TestStudentsFiltering.buildTestStudentFilter(
             showTestStudents: showTestStudents, testStudentNames: testStudentNames
         )
-        
-        fetched = fetched.filter { student in
-            // 1. Level filtering (levelRaw is private, so can't be used in predicates)
+        fetched = applyStudentFilters(
+            to: fetched, filter: filter, query: query,
+            testFilter: testFilter, presentNowIDs: presentNowIDs
+        )
+        return applySortToFetched(fetched, sortOrder: sortOrder, today: today)
+    }
+
+    private func buildStudentSortDescriptors(for sortOrder: SortOrder) -> [SortDescriptor<Student>] {
+        switch sortOrder {
+        case .manual:
+            return [SortDescriptor(\.manualOrder)]
+        case .alphabetical:
+            return [SortDescriptor(\.firstName), SortDescriptor(\.lastName), SortDescriptor(\.manualOrder)]
+        case .age:
+            return [SortDescriptor(\.birthday, order: .reverse), SortDescriptor(\.manualOrder)]
+        case .birthday, .lastLesson:
+            return [SortDescriptor(\.manualOrder)]
+        }
+    }
+
+    private func applyStudentFilters(
+        to students: [Student],
+        filter: StudentsFilter,
+        query: String?,
+        testFilter: (Student) -> Bool,
+        presentNowIDs: Set<UUID>?
+    ) -> [Student] {
+        students.filter { student in
             switch filter {
-            case .all:
-                break
-            case .upper:
-                if student.level != .upper { return false }
-            case .lower:
-                if student.level != .lower { return false }
+            case .all: break
+            case .upper: if student.level != .upper { return false }
+            case .lower: if student.level != .lower { return false }
             case .presentNow:
                 if let ids = presentNowIDs, !ids.isEmpty {
                     if !ids.contains(student.id) { return false }
                 } else {
-                    return false // No IDs means no matches
-                }
-            }
-            
-            // 2. Test student filtering
-            if !testFilter(student) { return false }
-            
-            // 3. Search string filtering
-            if let query = query {
-                let firstName = student.firstName.lowercased()
-                let lastName = student.lastName.lowercased()
-                let fullName = student.fullName.lowercased()
-                if !firstName.contains(query) && !lastName.contains(query) && !fullName.contains(query) {
                     return false
                 }
             }
-            
+            if !testFilter(student) { return false }
+            if let query = query {
+                let fn = student.firstName.lowercased()
+                let ln = student.lastName.lowercased()
+                let full = student.fullName.lowercased()
+                if !fn.contains(query) && !ln.contains(query) && !full.contains(query) { return false }
+            }
             return true
         }
-        
-        // Apply in-memory sorting for complex sorts
+    }
+
+    private func applySortToFetched(_ students: [Student], sortOrder: SortOrder, today: Date) -> [Student] {
         switch sortOrder {
-        case .manual, .alphabetical, .age:
-            // Already sorted by database, but may need refinement for alphabetical
-            if sortOrder == .alphabetical {
-                // Refine alphabetical sort using fullName for proper localized comparison
-                return fetched.sorted { lhs, rhs in
-                    let nameOrder = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
-                    if nameOrder == .orderedSame {
-                        return lhs.manualOrder < rhs.manualOrder
-                    }
-                    return nameOrder == .orderedAscending
-                }
+        case .manual, .age, .lastLesson:
+            return students
+        case .alphabetical:
+            return students.sorted { lhs, rhs in
+                let order = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
+                return order == .orderedSame ? lhs.manualOrder < rhs.manualOrder : order == .orderedAscending
             }
-            // For manual and age, database sort is sufficient (with manualOrder tiebreaker)
-            return fetched
         case .birthday:
-            // Sort by next birthday (requires calculation)
             let todayStart = Calendar.current.startOfDay(for: today)
-            return fetched.sorted { (lhs: Student, rhs: Student) -> Bool in
+            return students.sorted { lhs, rhs in
                 let l = nextBirthday(from: lhs.birthday, relativeTo: todayStart)
                 let r = nextBirthday(from: rhs.birthday, relativeTo: todayStart)
-                if l == r { return lhs.manualOrder < rhs.manualOrder }
-                return l < r
+                return l == r ? lhs.manualOrder < rhs.manualOrder : l < r
             }
-        case .lastLesson:
-            // Last lesson sorting is done in StudentsView where presentation data is available
-            return fetched
         }
     }
 
@@ -210,6 +179,7 @@ final class StudentsViewModel {
     }
 
     // MARK: - Data Loading
+    // swiftlint:disable:next function_parameter_count
     func loadDataOnDemand(
         mode: StudentMode,
         modelContext: ModelContext,
@@ -326,10 +296,14 @@ final class StudentsViewModel {
         }
     }
 
-    // MARK: - Shared Helper for Lesson Queries
-    // Computes days since last lesson for multiple students efficiently.
-    // Fetches all lesson assignments once and filters in memory to avoid repeated queries.
-    
+}
+
+// MARK: - Lesson Age Cache
+// Computes days since last lesson for multiple students efficiently.
+// Fetches all lesson assignments once and filters in memory to avoid repeated queries.
+
+extension StudentsViewModel {
+
     /// Shared data structure containing pre-fetched lesson data for efficient computation.
     private struct LessonQueryContext {
         let allLessonAssignments: [LessonAssignment]

@@ -53,6 +53,7 @@ final class InboxSheetViewModel {
 
     // MARK: - Consolidation
 
+    // swiftlint:disable:next function_parameter_count
     func consolidateSelected(
         orderedUnscheduledLessons: [LessonAssignment],
         lessonAssignments: [LessonAssignment],
@@ -65,44 +66,10 @@ final class InboxSheetViewModel {
         guard !selectedLAs.isEmpty else { return }
 
         let groups = selectedLAs.grouped(by: { $0.lessonIDUUID })
-        var consolidatedGroups = 0
-        var deletedIDs: [UUID] = []
         let currentOrder = orderedUnscheduledLessons.map(\.id)
-
-        for (_, group) in groups {
-            guard group.count >= 2 else { continue }
-            consolidatedGroups += 1
-
-            let groupIDs = group.map(\.id)
-            guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
-                  let target = lessonAssignments.first(where: { $0.id == targetID }) else { continue }
-
-            var union = Set<UUID>(target.studentUUIDs)
-            for la in group { union.formUnion(la.studentUUIDs) }
-            let remainingIDs = Array(union)
-
-            if remainingIDs.isEmpty {
-                deletedIDs.append(targetID)
-                modelContext.delete(target)
-            } else {
-                target.studentIDs = remainingIDs.map { $0.uuidString }
-                // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
-                // so we fetch all and filter in memory
-                let remainingSet = Set(remainingIDs)
-                let allStudents = safeFetch(
-                    FetchDescriptor<Student>(),
-                    modelContext: modelContext,
-                    context: "consolidateSelected"
-                )
-                let fetched = allStudents.filter { remainingSet.contains($0.id) }
-                target.students = fetched
-            }
-
-            for la in group where la.id != targetID {
-                deletedIDs.append(la.id)
-                modelContext.delete(la)
-            }
-        }
+        let (consolidatedGroups, deletedIDs) = applyGroupConsolidations(
+            groups, currentOrder: currentOrder, lessonAssignments: lessonAssignments, modelContext: modelContext
+        )
 
         saveCoordinator.save(modelContext, reason: "Consolidating lessons")
 
@@ -119,6 +86,44 @@ final class InboxSheetViewModel {
         appRouter.refreshPlanningInbox()
     }
 
+    private func applyGroupConsolidations(
+        _ groups: [UUID?: [LessonAssignment]],
+        currentOrder: [UUID],
+        lessonAssignments: [LessonAssignment],
+        modelContext: ModelContext
+    ) -> (consolidatedCount: Int, deletedIDs: [UUID]) {
+        var consolidatedCount = 0
+        var deletedIDs: [UUID] = []
+        for (_, group) in groups {
+            guard group.count >= 2 else { continue }
+            consolidatedCount += 1
+            let groupIDs = group.map(\.id)
+            guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
+                  let target = lessonAssignments.first(where: { $0.id == targetID }) else { continue }
+            var union = Set<UUID>(target.studentUUIDs)
+            for la in group { union.formUnion(la.studentUUIDs) }
+            let remainingIDs = Array(union)
+            if remainingIDs.isEmpty {
+                deletedIDs.append(targetID)
+                modelContext.delete(target)
+            } else {
+                target.studentIDs = remainingIDs.map { $0.uuidString }
+                // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
+                // so we fetch all and filter in memory
+                let remainingSet = Set(remainingIDs)
+                let allStudents = safeFetch(
+                    FetchDescriptor<Student>(), modelContext: modelContext, context: "consolidateSelected"
+                )
+                target.students = allStudents.filter { remainingSet.contains($0.id) }
+            }
+            for la in group where la.id != targetID {
+                deletedIDs.append(la.id)
+                modelContext.delete(la)
+            }
+        }
+        return (consolidatedCount, deletedIDs)
+    }
+
     // MARK: - Toast
 
     func showToast(_ message: String) {
@@ -126,8 +131,12 @@ final class InboxSheetViewModel {
         toastService.showInfo(message)
     }
 
-    // MARK: - Drop Handling
+}
 
+// MARK: - Drop Handling
+
+extension InboxSheetViewModel {
+    // swiftlint:disable:next function_parameter_count
     func handleDrop(
         providers: [NSItemProvider],
         location: CGPoint,
@@ -192,6 +201,7 @@ final class InboxSheetViewModel {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func handleStudentToInboxDrop(
         payload: String,
         location: CGPoint,
@@ -209,42 +219,10 @@ final class InboxSheetViewModel {
               let lessonID = UUID(uuidString: String(parts[2])),
               let studentID = UUID(uuidString: String(parts[3])) else { return }
 
-        // Find or create an unscheduled single-student LessonAssignment
-        let targetLA: LessonAssignment = {
-            let matchesLesson = { (la: LessonAssignment) in la.lessonIDUUID == lessonID }
-            let isUnscheduled = { (la: LessonAssignment) in la.scheduledFor == nil && !la.isGiven }
-            let matchesStudent = { (la: LessonAssignment) in Set(la.studentUUIDs) == Set([studentID]) }
-
-            if let existing = lessonAssignments.first(where: { la in
-                matchesLesson(la) && isUnscheduled(la) && matchesStudent(la)
-            }) {
-                return existing
-            }
-
-            var lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-            lessonFetch.fetchLimit = 1
-            var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-            studentFetch.fetchLimit = 1
-            let lessonObj = safeFetchFirst(
-                lessonFetch,
-                modelContext: modelContext,
-                context: "handleStudentToInboxDrop-lesson"
-            )
-            let studentObj = safeFetchFirst(
-                studentFetch,
-                modelContext: modelContext,
-                context: "handleStudentToInboxDrop-student"
-            )
-
-            let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
-            PresentationFactory.attachRelationships(
-                to: new,
-                lesson: lessonObj,
-                students: studentObj.map { [$0] } ?? []
-            )
-            modelContext.insert(new)
-            return new
-        }()
+        let targetLA = findOrCreateInboxLA(
+            lessonID: lessonID, studentID: studentID,
+            lessonAssignments: lessonAssignments, modelContext: modelContext
+        )
 
         // Remove the student from the source
         let sourceDescriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == sourceID })
@@ -252,9 +230,7 @@ final class InboxSheetViewModel {
             let studentIDString = studentID.uuidString
             src.studentIDs.removeAll { $0 == studentIDString }
             src.students.removeAll { $0.id == studentID }
-            if src.studentIDs.isEmpty {
-                modelContext.delete(src)
-            }
+            if src.studentIDs.isEmpty { modelContext.delete(src) }
         }
 
         // Insert into inbox order
@@ -274,6 +250,35 @@ final class InboxSheetViewModel {
         saveCoordinator.save(modelContext, reason: "Handling student to inbox drop")
     }
 
+    private func findOrCreateInboxLA(
+        lessonID: UUID,
+        studentID: UUID,
+        lessonAssignments: [LessonAssignment],
+        modelContext: ModelContext
+    ) -> LessonAssignment {
+        let matchesLesson = { (la: LessonAssignment) in la.lessonIDUUID == lessonID }
+        let isUnscheduled = { (la: LessonAssignment) in la.scheduledFor == nil && !la.isGiven }
+        let matchesStudent = { (la: LessonAssignment) in Set(la.studentUUIDs) == Set([studentID]) }
+        if let existing = lessonAssignments.first(where: { la in
+            matchesLesson(la) && isUnscheduled(la) && matchesStudent(la)
+        }) {
+            return existing
+        }
+        var lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+        lessonFetch.fetchLimit = 1
+        var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+        studentFetch.fetchLimit = 1
+        let lessonObj = safeFetchFirst(lessonFetch, modelContext: modelContext, context: "findOrCreateInboxLA-lesson")
+        let studentObj = safeFetchFirst(
+            studentFetch, modelContext: modelContext, context: "findOrCreateInboxLA-student"
+        )
+        let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
+        PresentationFactory.attachRelationships(to: new, lesson: lessonObj, students: studentObj.map { [$0] } ?? [])
+        modelContext.insert(new)
+        return new
+    }
+
+    // swiftlint:disable:next function_parameter_count
     private func handleLessonDrop(
         droppedId: UUID,
         location: CGPoint,

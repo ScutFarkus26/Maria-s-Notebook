@@ -1,4 +1,5 @@
 // Maria's Notebook/Lessons/LessonsViewModel.swift
+// swiftlint:disable file_length
 
 import Foundation
 import OSLog
@@ -7,6 +8,7 @@ import SwiftData
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
 @MainActor
+// swiftlint:disable:next type_body_length
 struct LessonsViewModel {
     private static let logger = Logger.lessons
     // MARK: - Public API
@@ -141,6 +143,7 @@ struct LessonsViewModel {
 
     // MARK: - Sorting Pipelines
 
+    // swiftlint:disable:next function_parameter_count
     func filteredLessons(
         modelContext: ModelContext,
         sourceFilter: LessonSource?,
@@ -151,45 +154,21 @@ struct LessonsViewModel {
         allLessons: [Lesson]? = nil
     ) -> [Lesson] {
         let query = searchText.trimmed()
-        
         let predicate = buildLessonPredicate(
-            sourceFilter: sourceFilter,
-            personalKindFilter: personalKindFilter,
-            selectedSubject: selectedSubject,
-            selectedGroup: selectedGroup,
-            searchText: searchText
+            sourceFilter: sourceFilter, personalKindFilter: personalKindFilter,
+            selectedSubject: selectedSubject, selectedGroup: selectedGroup, searchText: searchText
         )
-        
-        let sortDescriptors: [SortDescriptor<Lesson>] = {
-            if selectedGroup != nil {
-                // When filtering by group, use orderInGroup
-                return [SortDescriptor(\.orderInGroup), SortDescriptor(\.name)]
-            } else if selectedSubject != nil {
-                // When filtering by subject, use sortIndex (subject-level ordering)
-                return [SortDescriptor(\.sortIndex), SortDescriptor(\.name)]
-            } else {
-                // No filter: use subject, then sortIndex within subject
-                return [SortDescriptor(\.subject), SortDescriptor(\.sortIndex), SortDescriptor(\.name)]
-            }
-        }()
-        
         var descriptor = FetchDescriptor<Lesson>()
-        if let predicate = predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortDescriptors
-        
+        if let predicate { descriptor.predicate = predicate }
+        descriptor.sortBy = lessonSortDescriptors(selectedGroup: selectedGroup, selectedSubject: selectedSubject)
+
         var fetched = modelContext.safeFetch(descriptor)
-        
-        // 1. FIX: Use trimmed comparison for subject filtering to catch "Geometry " vs "Geometry"
         if let subject = selectedSubject?.trimmed(), !subject.isEmpty, query.isEmpty {
             fetched = fetched.filter { $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame }
         }
-        // 2. FIX: Use trimmed comparison for group filtering
         if let group = selectedGroup?.trimmed(), !group.isEmpty, query.isEmpty {
             fetched = fetched.filter { $0.group.trimmed().caseInsensitiveCompare(group) == .orderedSame }
         }
-        
         if !query.isEmpty {
             fetched = fetched.filter { l in
                 l.name.localizedCaseInsensitiveContains(query)
@@ -199,129 +178,96 @@ struct LessonsViewModel {
                 || l.writeUp.localizedCaseInsensitiveContains(query)
             }
         }
-        
-        // Derive the scoped lesson set for subject/group ordering.
-        // When allLessons is provided (from the @Query in the view), use in-memory
-        // filtering to avoid a second database fetch.
-        let scoped: [Lesson]
-        if let allLessons = allLessons {
-            if sourceFilter != nil || personalKindFilter != nil {
-                scoped = allLessons.filter { lesson in
-                    if let sf = sourceFilter, lesson.source != sf { return false }
-                    if let pkf = personalKindFilter, lesson.personalKind != pkf { return false }
-                    return true
-                }
-            } else {
-                scoped = allLessons
-            }
-        } else {
-            // Fallback: original second fetch for backward compatibility
-            let scopedPredicate = buildSourceAndKindPredicate(
-                sourceFilter: sourceFilter,
-                personalKindFilter: personalKindFilter
-            )
-            var scopedDescriptor = FetchDescriptor<Lesson>()
-            if let scopedPredicate = scopedPredicate {
-                scopedDescriptor.predicate = scopedPredicate
-            }
-            scoped = modelContext.safeFetch(scopedDescriptor)
-        }
-        
-        // PERFORMANCE: Pre-compute sort indices for all lessons to avoid repeated lookups during comparison
-        let subjectIndex = subjectIndexMap(from: scoped)
-        var groupIndexCache: [String: [String: Int]] = [:]
-        
-        // Pre-compute group indices for all unique subjects in fetched results
-        let uniqueSubjects = Set(fetched.map { norm($0.subject) })
-        for subject in uniqueSubjects where groupIndexCache[subject] == nil {
-            // Find the original (non-normalized) subject name for lookup
-            if let originalSubject = scoped.first(where: { norm($0.subject) == subject })?.subject {
-                groupIndexCache[subject] = groupIndex(for: originalSubject, lessons: scoped)
-            }
-        }
 
-        // Sorting logic with pre-computed indices
-        if !query.isEmpty {
-            let sortKeys = fetched.map { lesson -> LessonSortKey in
-                let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
-                let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
-                return LessonSortKey(
-                    subjectIdx: subjectIdx, groupIdx: groupIdx,
-                    orderInGroup: lesson.orderInGroup,
-                    name: lesson.name, id: lesson.id.uuidString
-                )
-            }
-            
-            let indexedLessons = zip(fetched, sortKeys).map { ($0, $1) }
-            let sorted = indexedLessons.sorted { lhs, rhs in
-                let (_, lKeys) = lhs
-                let (_, rKeys) = rhs
-                
-                if lKeys.subjectIdx != rKeys.subjectIdx { return lKeys.subjectIdx < rKeys.subjectIdx }
-                if lKeys.groupIdx != rKeys.groupIdx { return lKeys.groupIdx < rKeys.groupIdx }
-                if lKeys.orderInGroup != rKeys.orderInGroup { return lKeys.orderInGroup < rKeys.orderInGroup }
-                
-                let nameOrder = lKeys.name.localizedCaseInsensitiveCompare(rKeys.name)
-                if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
-                return lKeys.id < rKeys.id
-            }
-            return sorted.map { $0.0 }
+        let scoped = scopedLessonsForOrdering(
+            allLessons: allLessons, sourceFilter: sourceFilter,
+            personalKindFilter: personalKindFilter, modelContext: modelContext
+        )
+        let subjectIndex = subjectIndexMap(from: scoped)
+        let groupIdxCache = buildGroupIndexCache(for: Set(fetched.map { norm($0.subject) }), from: scoped)
+
+        if !query.isEmpty || selectedGroup == nil && selectedSubject == nil {
+            return sortBySubjectGroupOrder(fetched, subjectIndex: subjectIndex, groupIndexCache: groupIdxCache)
         } else if selectedGroup != nil {
             return fetched.sorted { lhs, rhs in
                 if lhs.orderInGroup == rhs.orderInGroup {
-                    let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-                    if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
-                    return nameOrder == .orderedAscending
+                    let n = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                    return n == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : n == .orderedAscending
                 }
                 return lhs.orderInGroup < rhs.orderInGroup
             }
-        } else if selectedSubject != nil {
-            // Use sortIndex for subject-level ordering
-            return fetched.sorted { lhs, rhs in
-                if lhs.sortIndex != rhs.sortIndex {
-                    return lhs.sortIndex < rhs.sortIndex
-                }
-                // Fallback to orderInGroup, then name for stable ordering
-                if lhs.orderInGroup != rhs.orderInGroup {
-                    return lhs.orderInGroup < rhs.orderInGroup
-                }
-                let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-                if nameOrder == .orderedSame { return lhs.id.uuidString < rhs.id.uuidString }
-                return nameOrder == .orderedAscending
-            }
         } else {
-            let sortKeys = fetched.map { lesson -> LessonSortKey in
-                let subjectIdx = subjectIndex[norm(lesson.subject)] ?? Int.max
-                let groupIdx = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
-                return LessonSortKey(
-                    subjectIdx: subjectIdx, groupIdx: groupIdx,
-                    orderInGroup: lesson.orderInGroup,
-                    name: lesson.name, id: lesson.id.uuidString
-                )
+            return fetched.sorted { lhs, rhs in
+                if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
+                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                let n = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                return n == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : n == .orderedAscending
             }
-            
-            let indexedLessons = zip(fetched, sortKeys).map { ($0, $1) }
-            let sorted = indexedLessons.sorted { lhs, rhs in
-                let (_, lKeys) = lhs
-                let (_, rKeys) = rhs
-                
-                if lKeys.subjectIdx != rKeys.subjectIdx { return lKeys.subjectIdx < rKeys.subjectIdx }
-                if lKeys.groupIdx != rKeys.groupIdx { return lKeys.groupIdx < rKeys.groupIdx }
-                if lKeys.orderInGroup != rKeys.orderInGroup { return lKeys.orderInGroup < rKeys.orderInGroup }
-                
-                let nameOrder = lKeys.name.localizedCaseInsensitiveCompare(rKeys.name)
-                if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
-                return lKeys.id < rKeys.id
-            }
-            return sorted.map { $0.0 }
         }
     }
-    
-    // ... [Rest of file is unchanged] ...
-    
-    // Ensure you keep the Data Maintenance and Lesson Status sections here as they were in your original file.
-    // I am omitting them here for brevity, but they should remain in the file.
-    
+
+    private func lessonSortDescriptors(selectedGroup: String?, selectedSubject: String?) -> [SortDescriptor<Lesson>] {
+        if selectedGroup != nil { return [SortDescriptor(\.orderInGroup), SortDescriptor(\.name)] }
+        if selectedSubject != nil { return [SortDescriptor(\.sortIndex), SortDescriptor(\.name)] }
+        return [SortDescriptor(\.subject), SortDescriptor(\.sortIndex), SortDescriptor(\.name)]
+    }
+
+    private func scopedLessonsForOrdering(
+        allLessons: [Lesson]?,
+        sourceFilter: LessonSource?,
+        personalKindFilter: PersonalLessonKind?,
+        modelContext: ModelContext
+    ) -> [Lesson] {
+        if let allLessons {
+            guard sourceFilter != nil || personalKindFilter != nil else { return allLessons }
+            return allLessons.filter { lesson in
+                if let sf = sourceFilter, lesson.source != sf { return false }
+                if let pkf = personalKindFilter, lesson.personalKind != pkf { return false }
+                return true
+            }
+        }
+        let scopedPredicate = buildSourceAndKindPredicate(
+            sourceFilter: sourceFilter, personalKindFilter: personalKindFilter
+        )
+        var scopedDescriptor = FetchDescriptor<Lesson>()
+        if let scopedPredicate { scopedDescriptor.predicate = scopedPredicate }
+        return modelContext.safeFetch(scopedDescriptor)
+    }
+
+    private func buildGroupIndexCache(for subjects: Set<String>, from scoped: [Lesson]) -> [String: [String: Int]] {
+        var cache: [String: [String: Int]] = [:]
+        for subject in subjects where cache[subject] == nil {
+            if let original = scoped.first(where: { norm($0.subject) == subject })?.subject {
+                cache[subject] = groupIndex(for: original, lessons: scoped)
+            }
+        }
+        return cache
+    }
+
+    private func sortBySubjectGroupOrder(
+        _ lessons: [Lesson],
+        subjectIndex: [String: Int],
+        groupIndexCache: [String: [String: Int]]
+    ) -> [Lesson] {
+        let keyed = lessons.map { lesson -> (Lesson, LessonSortKey) in
+            let si = subjectIndex[norm(lesson.subject)] ?? Int.max
+            let gi = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
+            let key = LessonSortKey(
+                subjectIdx: si, groupIdx: gi, orderInGroup: lesson.orderInGroup,
+                name: lesson.name, id: lesson.id.uuidString
+            )
+            return (lesson, key)
+        }
+        return keyed.sorted { lhs, rhs in
+            let (_, l) = lhs; let (_, r) = rhs
+            if l.subjectIdx != r.subjectIdx { return l.subjectIdx < r.subjectIdx }
+            if l.groupIdx != r.groupIdx { return l.groupIdx < r.groupIdx }
+            if l.orderInGroup != r.orderInGroup { return l.orderInGroup < r.orderInGroup }
+            let n = l.name.localizedCaseInsensitiveCompare(r.name)
+            return n == .orderedSame ? l.id < r.id : n == .orderedAscending
+        }.map { $0.0 }
+    }
+
     func ensureInitialOrderInGroupIfNeeded(_ lessons: [Lesson]) -> Bool {
         var changed = false
         func norm(_ s: String) -> String { s.trimmed().lowercased() }
@@ -364,10 +310,15 @@ struct LessonsViewModel {
         return changed
     }
     
+}
+
+// MARK: - Lesson Status
+
+extension LessonsViewModel {
     enum LessonStatus {
         case ready, presented, practicing, stalled
     }
-    
+
     struct LessonStatusInfo {
         let status: LessonStatus
         let ageString: String
@@ -375,7 +326,7 @@ struct LessonsViewModel {
         let isStale: Bool
         let isOverdue: Bool
     }
-    
+
     static func computeLessonStatusInfo(
         lesson: Lesson,
         lessonAssignments: [LessonAssignment],
@@ -386,36 +337,17 @@ struct LessonsViewModel {
         let lessonIDString = lesson.id.uuidString
         let lasForLesson = lessonAssignments.filter { $0.lessonID == lessonIDString }
         let isPresented = lasForLesson.contains { $0.isPresented }
-
         let laIDs = Set(lasForLesson.map { $0.id })
         let workForLesson = workModels.filter { work in
             work.lessonID == lessonIDString || laIDs.contains(work.studentLessonID ?? UUID())
         }
-
         let activeWork = workForLesson.filter { $0.completedAt == nil }
 
-        var lastActivity: Date?
-        if !activeWork.isEmpty {
-            let lastTouches = activeWork.compactMap { work -> Date? in
-                let checkIns = work.checkIns ?? []
-                let notes = work.unifiedNotes ?? []
-                return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
-            }
-            lastActivity = lastTouches.max()
-        } else if isPresented {
-            let presentationDates = lasForLesson.compactMap { $0.presentedAt ?? ($0.isPresented ? $0.createdAt : nil) }
-            lastActivity = presentationDates.max()
-        }
-        
-        var isStale = false
-        var isOverdue = false
-        if let work = activeWork.first {
-            let checkIns = work.checkIns ?? []
-            let notes = work.unifiedNotes ?? []
-            isStale = WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes)
-            isOverdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns)
-        }
-        
+        let lastActivity = computeLastActivityDate(
+            lasForLesson: lasForLesson, workForLesson: workForLesson, isPresented: isPresented
+        )
+        let (isStale, isOverdue) = computeWorkFlags(activeWork: activeWork, modelContext: modelContext)
+
         let status: LessonStatus
         if isStale || isOverdue {
             status = .stalled
@@ -426,7 +358,7 @@ struct LessonsViewModel {
         } else {
             status = .ready
         }
-        
+
         let resolvedCache: SchoolDayLookupCache
         if let schoolDayCache = schoolDayCache {
             resolvedCache = schoolDayCache
@@ -435,16 +367,46 @@ struct LessonsViewModel {
             resolvedCache.preload(using: modelContext)
         }
         let ageString = formatAgeString(from: lastActivity, schoolDayCache: resolvedCache)
-        
+
         return LessonStatusInfo(
-            status: status,
-            ageString: ageString,
-            lastActivityDate: lastActivity,
-            isStale: isStale,
-            isOverdue: isOverdue
+            status: status, ageString: ageString,
+            lastActivityDate: lastActivity, isStale: isStale, isOverdue: isOverdue
         )
     }
-    
+
+    private static func computeLastActivityDate(
+        lasForLesson: [LessonAssignment],
+        workForLesson: [WorkModel],
+        isPresented: Bool
+    ) -> Date? {
+        let activeWork = workForLesson.filter { $0.completedAt == nil }
+        if !activeWork.isEmpty {
+            let lastTouches = activeWork.compactMap { work -> Date? in
+                let checkIns = work.checkIns ?? []
+                let notes = work.unifiedNotes ?? []
+                return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
+            }
+            return lastTouches.max()
+        } else if isPresented {
+            let dates = lasForLesson.compactMap { $0.presentedAt ?? ($0.isPresented ? $0.createdAt : nil) }
+            return dates.max()
+        }
+        return nil
+    }
+
+    private static func computeWorkFlags(
+        activeWork: [WorkModel],
+        modelContext: ModelContext
+    ) -> (isStale: Bool, isOverdue: Bool) {
+        guard let work = activeWork.first else { return (false, false) }
+        let checkIns = work.checkIns ?? []
+        let notes = work.unifiedNotes ?? []
+        return (
+            WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes),
+            WorkAgingPolicy.isOverdue(work, checkIns: checkIns)
+        )
+    }
+
     private static func formatAgeString(from date: Date?, schoolDayCache: SchoolDayLookupCache) -> String {
         guard let date = date else { return "" }
         let today = AppCalendar.startOfDay(Date())
