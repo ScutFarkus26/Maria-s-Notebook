@@ -144,7 +144,7 @@ enum BackupPreviewAnalyzer {
         )
         assign("Lesson", lessonCounts.insert, lessonCounts.skip, 0)
 
-        // LegacyPresentations - special handling for missing lesson references
+        // Build lesson lookup sets for presentation/assignment analysis
         let lessonsInStore: Set<UUID>
         do {
             lessonsInStore = Set(try modelContext.fetch(FetchDescriptor<Lesson>()).map { $0.id })
@@ -153,9 +153,37 @@ enum BackupPreviewAnalyzer {
             lessonsInStore = Set()
         }
         let lessonsInPayload = Set(payload.lessons.map { $0.id })
+
+        analyzeLegacyPresentationMerge(
+            payload: payload, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
+            entityExists: entityExists, assign: assign, warnings: &warnings
+        )
+        analyzeLessonAssignmentMerge(
+            payload: payload, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
+            entityExists: entityExists, assign: assign, warnings: &warnings
+        )
+        analyzeSimpleEntityMerge(
+            payload: payload, entityExists: entityExists, assign: assign
+        )
+        analyzeFilteredEntityMerge(
+            payload: payload, entityExists: entityExists, assign: assign
+        )
+    }
+
+    // MARK: - Merge Mode Helpers
+
+    private struct ImportAnalysis { var ins = 0; var sk = 0; var missingLesson = 0 }
+
+    private static func analyzeLegacyPresentationMerge(
+        payload: BackupPayload,
+        lessonsInStore: Set<UUID>,
+        lessonsInPayload: Set<UUID>,
+        entityExists: @escaping (any PersistentModel.Type, UUID) -> Bool,
+        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
+        warnings: inout [String]
+    ) {
         // LegacyPresentation model removed — old backup DTOs will be imported as LessonAssignment
-        struct ImportAnalysis { var ins = 0; var sk = 0; var missingLesson = 0 }
-        let legacyPresentationAnalysis = payload.legacyPresentations.reduce(
+        let analysis = payload.legacyPresentations.reduce(
             into: ImportAnalysis()
         ) { (acc: inout ImportAnalysis, sl: LegacyPresentationDTO) in
             let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
@@ -168,17 +196,24 @@ enum BackupPreviewAnalyzer {
                 acc.ins += 1
             }
         }
-        assign("LegacyPresentation (legacy)", legacyPresentationAnalysis.ins, legacyPresentationAnalysis.sk, 0)
-        if legacyPresentationAnalysis.missingLesson > 0 {
-            let count = legacyPresentationAnalysis.missingLesson
+        assign("LegacyPresentation (legacy)", analysis.ins, analysis.sk, 0)
+        if analysis.missingLesson > 0 {
             warnings.append(
-                "\(count) legacy LegacyPresentation records "
+                "\(analysis.missingLesson) legacy LegacyPresentation records "
                 + "reference missing Lessons and will be skipped."
             )
         }
+    }
 
-        // LessonAssignments - similar handling for missing lesson references
-        let lessonAssignmentAnalysis = payload.lessonAssignments.reduce(
+    private static func analyzeLessonAssignmentMerge(
+        payload: BackupPayload,
+        lessonsInStore: Set<UUID>,
+        lessonsInPayload: Set<UUID>,
+        entityExists: @escaping (any PersistentModel.Type, UUID) -> Bool,
+        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
+        warnings: inout [String]
+    ) {
+        let analysis = payload.lessonAssignments.reduce(
             into: ImportAnalysis()
         ) { (acc: inout ImportAnalysis, la: LessonAssignmentDTO) in
             guard let lessonUUID = UUID(uuidString: la.lessonID) else {
@@ -196,24 +231,24 @@ enum BackupPreviewAnalyzer {
                 acc.ins += 1
             }
         }
-        assign("LessonAssignment", lessonAssignmentAnalysis.ins, lessonAssignmentAnalysis.sk, 0)
-        if lessonAssignmentAnalysis.missingLesson > 0 {
-            let missingCount = lessonAssignmentAnalysis.missingLesson
+        assign("LessonAssignment", analysis.ins, analysis.sk, 0)
+        if analysis.missingLesson > 0 {
             warnings.append(
-                "\(missingCount) LessonAssignment records "
+                "\(analysis.missingLesson) LessonAssignment records "
                 + "reference missing Lessons and will be skipped."
             )
         }
+    }
 
-        // Helper for simple entities
+    private static func analyzeSimpleEntityMerge(
+        payload: BackupPayload,
+        entityExists: @escaping (any PersistentModel.Type, UUID) -> Bool,
+        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
+    ) {
         func assignCounts<T>(_ key: String, items: [T], type: any PersistentModel.Type, idExtractor: (T) -> UUID) {
-            let counts = BackupCountHelpers.countInsertAndSkip(
-                items: items,
-                type: type,
-                modelContext: modelContext,
-                exists: { entityExists(type, idExtractor($0)) }
-            )
-            assign(key, counts.insert, counts.skip, 0)
+            let existing = items.filter { entityExists(type, idExtractor($0)) }
+            let new = items.filter { !entityExists(type, idExtractor($0)) }
+            assign(key, new.count, existing.count, 0)
         }
 
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
@@ -223,8 +258,13 @@ enum BackupPreviewAnalyzer {
         assignCounts("StudentMeeting", items: payload.studentMeetings, type: StudentMeeting.self) { $0.id }
         assignCounts("CommunityTopic", items: payload.communityTopics, type: CommunityTopic.self) { $0.id }
         assignCounts("ProposedSolution", items: payload.proposedSolutions, type: ProposedSolution.self) { $0.id }
+    }
 
-        // Remaining entities using direct filtering with explicit id extraction
+    private static func analyzeFilteredEntityMerge(
+        payload: BackupPayload,
+        entityExists: @escaping (any PersistentModel.Type, UUID) -> Bool,
+        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
+    ) {
         func countFiltered<T>(
             _ items: [T],
             type: any PersistentModel.Type,

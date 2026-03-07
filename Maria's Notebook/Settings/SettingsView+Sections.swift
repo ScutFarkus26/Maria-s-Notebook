@@ -86,7 +86,7 @@ extension SettingsView {
                     }
                 }
                 .frame(maxWidth: .infinity)
-            }
+            })
 
             // Export/Import Settings
             SettingsGroup(title: "Settings Profile", systemImage: "square.and.arrow.up") {

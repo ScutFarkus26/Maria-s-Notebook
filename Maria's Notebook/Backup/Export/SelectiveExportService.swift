@@ -353,125 +353,113 @@ public final class SelectiveExportService {
             filter.entityTypes?.contains(type) ?? true
         }
 
-        progress(0.1, "Collecting students…")
-        let studentDTOs: [StudentDTO] = shouldInclude(.students)
-            ? collectStudents(modelContext: modelContext, filter: filter) : []
-        counts["Student"] = studentDTOs.count
-
-        progress(0.2, "Collecting lessons…")
-        let lessonDTOs: [LessonDTO] = shouldInclude(.lessons)
-            ? collectLessons(modelContext: modelContext) : []
-        counts["Lesson"] = lessonDTOs.count
-
-        progress(0.3, "Collecting legacy presentations…")
-        let legacyPresentationDTOs: [LegacyPresentationDTO] =
-            shouldInclude(.legacyPresentations)
-            ? collectLegacyPresentations(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["LegacyPresentation"] = legacyPresentationDTOs.count
-
-        progress(0.5, "Collecting other entities…")
-        let noteDTOs: [NoteDTO] = shouldInclude(.notes)
-            ? collectNotes(modelContext: modelContext, filter: filter) : []
-        counts["Note"] = noteDTOs.count
-
-        let nonSchoolDTOs: [NonSchoolDayDTO] = shouldInclude(.calendar)
-            ? collectNonSchoolDays(modelContext: modelContext, filter: filter)
-            : []
-        counts["NonSchoolDay"] = nonSchoolDTOs.count
-
-        let schoolOverrideDTOs: [SchoolDayOverrideDTO] =
-            shouldInclude(.calendar)
-            ? collectSchoolDayOverrides(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["SchoolDayOverride"] = schoolOverrideDTOs.count
-
-        let attendanceDTOs: [AttendanceRecordDTO] =
-            shouldInclude(.attendance)
-            ? collectAttendance(modelContext: modelContext, filter: filter)
-            : []
-        counts["AttendanceRecord"] = attendanceDTOs.count
-
-        let workCompletionDTOs: [WorkCompletionRecordDTO] =
-            shouldInclude(.workCompletions)
-            ? collectWorkCompletions(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["WorkCompletionRecord"] = workCompletionDTOs.count
-
-        progress(0.7, "Collecting projects…")
-        let projectDTOs: [ProjectDTO] = shouldInclude(.projects)
-            ? collectProjects(modelContext: modelContext, filter: filter)
-            : []
-        counts["Project"] = projectDTOs.count
-
-        let projectTemplateDTOs: [ProjectAssignmentTemplateDTO] =
-            shouldInclude(.projects)
-            ? collectProjectTemplates(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["ProjectAssignmentTemplate"] = projectTemplateDTOs.count
-
-        let projectSessionDTOs: [ProjectSessionDTO] =
-            shouldInclude(.projects)
-            ? collectProjectSessions(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["ProjectSession"] = projectSessionDTOs.count
-
-        let projectRoleDTOs: [ProjectRoleDTO] =
-            shouldInclude(.projects)
-            ? collectProjectRoles(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["ProjectRole"] = projectRoleDTOs.count
-
-        let projectWeekDTOs: [ProjectTemplateWeekDTO] =
-            shouldInclude(.projects)
-            ? collectProjectWeeks(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["ProjectTemplateWeek"] = projectWeekDTOs.count
-
-        let projectWeekAssignDTOs: [ProjectWeekRoleAssignmentDTO] =
-            shouldInclude(.projects)
-            ? collectProjectWeekAssignments(
-                modelContext: modelContext, filter: filter
-            ) : []
-        counts["ProjectWeekRoleAssignment"] = projectWeekAssignDTOs.count
-
-        progress(0.9, "Collecting preferences…")
-        let preferences: PreferencesDTO = shouldInclude(.preferences)
-            ? BackupPreferencesService.buildPreferencesDTO()
-            : PreferencesDTO(values: [:])
-
-        let payload = BackupPayload(
-            items: [],
-            students: studentDTOs,
-            lessons: lessonDTOs,
-            legacyPresentations: legacyPresentationDTOs,
-            lessonAssignments: [],
-            notes: noteDTOs,
-            nonSchoolDays: nonSchoolDTOs,
-            schoolDayOverrides: schoolOverrideDTOs,
-            studentMeetings: [],
-            communityTopics: [],
-            proposedSolutions: [],
-            communityAttachments: [],
-            attendance: attendanceDTOs,
-            workCompletions: workCompletionDTOs,
-            projects: projectDTOs,
-            projectAssignmentTemplates: projectTemplateDTOs,
-            projectSessions: projectSessionDTOs,
-            projectRoles: projectRoleDTOs,
-            projectTemplateWeeks: projectWeekDTOs,
-            projectWeekRoleAssignments: projectWeekAssignDTOs,
-            preferences: preferences
+        var payload = BackupPayload(
+            items: [], students: [], lessons: [],
+            legacyPresentations: [], lessonAssignments: [],
+            notes: [], nonSchoolDays: [], schoolDayOverrides: [],
+            studentMeetings: [], communityTopics: [],
+            proposedSolutions: [], communityAttachments: [],
+            attendance: [], workCompletions: [],
+            projects: [], projectAssignmentTemplates: [],
+            projectSessions: [], projectRoles: [],
+            projectTemplateWeeks: [], projectWeekRoleAssignments: [],
+            preferences: PreferencesDTO(values: [:])
         )
 
+        collectCoreFilteredDTOs(
+            into: &payload, counts: &counts, modelContext: modelContext,
+            filter: filter, shouldInclude: shouldInclude, progress: progress
+        )
+        collectProjectFilteredDTOs(
+            into: &payload, counts: &counts, modelContext: modelContext,
+            filter: filter, shouldInclude: shouldInclude, progress: progress
+        )
+
+        progress(0.9, "Collecting preferences…")
+        if shouldInclude(.preferences) {
+            payload.preferences = BackupPreferencesService.buildPreferencesDTO()
+        }
+
         return (payload, counts)
+    }
+
+    private func collectCoreFilteredDTOs(
+        into payload: inout BackupPayload,
+        counts: inout [String: Int],
+        modelContext: ModelContext,
+        filter: ExportFilter,
+        shouldInclude: (EntityType) -> Bool,
+        progress: @escaping BackupService.ProgressCallback
+    ) {
+        progress(0.1, "Collecting students…")
+        payload.students = shouldInclude(.students)
+            ? collectStudents(modelContext: modelContext, filter: filter) : []
+        counts["Student"] = payload.students.count
+
+        progress(0.2, "Collecting lessons…")
+        payload.lessons = shouldInclude(.lessons)
+            ? collectLessons(modelContext: modelContext) : []
+        counts["Lesson"] = payload.lessons.count
+
+        progress(0.3, "Collecting legacy presentations…")
+        payload.legacyPresentations = shouldInclude(.legacyPresentations)
+            ? collectLegacyPresentations(modelContext: modelContext, filter: filter) : []
+        counts["LegacyPresentation"] = payload.legacyPresentations.count
+
+        progress(0.5, "Collecting other entities…")
+        payload.notes = shouldInclude(.notes)
+            ? collectNotes(modelContext: modelContext, filter: filter) : []
+        counts["Note"] = payload.notes.count
+
+        payload.nonSchoolDays = shouldInclude(.calendar)
+            ? collectNonSchoolDays(modelContext: modelContext, filter: filter) : []
+        counts["NonSchoolDay"] = payload.nonSchoolDays.count
+
+        payload.schoolDayOverrides = shouldInclude(.calendar)
+            ? collectSchoolDayOverrides(modelContext: modelContext, filter: filter) : []
+        counts["SchoolDayOverride"] = payload.schoolDayOverrides.count
+
+        payload.attendance = shouldInclude(.attendance)
+            ? collectAttendance(modelContext: modelContext, filter: filter) : []
+        counts["AttendanceRecord"] = payload.attendance.count
+
+        payload.workCompletions = shouldInclude(.workCompletions)
+            ? collectWorkCompletions(modelContext: modelContext, filter: filter) : []
+        counts["WorkCompletionRecord"] = payload.workCompletions.count
+    }
+
+    private func collectProjectFilteredDTOs(
+        into payload: inout BackupPayload,
+        counts: inout [String: Int],
+        modelContext: ModelContext,
+        filter: ExportFilter,
+        shouldInclude: (EntityType) -> Bool,
+        progress: @escaping BackupService.ProgressCallback
+    ) {
+        progress(0.7, "Collecting projects…")
+        payload.projects = shouldInclude(.projects)
+            ? collectProjects(modelContext: modelContext, filter: filter) : []
+        counts["Project"] = payload.projects.count
+
+        payload.projectAssignmentTemplates = shouldInclude(.projects)
+            ? collectProjectTemplates(modelContext: modelContext, filter: filter) : []
+        counts["ProjectAssignmentTemplate"] = payload.projectAssignmentTemplates.count
+
+        payload.projectSessions = shouldInclude(.projects)
+            ? collectProjectSessions(modelContext: modelContext, filter: filter) : []
+        counts["ProjectSession"] = payload.projectSessions.count
+
+        payload.projectRoles = shouldInclude(.projects)
+            ? collectProjectRoles(modelContext: modelContext, filter: filter) : []
+        counts["ProjectRole"] = payload.projectRoles.count
+
+        payload.projectTemplateWeeks = shouldInclude(.projects)
+            ? collectProjectWeeks(modelContext: modelContext, filter: filter) : []
+        counts["ProjectTemplateWeek"] = payload.projectTemplateWeeks.count
+
+        payload.projectWeekRoleAssignments = shouldInclude(.projects)
+            ? collectProjectWeekAssignments(modelContext: modelContext, filter: filter) : []
+        counts["ProjectWeekRoleAssignment"] = payload.projectWeekRoleAssignments.count
     }
 
     private func collectStudents(modelContext: ModelContext, filter: ExportFilter) -> [StudentDTO] {

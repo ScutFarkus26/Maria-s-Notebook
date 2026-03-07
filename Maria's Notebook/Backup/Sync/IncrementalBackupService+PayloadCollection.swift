@@ -3,10 +3,28 @@ import SwiftData
 
 // MARK: - Payload Collection
 
+extension IncrementalBackupService {
     struct PayloadCollectionResult {
         let payload: BackupPayload
         let changedCounts: [String: Int]
         let totalCounts: [String: Int]
+    }
+
+    fileprivate struct RemainingEntities {
+        var nonSchoolDays: [NonSchoolDay] = []
+        var schoolDayOverrides: [SchoolDayOverride] = []
+        var studentMeetings: [StudentMeeting] = []
+        var communityTopics: [CommunityTopic] = []
+        var proposedSolutions: [ProposedSolution] = []
+        var communityAttachments: [CommunityAttachment] = []
+        var attendance: [AttendanceRecord] = []
+        var workCompletions: [WorkCompletionRecord] = []
+        var projects: [Project] = []
+        var projectTemplates: [ProjectAssignmentTemplate] = []
+        var projectSessions: [ProjectSession] = []
+        var projectRoles: [ProjectRole] = []
+        var projectWeeks: [ProjectTemplateWeek] = []
+        var projectWeekAssignments: [ProjectWeekRoleAssignment] = []
     }
 }
 
@@ -21,48 +39,86 @@ extension IncrementalBackupService {
         var changedCounts: [String: Int] = [:]
         var totalCounts: [String: Int] = [:]
 
-        // Helper to fetch and filter entities
-        func fetchFiltered<T: PersistentModel>(
-            _ type: T.Type,
-            keyPath: KeyPath<T, Date?>? = nil
-        ) -> [T] {
-            let descriptor = FetchDescriptor<T>()
-            let all: [T]
-            do {
-                all = try modelContext.fetch(descriptor)
-            } catch {
-                print("\u{26a0}\u{fe0f} [Backup:collectChangedEntities] Failed to fetch \(T.self): \(error)")
-                all = []
-            }
-            totalCounts[String(describing: type)] = all.count
-
-            guard let sinceDate = sinceDate, let kp = keyPath else {
-                changedCounts[String(describing: type)] = all.count
-                return all
-            }
-
-            let filtered = all.filter { entity in
-                guard let date = entity[keyPath: kp] else { return true }
-                return date >= sinceDate
-            }
-            changedCounts[String(describing: type)] = filtered.count
-            return filtered
-        }
-
         progress(0.1, "Collecting students...")
-        let students: [Student] = fetchFiltered(Student.self)
+        let students = fetchFilteredEntities(
+            Student.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
 
         progress(0.2, "Collecting lessons...")
-        let lessons: [Lesson] = fetchFiltered(Lesson.self)
+        let lessons = fetchFilteredEntities(
+            Lesson.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
 
         // LegacyPresentation removed -- no longer exported in incremental backups
 
         progress(0.35, "Collecting lesson assignments...")
-        let lessonAssignments: [LessonAssignment] = fetchFiltered(LessonAssignment.self)
+        let lessonAssignments = fetchFilteredEntities(
+            LessonAssignment.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
 
         // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
-        // Skip collecting these records (can't reference WorkPlanItem type anymore)
 
+        let notes = collectFilteredNotes(
+            using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+
+        let remaining = collectRemainingEntities(
+            using: modelContext, sinceDate: sinceDate, progress: progress,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+
+        let payload = buildIncrementalPayload(
+            students: students, lessons: lessons,
+            lessonAssignments: lessonAssignments, notes: notes,
+            remaining: remaining
+        )
+
+        return PayloadCollectionResult(payload: payload, changedCounts: changedCounts, totalCounts: totalCounts)
+    }
+
+    // MARK: - Payload Collection Helpers
+
+    private func fetchFilteredEntities<T: PersistentModel>(
+        _ type: T.Type,
+        keyPath: KeyPath<T, Date?>? = nil,
+        using modelContext: ModelContext,
+        sinceDate: Date?,
+        changedCounts: inout [String: Int],
+        totalCounts: inout [String: Int]
+    ) -> [T] {
+        let descriptor = FetchDescriptor<T>()
+        let all: [T]
+        do {
+            all = try modelContext.fetch(descriptor)
+        } catch {
+            print("\u{26a0}\u{fe0f} [Backup:collectChangedEntities] Failed to fetch \(T.self): \(error)")
+            all = []
+        }
+        totalCounts[String(describing: type)] = all.count
+
+        guard let sinceDate = sinceDate, let kp = keyPath else {
+            changedCounts[String(describing: type)] = all.count
+            return all
+        }
+
+        let filtered = all.filter { entity in
+            guard let date = entity[keyPath: kp] else { return true }
+            return date >= sinceDate
+        }
+        changedCounts[String(describing: type)] = filtered.count
+        return filtered
+    }
+
+    private func collectFilteredNotes(
+        using modelContext: ModelContext,
+        sinceDate: Date?,
+        changedCounts: inout [String: Int],
+        totalCounts: inout [String: Int]
+    ) -> [Note] {
         // Notes need special handling since updatedAt is non-optional
         let allNotes: [Note]
         do {
@@ -79,77 +135,141 @@ extension IncrementalBackupService {
             notes = allNotes
         }
         changedCounts["Note"] = notes.count
+        return notes
+    }
 
+    private func collectRemainingEntities(
+        using modelContext: ModelContext,
+        sinceDate: Date?,
+        progress: @escaping BackupService.ProgressCallback,
+        changedCounts: inout [String: Int],
+        totalCounts: inout [String: Int]
+    ) -> RemainingEntities {
+        var result = RemainingEntities()
+        collectCalendarAndCommunityModels(
+            into: &result, using: modelContext, sinceDate: sinceDate,
+            progress: progress, changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        collectRecordAndProjectModels(
+            into: &result, using: modelContext, sinceDate: sinceDate,
+            progress: progress, changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        return result
+    }
+
+    private func collectCalendarAndCommunityModels(
+        into result: inout RemainingEntities,
+        using modelContext: ModelContext,
+        sinceDate: Date?,
+        progress: @escaping BackupService.ProgressCallback,
+        changedCounts: inout [String: Int],
+        totalCounts: inout [String: Int]
+    ) {
         progress(0.5, "Collecting calendar data...")
-        let nonSchoolDays: [NonSchoolDay] = fetchFiltered(NonSchoolDay.self)
-        let schoolDayOverrides: [SchoolDayOverride] = fetchFiltered(SchoolDayOverride.self)
+        result.nonSchoolDays = fetchFilteredEntities(
+            NonSchoolDay.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.schoolDayOverrides = fetchFilteredEntities(
+            SchoolDayOverride.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
 
         progress(0.6, "Collecting meetings...")
-        let studentMeetings: [StudentMeeting] = fetchFiltered(StudentMeeting.self)
+        result.studentMeetings = fetchFilteredEntities(
+            StudentMeeting.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
 
         progress(0.7, "Collecting community data...")
-        let communityTopics: [CommunityTopic] = fetchFiltered(CommunityTopic.self)
-        let proposedSolutions: [ProposedSolution] = fetchFiltered(ProposedSolution.self)
-        let communityAttachments: [CommunityAttachment] = fetchFiltered(CommunityAttachment.self)
+        result.communityTopics = fetchFilteredEntities(
+            CommunityTopic.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.proposedSolutions = fetchFilteredEntities(
+            ProposedSolution.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.communityAttachments = fetchFilteredEntities(
+            CommunityAttachment.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+    }
 
+    private func collectRecordAndProjectModels(
+        into result: inout RemainingEntities,
+        using modelContext: ModelContext,
+        sinceDate: Date?,
+        progress: @escaping BackupService.ProgressCallback,
+        changedCounts: inout [String: Int],
+        totalCounts: inout [String: Int]
+    ) {
         progress(0.8, "Collecting attendance...")
-        let attendance: [AttendanceRecord] = fetchFiltered(AttendanceRecord.self)
-        let workCompletions: [WorkCompletionRecord] = fetchFiltered(WorkCompletionRecord.self)
+        result.attendance = fetchFilteredEntities(
+            AttendanceRecord.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.workCompletions = fetchFilteredEntities(
+            WorkCompletionRecord.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
 
         progress(0.9, "Collecting projects...")
-        let projects: [Project] = fetchFiltered(Project.self)
-        let projectTemplates: [ProjectAssignmentTemplate] = fetchFiltered(ProjectAssignmentTemplate.self)
-        let projectSessions: [ProjectSession] = fetchFiltered(ProjectSession.self)
-        let projectRoles: [ProjectRole] = fetchFiltered(ProjectRole.self)
-        let projectWeeks: [ProjectTemplateWeek] = fetchFiltered(ProjectTemplateWeek.self)
-        let projectWeekAssignments: [ProjectWeekRoleAssignment] = fetchFiltered(ProjectWeekRoleAssignment.self)
+        result.projects = fetchFilteredEntities(
+            Project.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.projectTemplates = fetchFilteredEntities(
+            ProjectAssignmentTemplate.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.projectSessions = fetchFilteredEntities(
+            ProjectSession.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.projectRoles = fetchFilteredEntities(
+            ProjectRole.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.projectWeeks = fetchFilteredEntities(
+            ProjectTemplateWeek.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+        result.projectWeekAssignments = fetchFilteredEntities(
+            ProjectWeekRoleAssignment.self, using: modelContext, sinceDate: sinceDate,
+            changedCounts: &changedCounts, totalCounts: &totalCounts
+        )
+    }
 
-        // Convert to DTOs using shared helpers
+    private func buildIncrementalPayload(
+        students: [Student],
+        lessons: [Lesson],
+        lessonAssignments: [LessonAssignment],
+        notes: [Note],
+        remaining: RemainingEntities
+    ) -> BackupPayload {
         let studentDTOs = BackupServiceHelpers.toDTOs(students)
         let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
         let legacyPresentationDTOs: [LegacyPresentationDTO] = [] // LegacyPresentation removed
         let noteDTOs = BackupServiceHelpers.toDTOs(notes)
-        let nonSchoolDTOs = BackupServiceHelpers.toDTOs(nonSchoolDays)
-        let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(schoolDayOverrides)
-        let studentMeetingDTOs = BackupServiceHelpers.toDTOs(studentMeetings)
-        let topicDTOs = BackupServiceHelpers.toDTOs(communityTopics)
-        let solutionDTOs = BackupServiceHelpers.toDTOs(proposedSolutions)
-        let attachmentDTOs = BackupServiceHelpers.toDTOs(communityAttachments)
-        let attendanceDTOs = BackupServiceHelpers.toDTOs(attendance)
-        let workCompletionDTOs = BackupServiceHelpers.toDTOs(workCompletions)
-        let projectDTOs = BackupServiceHelpers.toDTOs(projects)
-        let projectTemplateDTOs = BackupServiceHelpers.toDTOs(projectTemplates)
-        let projectSessionDTOs = BackupServiceHelpers.toDTOs(projectSessions)
-        let projectRoleDTOs = BackupServiceHelpers.toDTOs(projectRoles)
-        let projectWeekDTOs = BackupServiceHelpers.toDTOs(projectWeeks)
-        let projectWeekAssignDTOs = BackupServiceHelpers.toDTOs(projectWeekAssignments)
-
-        let lessonAssignmentDTOs: [LessonAssignmentDTO] = lessonAssignments.map { la in
-            LessonAssignmentDTO(
-                id: la.id,
-                createdAt: la.createdAt,
-                modifiedAt: la.modifiedAt,
-                stateRaw: la.stateRaw,
-                scheduledFor: la.scheduledFor,
-                presentedAt: la.presentedAt,
-                lessonID: la.lessonID,
-                studentIDs: la.studentIDs,
-                lessonTitleSnapshot: la.lessonTitleSnapshot,
-                lessonSubheadingSnapshot: la.lessonSubheadingSnapshot,
-                needsPractice: la.needsPractice,
-                needsAnotherPresentation: la.needsAnotherPresentation,
-                followUpWork: la.followUpWork,
-                notes: la.notes,
-                trackID: la.trackID,
-                trackStepID: la.trackStepID,
-                migratedFromLegacyID: la.migratedFromStudentLessonID,
-                migratedFromPresentationID: la.migratedFromPresentationID
-            )
-        }
-
+        let nonSchoolDTOs = BackupServiceHelpers.toDTOs(remaining.nonSchoolDays)
+        let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(remaining.schoolDayOverrides)
+        let studentMeetingDTOs = BackupServiceHelpers.toDTOs(remaining.studentMeetings)
+        let topicDTOs = BackupServiceHelpers.toDTOs(remaining.communityTopics)
+        let solutionDTOs = BackupServiceHelpers.toDTOs(remaining.proposedSolutions)
+        let attachmentDTOs = BackupServiceHelpers.toDTOs(remaining.communityAttachments)
+        let attendanceDTOs = BackupServiceHelpers.toDTOs(remaining.attendance)
+        let workCompletionDTOs = BackupServiceHelpers.toDTOs(remaining.workCompletions)
+        let projectDTOs = BackupServiceHelpers.toDTOs(remaining.projects)
+        let projectTemplateDTOs = BackupServiceHelpers.toDTOs(remaining.projectTemplates)
+        let projectSessionDTOs = BackupServiceHelpers.toDTOs(remaining.projectSessions)
+        let projectRoleDTOs = BackupServiceHelpers.toDTOs(remaining.projectRoles)
+        let projectWeekDTOs = BackupServiceHelpers.toDTOs(remaining.projectWeeks)
+        let projectWeekAssignDTOs = BackupServiceHelpers.toDTOs(remaining.projectWeekAssignments)
+        let lessonAssignmentDTOs = mapLessonAssignmentDTOs(lessonAssignments)
         let preferences = BackupPreferencesService.buildPreferencesDTO()
 
-        let payload = BackupPayload(
+        return BackupPayload(
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
@@ -172,7 +292,30 @@ extension IncrementalBackupService {
             projectWeekRoleAssignments: projectWeekAssignDTOs,
             preferences: preferences
         )
+    }
 
-        return PayloadCollectionResult(payload: payload, changedCounts: changedCounts, totalCounts: totalCounts)
+    private func mapLessonAssignmentDTOs(_ lessonAssignments: [LessonAssignment]) -> [LessonAssignmentDTO] {
+        lessonAssignments.map { la in
+            LessonAssignmentDTO(
+                id: la.id,
+                createdAt: la.createdAt,
+                modifiedAt: la.modifiedAt,
+                stateRaw: la.stateRaw,
+                scheduledFor: la.scheduledFor,
+                presentedAt: la.presentedAt,
+                lessonID: la.lessonID,
+                studentIDs: la.studentIDs,
+                lessonTitleSnapshot: la.lessonTitleSnapshot,
+                lessonSubheadingSnapshot: la.lessonSubheadingSnapshot,
+                needsPractice: la.needsPractice,
+                needsAnotherPresentation: la.needsAnotherPresentation,
+                followUpWork: la.followUpWork,
+                notes: la.notes,
+                trackID: la.trackID,
+                trackStepID: la.trackStepID,
+                migratedFromLegacyID: la.migratedFromStudentLessonID,
+                migratedFromPresentationID: la.migratedFromPresentationID
+            )
+        }
     }
 }

@@ -82,10 +82,6 @@ extension BackupService {
         }
 
         var payload = loadedPayload
-
-        // Deduplicate payload arrays instead of failing on duplicates
-        // This handles backups that were created before deduplication was added,
-        // or backups from CloudKit-synced databases that had duplicate records
         progress(0.35, "Deduplicating records\u{2026}")
         payload = deduplicatePayload(payload)
 
@@ -96,9 +92,62 @@ extension BackupService {
         }
 
         progress(0.65, "Importing records\u{2026}")
+        try importCoreEntities(from: payload, into: modelContext)
+        try importCalendarAndRecordEntities(from: payload, into: modelContext)
+        try importProjectEntities(from: payload, into: modelContext)
 
-        // Import all entities using BackupEntityImporter
-        // Note: fetchOne is passed as a closure to avoid storing ModelContext in the importer
+        progress(0.70, "Importing work tracking\u{2026}")
+        try importWorkTrackingEntities(from: payload, into: modelContext)
+
+        progress(0.74, "Importing lesson extras\u{2026}")
+        try importLessonExtras(from: payload, into: modelContext)
+
+        progress(0.76, "Importing templates\u{2026}")
+        try importTemplateEntities(from: payload, into: modelContext)
+
+        progress(0.78, "Importing tracks\u{2026}")
+        try importTrackEntities(from: payload, into: modelContext)
+
+        progress(0.80, "Importing documents & supplies\u{2026}")
+        try importDocumentEntities(from: payload, into: modelContext)
+
+        progress(0.82, "Importing schedules\u{2026}")
+        try importScheduleEntities(from: payload, into: modelContext)
+
+        progress(0.84, "Importing issues\u{2026}")
+        try importIssueEntities(from: payload, into: modelContext)
+
+        progress(0.86, "Importing snapshots & todos\u{2026}")
+        try importSnapshotAndTodoEntities(from: payload, into: modelContext)
+
+        progress(0.90, "Saving\u{2026}")
+        try modelContext.save()
+
+        progress(0.92, "Repairing denormalized fields\u{2026}")
+        try repairDenormalizedFields(modelContext: modelContext)
+
+        applyPreferencesDTO(payload.preferences)
+        appRouter.signalAppDataDidRestore()
+
+        let counts = envelope.manifest.entityCounts
+        progress(1.0, "Done")
+        return BackupOperationSummary(
+            kind: .import,
+            fileName: url.lastPathComponent,
+            formatVersion: envelope.formatVersion,
+            encryptUsed: envelope.payload == nil,
+            createdAt: envelope.createdAt,
+            entityCounts: counts,
+            warnings: []
+        )
+    }
+
+    // MARK: - Import Helpers
+
+    private func importCoreEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         _ = try BackupEntityImporter.importStudents(
             payload.students,
             into: modelContext,
@@ -139,7 +188,12 @@ extension BackupService {
             existingCheck: { try fetchOne(Note.self, id: $0, using: modelContext) },
             lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
         )
+    }
 
+    private func importCalendarAndRecordEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         try BackupEntityImporter.importNonSchoolDays(
             payload.nonSchoolDays,
             into: modelContext,
@@ -183,7 +237,12 @@ extension BackupService {
             into: modelContext,
             existingCheck: { try fetchOne(WorkCompletionRecord.self, id: $0, using: modelContext) }
         )
+    }
 
+    private func importProjectEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         try BackupEntityImporter.importProjects(
             payload.projects,
             into: modelContext,
@@ -220,10 +279,12 @@ extension BackupService {
             into: modelContext,
             existingCheck: { try fetchOne(ProjectSession.self, id: $0, using: modelContext) }
         )
+    }
 
-        // Format v8+ entities (nil-safe for older backups)
-        progress(0.70, "Importing work tracking\u{2026}")
-
+    private func importWorkTrackingEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let workCheckIns = payload.workCheckIns {
             try BackupEntityImporter.importWorkCheckIns(
                 workCheckIns,
@@ -258,9 +319,12 @@ extension BackupService {
                 existingCheck: { try fetchOne(PracticeSession.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.74, "Importing lesson extras\u{2026}")
-
+    private func importLessonExtras(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let lessonAttachments = payload.lessonAttachments {
             try BackupEntityImporter.importLessonAttachments(
                 lessonAttachments,
@@ -295,9 +359,12 @@ extension BackupService {
                 sampleWorkCheck: { try fetchOne(SampleWork.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.76, "Importing templates\u{2026}")
-
+    private func importTemplateEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let noteTemplates = payload.noteTemplates {
             try BackupEntityImporter.importNoteTemplates(
                 noteTemplates,
@@ -329,9 +396,12 @@ extension BackupService {
                 existingCheck: { try fetchOne(CalendarEvent.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.78, "Importing tracks\u{2026}")
-
+    private func importTrackEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let tracks = payload.tracks {
             try BackupEntityImporter.importTracks(
                 tracks,
@@ -364,9 +434,12 @@ extension BackupService {
                 existingCheck: { try fetchOne(GroupTrack.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.80, "Importing documents & supplies\u{2026}")
-
+    private func importDocumentEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let documents = payload.documents {
             try BackupEntityImporter.importDocuments(
                 documents,
@@ -400,9 +473,12 @@ extension BackupService {
                 existingCheck: { try fetchOne(Procedure.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.82, "Importing schedules\u{2026}")
-
+    private func importScheduleEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let schedules = payload.schedules {
             try BackupEntityImporter.importSchedules(
                 schedules,
@@ -419,9 +495,12 @@ extension BackupService {
                 scheduleCheck: { try fetchOne(Schedule.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.84, "Importing issues\u{2026}")
-
+    private func importIssueEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let issues = payload.issues {
             try BackupEntityImporter.importIssues(
                 issues,
@@ -438,9 +517,12 @@ extension BackupService {
                 issueCheck: { try fetchOne(Issue.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.86, "Importing snapshots & todos\u{2026}")
-
+    private func importSnapshotAndTodoEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
         if let snapshots = payload.developmentSnapshots {
             try BackupEntityImporter.importDevelopmentSnapshots(
                 snapshots,
@@ -481,11 +563,9 @@ extension BackupService {
                 existingCheck: { try fetchOne(TodayAgendaOrder.self, id: $0, using: modelContext) }
             )
         }
+    }
 
-        progress(0.90, "Saving\u{2026}")
-        try modelContext.save()
-
-        progress(0.92, "Repairing denormalized fields\u{2026}")
+    private func repairDenormalizedFields(modelContext: ModelContext) throws {
         let assignmentsForRepair = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
         var repairedCount = 0
         for la in assignmentsForRepair {
@@ -498,20 +578,5 @@ extension BackupService {
         if repairedCount > 0 {
             try modelContext.save()
         }
-
-        applyPreferencesDTO(payload.preferences)
-        appRouter.signalAppDataDidRestore()
-
-        let counts = envelope.manifest.entityCounts
-        progress(1.0, "Done")
-        return BackupOperationSummary(
-            kind: .import,
-            fileName: url.lastPathComponent,
-            formatVersion: envelope.formatVersion,
-            encryptUsed: envelope.payload == nil,
-            createdAt: envelope.createdAt,
-            entityCounts: counts,
-            warnings: []
-        )
     }
 }

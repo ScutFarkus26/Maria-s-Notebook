@@ -5,6 +5,106 @@ import SwiftData
 
 extension IncrementalBackupService {
 
+    /// Container for merged entity maps during consolidation
+    private struct MergedEntityMaps {
+        var students: [UUID: StudentDTO] = [:]
+        var lessons: [UUID: LessonDTO] = [:]
+        var legacyPresentations: [UUID: LegacyPresentationDTO] = [:]
+        var lessonAssignments: [UUID: LessonAssignmentDTO] = [:]
+        var notes: [UUID: NoteDTO] = [:]
+        var nonSchoolDays: [UUID: NonSchoolDayDTO] = [:]
+        var schoolDayOverrides: [UUID: SchoolDayOverrideDTO] = [:]
+        var studentMeetings: [UUID: StudentMeetingDTO] = [:]
+        var communityTopics: [UUID: CommunityTopicDTO] = [:]
+        var proposedSolutions: [UUID: ProposedSolutionDTO] = [:]
+        var communityAttachments: [UUID: CommunityAttachmentDTO] = [:]
+        var attendance: [UUID: AttendanceRecordDTO] = [:]
+        var workCompletions: [UUID: WorkCompletionRecordDTO] = [:]
+        var projects: [UUID: ProjectDTO] = [:]
+        var projectTemplates: [UUID: ProjectAssignmentTemplateDTO] = [:]
+        var projectSessions: [UUID: ProjectSessionDTO] = [:]
+        var projectRoles: [UUID: ProjectRoleDTO] = [:]
+        var projectWeeks: [UUID: ProjectTemplateWeekDTO] = [:]
+        var projectWeekAssignments: [UUID: ProjectWeekRoleAssignmentDTO] = [:]
+        var latestPreferences: PreferencesDTO?
+
+        // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
+
+        mutating func merge(_ payload: BackupPayload) {
+            for dto in payload.students { students[dto.id] = dto }
+            for dto in payload.lessons { lessons[dto.id] = dto }
+            for dto in payload.legacyPresentations { legacyPresentations[dto.id] = dto }
+            for dto in payload.lessonAssignments { lessonAssignments[dto.id] = dto }
+            // Phase 6: WorkPlanItem removed from schema - skip merging
+            for dto in payload.notes { notes[dto.id] = dto }
+            for dto in payload.nonSchoolDays { nonSchoolDays[dto.id] = dto }
+            for dto in payload.schoolDayOverrides { schoolDayOverrides[dto.id] = dto }
+            for dto in payload.studentMeetings { studentMeetings[dto.id] = dto }
+            for dto in payload.communityTopics { communityTopics[dto.id] = dto }
+            for dto in payload.proposedSolutions { proposedSolutions[dto.id] = dto }
+            for dto in payload.communityAttachments { communityAttachments[dto.id] = dto }
+            for dto in payload.attendance { attendance[dto.id] = dto }
+            for dto in payload.workCompletions { workCompletions[dto.id] = dto }
+            for dto in payload.projects { projects[dto.id] = dto }
+            for dto in payload.projectAssignmentTemplates { projectTemplates[dto.id] = dto }
+            for dto in payload.projectSessions { projectSessions[dto.id] = dto }
+            for dto in payload.projectRoles { projectRoles[dto.id] = dto }
+            for dto in payload.projectTemplateWeeks { projectWeeks[dto.id] = dto }
+            for dto in payload.projectWeekRoleAssignments { projectWeekAssignments[dto.id] = dto }
+            latestPreferences = payload.preferences
+        }
+
+        func toPayload() -> BackupPayload {
+            BackupPayload(
+                items: [],
+                students: Array(students.values),
+                lessons: Array(lessons.values),
+                legacyPresentations: Array(legacyPresentations.values),
+                lessonAssignments: Array(lessonAssignments.values),
+                notes: Array(notes.values),
+                nonSchoolDays: Array(nonSchoolDays.values),
+                schoolDayOverrides: Array(schoolDayOverrides.values),
+                studentMeetings: Array(studentMeetings.values),
+                communityTopics: Array(communityTopics.values),
+                proposedSolutions: Array(proposedSolutions.values),
+                communityAttachments: Array(communityAttachments.values),
+                attendance: Array(attendance.values),
+                workCompletions: Array(workCompletions.values),
+                projects: Array(projects.values),
+                projectAssignmentTemplates: Array(projectTemplates.values),
+                projectSessions: Array(projectSessions.values),
+                projectRoles: Array(projectRoles.values),
+                projectTemplateWeeks: Array(projectWeeks.values),
+                projectWeekRoleAssignments: Array(projectWeekAssignments.values),
+                preferences: latestPreferences ?? PreferencesDTO(values: [:])
+            )
+        }
+
+        func entityCounts() -> [String: Int] {
+            [
+                "Student": students.count,
+                "Lesson": lessons.count,
+                "LegacyPresentation": legacyPresentations.count,
+                "LessonAssignment": lessonAssignments.count,
+                "Note": notes.count,
+                "NonSchoolDay": nonSchoolDays.count,
+                "SchoolDayOverride": schoolDayOverrides.count,
+                "StudentMeeting": studentMeetings.count,
+                "CommunityTopic": communityTopics.count,
+                "ProposedSolution": proposedSolutions.count,
+                "CommunityAttachment": communityAttachments.count,
+                "AttendanceRecord": attendance.count,
+                "WorkCompletionRecord": workCompletions.count,
+                "Project": projects.count,
+                "ProjectAssignmentTemplate": projectTemplates.count,
+                "ProjectSession": projectSessions.count,
+                "ProjectRole": projectRoles.count,
+                "ProjectTemplateWeek": projectWeeks.count,
+                "ProjectWeekRoleAssignment": projectWeekAssignments.count
+            ]
+        }
+    }
+
     /// Consolidates a chain of incremental backups into a single full backup.
     /// This reduces storage space and simplifies restore operations.
     ///
@@ -28,30 +128,7 @@ extension IncrementalBackupService {
 
         progress(0.0, "Starting consolidation...")
 
-        // Track merged entity counts
-        var mergedStudents: [UUID: StudentDTO] = [:]
-        var mergedLessons: [UUID: LessonDTO] = [:]
-        var mergedLegacyPresentations: [UUID: LegacyPresentationDTO] = [:]
-        var mergedLessonAssignments: [UUID: LessonAssignmentDTO] = [:]
-        // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
-        var mergedNotes: [UUID: NoteDTO] = [:]
-        var mergedNonSchoolDays: [UUID: NonSchoolDayDTO] = [:]
-        var mergedSchoolDayOverrides: [UUID: SchoolDayOverrideDTO] = [:]
-        var mergedStudentMeetings: [UUID: StudentMeetingDTO] = [:]
-        var mergedCommunityTopics: [UUID: CommunityTopicDTO] = [:]
-        var mergedProposedSolutions: [UUID: ProposedSolutionDTO] = [:]
-        var mergedCommunityAttachments: [UUID: CommunityAttachmentDTO] = [:]
-        var mergedAttendance: [UUID: AttendanceRecordDTO] = [:]
-        var mergedWorkCompletions: [UUID: WorkCompletionRecordDTO] = [:]
-        var mergedProjects: [UUID: ProjectDTO] = [:]
-        var mergedProjectTemplates: [UUID: ProjectAssignmentTemplateDTO] = [:]
-        var mergedProjectSessions: [UUID: ProjectSessionDTO] = [:]
-        var mergedProjectRoles: [UUID: ProjectRoleDTO] = [:]
-        var mergedProjectWeeks: [UUID: ProjectTemplateWeekDTO] = [:]
-        var mergedProjectWeekAssignments: [UUID: ProjectWeekRoleAssignmentDTO] = [:]
-
-        var latestPreferences: PreferencesDTO?
-        var processedCount = 0
+        var maps = MergedEntityMaps()
         let totalBackups = Double(backupURLs.count)
 
         // Process each backup in order (oldest first, newer overwrites older)
@@ -63,61 +140,29 @@ extension IncrementalBackupService {
             defer { if access { url.stopAccessingSecurityScopedResource() } }
 
             let payload = try await extractPayload(from: url)
-
-            // Merge entities (newer backups overwrite older)
-            for dto in payload.students { mergedStudents[dto.id] = dto }
-            for dto in payload.lessons { mergedLessons[dto.id] = dto }
-            for dto in payload.legacyPresentations { mergedLegacyPresentations[dto.id] = dto }
-            for dto in payload.lessonAssignments { mergedLessonAssignments[dto.id] = dto }
-            // Phase 6: WorkPlanItem removed from schema - skip merging
-            for dto in payload.notes { mergedNotes[dto.id] = dto }
-            for dto in payload.nonSchoolDays { mergedNonSchoolDays[dto.id] = dto }
-            for dto in payload.schoolDayOverrides { mergedSchoolDayOverrides[dto.id] = dto }
-            for dto in payload.studentMeetings { mergedStudentMeetings[dto.id] = dto }
-            for dto in payload.communityTopics { mergedCommunityTopics[dto.id] = dto }
-            for dto in payload.proposedSolutions { mergedProposedSolutions[dto.id] = dto }
-            for dto in payload.communityAttachments { mergedCommunityAttachments[dto.id] = dto }
-            for dto in payload.attendance { mergedAttendance[dto.id] = dto }
-            for dto in payload.workCompletions { mergedWorkCompletions[dto.id] = dto }
-            for dto in payload.projects { mergedProjects[dto.id] = dto }
-            for dto in payload.projectAssignmentTemplates { mergedProjectTemplates[dto.id] = dto }
-            for dto in payload.projectSessions { mergedProjectSessions[dto.id] = dto }
-            for dto in payload.projectRoles { mergedProjectRoles[dto.id] = dto }
-            for dto in payload.projectTemplateWeeks { mergedProjectWeeks[dto.id] = dto }
-            for dto in payload.projectWeekRoleAssignments { mergedProjectWeekAssignments[dto.id] = dto }
-
-            latestPreferences = payload.preferences
-            processedCount += 1
+            maps.merge(payload)
         }
 
         progress(0.8, "Creating consolidated backup...")
 
-        // Build consolidated payload
-        let consolidatedPayload = BackupPayload(
-            items: [],
-            students: Array(mergedStudents.values),
-            lessons: Array(mergedLessons.values),
-            legacyPresentations: Array(mergedLegacyPresentations.values),
-            lessonAssignments: Array(mergedLessonAssignments.values),
-            notes: Array(mergedNotes.values),
-            nonSchoolDays: Array(mergedNonSchoolDays.values),
-            schoolDayOverrides: Array(mergedSchoolDayOverrides.values),
-            studentMeetings: Array(mergedStudentMeetings.values),
-            communityTopics: Array(mergedCommunityTopics.values),
-            proposedSolutions: Array(mergedProposedSolutions.values),
-            communityAttachments: Array(mergedCommunityAttachments.values),
-            attendance: Array(mergedAttendance.values),
-            workCompletions: Array(mergedWorkCompletions.values),
-            projects: Array(mergedProjects.values),
-            projectAssignmentTemplates: Array(mergedProjectTemplates.values),
-            projectSessions: Array(mergedProjectSessions.values),
-            projectRoles: Array(mergedProjectRoles.values),
-            projectTemplateWeeks: Array(mergedProjectWeeks.values),
-            projectWeekRoleAssignments: Array(mergedProjectWeekAssignments.values),
-            preferences: latestPreferences ?? PreferencesDTO(values: [:])
+        return try finalizeConsolidation(
+            maps: maps, to: outputURL, password: password,
+            backupCount: backupURLs.count, progress: progress
         )
+    }
 
-        // Encode and write
+    // MARK: - Consolidation Helpers
+
+    private func finalizeConsolidation(
+        maps: MergedEntityMaps,
+        to outputURL: URL,
+        password: String?,
+        backupCount: Int,
+        progress: @escaping BackupService.ProgressCallback
+    ) throws -> ConsolidationResult {
+        let consolidatedPayload = maps.toPayload()
+        let counts = maps.entityCounts()
+
         let encoder = JSONEncoder.backupConfigured()
         let payloadBytes = try encoder.encode(consolidatedPayload)
         let sha = codec.sha256Hex(payloadBytes)
@@ -137,35 +182,12 @@ extension IncrementalBackupService {
             finalCompressed = compressedBytes
         }
 
-        // Build entity counts
-        let counts: [String: Int] = [
-            "Student": mergedStudents.count,
-            "Lesson": mergedLessons.count,
-            "LegacyPresentation": mergedLegacyPresentations.count,
-            "LessonAssignment": mergedLessonAssignments.count,
-            "Note": mergedNotes.count,
-            "NonSchoolDay": mergedNonSchoolDays.count,
-            "SchoolDayOverride": mergedSchoolDayOverrides.count,
-            "StudentMeeting": mergedStudentMeetings.count,
-            "CommunityTopic": mergedCommunityTopics.count,
-            "ProposedSolution": mergedProposedSolutions.count,
-            "CommunityAttachment": mergedCommunityAttachments.count,
-            "AttendanceRecord": mergedAttendance.count,
-            "WorkCompletionRecord": mergedWorkCompletions.count,
-            "Project": mergedProjects.count,
-            "ProjectAssignmentTemplate": mergedProjectTemplates.count,
-            "ProjectSession": mergedProjectSessions.count,
-            "ProjectRole": mergedProjectRoles.count,
-            "ProjectTemplateWeek": mergedProjectWeeks.count,
-            "ProjectWeekRoleAssignment": mergedProjectWeekAssignments.count
-        ]
-
         let envelope = BackupServiceHelpers.buildEnvelope(
             encryptedPayload: finalEncrypted,
             compressedPayload: finalCompressed,
             entityCounts: counts,
             sha256: sha,
-            notes: "Consolidated from \(backupURLs.count) incremental backups"
+            notes: "Consolidated from \(backupCount) incremental backups"
         )
 
         progress(0.95, "Writing consolidated backup...")
@@ -178,7 +200,7 @@ extension IncrementalBackupService {
 
         return ConsolidationResult(
             outputURL: outputURL,
-            consolidatedBackupCount: backupURLs.count,
+            consolidatedBackupCount: backupCount,
             totalEntities: totalEntities,
             entityCounts: counts,
             fileSize: fileSize,
