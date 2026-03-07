@@ -87,16 +87,33 @@ final class StudentNotesViewModel {
 
     // MARK: - Fetch
     func fetchAllNotes() {
-        var aggregated: [UnifiedNoteItem] = []
         let studentIDString = student.id.uuidString
-
-        // 1) General (Note) objects where scope matches .student(student.id)
         let noteSort: [SortDescriptor<Note>] = [
             SortDescriptor(\Note.updatedAt, order: .reverse),
             SortDescriptor(\Note.createdAt, order: .reverse)
         ]
-        
-        // Fetch notes that match at database level: scopeIsAll OR searchIndexStudentID matches
+
+        var aggregated: [UnifiedNoteItem] = []
+        aggregated.append(contentsOf: fetchGeneralNotes(noteSort: noteSort, studentIDString: studentIDString))
+        aggregated.append(contentsOf: fetchWorkRelatedNotes(noteSort: noteSort, studentIDString: studentIDString))
+        aggregated.append(contentsOf: fetchPresentationNotes(noteSort: noteSort, studentIDString: studentIDString))
+        aggregated.append(contentsOf: fetchMeetingNotes(studentIDString: studentIDString))
+        aggregated.append(contentsOf: fetchAttendanceNotes(noteSort: noteSort, studentIDString: studentIDString))
+
+        // Deduplicate and Sort
+        var uniqueMap: [UUID: UnifiedNoteItem] = [:]
+        for item in aggregated { uniqueMap[item.id] = item }
+        self.items = Array(uniqueMap.values).sorted { $0.date > $1.date }
+
+        loadInitialPage()
+    }
+
+    // MARK: - Note Source Helpers
+
+    /// 1) General notes where scope matches this student.
+    private func fetchGeneralNotes(
+        noteSort: [SortDescriptor<Note>], studentIDString: String
+    ) -> [UnifiedNoteItem] {
         let studentID = student.id
         let primaryFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { note in
@@ -106,9 +123,6 @@ final class StudentNotesViewModel {
         )
         let primaryNotes: [Note] = safeFetch(primaryFetch)
 
-        // Fetch notes with multi-student scope using NoteStudentLink for efficiency
-        // This replaces the previous in-memory filtering approach
-        // Note: studentIDString already declared above
         let linkFetch = FetchDescriptor<NoteStudentLink>(
             predicate: #Predicate<NoteStudentLink> { link in
                 link.studentID == studentIDString
@@ -117,26 +131,20 @@ final class StudentNotesViewModel {
         let links: [NoteStudentLink] = safeFetch(linkFetch)
         let linkedNotes = links.compactMap { $0.note }
 
-        // Combine results, deduplicating by note ID
         var seenIDs = Set(primaryNotes.map { $0.id })
         var visibleNotes = primaryNotes
         for note in linkedNotes where !seenIDs.contains(note.id) {
             seenIDs.insert(note.id)
             visibleNotes.append(note)
         }
-        
-        // FILTERING: Exclude notes attached to specific contexts that have their own fetch blocks.
-        // This prevents "leaking" notes from other students if they were created with 'All' scope.
-        let generalItems: [UnifiedNoteItem] = visibleNotes.compactMap { note in
-            // Exclude if attached to Work (handled by Block 2)
+
+        return visibleNotes.compactMap { note in
+            // Exclude notes attached to specific contexts (handled by other blocks)
             if note.work != nil { return nil }
-            // Exclude if attached to Presentation (handled by Block 3)
             if note.lessonAssignment != nil { return nil }
-            // Exclude if attached to StudentMeeting (handled by Block 4)
             if note.studentMeeting != nil { return nil }
-            // FIX: Exclude if attached to AttendanceRecord (handled by Block 5)
             if note.attendanceRecord != nil { return nil }
-            
+
             let context: String = {
                 if let lesson = note.lesson {
                     let name = lesson.name.trimmed()
@@ -144,71 +152,57 @@ final class StudentNotesViewModel {
                 }
                 return "General Note"
             }()
-            
+
             return UnifiedNoteItem(
-                id: note.id,
-                date: note.updatedAt,
-                body: note.body,
-                source: .general,
-                contextText: context,
-                color: .blue,
-                associatedID: note.id,
-                tags: note.tags,
-                includeInReport: note.includeInReport,
-                needsFollowUp: note.needsFollowUp,
-                imagePath: note.imagePath,
-                reportedBy: note.reportedBy,
-                reporterName: note.reporterName,
-                isPinned: note.isPinned
+                id: note.id, date: note.updatedAt, body: note.body,
+                source: .general, contextText: context, color: .blue,
+                associatedID: note.id, tags: note.tags,
+                includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
+                imagePath: note.imagePath, reportedBy: note.reportedBy,
+                reporterName: note.reporterName, isPinned: note.isPinned
             )
         }
-        aggregated.append(contentsOf: generalItems)
+    }
 
-        // 2) Work-related notes (using WorkModel)
+    /// 2) Work-related notes.
+    private func fetchWorkRelatedNotes(
+        noteSort: [SortDescriptor<Note>], studentIDString: String
+    ) -> [UnifiedNoteItem] {
         let workFetch = FetchDescriptor<WorkModel>(
             predicate: #Predicate<WorkModel> { $0.studentID == studentIDString }
         )
         let workModels: [WorkModel] = safeFetch(workFetch)
         let workIDs = Set(workModels.map { $0.id })
+        guard !workIDs.isEmpty else { return [] }
 
-        if !workIDs.isEmpty {
-            // Fetch notes with work relationship (preferred)
-            let workNoteFetch = FetchDescriptor<Note>(
-                predicate: #Predicate<Note> { $0.work != nil },
-                sortBy: noteSort
-            )
-            let workNotes: [Note] = safeFetch(workNoteFetch)
-            let lessonNameByWorkID: [String: String] = buildLessonNameLookup(forWorkModels: workModels)
+        let workNoteFetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.work != nil },
+            sortBy: noteSort
+        )
+        let workNotes: [Note] = safeFetch(workNoteFetch)
+        let lessonNameByWorkID = buildLessonNameLookup(forWorkModels: workModels)
 
-            let workItems: [UnifiedNoteItem] = workNotes.compactMap { note in
-                guard let work = note.work, workIDs.contains(work.id) else { return nil }
-                
-                if !note.scopeIsAll && note.searchIndexStudentID == nil {
-                     guard note.scope.applies(to: student.id) else { return nil }
-                }
-                
-                let context = lessonNameByWorkID[work.id.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
-                return UnifiedNoteItem(
-                    id: note.id,
-                    date: note.updatedAt,
-                    body: note.body,
-                    source: .work,
-                    contextText: context,
-                    color: .orange,
-                    associatedID: work.id,
-                    tags: note.tags,
-                    includeInReport: note.includeInReport,
-                    needsFollowUp: note.needsFollowUp,
-                    imagePath: note.imagePath,
-                    reportedBy: note.reportedBy,
-                    reporterName: note.reporterName,
-                    isPinned: note.isPinned
-                )
+        return workNotes.compactMap { note in
+            guard let work = note.work, workIDs.contains(work.id) else { return nil }
+            if !note.scopeIsAll && note.searchIndexStudentID == nil {
+                guard note.scope.applies(to: student.id) else { return nil }
             }
-            aggregated.append(contentsOf: workItems)
+            let context = lessonNameByWorkID[work.id.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
+            return UnifiedNoteItem(
+                id: note.id, date: note.updatedAt, body: note.body,
+                source: .work, contextText: context, color: .orange,
+                associatedID: work.id, tags: note.tags,
+                includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
+                imagePath: note.imagePath, reportedBy: note.reportedBy,
+                reporterName: note.reporterName, isPinned: note.isPinned
+            )
         }
-        
-        // 3) Presentation-related notes (from LessonAssignment - the unified model)
+    }
+
+    /// 3) Presentation-related notes (from LessonAssignment).
+    private func fetchPresentationNotes(
+        noteSort: [SortDescriptor<Note>], studentIDString: String
+    ) -> [UnifiedNoteItem] {
         let presentationNoteFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.lessonAssignment != nil },
             sortBy: noteSort
@@ -218,10 +212,9 @@ final class StudentNotesViewModel {
         var lessonsByID: [UUID: Lesson] = [:]
         for lesson in allLessons { lessonsByID[lesson.id] = lesson }
 
-        let presentationItems: [UnifiedNoteItem] = presentationNotes.compactMap { note in
+        return presentationNotes.compactMap { note in
             guard let pres = note.lessonAssignment,
                   pres.studentIDs.contains(studentIDString) else { return nil }
-
             guard note.scope.applies(to: student.id) else { return nil }
 
             let context: String = {
@@ -237,101 +230,67 @@ final class StudentNotesViewModel {
             }()
 
             return UnifiedNoteItem(
-                id: note.id,
-                date: note.updatedAt,
-                body: note.body,
-                source: .presentation,
-                contextText: context,
-                color: .purple,
-                associatedID: pres.id,
-                tags: note.tags,
-                includeInReport: note.includeInReport,
-                needsFollowUp: note.needsFollowUp,
-                imagePath: note.imagePath,
-                reportedBy: note.reportedBy,
-                reporterName: note.reporterName,
-                isPinned: note.isPinned
+                id: note.id, date: note.updatedAt, body: note.body,
+                source: .presentation, contextText: context, color: .purple,
+                associatedID: pres.id, tags: note.tags,
+                includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
+                imagePath: note.imagePath, reportedBy: note.reportedBy,
+                reporterName: note.reporterName, isPinned: note.isPinned
             )
         }
-        aggregated.append(contentsOf: presentationItems)
+    }
 
-        // 4) Meeting-related notes
+    /// 4) Meeting-related notes.
+    private func fetchMeetingNotes(studentIDString: String) -> [UnifiedNoteItem] {
         let meetingFetch = FetchDescriptor<StudentMeeting>(
             predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
             sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
         )
         let studentMeetings: [StudentMeeting] = safeFetch(meetingFetch)
-        
-        let meetingItems: [UnifiedNoteItem] = studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
+
+        return studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
             var items: [UnifiedNoteItem] = []
             if !meeting.reflection.isEmpty {
-                items.append(makeMeetingNote(
-                    meeting, body: meeting.reflection, context: "Meeting - Reflection"
-                ))
+                items.append(makeMeetingNote(meeting, body: meeting.reflection, context: "Meeting - Reflection"))
             }
             if !meeting.focus.isEmpty {
-                items.append(makeMeetingNote(
-                    meeting, body: meeting.focus, context: "Meeting - Focus"
-                ))
+                items.append(makeMeetingNote(meeting, body: meeting.focus, context: "Meeting - Focus"))
             }
             if !meeting.requests.isEmpty {
-                items.append(makeMeetingNote(
-                    meeting, body: meeting.requests, context: "Meeting - Requests"
-                ))
+                items.append(makeMeetingNote(meeting, body: meeting.requests, context: "Meeting - Requests"))
             }
             if !meeting.guideNotes.isEmpty {
-                items.append(makeMeetingNote(
-                    meeting, body: meeting.guideNotes, context: "Meeting - Guide Notes"
-                ))
+                items.append(makeMeetingNote(meeting, body: meeting.guideNotes, context: "Meeting - Guide Notes"))
             }
             return items
         }
-        aggregated.append(contentsOf: meetingItems)
+    }
 
-        // 5) Attendance-related notes (NEW BLOCK)
-        // Fetch full Note objects attached to attendance records
-        // First get all notes with an attendance record, then filter for our student's records
+    /// 5) Attendance-related notes.
+    private func fetchAttendanceNotes(
+        noteSort: [SortDescriptor<Note>], studentIDString: String
+    ) -> [UnifiedNoteItem] {
         let attNoteFetch = FetchDescriptor<Note>(
             predicate: #Predicate<Note> { $0.attendanceRecord != nil },
             sortBy: noteSort
         )
         let attNotes: [Note] = safeFetch(attNoteFetch)
-        
-        let linkedAttItems: [UnifiedNoteItem] = attNotes.compactMap { note in
+
+        return attNotes.compactMap { note in
             guard let record = note.attendanceRecord,
                   record.studentID == studentIDString else { return nil }
-            
-            // Safety check on scope
             guard note.scope.applies(to: student.id) else { return nil }
 
             return UnifiedNoteItem(
-                id: note.id,
-                date: note.updatedAt,
-                body: note.body,
-                source: .attendance,
-                contextText: "Attendance Note",
-                color: record.status.color,
-                associatedID: record.id,
-                tags: note.tags,
-                includeInReport: note.includeInReport,
-                needsFollowUp: note.needsFollowUp,
-                imagePath: note.imagePath,
-                reportedBy: note.reportedBy,
-                reporterName: note.reporterName,
+                id: note.id, date: note.updatedAt, body: note.body,
+                source: .attendance, contextText: "Attendance Note",
+                color: record.status.color, associatedID: record.id,
+                tags: note.tags, includeInReport: note.includeInReport,
+                needsFollowUp: note.needsFollowUp, imagePath: note.imagePath,
+                reportedBy: note.reportedBy, reporterName: note.reporterName,
                 isPinned: note.isPinned
             )
         }
-        aggregated.append(contentsOf: linkedAttItems)
-
-        // Deduplicate and Sort
-        var uniqueMap: [UUID: UnifiedNoteItem] = [:]
-        for item in aggregated {
-            uniqueMap[item.id] = item
-        }
-        self.items = Array(uniqueMap.values).sorted { $0.date > $1.date }
-
-        // Reset pagination
-        loadInitialPage()
     }
     
     private func makeMeetingNote(_ meeting: StudentMeeting, body: String, context: String) -> UnifiedNoteItem {

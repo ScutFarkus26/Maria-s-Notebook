@@ -63,132 +63,138 @@ struct LessonJourneyTimeline: View {
     @ViewBuilder
     private func presentationNode(_ presentation: Presentation) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Presentation card
-            VStack(alignment: .leading, spacing: 10) {
-                // Header
-                HStack(spacing: 8) {
-                    Image(systemName: presentation.isPresented ? "checkmark.circle.fill" : "calendar")
-                        .foregroundStyle(presentation.isPresented ? .green : .blue)
-                        .font(.system(size: 18, weight: .semibold))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
-                            .font(AppTheme.ScaledFont.captionSemibold)
-                            .foregroundStyle(.primary)
-                        
-                        if let date = presentation.presentedAt ?? presentation.scheduledFor {
-                            Text(date.formatted(date: .abbreviated, time: .omitted))
-                                .font(AppTheme.ScaledFont.captionSmall)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                
-                // Students
-                let students = presentation.fetchStudents(from: modelContext)
-                if !students.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(students.count) \(students.count == 1 ? "Student" : "Students")")
-                            .font(AppTheme.ScaledFont.captionSmallSemibold)
-                            .foregroundStyle(.secondary)
-                        
-                        ForEach(students.prefix(3)) { student in
-                            Text("• \(StudentFormatter.displayName(for: student))")
-                                .font(AppTheme.ScaledFont.captionSmall)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        if students.count > 3 {
-                            Text("+ \(students.count - 3) more")
-                                .font(AppTheme.ScaledFont.captionSmall)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                }
-            }
-            .padding(14)
-            .frame(width: 200)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.primary.opacity(0.03))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1.5)
-            )
-            
-            // Connector line to work
+            presentationCard(presentation)
+
             let work = allWork.filter { $0.presentationID == presentation.id.uuidString }
             if !work.isEmpty {
                 connectorLine()
-                
-                // Work items
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "folder.badge.gearshape")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.blue)
-                        Text("Work (\(work.count))")
-                            .font(AppTheme.ScaledFont.captionSmallSemibold)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    ForEach(work.prefix(3)) { workItem in
-                        workItemChip(workItem)
-                    }
-                    
-                    if work.count > 3 {
-                        Text("+ \(work.count - 3) more")
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.tertiary)
-                            .padding(.leading, 8)
-                    }
-                }
-                .padding(12)
-                .frame(width: 200)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.blue.opacity(0.05))
-                )
-                
-                // Practice sessions
+                workSection(work)
+
                 let sessions = allSessions.filter { session in
                     work.contains { session.workItemIDs.contains($0.id.uuidString) }
                 }
-                
                 if !sessions.isEmpty {
                     connectorLine()
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.purple)
-                            Text("Practice (\(sessions.count))")
-                                .font(AppTheme.ScaledFont.captionSmallSemibold)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        ForEach(sessions.prefix(3)) { session in
-                            practiceSessionChip(session)
-                        }
-                        
-                        if sessions.count > 3 {
-                            Text("+ \(sessions.count - 3) more")
-                                .font(AppTheme.ScaledFont.captionSmall)
-                                .foregroundStyle(.tertiary)
-                                .padding(.leading, 8)
-                        }
-                    }
-                    .padding(12)
-                    .frame(width: 200)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.purple.opacity(0.05))
-                    )
+                    practiceSection(sessions)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func presentationCard(_ presentation: Presentation) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: presentation.isPresented ? "checkmark.circle.fill" : "calendar")
+                    .foregroundStyle(presentation.isPresented ? .green : .blue)
+                    .font(.system(size: 18, weight: .semibold))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.primary)
+
+                    if let date = presentation.presentedAt ?? presentation.scheduledFor {
+                        Text(date.formatted(date: .abbreviated, time: .omitted))
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            let students = presentation.fetchStudents(from: modelContext)
+            if !students.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(students.count) \(students.count == 1 ? "Student" : "Students")")
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(students.prefix(3)) { student in
+                        Text("• \(StudentFormatter.displayName(for: student))")
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if students.count > 3 {
+                        Text("+ \(students.count - 3) more")
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .frame(width: 200)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.1), lineWidth: 1.5)
+        )
+    }
+
+    @ViewBuilder
+    private func workSection(_ work: [WorkModel]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "folder.badge.gearshape")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.blue)
+                Text("Work (\(work.count))")
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(work.prefix(3)) { workItem in
+                workItemChip(workItem)
+            }
+
+            if work.count > 3 {
+                Text("+ \(work.count - 3) more")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 8)
+            }
+        }
+        .padding(12)
+        .frame(width: 200)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.blue.opacity(0.05))
+        )
+    }
+
+    @ViewBuilder
+    private func practiceSection(_ sessions: [PracticeSession]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.purple)
+                Text("Practice (\(sessions.count))")
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(sessions.prefix(3)) { session in
+                practiceSessionChip(session)
+            }
+
+            if sessions.count > 3 {
+                Text("+ \(sessions.count - 3) more")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 8)
+            }
+        }
+        .padding(12)
+        .frame(width: 200)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.purple.opacity(0.05))
+        )
     }
     
     @ViewBuilder

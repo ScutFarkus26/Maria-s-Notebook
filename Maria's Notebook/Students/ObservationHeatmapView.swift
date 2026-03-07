@@ -80,166 +80,11 @@ struct ObservationHeatmapView: View {
     
     private func calculateObservationsAsync() {
         Task { @MainActor in
-            let context = modelContext
-            let students = allStudents
-            
-            // 1) Fetch all StudentMeetings once
-            let allMeetings: [StudentMeeting]
-            do {
-                allMeetings = try context.fetch(FetchDescriptor<StudentMeeting>())
-            } catch {
-                Self.logger.warning("Failed to fetch StudentMeetings: \(error)")
-                allMeetings = []
-            }
-
-            // 2) Fetch all WorkModels once (preferred)
-            let allWorkModels: [WorkModel]
-            do {
-                allWorkModels = try context.fetch(FetchDescriptor<WorkModel>())
-            } catch {
-                Self.logger.warning("Failed to fetch WorkModels: \(error)")
-                allWorkModels = []
-            }
-
-            // 3) Fetch all Notes once
-            let allNotes: [Note]
-            do {
-                allNotes = try context.fetch(FetchDescriptor<Note>())
-            } catch {
-                Self.logger.warning("Failed to fetch Notes: \(error)")
-                allNotes = []
-            }
-            
-            // Build dictionaries for O(1) lookup
-
-            // StudentMeetings grouped by studentID (String) -> most recent date with content
-            var meetingsByStudentID: [String: Date] = [:]
-            for meeting in allMeetings {
-                let hasContent = !meeting.reflection.trimmed().isEmpty ||
-                                !meeting.focus.trimmed().isEmpty ||
-                                !meeting.requests.trimmed().isEmpty ||
-                                !meeting.guideNotes.trimmed().isEmpty
-                
-                if hasContent {
-                    if let existing = meetingsByStudentID[meeting.studentID] {
-                        if meeting.date > existing {
-                            meetingsByStudentID[meeting.studentID] = meeting.date
-                        }
-                    } else {
-                        meetingsByStudentID[meeting.studentID] = meeting.date
-                    }
-                }
-            }
-            
-            // WorkModels grouped by studentID (String) -> set of work IDs
-            var workIDsByStudentID: [String: Set<UUID>] = [:]
-            for work in allWorkModels {
-                workIDsByStudentID[work.studentID, default: []].insert(work.id)
-            }
-
-            // LessonAssignments by ID (for mapping presentation notes)
-            var lessonAssignmentsByID: [UUID: LessonAssignment] = [:]
-            let allLessonAssignments: [LessonAssignment]
-            do {
-                allLessonAssignments = try context.fetch(FetchDescriptor<LessonAssignment>())
-            } catch {
-                Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
-                allLessonAssignments = []
-            }
-            for assignment in allLessonAssignments {
-                lessonAssignmentsByID[assignment.id] = assignment
-            }
-
-            // Notes by studentID (from scope, work, and lessonAssignment)
-            // Group 1: Notes with student scope - map by studentID
-            var studentScopedNotesByStudentID: [UUID: [Note]] = [:]
-            // Group 2: Notes with work relationships - map by workID
-            var workNotesByWorkID: [UUID: Note] = [:]
-            // Group 3: Notes with presentation relationships - map by presentationID
-            var presentationNotesByPresentationID: [UUID: Note] = [:]
-            
-            for note in allNotes {
-                // Group 1: Student-scoped notes (only .student(let id) scope, matching original logic)
-                if case .student(let studentID) = note.scope {
-                    studentScopedNotesByStudentID[studentID, default: []].append(note)
-                }
-                
-                // Group 2: WorkModel notes (preferred)
-                if let work = note.work {
-                    // Store the most recent note per work
-                    if let existing = workNotesByWorkID[work.id] {
-                        let existingDate = max(existing.updatedAt, existing.createdAt)
-                        let noteDate = max(note.updatedAt, note.createdAt)
-                        if noteDate > existingDate {
-                            workNotesByWorkID[work.id] = note
-                        }
-                    } else {
-                        workNotesByWorkID[work.id] = note
-                    }
-                }
-                
-                // Group 3: Presentation notes (from Presentation - the unified model)
-                if let assignment = note.lessonAssignment {
-                    // Store the most recent note per LessonAssignment
-                    if let existing = presentationNotesByPresentationID[assignment.id] {
-                        let existingDate = max(existing.updatedAt, existing.createdAt)
-                        let noteDate = max(note.updatedAt, note.createdAt)
-                        if noteDate > existingDate {
-                            presentationNotesByPresentationID[assignment.id] = note
-                        }
-                    } else {
-                        presentationNotesByPresentationID[assignment.id] = note
-                    }
-                }
-            }
-
-            // Compute most recent date for each student
+            let lookups = buildObservationLookups()
             var observations: [StudentObservation] = []
-            
-            for student in students {
-                var mostRecentDate: Date?
-                let studentIDString = student.id.uuidString
-                
-                // 1) Check student-scoped notes
-                if let studentNotes = studentScopedNotesByStudentID[student.id] {
-                    for note in studentNotes {
-                        let noteDate = max(note.updatedAt, note.createdAt)
-                        if mostRecentDate == nil || noteDate > mostRecentDate! {
-                            mostRecentDate = noteDate
-                        }
-                    }
-                }
-                
-                // 2) Check WorkModel notes (preferred)
-                if let workIDs = workIDsByStudentID[studentIDString] {
-                    for workID in workIDs {
-                        if let note = workNotesByWorkID[workID] {
-                            let noteDate = max(note.updatedAt, note.createdAt)
-                            if mostRecentDate == nil || noteDate > mostRecentDate! {
-                                mostRecentDate = noteDate
-                            }
-                        }
-                    }
-                }
-                
-                // 3) Check LessonAssignment notes
-                for (assignmentID, assignment) in lessonAssignmentsByID
-                    where assignment.studentIDs.contains(studentIDString) {
-                    if let note = presentationNotesByPresentationID[assignmentID] {
-                        let noteDate = max(note.updatedAt, note.createdAt)
-                        if mostRecentDate == nil || noteDate > mostRecentDate! {
-                            mostRecentDate = noteDate
-                        }
-                    }
-                }
-                
-                // 4) Check StudentMeeting records
-                if let meetingDate = meetingsByStudentID[studentIDString] {
-                    if mostRecentDate == nil || meetingDate > mostRecentDate! {
-                        mostRecentDate = meetingDate
-                    }
-                }
-                
+
+            for student in allStudents {
+                let mostRecentDate = findMostRecentDateFromLookups(for: student, lookups: lookups)
                 let daysSince = calculateDaysSince(date: mostRecentDate)
                 observations.append(StudentObservation(
                     student: student,
@@ -247,107 +92,205 @@ struct ObservationHeatmapView: View {
                     mostRecentDate: mostRecentDate
                 ))
             }
-            
-            // Sort: Red (most days) at top, then Yellow, then Green
-            observations.sort { lhs, rhs in
-                // First sort by observation status (Red > Yellow > Green)
-                let lhsStatus = observationStatus(for: lhs.daysSinceLastObservation)
-                let rhsStatus = observationStatus(for: rhs.daysSinceLastObservation)
-                
-                if lhsStatus != rhsStatus {
-                    return lhsStatus.rawValue > rhsStatus.rawValue
-                }
-                
-                // If same status, sort by days (more days = higher priority)
-                return lhs.daysSinceLastObservation > rhs.daysSinceLastObservation
-            }
-            
-            // Update studentObservations
+
+            sortObservationsByUrgency(&observations)
             studentObservations = observations
         }
     }
-    
-    private func findMostRecentNoteDate(for student: Student) -> Date? {
-        var mostRecentDate: Date?
-        
-        // 1) Check general Note objects where scope matches .student(student.id)
-        let noteSort: [SortDescriptor<Note>] = [
-            SortDescriptor(\Note.updatedAt, order: .reverse),
-            SortDescriptor(\Note.createdAt, order: .reverse)
-        ]
-        let noteDesc = FetchDescriptor<Note>(sortBy: noteSort)
-        let allNotes: [Note]
-        do {
-            allNotes = try modelContext.fetch(noteDesc)
-        } catch {
-            Self.logger.warning("Failed to fetch notes: \(error)")
-            allNotes = []
-        }
-        let visibleNotes = allNotes.filter { note in
-            if case .student(let id) = note.scope { return id == student.id }
-            return false
-        }
-        
-        for note in visibleNotes {
-            let noteDate = max(note.updatedAt, note.createdAt)
-            if mostRecentDate == nil || noteDate > mostRecentDate! {
-                mostRecentDate = noteDate
-            }
-        }
-        
-        // 2) Check LessonAssignment notes that include this student
-        let studentIDString = student.id.uuidString
-        let presentationNoteFetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.lessonAssignment != nil }
-        )
-        let presentationNotes: [Note]
-        do {
-            presentationNotes = try modelContext.fetch(presentationNoteFetch)
-        } catch {
-            Self.logger.warning("Failed to fetch presentation notes: \(error)")
-            presentationNotes = []
-        }
 
-        for note in presentationNotes {
-            guard let pres = note.lessonAssignment,
-                  pres.studentIDs.contains(studentIDString) else {
-                continue
-            }
+    /// Pre-fetched lookup tables for O(1) per-student observation checks.
+    private struct ObservationLookups {
+        var meetingsByStudentID: [String: Date] = [:]
+        var workIDsByStudentID: [String: Set<UUID>] = [:]
+        var lessonAssignmentsByID: [UUID: LessonAssignment] = [:]
+        var studentScopedNotesByStudentID: [UUID: [Note]] = [:]
+        var workNotesByWorkID: [UUID: Note] = [:]
+        var presentationNotesByPresentationID: [UUID: Note] = [:]
+    }
 
-            let noteDate = max(note.updatedAt, note.createdAt)
-            if mostRecentDate == nil || noteDate > mostRecentDate! {
-                mostRecentDate = noteDate
-            }
+    /// Fetches all entities once and builds lookup dictionaries.
+    private func buildObservationLookups() -> ObservationLookups {
+        var lookups = ObservationLookups()
+        let context = modelContext
+
+        let allMeetings = (try? context.fetch(FetchDescriptor<StudentMeeting>())) ?? []
+        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
+        let allNotes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
+        let allAssignments = (try? context.fetch(FetchDescriptor<LessonAssignment>())) ?? []
+
+        buildMeetingLookup(from: allMeetings, into: &lookups)
+        for work in allWorkModels {
+            lookups.workIDsByStudentID[work.studentID, default: []].insert(work.id)
         }
-
-        // 3) Check StudentMeeting records for this student
-        let meetingFetch = FetchDescriptor<StudentMeeting>(
-            predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
-            sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
-        )
-        let studentMeetings: [StudentMeeting]
-        do {
-            studentMeetings = try modelContext.fetch(meetingFetch)
-        } catch {
-            Self.logger.warning("Failed to fetch student meetings: \(error)")
-            studentMeetings = []
+        for assignment in allAssignments {
+            lookups.lessonAssignmentsByID[assignment.id] = assignment
         }
+        buildNoteLookups(from: allNotes, into: &lookups)
 
-        for meeting in studentMeetings {
-            // Check if meeting has any content
+        return lookups
+    }
+
+    /// Groups meetings by studentID, keeping the most recent date with content.
+    private func buildMeetingLookup(from meetings: [StudentMeeting], into lookups: inout ObservationLookups) {
+        for meeting in meetings {
             let hasContent = !meeting.reflection.trimmed().isEmpty ||
                             !meeting.focus.trimmed().isEmpty ||
                             !meeting.requests.trimmed().isEmpty ||
                             !meeting.guideNotes.trimmed().isEmpty
-            
-            if hasContent {
-                if mostRecentDate == nil || meeting.date > mostRecentDate! {
-                    mostRecentDate = meeting.date
+            guard hasContent else { continue }
+
+            if let existing = lookups.meetingsByStudentID[meeting.studentID] {
+                if meeting.date > existing { lookups.meetingsByStudentID[meeting.studentID] = meeting.date }
+            } else {
+                lookups.meetingsByStudentID[meeting.studentID] = meeting.date
+            }
+        }
+    }
+
+    /// Groups notes by scope (student, work, presentation), keeping the most recent per key.
+    private func buildNoteLookups(from notes: [Note], into lookups: inout ObservationLookups) {
+        for note in notes {
+            if case .student(let studentID) = note.scope {
+                lookups.studentScopedNotesByStudentID[studentID, default: []].append(note)
+            }
+            if let work = note.work {
+                updateMostRecentNote(for: work.id, note: note, in: &lookups.workNotesByWorkID)
+            }
+            if let assignment = note.lessonAssignment {
+                updateMostRecentNote(
+                    for: assignment.id, note: note, in: &lookups.presentationNotesByPresentationID
+                )
+            }
+        }
+    }
+
+    /// Keeps the most recent note per key in a dictionary.
+    private func updateMostRecentNote(for key: UUID, note: Note, in dict: inout [UUID: Note]) {
+        let noteDate = max(note.updatedAt, note.createdAt)
+        if let existing = dict[key] {
+            let existingDate = max(existing.updatedAt, existing.createdAt)
+            if noteDate > existingDate { dict[key] = note }
+        } else {
+            dict[key] = note
+        }
+    }
+
+    /// Finds the most recent observation date for a student using pre-built lookups.
+    private func findMostRecentDateFromLookups(
+        for student: Student, lookups: ObservationLookups
+    ) -> Date? {
+        var mostRecentDate: Date?
+        let studentIDString = student.id.uuidString
+
+        // 1) Student-scoped notes
+        if let studentNotes = lookups.studentScopedNotesByStudentID[student.id] {
+            for note in studentNotes {
+                let noteDate = max(note.updatedAt, note.createdAt)
+                if mostRecentDate == nil || noteDate > mostRecentDate! { mostRecentDate = noteDate }
+            }
+        }
+        // 2) WorkModel notes
+        if let workIDs = lookups.workIDsByStudentID[studentIDString] {
+            for workID in workIDs {
+                if let note = lookups.workNotesByWorkID[workID] {
+                    let noteDate = max(note.updatedAt, note.createdAt)
+                    if mostRecentDate == nil || noteDate > mostRecentDate! { mostRecentDate = noteDate }
                 }
             }
         }
-        
+        // 3) LessonAssignment notes
+        for (assignmentID, assignment) in lookups.lessonAssignmentsByID
+            where assignment.studentIDs.contains(studentIDString) {
+            if let note = lookups.presentationNotesByPresentationID[assignmentID] {
+                let noteDate = max(note.updatedAt, note.createdAt)
+                if mostRecentDate == nil || noteDate > mostRecentDate! { mostRecentDate = noteDate }
+            }
+        }
+        // 4) StudentMeeting records
+        if let meetingDate = lookups.meetingsByStudentID[studentIDString] {
+            if mostRecentDate == nil || meetingDate > mostRecentDate! { mostRecentDate = meetingDate }
+        }
+
         return mostRecentDate
+    }
+
+    /// Sorts observations: Red (most overdue) first, then Yellow, then Green.
+    private func sortObservationsByUrgency(_ observations: inout [StudentObservation]) {
+        observations.sort { lhs, rhs in
+            let lhsStatus = observationStatus(for: lhs.daysSinceLastObservation)
+            let rhsStatus = observationStatus(for: rhs.daysSinceLastObservation)
+            if lhsStatus != rhsStatus { return lhsStatus.rawValue > rhsStatus.rawValue }
+            return lhs.daysSinceLastObservation > rhs.daysSinceLastObservation
+        }
+    }
+
+    /// Per-student fetch version (used by synchronous `calculateObservations`).
+    private func findMostRecentNoteDate(for student: Student) -> Date? {
+        var mostRecentDate: Date?
+        let studentIDString = student.id.uuidString
+
+        // 1) Student-scoped notes
+        mostRecentDate = findMostRecentStudentScopedNoteDate(for: student)
+
+        // 2) LessonAssignment notes
+        mostRecentDate = findMostRecentPresentationNoteDate(
+            studentIDString: studentIDString, current: mostRecentDate
+        )
+
+        // 3) StudentMeeting records
+        mostRecentDate = findMostRecentMeetingDate(
+            studentIDString: studentIDString, current: mostRecentDate
+        )
+
+        return mostRecentDate
+    }
+
+    private func findMostRecentStudentScopedNoteDate(for student: Student) -> Date? {
+        let noteDesc = FetchDescriptor<Note>()
+        let allNotes = (try? modelContext.fetch(noteDesc)) ?? []
+        var mostRecent: Date?
+        for note in allNotes {
+            guard case .student(let id) = note.scope, id == student.id else { continue }
+            let noteDate = max(note.updatedAt, note.createdAt)
+            if mostRecent == nil || noteDate > mostRecent! { mostRecent = noteDate }
+        }
+        return mostRecent
+    }
+
+    private func findMostRecentPresentationNoteDate(
+        studentIDString: String, current: Date?
+    ) -> Date? {
+        let fetch = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.lessonAssignment != nil }
+        )
+        let notes = (try? modelContext.fetch(fetch)) ?? []
+        var mostRecent = current
+        for note in notes {
+            guard let pres = note.lessonAssignment,
+                  pres.studentIDs.contains(studentIDString) else { continue }
+            let noteDate = max(note.updatedAt, note.createdAt)
+            if mostRecent == nil || noteDate > mostRecent! { mostRecent = noteDate }
+        }
+        return mostRecent
+    }
+
+    private func findMostRecentMeetingDate(studentIDString: String, current: Date?) -> Date? {
+        let fetch = FetchDescriptor<StudentMeeting>(
+            predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
+            sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
+        )
+        let meetings = (try? modelContext.fetch(fetch)) ?? []
+        var mostRecent = current
+        for meeting in meetings {
+            let hasContent = !meeting.reflection.trimmed().isEmpty ||
+                            !meeting.focus.trimmed().isEmpty ||
+                            !meeting.requests.trimmed().isEmpty ||
+                            !meeting.guideNotes.trimmed().isEmpty
+            if hasContent {
+                if mostRecent == nil || meeting.date > mostRecent! { mostRecent = meeting.date }
+            }
+        }
+        return mostRecent
     }
     
     private func calculateDaysSince(date: Date?) -> Int {
