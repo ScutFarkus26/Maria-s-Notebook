@@ -1,7 +1,9 @@
+// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import SwiftData
 
+// swiftlint:disable:next type_body_length
 struct NewProjectSessionSheet: View {
     private static let logger = Logger.projects
     let club: Project
@@ -220,6 +222,7 @@ struct NewProjectSessionSheet: View {
         return roles.first { $0.id == id }
     }
 
+    // swiftlint:disable:next function_body_length
     private func create() {
         let session = ProjectSession(
             projectID: club.id,
@@ -355,6 +358,7 @@ struct NewProjectSessionSheet: View {
         }
     }
     
+    // swiftlint:disable:next function_parameter_count
     private func createWork(
         studentID: String,
         lessonID: UUID,

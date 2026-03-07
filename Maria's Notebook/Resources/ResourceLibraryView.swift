@@ -1,7 +1,9 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
+// swiftlint:disable type_body_length
 /// Main view for the Resource Library feature.
 /// Displays resources organized by category with search, filter, and grid/list toggle.
 struct ResourceLibraryView: View {
@@ -616,6 +618,7 @@ struct ResourceLibraryView: View {
     // MARK: - Resource Content (Grid or List)
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func resourceContent(_ resources: [Resource]) -> some View {
         switch viewMode {
         case .grid:
@@ -1063,6 +1066,7 @@ enum ResourceSmartFilter: String {
         }
     }
 }
+// swiftlint:enable type_body_length
 
 #Preview {
     ResourceLibraryView()

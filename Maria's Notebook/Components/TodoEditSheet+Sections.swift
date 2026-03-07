@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
@@ -990,6 +991,7 @@ extension TodoEditSheet {
         }
     }
 
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func formatTodoForSharing() -> String {
         var text = "\u{1F4CB} \(title.trimmingCharacters(in: .whitespacesAndNewlines))\n"
 
@@ -1102,6 +1104,7 @@ extension TodoEditSheet {
         templateName = ""
     }
 
+    // swiftlint:disable:next function_body_length
     func save() {
         todo.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         todo.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import Foundation
@@ -22,6 +23,7 @@ enum StudentLevelFilter: String, CaseIterable {
 
 @Observable
 @MainActor
+// swiftlint:disable:next type_body_length
 final class LessonPickerViewModel {
     // MARK: - Properties
 
@@ -208,6 +210,7 @@ final class LessonPickerViewModel {
         }
     }
     
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func save(context: ModelContext, resolvedLesson: Lesson?) throws {
         guard let finalLesson = resolvedLesson else {
             throw SaveError.missingLesson

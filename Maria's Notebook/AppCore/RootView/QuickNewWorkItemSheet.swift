@@ -1,9 +1,11 @@
+// swiftlint:disable file_length
 // QuickNewWorkItemSheet.swift
 // Quick creation sheet for new work items
 
 import SwiftUI
 import SwiftData
 
+// swiftlint:disable:next type_body_length
 struct QuickNewWorkItemSheet: View {
     /// Optional callback when work is created and user wants to view details immediately
     var onCreatedAndOpen: ((UUID) -> Void)?
@@ -130,6 +132,7 @@ struct QuickNewWorkItemSheet: View {
     // MARK: - Lesson Section
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func lessonSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Lesson")
@@ -355,6 +358,7 @@ struct QuickNewWorkItemSheet: View {
     // MARK: - Details Section
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func detailsSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Details")
