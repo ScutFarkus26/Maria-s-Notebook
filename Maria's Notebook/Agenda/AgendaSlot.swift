@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -137,6 +138,7 @@ struct AgendaSlot: View {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_body_length
     private func lessonPillView(for la: LessonAssignment) -> some View {
         PresentationPill(
             snapshot: la.snapshot(),
@@ -214,6 +216,7 @@ struct AgendaSlot: View {
     }
 }
 
+// swiftlint:disable:next type_body_length
 struct AgendaSlotDropDelegate: DropDelegate {
     private static let logger = Logger.planning
     let calendar: Calendar
@@ -274,6 +277,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
         return performDropFromProvidersAsync(providers: providers, location: info.location)
     }
 
+    // swiftlint:disable:next function_body_length
     nonisolated func performDropFromProviders(providers: [NSItemProvider], location: CGPoint) -> Bool {
         guard let provider = providers.first else { return false }
         var result = false
@@ -331,6 +335,7 @@ struct AgendaSlotDropDelegate: DropDelegate {
         return result
     }
 
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     nonisolated func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else {
             return false

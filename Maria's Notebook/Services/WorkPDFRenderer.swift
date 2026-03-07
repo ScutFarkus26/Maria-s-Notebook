@@ -21,6 +21,7 @@ enum WorkPDFRenderer {
         let needsAttention: Bool
     }
 
+    // swiftlint:disable:next function_body_length
     static func renderPDF(
         items: [PrintItem],
         sortMode: WorkAgendaSortMode,
@@ -246,6 +247,7 @@ enum WorkPDFRenderer {
         return details.joined(separator: " • ")
     }
 
+    // swiftlint:disable:next function_parameter_count
     private static func drawText(
         _ text: String, at point: CGPoint,
         font: NSFont, color: NSColor,

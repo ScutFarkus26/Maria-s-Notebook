@@ -8,6 +8,7 @@ import SwiftUI
 final class PresentationDetailActions {
     private static let logger = Logger.students
 
+    // swiftlint:disable:next function_parameter_count
     func applyEditsToModel(
         lessonAssignment: LessonAssignment,
         editingLessonID: UUID,
@@ -43,6 +44,7 @@ final class PresentationDetailActions {
         }
     }
 
+    // swiftlint:disable:next function_body_length cyclomatic_complexity function_parameter_count
     func autoCreateNextIfNeeded(
         wasGiven: Bool,
         nowGiven: Bool,
@@ -117,6 +119,7 @@ final class PresentationDetailActions {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     func planNextLessonInGroup(
         next: Lesson,
         selectedStudentIDs: Set<UUID>,

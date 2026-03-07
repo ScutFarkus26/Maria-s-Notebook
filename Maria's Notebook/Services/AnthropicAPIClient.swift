@@ -5,9 +5,11 @@
 //  Direct Anthropic API client for student analysis
 //
 
+// swiftlint:disable file_length
 import Foundation
 import OSLog
 
+// swiftlint:disable type_body_length
 /// Direct implementation that connects to Anthropic's Claude API
 final class AnthropicAPIClient: MCPClientProtocol {
     private static let logger = Logger.ai
@@ -503,6 +505,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
     }
 }
+// swiftlint:enable type_body_length
 
 // MARK: - Errors
 

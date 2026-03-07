@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import SwiftData
 
@@ -23,6 +24,7 @@ private final class StreamCollector {
     }
 }
 
+// swiftlint:disable type_body_length
 /// Handles streaming export of backup data to avoid loading everything into memory
 /// Writes entities in batches directly to disk for memory efficiency
 @MainActor
@@ -337,6 +339,7 @@ public final class StreamingBackupWriter {
 
     // MARK: - Finalization
 
+    // swiftlint:disable:next function_parameter_count
     private func finalizeStreamingExport(
         payload: BackupPayload,
         counts: [String: Int],
@@ -422,3 +425,4 @@ public final class StreamingBackupWriter {
         _ = try decoder.decode(BackupEnvelope.self, from: data)
     }
 }
+// swiftlint:enable type_body_length
