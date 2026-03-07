@@ -45,6 +45,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
@@ -81,6 +82,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
@@ -197,11 +199,11 @@ final class AnthropicAPIClient: MCPClientProtocol {
         )
 
         let messages: [[String: String]] = [["role": "user", "content": prompt]]
-        let request = try buildAPIRequest(
-            messages: messages, systemMessage: systemMessage,
+        let config = ClaudeRequestConfig(
             model: resolvedModel, maxTokens: maxTokens,
             temperature: temperature, timeout: resolvedTimeout
         )
+        let request = try buildAPIRequest(messages: messages, systemMessage: systemMessage, config: config)
 
         do {
             Self.logger.debug("Sending request...")
@@ -243,11 +245,11 @@ final class AnthropicAPIClient: MCPClientProtocol {
             "Sending conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
         )
 
-        let request = try buildAPIRequest(
-            messages: messages, systemMessage: systemMessage,
+        let config = ClaudeRequestConfig(
             model: resolvedModel, maxTokens: maxTokens,
             temperature: temperature, timeout: resolvedTimeout
         )
+        let request = try buildAPIRequest(messages: messages, systemMessage: systemMessage, config: config)
 
         do {
             let (data, response) = try await session.data(for: request)
@@ -263,29 +265,39 @@ final class AnthropicAPIClient: MCPClientProtocol {
 
     // MARK: - Request Building
 
+    private struct ClaudeRequestConfig {
+        let model: String
+        let maxTokens: Int
+        let temperature: Double
+        let timeout: TimeInterval
+        let stream: Bool
+
+        init(model: String, maxTokens: Int, temperature: Double, timeout: TimeInterval, stream: Bool = false) {
+            self.model = model; self.maxTokens = maxTokens; self.temperature = temperature
+            self.timeout = timeout; self.stream = stream
+        }
+    }
+
     private func buildAPIRequest(
-        messages: Any, systemMessage: String?,
-        model: String, maxTokens: Int,
-        temperature: Double, timeout: TimeInterval,
-        stream: Bool = false
+        messages: Any, systemMessage: String?, config: ClaudeRequestConfig
     ) throws -> URLRequest {
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.timeoutInterval = timeout
+        request.timeoutInterval = config.timeout
 
         var requestBody: [String: Any] = [
-            "model": model,
-            "max_tokens": maxTokens,
-            "temperature": temperature,
+            "model": config.model,
+            "max_tokens": config.maxTokens,
+            "temperature": config.temperature,
             "messages": messages
         ]
         if let systemMessage, !systemMessage.isEmpty {
             requestBody["system"] = systemMessage
         }
-        if stream { requestBody["stream"] = true }
+        if config.stream { requestBody["stream"] = true }
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         return request
     }

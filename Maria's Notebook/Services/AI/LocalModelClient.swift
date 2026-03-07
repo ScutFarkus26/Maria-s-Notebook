@@ -50,6 +50,7 @@ final class LocalModelClient: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String,
         systemMessage: String?,
@@ -83,6 +84,7 @@ final class LocalModelClient: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String,
         systemMessage: String?,

@@ -30,6 +30,7 @@ protocol MCPClientProtocol {
     ) async throws -> String
 
     /// Generates text with full configuration including model and timeout
+    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
@@ -37,6 +38,7 @@ protocol MCPClientProtocol {
     ) async throws -> String
 
     /// Generates structured JSON with full configuration
+    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
@@ -50,6 +52,7 @@ protocol MCPClientProtocol {
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult]
 
     /// Sends a multi-turn conversation and returns the assistant's response text.
+    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
@@ -61,6 +64,7 @@ protocol MCPClientProtocol {
 
     /// Sends a multi-turn conversation with streaming, calling onDelta for each text chunk.
     /// Returns the full response text when complete.
+    // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]],
         systemMessage: String?,

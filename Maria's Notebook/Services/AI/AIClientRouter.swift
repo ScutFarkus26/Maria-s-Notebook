@@ -88,6 +88,7 @@ final class AIClientRouter: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String,
         systemMessage: String?,
@@ -115,6 +116,7 @@ final class AIClientRouter: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String,
         systemMessage: String?,
@@ -149,6 +151,7 @@ final class AIClientRouter: MCPClientProtocol {
 
     // MARK: - MCPClientProtocol — sendConversation
 
+    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
@@ -170,6 +173,7 @@ final class AIClientRouter: MCPClientProtocol {
 
     // MARK: - MCPClientProtocol — streamConversation
 
+    // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]],
         systemMessage: String?,

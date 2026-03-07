@@ -71,73 +71,67 @@ final class OllamaClient: MCPClientProtocol {
     func pullModel(name: String) -> AsyncThrowingStream<OllamaPullProgress, Error> {
         AsyncThrowingStream { continuation in
             let task = Task { [baseURL, session] in
-                let url = baseURL.appendingPathComponent("api/pull")
-
-                let body: [String: Any] = [
-                    "name": name,
-                    "stream": true
-                ]
-
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                request.timeoutInterval = 3600 // 1 hour — large models take time
-
-                Self.logger.info("Pulling model: \(name)")
-
                 do {
+                    let request = try buildPullRequest(for: name, baseURL: baseURL)
                     let (bytes, response) = try await session.bytes(for: request)
-
                     guard let http = response as? HTTPURLResponse else {
                         throw OllamaError.invalidResponse
                     }
-
                     guard http.statusCode == 200 else {
                         throw OllamaError.serverError(statusCode: http.statusCode)
                     }
-
-                    for try await line in bytes.lines {
-                        guard !line.isEmpty,
-                              let lineData = line.data(using: .utf8),
-                              let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
-                        else { continue }
-
-                        let progress = OllamaPullProgress(
-                            status: chunk.status,
-                            completed: chunk.completed,
-                            total: chunk.total
-                        )
-                        continuation.yield(progress)
-
-                        if chunk.status == "success" {
-                            Self.logger.info("Successfully pulled model: \(name)")
-                            continuation.finish()
-                            return
-                        }
-                    }
-
-                    // If we exit the loop without "success", something went wrong
-                    continuation.finish(throwing: OllamaError.pullFailed(name))
+                    try await streamPullProgress(for: name, bytes: bytes, into: continuation)
                 } catch let error as OllamaError {
                     continuation.finish(throwing: error)
                 } catch let urlError as URLError {
-                    switch urlError.code {
-                    case .cannotConnectToHost, .cannotFindHost:
-                        continuation.finish(throwing: OllamaError.serverUnreachable)
-                    case .timedOut:
-                        continuation.finish(throwing: OllamaError.timeout)
-                    default:
-                        continuation.finish(throwing: OllamaError.networkError(urlError.localizedDescription))
-                    }
+                    continuation.finish(throwing: pullURLError(urlError))
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 
-            continuation.onTermination = { _ in
-                task.cancel()
+    private func buildPullRequest(for name: String, baseURL: URL) throws -> URLRequest {
+        let url = baseURL.appendingPathComponent("api/pull")
+        let body: [String: Any] = ["name": name, "stream": true]
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.timeoutInterval = 3600 // 1 hour — large models take time
+        Self.logger.info("Pulling model: \(name)")
+        return request
+    }
+
+    private func streamPullProgress(
+        for name: String,
+        bytes: URLSession.AsyncBytes,
+        into continuation: AsyncThrowingStream<OllamaPullProgress, Error>.Continuation
+    ) async throws {
+        for try await line in bytes.lines {
+            guard !line.isEmpty,
+                  let lineData = line.data(using: .utf8),
+                  let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
+            else { continue }
+            continuation.yield(OllamaPullProgress(
+                status: chunk.status, completed: chunk.completed, total: chunk.total
+            ))
+            if chunk.status == "success" {
+                Self.logger.info("Successfully pulled model: \(name)")
+                continuation.finish()
+                return
             }
+        }
+        continuation.finish(throwing: OllamaError.pullFailed(name))
+    }
+
+    private func pullURLError(_ urlError: URLError) -> OllamaError {
+        switch urlError.code {
+        case .cannotConnectToHost, .cannotFindHost: return .serverUnreachable
+        case .timedOut: return .timeout
+        default: return .networkError(urlError.localizedDescription)
         }
     }
 
@@ -150,6 +144,7 @@ final class OllamaClient: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String,
         systemMessage: String?,
@@ -182,6 +177,7 @@ final class OllamaClient: MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String,
         systemMessage: String?,
@@ -247,6 +243,7 @@ final class OllamaClient: MCPClientProtocol {
 
     // MARK: - Multi-Turn Conversation
 
+    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
@@ -283,6 +280,7 @@ final class OllamaClient: MCPClientProtocol {
 
     // MARK: - Streaming Conversation
 
+    // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]],
         systemMessage: String?,
