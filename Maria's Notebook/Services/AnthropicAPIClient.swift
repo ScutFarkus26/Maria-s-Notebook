@@ -422,11 +422,11 @@ final class AnthropicAPIClient: MCPClientProtocol {
             "Streaming conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
         )
 
-        let request = try buildAPIRequest(
-            messages: messages, systemMessage: systemMessage,
+        let config = ClaudeRequestConfig(
             model: resolvedModel, maxTokens: maxTokens,
             temperature: temperature, timeout: resolvedTimeout, stream: true
         )
+        let request = try buildAPIRequest(messages: messages, systemMessage: systemMessage, config: config)
 
         let (bytes, response) = try await session.bytes(for: request)
 

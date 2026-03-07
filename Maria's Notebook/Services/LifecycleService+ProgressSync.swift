@@ -114,95 +114,77 @@ extension LifecycleService {
             return 0
         }
 
-        // Create LessonPresentation records and work items (idempotent)
-        do {
-            if la.lesson == nil, let fetchedLesson = lesson {
-                la.lesson = fetchedLesson
-            }
+        updated += try recordPresentationWithFallback(la, lesson: lesson, presentedAt: presentedAt, context: context)
 
-            let (updatedLA, _) = try recordPresentationAndExplodeWork(
-                from: la,
-                presentedAt: presentedAt,
-                modelContext: context
+        if let lesson = lesson {
+            try enrollInTrackIfNeeded(
+                lesson: lesson, studentIDs: la.studentIDs, lessonID: la.lessonID, context: context
             )
-            updated += la.studentIDs.count
+        }
 
-            // Update presentationID on LessonPresentation records created without it
+        return updated
+    }
+
+    /// Records presentation and updates presentationIDs; falls back to direct upsert on failure.
+    private static func recordPresentationWithFallback(
+        _ la: LessonAssignment, lesson: Lesson?, presentedAt: Date, context: ModelContext
+    ) throws -> Int {
+        do {
+            if la.lesson == nil, let lesson {
+                la.lesson = lesson
+            }
+            let (updatedLA, _) = try recordPresentationAndExplodeWork(
+                from: la, presentedAt: presentedAt, modelContext: context
+            )
             let assignmentIDStr = updatedLA.id.uuidString
             let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
             for studentIDStr in la.studentIDs {
                 if let lp = allLessonPresentations.first(where: {
-                    $0.lessonID == la.lessonID &&
-                    $0.studentID == studentIDStr &&
-                    $0.presentationID == nil
+                    $0.lessonID == la.lessonID && $0.studentID == studentIDStr && $0.presentationID == nil
                 }) {
                     lp.presentationID = assignmentIDStr
                 }
             }
+            return la.studentIDs.count
         } catch {
             // swiftlint:disable:next line_length
             logger.warning("Failed to process LessonAssignment \(la.id, privacy: .public): \(error.localizedDescription)")
-
-            // Fallback: create LessonPresentation directly
             for studentIDStr in la.studentIDs {
                 try upsertLessonPresentationByLessonAndStudent(
-                    lessonID: la.lessonID,
-                    studentID: studentIDStr,
-                    presentedAt: presentedAt,
-                    context: context
+                    lessonID: la.lessonID, studentID: studentIDStr, presentedAt: presentedAt, context: context
                 )
-                updated += 1
             }
+            return la.studentIDs.count
+        }
+    }
+
+    /// Auto-enrolls students in a track if the lesson belongs to one, and stamps trackID on presentations.
+    private static func enrollInTrackIfNeeded(
+        lesson: Lesson, studentIDs: [String], lessonID: String, context: ModelContext
+    ) throws {
+        let subject = lesson.subject.trimmed()
+        let group = lesson.group.trimmed()
+        guard !subject.isEmpty && !group.isEmpty else { return }
+        guard GroupTrackService.isTrack(subject: subject, group: group, modelContext: context) else { return }
+
+        do {
+            _ = try GroupTrackService.getOrCreateGroupTrack(subject: subject, group: group, modelContext: context)
+        } catch {
+            // swiftlint:disable:next line_length
+            logger.warning("Failed to create/get GroupTrack for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
         }
 
-        // Auto-enroll students in track if lesson belongs to a track
-        if let lesson = lesson {
-            guard !lesson.subject.trimmed().isEmpty && !lesson.group.trimmed().isEmpty else { return updated }
+        GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: studentIDs, modelContext: context)
 
-            let belongsToTrack = GroupTrackService.isTrack(
-                subject: lesson.subject,
-                group: lesson.group,
-                modelContext: context
-            )
-
-            if belongsToTrack {
-                do {
-                    _ = try GroupTrackService.getOrCreateGroupTrack(
-                        subject: lesson.subject,
-                        group: lesson.group,
-                        modelContext: context
-                    )
-                } catch {
-                    // swiftlint:disable:next line_length
-                    logger.warning("Failed to create/get GroupTrack for \(lesson.subject, privacy: .public)/\(lesson.group, privacy: .public): \(error.localizedDescription)")
-                }
-
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
-                    studentIDs: la.studentIDs,
-                    modelContext: context
-                )
-
-                // Update trackID on LessonPresentation records
-                let trackID = "\(lesson.subject.trimmed())|\(lesson.group.trimmed())"
-                let allLessonPresentations = safeFetch(
-                    FetchDescriptor<LessonPresentation>(), using: context,
-                    caller: "syncAllStudentProgress"
-                )
-                for studentIDStr in la.studentIDs {
-                    if let lp = allLessonPresentations.first(where: {
-                        $0.lessonID == la.lessonID &&
-                        $0.studentID == studentIDStr
-                    }) {
-                        if lp.trackID != trackID {
-                            lp.trackID = trackID
-                        }
-                    }
-                }
+        let trackID = "\(subject)|\(group)"
+        let presentations = safeFetch(
+            FetchDescriptor<LessonPresentation>(), using: context, caller: "syncAllStudentProgress"
+        )
+        for studentIDStr in studentIDs {
+            if let lp = presentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentIDStr }) {
+                if lp.trackID != trackID { lp.trackID = trackID }
             }
         }
-
-        return updated
     }
 
     /// Checks WorkModel completion status and updates proficiency on matching LessonPresentation records.

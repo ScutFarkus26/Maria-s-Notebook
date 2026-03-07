@@ -64,8 +64,21 @@ public final class CloudSyncConflictResolver {
         public let warnings: [String]
     }
     
+    // MARK: - Resolution Inputs
+
+    private struct ConflictResolutionInputs {
+        let localURL: URL
+        let localInfo: BackupInfo
+        let remoteURL: URL
+        let remoteInfo: BackupInfo
+        let outputURL: URL
+        let password: String?
+        let conflicts: [Conflict]
+        let progress: BackupService.ProgressCallback
+    }
+
     // MARK: - Properties
-    
+
     private let backupService: BackupService
     private let validationService: BackupValidationService
     
@@ -151,66 +164,26 @@ public final class CloudSyncConflictResolver {
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> MergeResult {
-        
         progress(0.0, "Analyzing conflicts…")
-        
         let conflicts = try await detectConflicts(between: localURL, and: remoteURL)
         let localInfo = try await extractBackupInfo(from: localURL)
         let remoteInfo = try await extractBackupInfo(from: remoteURL)
-        
         progress(0.1, "Applying \(strategy.description)…")
-        
+
+        let inputs = ConflictResolutionInputs(
+            localURL: localURL, localInfo: localInfo,
+            remoteURL: remoteURL, remoteInfo: remoteInfo,
+            outputURL: outputURL, password: password,
+            conflicts: conflicts, progress: progress
+        )
         switch strategy {
-        case .newerWins:
-            return try await resolveNewerWins(
-                local: localURL,
-                localInfo: localInfo,
-                remote: remoteURL,
-                remoteInfo: remoteInfo,
-                to: outputURL,
-                conflicts: conflicts,
-                progress: progress
-            )
-            
-        case .largerWins:
-            return try await resolveLargerWins(
-                local: localURL,
-                localInfo: localInfo,
-                remote: remoteURL,
-                remoteInfo: remoteInfo,
-                to: outputURL,
-                conflicts: conflicts,
-                progress: progress
-            )
-            
-        case .keepBoth:
-            return try await resolveKeepBoth(
-                local: localURL,
-                localInfo: localInfo,
-                remote: remoteURL,
-                remoteInfo: remoteInfo,
-                to: outputURL,
-                password: password,
-                conflicts: conflicts,
-                progress: progress
-            )
-            
-        case .threeWayMerge:
-            return try await resolveThreeWayMerge(
-                local: localURL,
-                localInfo: localInfo,
-                remote: remoteURL,
-                remoteInfo: remoteInfo,
-                to: outputURL,
-                password: password,
-                conflicts: conflicts,
-                progress: progress
-            )
-            
+        case .newerWins:     return try await resolveNewerWins(inputs)
+        case .largerWins:    return try await resolveLargerWins(inputs)
+        case .keepBoth:      return try await resolveKeepBoth(inputs)
+        case .threeWayMerge: return try await resolveThreeWayMerge(inputs)
         case .manual:
             throw NSError(
-                domain: "CloudSyncConflictResolver",
-                code: 1,
+                domain: "CloudSyncConflictResolver", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "Manual resolution requires user interaction"]
             )
         }
@@ -218,161 +191,78 @@ public final class CloudSyncConflictResolver {
     
     // MARK: - Resolution Strategies
     
-    private func resolveNewerWins(
-        local localURL: URL,
-        localInfo: BackupInfo,
-        remote remoteURL: URL,
-        remoteInfo: BackupInfo,
-        to outputURL: URL,
-        conflicts: [Conflict],
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> MergeResult {
-        
+    private func resolveNewerWins(_ inputs: ConflictResolutionInputs) async throws -> MergeResult {
         let sourceURL: URL
         let info: BackupInfo
-        
-        if localInfo.timestamp > remoteInfo.timestamp {
-            sourceURL = localURL
-            info = localInfo
-            progress(0.5, "Local backup is newer, using local version…")
+        if inputs.localInfo.timestamp > inputs.remoteInfo.timestamp {
+            sourceURL = inputs.localURL; info = inputs.localInfo
+            inputs.progress(0.5, "Local backup is newer, using local version…")
         } else {
-            sourceURL = remoteURL
-            info = remoteInfo
-            progress(0.5, "Remote backup is newer, using remote version…")
+            sourceURL = inputs.remoteURL; info = inputs.remoteInfo
+            inputs.progress(0.5, "Remote backup is newer, using remote version…")
         }
-        
-        // Copy winner to output
-        try FileManager.default.copyItem(at: sourceURL, to: outputURL)
-        
-        progress(1.0, "Resolved using newer backup")
-        
+        try FileManager.default.copyItem(at: sourceURL, to: inputs.outputURL)
+        inputs.progress(1.0, "Resolved using newer backup")
         return MergeResult(
-            mergedBackupURL: outputURL,
-            conflicts: conflicts,
-            mergedEntityCounts: info.entityCounts,
-            strategy: .newerWins,
+            mergedBackupURL: inputs.outputURL, conflicts: inputs.conflicts,
+            mergedEntityCounts: info.entityCounts, strategy: .newerWins,
             warnings: ["Discarded older backup. Some data may have been lost."]
         )
     }
     
-    private func resolveLargerWins(
-        local localURL: URL,
-        localInfo: BackupInfo,
-        remote remoteURL: URL,
-        remoteInfo: BackupInfo,
-        to outputURL: URL,
-        conflicts: [Conflict],
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> MergeResult {
-        
+    private func resolveLargerWins(_ inputs: ConflictResolutionInputs) async throws -> MergeResult {
         let sourceURL: URL
         let info: BackupInfo
-        
-        if localInfo.totalEntities >= remoteInfo.totalEntities {
-            sourceURL = localURL
-            info = localInfo
-            progress(0.5, "Local backup is larger, using local version…")
+        if inputs.localInfo.totalEntities >= inputs.remoteInfo.totalEntities {
+            sourceURL = inputs.localURL; info = inputs.localInfo
+            inputs.progress(0.5, "Local backup is larger, using local version…")
         } else {
-            sourceURL = remoteURL
-            info = remoteInfo
-            progress(0.5, "Remote backup is larger, using remote version…")
+            sourceURL = inputs.remoteURL; info = inputs.remoteInfo
+            inputs.progress(0.5, "Remote backup is larger, using remote version…")
         }
-        
-        // Copy winner to output
-        try FileManager.default.copyItem(at: sourceURL, to: outputURL)
-        
-        progress(1.0, "Resolved using larger backup")
-        
+        try FileManager.default.copyItem(at: sourceURL, to: inputs.outputURL)
+        inputs.progress(1.0, "Resolved using larger backup")
         return MergeResult(
-            mergedBackupURL: outputURL,
-            conflicts: conflicts,
-            mergedEntityCounts: info.entityCounts,
-            strategy: .largerWins,
+            mergedBackupURL: inputs.outputURL, conflicts: inputs.conflicts,
+            mergedEntityCounts: info.entityCounts, strategy: .largerWins,
             warnings: ["Discarded smaller backup. Some recent changes may have been lost."]
         )
     }
     
-    private func resolveKeepBoth(
-        local localURL: URL,
-        localInfo: BackupInfo,
-        remote remoteURL: URL,
-        remoteInfo: BackupInfo,
-        to outputURL: URL,
-        password: String?,
-        conflicts: [Conflict],
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> MergeResult {
-        
-        progress(0.2, "Loading both backups…")
-        
-        // Load both payloads
-        let localPayload = try await loadPayload(from: localURL)
-        let remotePayload = try await loadPayload(from: remoteURL)
-        
-        progress(0.4, "Merging entities…")
-        
-        // Merge by taking union of all entities
-        // For duplicates, prefer newer timestamp
+    private func resolveKeepBoth(_ inputs: ConflictResolutionInputs) async throws -> MergeResult {
+        inputs.progress(0.2, "Loading both backups…")
+        let localPayload = try await loadPayload(from: inputs.localURL)
+        let remotePayload = try await loadPayload(from: inputs.remoteURL)
+        inputs.progress(0.4, "Merging entities…")
         let mergedPayload = mergePayloads(
-            local: localPayload,
-            localTimestamp: localInfo.timestamp,
-            remote: remotePayload,
-            remoteTimestamp: remoteInfo.timestamp
+            local: localPayload, localTimestamp: inputs.localInfo.timestamp,
+            remote: remotePayload, remoteTimestamp: inputs.remoteInfo.timestamp
         )
-        
-        progress(0.7, "Creating merged backup…")
-        
-        // Create new backup with merged payload
+        inputs.progress(0.7, "Creating merged backup…")
         let mergedCounts = countEntities(in: mergedPayload)
-        
-        // This would require a new method in BackupService to create from payload
-        // For now, we'll use a simplified approach
-        
-        progress(1.0, "Merge complete")
-        
+        inputs.progress(1.0, "Merge complete")
         return MergeResult(
-            mergedBackupURL: outputURL,
-            conflicts: conflicts,
-            mergedEntityCounts: mergedCounts,
-            strategy: .keepBoth,
+            mergedBackupURL: inputs.outputURL, conflicts: inputs.conflicts,
+            mergedEntityCounts: mergedCounts, strategy: .keepBoth,
             warnings: ["Merged both backups. Duplicate entities were resolved by timestamp."]
         )
     }
     
-    private func resolveThreeWayMerge(
-        local localURL: URL,
-        localInfo: BackupInfo,
-        remote remoteURL: URL,
-        remoteInfo: BackupInfo,
-        to outputURL: URL,
-        password: String?,
-        conflicts: [Conflict],
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> MergeResult {
-        
-        progress(0.1, "Performing three-way merge…")
-        
-        // Load both payloads
-        let localPayload = try await loadPayload(from: localURL)
-        let remotePayload = try await loadPayload(from: remoteURL)
-        
-        progress(0.3, "Analyzing changes…")
+    private func resolveThreeWayMerge(_ inputs: ConflictResolutionInputs) async throws -> MergeResult {
+        inputs.progress(0.1, "Performing three-way merge…")
+        let localPayload = try await loadPayload(from: inputs.localURL)
+        let remotePayload = try await loadPayload(from: inputs.remoteURL)
+        inputs.progress(0.3, "Analyzing changes…")
         
         // Perform intelligent merge based on entity timestamps and modifications
         // This is a simplified version - a real implementation would track common ancestor
         let mergedPayload = threeWayMerge(local: localPayload, remote: remotePayload)
-        
-        progress(0.8, "Creating merged backup…")
-        
+        inputs.progress(0.8, "Creating merged backup…")
         let mergedCounts = countEntities(in: mergedPayload)
-        
-        progress(1.0, "Three-way merge complete")
-        
+        inputs.progress(1.0, "Three-way merge complete")
         return MergeResult(
-            mergedBackupURL: outputURL,
-            conflicts: conflicts,
-            mergedEntityCounts: mergedCounts,
-            strategy: .threeWayMerge,
+            mergedBackupURL: inputs.outputURL, conflicts: inputs.conflicts,
+            mergedEntityCounts: mergedCounts, strategy: .threeWayMerge,
             warnings: ["Three-way merge completed. Conflicts resolved automatically where possible."]
         )
     }

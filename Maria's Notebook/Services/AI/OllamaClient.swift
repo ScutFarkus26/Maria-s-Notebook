@@ -72,7 +72,7 @@ final class OllamaClient: MCPClientProtocol {
         AsyncThrowingStream { continuation in
             let task = Task { [baseURL, session] in
                 do {
-                    let request = try buildPullRequest(for: name, baseURL: baseURL)
+                    let request = try OllamaClient.buildPullRequest(for: name, baseURL: baseURL)
                     let (bytes, response) = try await session.bytes(for: request)
                     guard let http = response as? HTTPURLResponse else {
                         throw OllamaError.invalidResponse
@@ -80,11 +80,11 @@ final class OllamaClient: MCPClientProtocol {
                     guard http.statusCode == 200 else {
                         throw OllamaError.serverError(statusCode: http.statusCode)
                     }
-                    try await streamPullProgress(for: name, bytes: bytes, into: continuation)
+                    try await OllamaClient.streamPullProgress(for: name, bytes: bytes, into: continuation)
                 } catch let error as OllamaError {
                     continuation.finish(throwing: error)
                 } catch let urlError as URLError {
-                    continuation.finish(throwing: pullURLError(urlError))
+                    continuation.finish(throwing: OllamaClient.pullURLError(urlError))
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -93,7 +93,7 @@ final class OllamaClient: MCPClientProtocol {
         }
     }
 
-    private func buildPullRequest(for name: String, baseURL: URL) throws -> URLRequest {
+    private static func buildPullRequest(for name: String, baseURL: URL) throws -> URLRequest {
         let url = baseURL.appendingPathComponent("api/pull")
         let body: [String: Any] = ["name": name, "stream": true]
         var request = URLRequest(url: url)
@@ -105,7 +105,7 @@ final class OllamaClient: MCPClientProtocol {
         return request
     }
 
-    private func streamPullProgress(
+    private static func streamPullProgress(
         for name: String,
         bytes: URLSession.AsyncBytes,
         into continuation: AsyncThrowingStream<OllamaPullProgress, Error>.Continuation
@@ -127,7 +127,7 @@ final class OllamaClient: MCPClientProtocol {
         continuation.finish(throwing: OllamaError.pullFailed(name))
     }
 
-    private func pullURLError(_ urlError: URLError) -> OllamaError {
+    private static func pullURLError(_ urlError: URLError) -> OllamaError {
         switch urlError.code {
         case .cannotConnectToHost, .cannotFindHost: return .serverUnreachable
         case .timedOut: return .timeout

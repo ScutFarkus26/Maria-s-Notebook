@@ -147,6 +147,7 @@ final class CloudKitHealthCheck {
         }
     }
     
+    // swiftlint:disable function_parameter_count
     /// Update the sync health status
     /// - Parameters:
     ///   - isSyncing: Whether a sync is currently in progress
@@ -163,62 +164,36 @@ final class CloudKitHealthCheck {
         isEnabled: Bool,
         isActive: Bool
     ) {
-        // Check if CloudKit is enabled and active
-        guard isEnabled else {
+        guard isEnabled, isActive, isNetworkAvailable, isICloudAvailable else {
             syncHealth = .offline
             return
         }
-        
-        guard isActive else {
-            syncHealth = .offline
+        if isSyncing { syncHealth = .syncing; return }
+
+        if let health = syncHealthFromError(lastSyncError, lastSuccessfulSync: lastSuccessfulSync) {
+            syncHealth = health
             return
         }
-        
-        // Check network availability
-        guard isNetworkAvailable else {
-            syncHealth = .offline
-            return
+
+        syncHealth = syncHealthFromRecency(lastSuccessfulSync)
+    }
+    // swiftlint:enable function_parameter_count
+
+    private func syncHealthFromError(
+        _ lastSyncError: String?, lastSuccessfulSync: Date?
+    ) -> SyncHealth? {
+        guard let error = lastSyncError, !error.isEmpty else { return nil }
+        if let lastSync = lastSuccessfulSync, Date().timeIntervalSince(lastSync) < 30 {
+            return .healthy // Within 30 seconds — likely transient
         }
-        
-        // Check iCloud availability
-        guard isICloudAvailable else {
-            syncHealth = .offline
-            return
-        }
-        
-        // Check current state
-        if isSyncing {
-            syncHealth = .syncing
-            return
-        }
-        
-        // Check for errors
-        if let error = lastSyncError, !error.isEmpty {
-            // Don't show error if we have a recent successful sync
-            if let lastSync = lastSuccessfulSync {
-                let elapsed = Date().timeIntervalSince(lastSync)
-                if elapsed < 30 { // Within 30 seconds - likely just a temporary issue
-                    syncHealth = .healthy
-                    return
-                }
-            }
-            syncHealth = .error(error)
-            return
-        }
-        
-        // Check recency of last sync
-        if let lastSync = lastSuccessfulSync {
-            let elapsed = Date().timeIntervalSince(lastSync)
-            if elapsed < 300 { // Within 5 minutes
-                syncHealth = .healthy
-            } else if elapsed < 3600 { // Within 1 hour
-                syncHealth = .healthy // Still healthy, just not recent
-            } else {
-                syncHealth = .warning // More than an hour since last sync
-            }
-        } else {
-            syncHealth = .unknown
-        }
+        return .error(error)
+    }
+
+    private func syncHealthFromRecency(_ lastSuccessfulSync: Date?) -> SyncHealth {
+        guard let lastSync = lastSuccessfulSync else { return .unknown }
+        let elapsed = Date().timeIntervalSince(lastSync)
+        if elapsed < 3600 { return .healthy }
+        return .warning
     }
     
     // MARK: - Private Methods
