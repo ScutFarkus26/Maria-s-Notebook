@@ -15,7 +15,6 @@ extension BackupValidationService {
         let weekIDs = Set(payload.projectTemplateWeeks.map { $0.id })
 
         var errors: [ValidationError] = []
-        errors += validateLegacyPresentationRefs(payload, studentIDs: studentIDs, lessonIDs: lessonIDs)
         errors += validateLessonAssignmentRefs(payload, studentIDs: studentIDs, lessonIDs: lessonIDs)
         errors += validateAttendanceRefs(payload, studentIDs: studentIDs)
         errors += validateCommunityRefs(payload, topicIDs: topicIDs)
@@ -27,29 +26,6 @@ extension BackupValidationService {
     }
 
     // MARK: - Validation Helpers
-
-    private func validateLegacyPresentationRefs(
-        _ payload: BackupPayload,
-        studentIDs: Set<UUID>,
-        lessonIDs: Set<UUID>
-    ) -> [ValidationError] {
-        var errors: [ValidationError] = []
-        for sl in payload.legacyPresentations {
-            if !lessonIDs.contains(sl.lessonID) {
-                errors.append(ValidationError(
-                    entityType: "LegacyPresentation", entityID: sl.id, field: "lessonID",
-                    message: "References non-existent lesson: \(sl.lessonID)", severity: .critical
-                ))
-            }
-            for studentID in sl.studentIDs where !studentIDs.contains(studentID) {
-                errors.append(ValidationError(
-                    entityType: "LegacyPresentation", entityID: sl.id, field: "studentIDs",
-                    message: "References non-existent student: \(studentID)", severity: .critical
-                ))
-            }
-        }
-        return errors
-    }
 
     private func validateLessonAssignmentRefs(
         _ payload: BackupPayload,

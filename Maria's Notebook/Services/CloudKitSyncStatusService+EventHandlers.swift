@@ -187,7 +187,7 @@ extension CloudKitSyncStatusService {
         type: NSPersistentCloudKitContainer.EventType,
         isFinished: Bool,
         succeeded: Bool,
-        errorDescription: String?
+        error: (any Error)?
     ) {
         // Events fire twice: once when started (isFinished == false) and once when finished
         guard isFinished else {
@@ -234,11 +234,19 @@ extension CloudKitSyncStatusService {
                 )
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
-        } else if let errorDesc = errorDescription {
-            Self.logger.error("CloudKit \(typeDescription) failed: \(errorDesc)")
-            SyncEventLogger.shared.log("cloudkit", status: "error", message: "\(typeDescription) failed: \(errorDesc)")
+        } else if let error {
+            let nsError = error as NSError
+            let domainAndCode = "\(nsError.domain) (\(nsError.code))"
+            let errorDesc = nsError.localizedDescription
+            Self.logger.error("CloudKit \(typeDescription) failed [\(domainAndCode)]: \(errorDesc)")
+            SyncEventLogger.shared.log(
+                "cloudkit",
+                status: "error",
+                message: "\(typeDescription) failed [\(domainAndCode)]: \(errorDesc)"
+            )
 
-            lastSyncError = "\(typeDescription) failed: \(errorDesc)"
+            CloudKitConfigurationService.storeError(error, retryCount: retryLogic.retryAttempt)
+            lastSyncError = "\(typeDescription) failed [\(domainAndCode)]: \(errorDesc)"
             lastOperation = "\(typeDescription) failed"
             lastOperationDate = Date()
             isSyncing = false
@@ -248,6 +256,21 @@ extension CloudKitSyncStatusService {
             UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
             // Schedule retry for data operation failures (not setup)
+            if type != .setup {
+                scheduleRetry()
+            }
+        } else {
+            let fallbackError = "\(typeDescription) failed: Unknown error"
+            Self.logger.error("\(fallbackError)")
+            SyncEventLogger.shared.log("cloudkit", status: "error", message: fallbackError)
+            lastSyncError = fallbackError
+            lastOperation = "\(typeDescription) failed"
+            lastOperationDate = Date()
+            isSyncing = false
+            syncingTask?.cancel()
+            syncingTask = nil
+            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
+
             if type != .setup {
                 scheduleRetry()
             }

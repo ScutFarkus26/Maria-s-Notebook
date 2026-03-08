@@ -12,7 +12,6 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(students)
         case let lessons as [Lesson]:
             return BackupDTOTransformers.toDTOs(lessons)
-        // LegacyPresentation removed — fully migrated to LessonAssignment
         case let assignments as [LessonAssignment]:
             return BackupDTOTransformers.toDTOs(assignments)
         // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn

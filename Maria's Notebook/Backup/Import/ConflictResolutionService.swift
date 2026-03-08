@@ -111,12 +111,6 @@ public final class ConflictResolutionService {
             modelContext: modelContext
         ))
 
-        // Analyze LegacyPresentations
-        conflicts.append(contentsOf: analyzeLegacyPresentationConflicts(
-            payload.legacyPresentations,
-            modelContext: modelContext
-        ))
-
         // Analyze Notes
         conflicts.append(contentsOf: analyzeNoteConflicts(
             payload.notes,
@@ -181,11 +175,6 @@ public final class ConflictResolutionService {
             case "Lesson":
                 if let dto = payload.lessons.first(where: { $0.id == conflict.entityID }) {
                     try updateLesson(dto, in: modelContext)
-                    updatedCount += 1
-                }
-            case "LegacyPresentation":
-                if let dto = payload.legacyPresentations.first(where: { $0.id == conflict.entityID }) {
-                    try updateLegacyPresentation(dto, in: modelContext)
                     updatedCount += 1
                 }
             case "Note":
@@ -273,50 +262,6 @@ public final class ConflictResolutionService {
                 backupUpdatedAt: dto.updatedAt,
                 localSummary: existing.name,
                 backupSummary: dto.name,
-                resolution: .keepLocal
-            ))
-        }
-
-        return conflicts
-    }
-
-    private func analyzeLegacyPresentationConflicts(
-        _ dtos: [LegacyPresentationDTO],
-        modelContext: ModelContext
-    ) -> [Conflict] {
-        var conflicts: [Conflict] = []
-
-        // LegacyPresentation model removed — check for conflicts against LessonAssignment instead
-        for dto in dtos {
-            let dtoID = dto.id
-            var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == dtoID })
-            descriptor.fetchLimit = 1
-            let existing: LessonAssignment?
-            do {
-                existing = try modelContext.fetch(descriptor).first
-            } catch {
-                Self.logger.warning("Failed to fetch lesson assignment for legacy presentation: \(error)")
-                continue
-            }
-            guard let existing = existing else { continue }
-
-            let localDate = existing.scheduledFor?.formatted(
-                date: .abbreviated, time: .omitted
-            ) ?? "N/A"
-            let backupDate = dto.scheduledFor?.formatted(
-                date: .abbreviated, time: .omitted
-            ) ?? "N/A"
-            let localSummary = "Scheduled: \(localDate)"
-            let backupSummary = "Scheduled: \(backupDate)"
-
-            conflicts.append(Conflict(
-                id: UUID(),
-                entityType: "LegacyPresentation",
-                entityID: dto.id,
-                localUpdatedAt: nil,
-                backupUpdatedAt: nil,
-                localSummary: localSummary,
-                backupSummary: backupSummary,
                 resolution: .keepLocal
             ))
         }
@@ -441,30 +386,6 @@ public final class ConflictResolutionService {
         if let pages = dto.pagesFileRelativePath {
             lesson.pagesFileRelativePath = pages
         }
-    }
-
-    private func updateLegacyPresentation(_ dto: LegacyPresentationDTO, in modelContext: ModelContext) throws {
-        // LegacyPresentation model removed — update corresponding LessonAssignment instead
-        let dtoID = dto.id
-        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == dtoID })
-        descriptor.fetchLimit = 1
-        let la: LessonAssignment?
-        do {
-            la = try modelContext.fetch(descriptor).first
-        } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch lesson assignment: \(error)")
-            return
-        }
-        guard let la = la else { return }
-
-        la.scheduledFor = dto.scheduledFor
-        if let givenAt = dto.givenAt {
-            la.markPresented(at: givenAt)
-        }
-        la.notes = dto.notes
-        la.needsPractice = dto.needsPractice
-        la.needsAnotherPresentation = dto.needsAnotherPresentation
-        la.followUpWork = dto.followUpWork
     }
 
     private func updateNote(_ dto: NoteDTO, in modelContext: ModelContext) throws {

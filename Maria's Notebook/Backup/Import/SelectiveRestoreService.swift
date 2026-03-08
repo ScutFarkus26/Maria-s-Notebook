@@ -57,7 +57,6 @@ public final class SelectiveRestoreService {
 
         counts[.students] = payload.students.count
         counts[.lessons] = payload.lessons.count
-        counts[.legacyPresentations] = payload.legacyPresentations.count
         counts[.notes] = payload.notes.count
         counts[.calendar] = payload.nonSchoolDays.count + payload.schoolDayOverrides.count
         counts[.meetings] = payload.studentMeetings.count
@@ -126,8 +125,6 @@ public final class SelectiveRestoreService {
                 counts[type] = payload.students.count
             case .lessons:
                 counts[type] = payload.lessons.count
-            case .legacyPresentations:
-                counts[type] = payload.legacyPresentations.count
             case .notes:
                 counts[type] = payload.notes.count
             case .calendar:
@@ -200,7 +197,7 @@ public final class SelectiveRestoreService {
 
         // Import entities in dependency order
         let orderedTypes: [RestorableEntityType] = [
-            .students, .lessons, .legacyPresentations,
+            .students, .lessons,
             .notes, .calendar, .meetings,
             .community, .attendance, .workCompletions, .projects
         ]

@@ -11,7 +11,7 @@ private final class StreamCollector {
     init(preferences: PreferencesDTO) {
         payload = BackupPayload(
             items: [], students: [], lessons: [],
-            legacyPresentations: [], lessonAssignments: [],
+            lessonAssignments: [],
             notes: [], nonSchoolDays: [], schoolDayOverrides: [],
             studentMeetings: [], communityTopics: [],
             proposedSolutions: [], communityAttachments: [],

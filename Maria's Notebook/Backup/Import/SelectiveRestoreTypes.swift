@@ -9,7 +9,6 @@ import Foundation
 public enum RestorableEntityType: String, CaseIterable, Identifiable, Sendable {
     case students = "Students"
     case lessons = "Lessons"
-    case legacyPresentations = "Legacy Presentations"
     case notes = "Notes"
     case calendar = "Calendar (Non-School Days & Overrides)"
     case meetings = "Student Meetings"
@@ -26,7 +25,6 @@ public enum RestorableEntityType: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .students: return "person.3"
         case .lessons: return "book"
-        case .legacyPresentations: return "person.badge.clock"
         case .notes: return "note.text"
         case .calendar: return "calendar"
         case .meetings: return "person.2.wave.2"
@@ -40,7 +38,6 @@ public enum RestorableEntityType: String, CaseIterable, Identifiable, Sendable {
     /// Dependencies that must be restored together
     public var dependencies: [RestorableEntityType] {
         switch self {
-        case .legacyPresentations: return [.students, .lessons]
         case .community: return []
         case .notes: return [.lessons]
         case .workCompletions: return []

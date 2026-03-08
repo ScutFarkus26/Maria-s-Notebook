@@ -332,7 +332,6 @@ public final class CloudSyncConflictResolver {
             items: [],
             students: Array(studentMap.values),
             lessons: local.lessons + remote.lessons,  // Simplified
-            legacyPresentations: local.legacyPresentations + remote.legacyPresentations,
             lessonAssignments: local.lessonAssignments + remote.lessonAssignments,
             notes: local.notes + remote.notes,
             nonSchoolDays: local.nonSchoolDays + remote.nonSchoolDays,
@@ -367,7 +366,6 @@ public final class CloudSyncConflictResolver {
         return [
             "Student": payload.students.count,
             "Lesson": payload.lessons.count,
-            "LegacyPresentation": payload.legacyPresentations.count,
             "LessonAssignment": payload.lessonAssignments.count,
             "Note": payload.notes.count,
             "NonSchoolDay": payload.nonSchoolDays.count,

@@ -51,15 +51,11 @@ extension IncrementalBackupService {
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
-        // LegacyPresentation removed -- no longer exported in incremental backups
-
         progress(0.35, "Collecting lesson assignments...")
         let lessonAssignments = fetchFilteredEntities(
             LessonAssignment.self, using: modelContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
-
-        // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
 
         let notes = collectFilteredNotes(
             using: modelContext, sinceDate: sinceDate,
@@ -252,7 +248,6 @@ extension IncrementalBackupService {
     ) -> BackupPayload {
         let studentDTOs = BackupServiceHelpers.toDTOs(students)
         let lessonDTOs = BackupServiceHelpers.toDTOs(lessons)
-        let legacyPresentationDTOs: [LegacyPresentationDTO] = [] // LegacyPresentation removed
         let noteDTOs = BackupServiceHelpers.toDTOs(notes)
         let nonSchoolDTOs = BackupServiceHelpers.toDTOs(remaining.nonSchoolDays)
         let schoolOverrideDTOs = BackupServiceHelpers.toDTOs(remaining.schoolDayOverrides)
@@ -275,7 +270,6 @@ extension IncrementalBackupService {
             items: [],
             students: studentDTOs,
             lessons: lessonDTOs,
-            legacyPresentations: legacyPresentationDTOs,
             lessonAssignments: lessonAssignmentDTOs,
             notes: noteDTOs,
             nonSchoolDays: nonSchoolDTOs,

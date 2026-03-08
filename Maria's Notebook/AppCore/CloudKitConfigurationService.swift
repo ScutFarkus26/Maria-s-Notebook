@@ -106,6 +106,12 @@ enum CloudKitConfigurationService {
             detailedError = errorMessage
         }
 
+        // Preserve retry guidance for transient CloudKit throttling failures.
+        if nsError.domain == CKErrorDomain,
+           let retryAfter = nsError.userInfo[CKErrorRetryAfterKey] as? NSNumber {
+            detailedError += " (retry after \(retryAfter.doubleValue)s)"
+        }
+
         // Store for UI display
         UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
 
@@ -139,10 +145,7 @@ enum CloudKitConfigurationService {
         // Only treat CKErrorDomain errors as CloudKit errors
         guard error.domain == CKErrorDomain,
               let ckCode = CKError.Code(rawValue: error.code) else {
-            // Non-CloudKit domain: fall back to domain heuristics
-            if error.domain.contains("NSCocoaError") || error.domain.contains("NSPOSIXError") {
-                return .network
-            }
+            // Non-CloudKit domain errors should not be bucketed as network by default.
             return .unknown
         }
 
@@ -150,12 +153,12 @@ enum CloudKitConfigurationService {
         // Prefer stable high-level buckets so guidance remains actionable across transient failures.
         switch ckCode {
         case .internalError:                    return .unknown
-        case .partialFailure:                   return .unknown
+        case .partialFailure:                   return categoryFromPartialFailure(error) ?? .unknown
         case .networkUnavailable:               return .network
         case .networkFailure:                   return .network
         case .badContainer:                     return .authentication
         case .serviceUnavailable:               return .network
-        case .requestRateLimited:               return .quota
+        case .requestRateLimited:               return .network
         case .notAuthenticated:                 return .authentication
         case .permissionFailure:                return .authentication
         case .unknownItem:                      return .conflict
@@ -168,7 +171,7 @@ enum CloudKitConfigurationService {
         case .constraintViolation:              return .schema
         case .operationCancelled:               return .unknown
         case .changeTokenExpired:               return .conflict
-        case .batchRequestFailed:               return .unknown
+        case .batchRequestFailed:               return categoryFromPartialFailure(error) ?? .conflict
         case .zoneBusy:                         return .network
         case .quotaExceeded:                    return .quota
         case .zoneNotFound:                     return .schema
@@ -181,6 +184,20 @@ enum CloudKitConfigurationService {
         case .accountTemporarilyUnavailable:    return .authentication
         default:                                 return .unknown
         }
+    }
+
+    /// Resolves CKError.partialFailure/batchRequestFailed to a more useful category
+    /// by inspecting per-item errors when available.
+    private static func categoryFromPartialFailure(_ error: NSError) -> ErrorCategory? {
+        guard let partialErrors = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: Error] else {
+            return nil
+        }
+
+        let prioritizedCategories: [ErrorCategory] = [
+            .authentication, .quota, .network, .conflict, .schema
+        ]
+        let categories = partialErrors.values.map { categorizeError($0 as NSError) }
+        return prioritizedCategories.first(where: { categories.contains($0) })
     }
 
     /// Appends an error log entry to the persisted error history

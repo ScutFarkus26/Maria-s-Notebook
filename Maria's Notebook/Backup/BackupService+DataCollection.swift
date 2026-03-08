@@ -17,7 +17,7 @@ extension BackupService {
     ) throws -> BackupOperationSummary {
         var payload = BackupPayload(
             items: [], students: [], lessons: [],
-            legacyPresentations: [], lessonAssignments: [],
+            lessonAssignments: [],
             notes: [], nonSchoolDays: [], schoolDayOverrides: [],
             studentMeetings: [], communityTopics: [],
             proposedSolutions: [], communityAttachments: [],
@@ -53,8 +53,6 @@ extension BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.06), "Collecting lessons\u{2026}")
         payload.lessons = fetchAndTransformInBatches(
             Lesson.self, using: modelContext) { BackupServiceHelpers.toDTOs($0) }
-
-        // LegacyPresentation removed -- no longer exported in new backups
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.15), "Collecting lesson assignments\u{2026}")
         payload.lessonAssignments = fetchAndTransformInBatches(
@@ -293,7 +291,6 @@ extension BackupService {
         [
             "Student": payload.students.count,
             "Lesson": payload.lessons.count,
-            "LegacyPresentation": payload.legacyPresentations.count,
             "LessonAssignment": payload.lessonAssignments.count,
             "Note": payload.notes.count,
             "NonSchoolDay": payload.nonSchoolDays.count,

@@ -125,21 +125,6 @@ public final class BackupValidationService {
     private func validateDataConstraints(_ payload: BackupPayload) -> [ValidationError] {
         var errors: [ValidationError] = []
 
-        // Validate date constraints
-        for sl in payload.legacyPresentations {
-            if let scheduled = sl.scheduledFor, let given = sl.givenAt {
-                if given < scheduled {
-                    errors.append(ValidationError(
-                        entityType: "LegacyPresentation",
-                        entityID: sl.id,
-                        field: "givenAt",
-                        message: "Given date (\(given)) is before scheduled date (\(scheduled))",
-                        severity: .warning
-                    ))
-                }
-            }
-        }
-
         // Validate attendance status values
         let validStatuses = ["present", "absent", "tardy", "excused"]
         for record in payload.attendance where !validStatuses.contains(record.status.lowercased()) {
@@ -212,7 +197,6 @@ public final class BackupValidationService {
 
         allIDs.append(contentsOf: payload.students.map { $0.id })
         allIDs.append(contentsOf: payload.lessons.map { $0.id })
-        allIDs.append(contentsOf: payload.legacyPresentations.map { $0.id })
         allIDs.append(contentsOf: payload.lessonAssignments.map { $0.id })
         allIDs.append(contentsOf: payload.notes.map { $0.id })
         allIDs.append(contentsOf: payload.nonSchoolDays.map { $0.id })
@@ -276,7 +260,6 @@ public final class BackupValidationService {
         var entityCounts: [(String, Int)] = []
         entityCounts.append(("Student", payload.students.count))
         entityCounts.append(("Lesson", payload.lessons.count))
-        entityCounts.append(("LegacyPresentation", payload.legacyPresentations.count))
         entityCounts.append(("LessonAssignment", payload.lessonAssignments.count))
         entityCounts.append(("Note", payload.notes.count))
         entityCounts.append(("NonSchoolDay", payload.nonSchoolDays.count))

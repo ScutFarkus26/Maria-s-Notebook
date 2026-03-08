@@ -150,49 +150,6 @@ extension BackupDiffService {
         return EntityDiff(entityType: "Lesson", added: added, removed: removed, modified: modified)
     }
 
-    func analyzeLegacyPresentationDiff(
-        backupLegacyPresentations: [LegacyPresentationDTO],
-        modelContext: ModelContext
-    ) -> EntityDiff {
-        // LegacyPresentation model removed -- compare against LessonAssignment
-        let current: [LessonAssignment]
-        do {
-            current = try modelContext.fetch(
-                FetchDescriptor<LessonAssignment>()
-            )
-        } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current lesson assignments: \(error)")
-            current = []
-        }
-        let currentIDs = Set(current.map { $0.id })
-        let backupIDs = Set(backupLegacyPresentations.map { $0.id })
-
-        let addedIDs = currentIDs.subtracting(backupIDs)
-        let added = current
-            .filter { addedIDs.contains($0.id) }
-            .map {
-                EntityChange(
-                    id: UUID(), entityID: $0.id,
-                    description: "Legacy Presentation", timestamp: $0.createdAt
-                )
-            }
-
-        let removedIDs = backupIDs.subtracting(currentIDs)
-        let removed = backupLegacyPresentations
-            .filter { removedIDs.contains($0.id) }
-            .map {
-                EntityChange(
-                    id: UUID(), entityID: $0.id,
-                    description: "Legacy Presentation", timestamp: $0.createdAt
-                )
-            }
-
-        return EntityDiff(
-            entityType: "LegacyPresentation",
-            added: added, removed: removed, modified: []
-        )
-    }
-
     func analyzeNoteDiff(
         backupNotes: [NoteDTO],
         modelContext: ModelContext

@@ -49,9 +49,6 @@ enum BackupServiceHelpers {
         }
     }
 
-    // LegacyPresentation toDTOs removed — model fully migrated to LessonAssignment
-    // LegacyPresentationDTO is kept for import backward compatibility only.
-
     /// Converts an array of Notes to NoteDTOs
     static func toDTOs(_ notes: [Note]) -> [NoteDTO] {
         notes.map { n in
@@ -368,7 +365,6 @@ enum BackupPayloadDeduplicator {
             items: payload.items,
             students: uniqueBy(payload.students) { $0.id },
             lessons: uniqueBy(payload.lessons) { $0.id },
-            legacyPresentations: uniqueBy(payload.legacyPresentations) { $0.id },
             lessonAssignments: uniqueBy(payload.lessonAssignments) { $0.id },
             notes: uniqueBy(payload.notes) { $0.id },
             nonSchoolDays: uniqueBy(payload.nonSchoolDays) { $0.id },

@@ -84,10 +84,7 @@ enum BackupPreviewAnalyzer {
 
         assign("Student", payload.students.count, 0, count(Student.self))
         assign("Lesson", payload.lessons.count, 0, count(Lesson.self))
-        // LegacyPresentation removed — old backup data imported as LessonAssignment
-        assign("LegacyPresentation (legacy)", payload.legacyPresentations.count, 0, 0)
         assign("LessonAssignment", payload.lessonAssignments.count, 0, count(LessonAssignment.self))
-        // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
         assign("Note", payload.notes.count, 0, count(Note.self))
         assign("NonSchoolDay", payload.nonSchoolDays.count, 0, count(NonSchoolDay.self))
         assign("SchoolDayOverride", payload.schoolDayOverrides.count, 0, count(SchoolDayOverride.self))
@@ -155,10 +152,6 @@ enum BackupPreviewAnalyzer {
         }
         let lessonsInPayload = Set(payload.lessons.map { $0.id })
 
-        analyzeLegacyPresentationMerge(
-            payload: payload, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
-            entityExists: entityExists, assign: assign, warnings: &warnings
-        )
         analyzeLessonAssignmentMerge(
             payload: payload, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
             entityExists: entityExists, assign: assign, warnings: &warnings
@@ -174,38 +167,6 @@ enum BackupPreviewAnalyzer {
     // MARK: - Merge Mode Helpers
 
     private struct ImportAnalysis { var ins = 0; var sk = 0; var missingLesson = 0 }
-
-    // swiftlint:disable:next function_parameter_count
-    private static func analyzeLegacyPresentationMerge(
-        payload: BackupPayload,
-        lessonsInStore: Set<UUID>,
-        lessonsInPayload: Set<UUID>,
-        entityExists: @escaping (any PersistentModel.Type, UUID) -> Bool,
-        assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
-        warnings: inout [String]
-    ) {
-        // LegacyPresentation model removed — old backup DTOs will be imported as LessonAssignment
-        let analysis = payload.legacyPresentations.reduce(
-            into: ImportAnalysis()
-        ) { (acc: inout ImportAnalysis, sl: LegacyPresentationDTO) in
-            let hasLesson = lessonsInStore.contains(sl.lessonID) || lessonsInPayload.contains(sl.lessonID)
-            if !hasLesson {
-                acc.sk += 1
-                acc.missingLesson += 1
-            } else if entityExists(LessonAssignment.self, sl.id) {
-                acc.sk += 1
-            } else {
-                acc.ins += 1
-            }
-        }
-        assign("LegacyPresentation (legacy)", analysis.ins, analysis.sk, 0)
-        if analysis.missingLesson > 0 {
-            warnings.append(
-                "\(analysis.missingLesson) legacy LegacyPresentation records "
-                + "reference missing Lessons and will be skipped."
-            )
-        }
-    }
 
     // swiftlint:disable:next function_parameter_count
     private static func analyzeLessonAssignmentMerge(

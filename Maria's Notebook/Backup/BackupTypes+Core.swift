@@ -94,21 +94,6 @@ public struct LessonPresentationDTO: Codable, Sendable {
     public var notes: String?
 }
 
-public struct LegacyPresentationDTO: Codable, Sendable {
-    public var id: UUID
-    public var lessonID: UUID
-    public var studentIDs: [UUID]
-    public var createdAt: Date
-    public var scheduledFor: Date?
-    public var givenAt: Date?
-    public var isPresented: Bool
-    public var notes: String
-    public var needsPractice: Bool
-    public var needsAnotherPresentation: Bool
-    public var followUpWork: String
-    public var studentGroupKey: String?
-}
-
 // MARK: - LessonAssignment DTO
 /// DTO for the unified LessonAssignment model.
 /// This model replaces LegacyPresentation + Presentation in the new architecture.

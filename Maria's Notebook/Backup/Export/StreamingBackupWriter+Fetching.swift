@@ -11,7 +11,6 @@ extension StreamingBackupWriter {
         // Core entities
         counts["Student"] = try modelContext.fetchCount(FetchDescriptor<Student>())
         counts["Lesson"] = try modelContext.fetchCount(FetchDescriptor<Lesson>())
-        // LegacyPresentation removed — fully migrated to LessonAssignment
         counts["LessonAssignment"] = try modelContext.fetchCount(FetchDescriptor<LessonAssignment>())
         counts["Note"] = try modelContext.fetchCount(FetchDescriptor<Note>())
         counts["NonSchoolDay"] = try modelContext.fetchCount(FetchDescriptor<NonSchoolDay>())

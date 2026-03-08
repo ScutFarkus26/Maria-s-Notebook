@@ -4,12 +4,13 @@ import Foundation
 public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
+    /// Format version 11: Adds WorkModel/PlanningRecommendation/Resource/NoteStudentLink; removes LegacyPresentation backward compatibility
     /// Format version 10: Adds SampleWork/SampleWorkStep, WorkStep completionOutcome, PracticeSession workStepID
     /// Format version 8: Adds backup coverage for all entity types (Work, Track, Supply, Todo, etc.)
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    nonisolated public static let formatVersion = 10
+    nonisolated public static let formatVersion = 11
     /// Minimum format version that enforces checksum validation
     nonisolated public static let checksumEnforcedVersion = 5
     /// Format version that introduced compression (backups < this version are uncompressed)
@@ -179,10 +180,8 @@ public enum PreferenceValueDTO: Codable, Sendable, Equatable {
 // MARK: - BackupPayload
 public struct BackupPayload: Codable, Sendable {
 
-    // Preserve the original JSON key "studentLessons" for backward compatibility with older backup files
     enum CodingKeys: String, CodingKey {
         case items, students, lessons
-        case legacyPresentations = "studentLessons"
         case lessonAssignments, notes, nonSchoolDays, schoolDayOverrides
         case studentMeetings, communityTopics, proposedSolutions, communityAttachments
         case attendance, workCompletions
@@ -210,7 +209,6 @@ public struct BackupPayload: Codable, Sendable {
     public var items: [ItemDTO]
     public var students: [StudentDTO]
     public var lessons: [LessonDTO]
-    public var legacyPresentations: [LegacyPresentationDTO]
     public var lessonAssignments: [LessonAssignmentDTO]
     public var notes: [NoteDTO]
     public var nonSchoolDays: [NonSchoolDayDTO]

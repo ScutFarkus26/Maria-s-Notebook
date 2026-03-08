@@ -48,12 +48,6 @@ public final class BackupDiffService {
             modelContext: modelContext
         )
 
-        progress(0.5, "Analyzing legacy presentations…")
-        let legacyPresentationDiff = analyzeLegacyPresentationDiff(
-            backupLegacyPresentations: backupPayload.legacyPresentations,
-            modelContext: modelContext
-        )
-
         progress(0.6, "Analyzing notes…")
         let noteDiff = analyzeNoteDiff(
             backupNotes: backupPayload.notes,
@@ -84,7 +78,6 @@ public final class BackupDiffService {
         let entityDiffs = [
             studentDiff,
             lessonDiff,
-            legacyPresentationDiff,
             noteDiff,
             calendarDiff,
             projectDiff,

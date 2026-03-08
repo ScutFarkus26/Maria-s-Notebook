@@ -9,7 +9,6 @@ extension IncrementalBackupService {
     private struct MergedEntityMaps {
         var students: [UUID: StudentDTO] = [:]
         var lessons: [UUID: LessonDTO] = [:]
-        var legacyPresentations: [UUID: LegacyPresentationDTO] = [:]
         var lessonAssignments: [UUID: LessonAssignmentDTO] = [:]
         var notes: [UUID: NoteDTO] = [:]
         var nonSchoolDays: [UUID: NonSchoolDayDTO] = [:]
@@ -28,15 +27,11 @@ extension IncrementalBackupService {
         var projectWeekAssignments: [UUID: ProjectWeekRoleAssignmentDTO] = [:]
         var latestPreferences: PreferencesDTO?
 
-        // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
-
         // swiftlint:disable:next cyclomatic_complexity
         mutating func merge(_ payload: BackupPayload) {
             for dto in payload.students { students[dto.id] = dto }
             for dto in payload.lessons { lessons[dto.id] = dto }
-            for dto in payload.legacyPresentations { legacyPresentations[dto.id] = dto }
             for dto in payload.lessonAssignments { lessonAssignments[dto.id] = dto }
-            // Phase 6: WorkPlanItem removed from schema - skip merging
             for dto in payload.notes { notes[dto.id] = dto }
             for dto in payload.nonSchoolDays { nonSchoolDays[dto.id] = dto }
             for dto in payload.schoolDayOverrides { schoolDayOverrides[dto.id] = dto }
@@ -60,7 +55,6 @@ extension IncrementalBackupService {
                 items: [],
                 students: Array(students.values),
                 lessons: Array(lessons.values),
-                legacyPresentations: Array(legacyPresentations.values),
                 lessonAssignments: Array(lessonAssignments.values),
                 notes: Array(notes.values),
                 nonSchoolDays: Array(nonSchoolDays.values),
@@ -85,7 +79,6 @@ extension IncrementalBackupService {
             [
                 "Student": students.count,
                 "Lesson": lessons.count,
-                "LegacyPresentation": legacyPresentations.count,
                 "LessonAssignment": lessonAssignments.count,
                 "Note": notes.count,
                 "NonSchoolDay": nonSchoolDays.count,

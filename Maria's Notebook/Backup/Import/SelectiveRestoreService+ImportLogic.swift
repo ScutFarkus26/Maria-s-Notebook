@@ -27,8 +27,6 @@ extension SelectiveRestoreService {
             return try importStudentEntities(from: payload, into: modelContext)
         case .lessons:
             return try importLessonEntities(from: payload, into: modelContext)
-        case .legacyPresentations:
-            return try importLegacyPresentationEntities(from: payload, into: modelContext)
         case .notes:
             return importNoteEntities(from: payload, into: modelContext)
         case .calendar:
@@ -93,27 +91,6 @@ extension SelectiveRestoreService {
             skipped: payload.lessons.count - newLessons.count,
             warning: ""
         )
-    }
-
-    private func importLegacyPresentationEntities(
-        from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) throws -> ImportResult {
-        // LegacyPresentation model removed — import as LessonAssignment
-        try BackupEntityImporter.importLegacyPresentations(
-            payload.legacyPresentations,
-            into: modelContext,
-            existingCheck: { [self] id in
-                guard self.getCachedIDs("lessonAssignments").contains(id) else { return nil }
-                let desc = FetchDescriptor<LessonAssignment>(
-                    predicate: #Predicate { $0.id == id }
-                )
-                return try modelContext.fetch(desc).first
-            },
-            lessonCheck: { [lessonsByID] id in lessonsByID[id] },
-            studentCheck: { [studentsByID] id in studentsByID[id] }
-        )
-        return ImportResult(imported: payload.legacyPresentations.count, skipped: 0, warning: "")
     }
 
     private func importNoteEntities(

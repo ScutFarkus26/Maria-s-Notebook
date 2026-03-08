@@ -170,15 +170,6 @@ extension BackupService {
             existingCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
         )
 
-        // Import old LegacyPresentationDTOs as LessonAssignment records
-        try BackupEntityImporter.importLegacyPresentations(
-            payload.legacyPresentations,
-            into: modelContext,
-            existingCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
-            lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) },
-            studentCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
-        )
-
         try BackupEntityImporter.importLessonAssignments(
             payload.lessonAssignments,
             into: modelContext,
