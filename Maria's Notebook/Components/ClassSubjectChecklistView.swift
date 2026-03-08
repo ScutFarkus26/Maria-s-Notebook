@@ -241,17 +241,22 @@ struct ClassSubjectChecklistView: View {
             }
             .zIndex(100) // Ensure corner stays above everything
 
-            // Student Names (Scrolls Horizontally with content)
+            // Student Names (Scrolls Horizontally with content, tappable)
             ForEach(viewModel.students) { student in
-                VStack(spacing: 2) {
-                    Text(viewModel.displayName(for: student))
-                    Text(AgeUtils.conciseAgeString(for: student.birthday))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                Button {
+                    AppRouter.shared.requestOpenStudentDetail(student.id)
+                } label: {
+                    VStack(spacing: 2) {
+                        Text(viewModel.displayName(for: student))
+                        Text(AgeUtils.conciseAgeString(for: student.birthday))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: studentColumnWidth, height: rowHeight)
+                    .backgroundPlatform()
+                    .borderSeparated()
                 }
-                .frame(width: studentColumnWidth, height: rowHeight)
-                .backgroundPlatform()
-                .borderSeparated()
+                .buttonStyle(.plain)
             }
         }
         .frame(
@@ -274,14 +279,18 @@ struct ClassChecklistSmartCell: View {
     var onClear: () -> Void
 
     var body: some View {
-        let isComplete = state?.isComplete ?? false
-        let isPresented = state?.isPresented ?? false
+        let displayStatus = state?.displayStatus ?? .empty
+        let isInboxPlan = state?.isInboxPlan ?? false
+        let isStale = state?.isStale ?? false
         let isScheduled = state?.isScheduled ?? false
 
-        // Use precomputed value from matrix builder instead of per-cell database query
-        let isInboxPlan = state?.isInboxPlan ?? false
-
         ZStack {
+            // Staleness tint background
+            if isStale && displayStatus != .mastered && displayStatus != .empty {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.orange.opacity(0.1))
+            }
+
             // Selection highlight background
             if isSelected {
                 RoundedRectangle(cornerRadius: 6)
@@ -290,19 +299,28 @@ struct ClassChecklistSmartCell: View {
 
             Color.clear.contentShape(Rectangle()) // Hit area
 
-            if isComplete {
+            switch displayStatus {
+            case .mastered:
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.green)
                     .font(.title2)
-            } else if isPresented {
+            case .reviewing:
+                Image(systemName: "eye.fill")
+                    .foregroundStyle(Color.yellow)
+                    .font(.title3)
+            case .practicing:
+                Image(systemName: "pencil")
+                    .foregroundStyle(Color.blue)
+                    .font(.title3.weight(.bold))
+            case .presented:
                 Image(systemName: "checkmark")
                     .foregroundStyle(Color.blue)
                     .font(.title3.weight(.bold))
-            } else if isScheduled {
+            case .scheduled:
                 Image(systemName: isInboxPlan ? "tray" : "calendar")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.orange)
                     .font(.title3)
-            } else {
+            case .empty:
                 Circle()
                     .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
                     .frame(width: 16, height: 16)
@@ -330,15 +348,12 @@ struct ClassChecklistSmartCell: View {
         )
         .onTapGesture {
             if isSelectionMode {
-                // In selection mode, tap toggles cell selection
                 onSelect()
             } else {
-                // Normal mode: tap adds/removes from inbox
                 onTap()
             }
         }
         .contextMenu {
-            // Selection mode option
             Button {
                 #if os(iOS)
                 let generator = UIImpactFeedbackGenerator(style: .medium)

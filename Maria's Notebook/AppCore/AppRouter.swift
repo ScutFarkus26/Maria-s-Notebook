@@ -81,9 +81,13 @@ final class AppRouter {
     /// Students mode selection
     var studentsMode: String?
     
+    /// Checklist deep-link filters (consumed once by ChecklistViewModel)
+    var checklistFilterSubject: String?
+    var checklistFilterGroup: String?
+
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
-    
+
     /// App lifecycle events
     var appDataWillBeReplaced: Bool = false
     var appDataDidRestore: Bool = false
@@ -153,6 +157,13 @@ final class AppRouter {
     /// Navigate to a specific navigation item
     func navigateTo(_ item: RootView.NavigationItem) {
         selectedNavItem = item
+    }
+
+    /// Navigate to checklist with optional subject/group pre-selection
+    func navigateToChecklist(subject: String, group: String? = nil) {
+        checklistFilterSubject = subject
+        checklistFilterGroup = group
+        selectedNavItem = .planningChecklist
     }
     
     /// Navigate to a specific tab (legacy - kept for backward compatibility)

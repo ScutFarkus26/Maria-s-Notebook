@@ -44,9 +44,6 @@ struct ProgressionRootView: View {
             .navigationBarTitleDisplayMode(.large)
             #endif
             .searchable(text: $searchText, prompt: "Search subjects or groups")
-            .navigationDestination(for: GroupSummary.self) { summary in
-                GroupProgressionView(subject: summary.subject, group: summary.group)
-            }
             .onAppear {
                 viewModel.loadData(context: modelContext)
             }
@@ -93,7 +90,9 @@ struct ProgressionRootView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 400), spacing: 16)], spacing: 16) {
                 ForEach(summaries) { summary in
-                    NavigationLink(value: summary) {
+                    Button {
+                        AppRouter.shared.navigateToChecklist(subject: summary.subject, group: summary.group)
+                    } label: {
                         GroupSummaryCard(summary: summary)
                     }
                     .buttonStyle(.plain)
@@ -186,17 +185,6 @@ private struct GroupSummaryCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-// MARK: - Hashable conformance for navigation
-
-extension GroupSummary: Hashable {
-    static func == (lhs: GroupSummary, rhs: GroupSummary) -> Bool {
-        lhs.id == rhs.id
-    }
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
     }
 }
 

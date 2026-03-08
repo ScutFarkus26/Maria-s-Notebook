@@ -321,6 +321,22 @@ struct StudentProgressTab: View {
                     Divider().padding(.vertical, AppTheme.Spacing.xsmall)
                     NotesPreviewSection(notes: notesPreview, color: trackColor)
                 }
+
+                // View Class Progress link
+                let trackParts = track.title.components(separatedBy: " — ")
+                if trackParts.count == 2 {
+                    Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+                    Button {
+                        let subject = trackParts[0].trimmingCharacters(in: .whitespaces)
+                        let group = trackParts[1].trimmingCharacters(in: .whitespaces)
+                        AppRouter.shared.navigateToChecklist(subject: subject, group: group)
+                    } label: {
+                        Label("View Class Progress", systemImage: "checklist")
+                            .font(.caption)
+                            .foregroundStyle(trackColor)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .onAppear {

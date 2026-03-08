@@ -42,42 +42,8 @@ enum LessonNodeStatus: Sendable {
         case .scheduled:        return "Scheduled"
         case .presented:        return "Presented"
         case .practicing:       return "Practicing"
-        case .reviewing:        return "In Review"
-        case .completed:        return "Completed"
-        }
-    }
-}
-
-// MARK: - Group Cell Status
-
-/// Simplified status for the group matrix dot cells.
-enum GroupCellStatus: Sendable {
-    case notStarted
-    case scheduled
-    case presented
-    case workActive
-    case workReview
-    case proficient
-
-    var color: Color {
-        switch self {
-        case .notStarted:   return .gray
-        case .scheduled:    return .orange
-        case .presented:    return .orange
-        case .workActive:   return .blue
-        case .workReview:   return .yellow
-        case .proficient:     return .green
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .notStarted:   return "Not Started"
-        case .scheduled:    return "Scheduled"
-        case .presented:    return "Presented"
-        case .workActive:   return "Work Active"
-        case .workReview:   return "In Review"
-        case .proficient:     return "Mastered"
+        case .reviewing:        return "Reviewing"
+        case .completed:        return "Mastered"
         }
     }
 }
@@ -107,15 +73,6 @@ struct WorkProgressItem: Identifiable {
     let ageSchoolDays: Int
     let lastCheckIn: WorkCheckIn?
     let nextCheckIn: WorkCheckIn?
-}
-
-// MARK: - Student Progression Route
-
-/// Navigation route for drilling into a student's subject progression.
-struct StudentProgressionRoute: Hashable {
-    let studentID: UUID
-    let subject: String
-    let group: String
 }
 
 // MARK: - Group Summary

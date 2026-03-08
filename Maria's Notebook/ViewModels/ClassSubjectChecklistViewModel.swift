@@ -82,7 +82,13 @@ class ClassSubjectChecklistViewModel {
         let allLessons = context.safeFetch(allLessonsFetch)
         self.availableSubjects = lessonsLogic.subjects(from: allLessons)
 
-        if selectedSubject.isEmpty, let first = availableSubjects.first {
+        // Consume deep-link filter from AppRouter if present
+        let router = AppRouter.shared
+        if let filterSubject = router.checklistFilterSubject {
+            selectedSubject = filterSubject
+            router.checklistFilterSubject = nil
+            router.checklistFilterGroup = nil
+        } else if selectedSubject.isEmpty, let first = availableSubjects.first {
             selectedSubject = first
         }
         refreshMatrix(context: context)

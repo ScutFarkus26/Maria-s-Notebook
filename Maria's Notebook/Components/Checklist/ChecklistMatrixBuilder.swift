@@ -30,10 +30,8 @@ enum ChecklistMatrixBuilder {
         let allLAs = context.safeFetch(laDescriptor)
             .filter { lessonIDStrings.contains($0.lessonID) }
 
-        // Fetch only non-complete WorkModels (active/review work)
-        let workModelsDescriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
-        )
+        // Fetch all WorkModels to track full lifecycle (active/review/complete)
+        let workModelsDescriptor = FetchDescriptor<WorkModel>()
         let allWorkModels = context.safeFetch(workModelsDescriptor)
 
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
@@ -65,6 +63,9 @@ enum ChecklistMatrixBuilder {
 
     // MARK: - Private Helpers
 
+    /// Staleness threshold: 14 weekdays (approx 2.8 calendar weeks)
+    private static let staleWeekdays = 14
+
     private static func buildCellState(
         student: Student,
         lesson: Lesson,
@@ -83,13 +84,36 @@ enum ChecklistMatrixBuilder {
 
         let isPresented = lasForLesson.contains { $0.isPresented }
 
-        // Find WorkModel for this lesson using lessonID directly
-        let workModelForLesson = studentWorkModels.first { work in
-            work.lessonID == lessonIDString
-        }
+        // Find WorkModels for this lesson
+        let workModelsForLesson = studentWorkModels.filter { $0.lessonID == lessonIDString }
+        let workModelForLesson = workModelsForLesson.first
 
         let isActive = workModelForLesson?.isOpen ?? false
         let isComplete = workModelForLesson?.status == .complete
+
+        // Determine work lifecycle: active (practicing) vs review
+        let isWorkActive = workModelsForLesson.contains { $0.status == .active }
+        let isWorkReview = workModelsForLesson.contains { $0.status == .review }
+
+        // Compute staleness: if lastTouchedAt is >14 weekdays ago and work is not complete
+        let lastActivityDate = workModelForLesson?.lastTouchedAt ?? workModelForLesson?.createdAt
+        let isStale: Bool = {
+            guard !isComplete, let activity = lastActivityDate else { return false }
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let activityDay = calendar.startOfDay(for: activity)
+            let totalDays = calendar.dateComponents([.day], from: activityDay, to: today).day ?? 0
+            guard totalDays > 0 else { return false }
+            let fullWeeks = totalDays / 7
+            let remainingDays = totalDays % 7
+            var weekdays = fullWeeks * 5
+            let startWeekday = calendar.component(.weekday, from: activityDay)
+            for i in 0..<remainingDays {
+                let dayOfWeek = (startWeekday - 1 + i) % 7 + 1
+                if dayOfWeek != 1 && dayOfWeek != 7 { weekdays += 1 }
+            }
+            return weekdays >= staleWeekdays
+        }()
 
         let contractID = workModelForLesson?.id
 
@@ -102,8 +126,10 @@ enum ChecklistMatrixBuilder {
             isPresented: isPresented,
             isActive: isActive,
             isComplete: isComplete,
-            lastActivityDate: nil,
-            isStale: false,
+            isWorkActive: isWorkActive,
+            isWorkReview: isWorkReview,
+            lastActivityDate: lastActivityDate,
+            isStale: isStale,
             isInboxPlan: isInboxPlan
         )
     }

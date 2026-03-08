@@ -18,12 +18,22 @@ struct StudentTrackDetailView: View {
     @State private var presentedLessonIDs: Set<String> = []
     @State private var isLoaded = false
 
+    // Timeline data from StudentSubjectProgressionViewModel
+    @State private var progressionVM = StudentSubjectProgressionViewModel()
+    @State private var student: Student?
+    @State private var parsedSubject: String = ""
+    @State private var parsedGroup: String = ""
+
     private var proficientCount: Int { proficientLessonIDs.count }
     private var totalLessons: Int { trackLessons.count }
 
     private var progressPercent: Int {
         guard totalLessons > 0 else { return 0 }
         return Int((Double(proficientCount) / Double(totalLessons)) * 100)
+    }
+
+    private var subjectColor: Color {
+        AppColors.color(forSubject: parsedSubject)
     }
 
     var body: some View {
@@ -39,8 +49,8 @@ struct StudentTrackDetailView: View {
                         // Progress section
                         progressSection
 
-                        // Lessons list
-                        lessonsSection
+                        // Timeline section
+                        timelineSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
@@ -77,7 +87,13 @@ struct StudentTrackDetailView: View {
 
         let subject = parts[0].trimmingCharacters(in: .whitespaces)
         let group = parts[1].trimmingCharacters(in: .whitespaces)
+        parsedSubject = subject
+        parsedGroup = group
         let studentID = enrollment.studentID
+
+        // Fetch the student
+        let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
+        student = allStudents.first { $0.cloudKitKey == studentID }
 
         // Fetch lessons for this subject/group
         let allLessons: [Lesson]
@@ -109,6 +125,11 @@ struct StudentTrackDetailView: View {
 
         presentedLessonIDs = Set(studentPresentations.map { $0.lessonID })
         proficientLessonIDs = Set(studentPresentations.filter { $0.state == .proficient }.map { $0.lessonID })
+
+        // Load timeline via progression VM
+        if let foundStudent = student {
+            progressionVM.configure(for: foundStudent, subject: subject, group: group, context: modelContext)
+        }
 
         isLoaded = true
     }
@@ -260,30 +281,42 @@ struct StudentTrackDetailView: View {
         )
     }
 
-    // MARK: - Lessons Section
+    // MARK: - Timeline Section
 
-    private var lessonsSection: some View {
+    private var timelineSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "list.bullet.circle.fill")
-                    .foregroundStyle(.blue)
-                Text("Lessons")
+                Image(systemName: "timeline.selection")
+                    .foregroundStyle(subjectColor)
+                Text("Timeline")
                     .font(.headline)
+
+                Spacer()
+
+                Text("\(progressionVM.completedCount)/\(progressionVM.totalCount)")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(subjectColor)
             }
 
-            if trackLessons.isEmpty {
-                emptyLessonsView
+            if progressionVM.nodes.isEmpty {
+                emptyTimelineView
             } else {
-                VStack(spacing: 8) {
-                    ForEach(Array(trackLessons.enumerated()), id: \.element.id) { index, lesson in
-                        lessonRow(lesson: lesson, index: index + 1)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(progressionVM.nodes) { node in
+                        ProgressionLessonRow(
+                            node: node,
+                            subjectColor: subjectColor,
+                            onScheduleLesson: node.isNext ? {
+                                scheduleNextLesson(after: node)
+                            } : nil
+                        )
                     }
                 }
             }
         }
     }
 
-    private var emptyLessonsView: some View {
+    private var emptyTimelineView: some View {
         VStack(spacing: 12) {
             Image(systemName: "tray")
                 .font(.largeTitle)
@@ -297,70 +330,15 @@ struct StudentTrackDetailView: View {
         .padding(.vertical, 40)
     }
 
-    // swiftlint:disable:next function_body_length
-    private func lessonRow(lesson: Lesson, index: Int) -> some View {
-        let lessonID = lesson.id.uuidString
-        let isProficient = proficientLessonIDs.contains(lessonID)
-        let isPresented = presentedLessonIDs.contains(lessonID)
+    // MARK: - Actions
 
-        return HStack(spacing: 12) {
-            // Step number or checkmark
-            ZStack {
-                Circle()
-                    .fill(
-                        isProficient ? Color.green
-                            : (isPresented ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1))
-                    )
-                    .frame(width: 32, height: 32)
-
-                if isProficient {
-                    Image(systemName: "checkmark")
-                        .font(.caption.bold())
-                        .foregroundStyle(.white)
-                } else {
-                    Text("\(index)")
-                        .font(.caption.bold())
-                        .foregroundStyle(isPresented ? .orange : .secondary)
-                }
-            }
-
-            // Lesson name
-            VStack(alignment: .leading, spacing: 2) {
-                Text(lesson.name)
-                    .font(.subheadline)
-                    .fontWeight(isProficient ? .medium : .regular)
-                    .foregroundStyle(isProficient ? .primary : .secondary)
-
-                if isProficient {
-                    Label("Mastered", systemImage: "star.fill")
-                        .font(.caption2)
-                        .foregroundStyle(AppColors.success)
-                } else if isPresented {
-                    Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.caption2)
-                        .foregroundStyle(AppColors.warning)
-                }
-            }
-
-            Spacer()
-
-            // Status indicator
-            if isProficient {
-                Image(systemName: "sparkles")
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-            }
+    private func scheduleNextLesson(after node: LessonProgressionNode) {
+        progressionVM.scheduleNextLesson(after: node.lesson, context: modelContext)
+        if let foundStudent = student {
+            progressionVM.configure(
+                for: foundStudent, subject: parsedSubject, group: parsedGroup, context: modelContext
+            )
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isProficient ? Color.green.opacity(0.08) : Color.primary.opacity(0.02))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isProficient ? Color.green.opacity(0.2) : Color.clear, lineWidth: 1)
-        )
     }
 
     private static let dateFormatter: DateFormatter = {
