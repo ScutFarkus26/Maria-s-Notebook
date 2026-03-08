@@ -173,7 +173,7 @@ struct NewTodoForm: View {
             // Create
             Section {
                 Button {
-                    Task { await createTodo() }
+                    createTodo()
                 } label: {
                     HStack {
                         Spacer()
@@ -198,11 +198,11 @@ struct NewTodoForm: View {
         newSubtaskTitle = ""
     }
 
-    private func createTodo() async {
+    private func createTodo() {
         isCreatingTodo = true
         defer { isCreatingTodo = false }
 
-        let resolvedStudentIDs = await resolveStudentIDs()
+        let resolvedStudentIDs = resolveStudentIDs()
         let resolvedStudentNames = allStudents
             .filter { resolvedStudentIDs.contains($0.id) }
             .map(\.fullName)
@@ -250,28 +250,9 @@ struct NewTodoForm: View {
         dismiss()
     }
 
-    private func resolveStudentIDs() async -> Set<UUID> {
-        var resolved = selectedStudentIDs
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if #available(macOS 26.0, iOS 26.0, *) {
-            let combinedText = "\(title) \(notes)".trimmingCharacters(in: .whitespacesAndNewlines)
-            guard combinedText.isEmpty == false else { return resolved }
-
-            do {
-                let extractedNames = try await TodoStudentSuggestionService.extractStudentNames(
-                    from: combinedText,
-                    availableStudents: allStudents
-                )
-                let matchedStudents = TodoStudentSuggestionService.matchStudents(
-                    extractedNames: extractedNames,
-                    from: allStudents
-                )
-                resolved.formUnion(matchedStudents.map(\.id))
-            } catch {
-                // Fall back to manual student selection if extraction fails.
-            }
-        }
-        #endif
-        return resolved
+    private func resolveStudentIDs() -> Set<UUID> {
+        // Use only manually-selected students. AI suggestions are available
+        // via the "Suggest" button in the edit sheet after creation.
+        selectedStudentIDs
     }
 }
