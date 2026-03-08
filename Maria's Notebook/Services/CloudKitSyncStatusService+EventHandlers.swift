@@ -154,16 +154,10 @@ extension CloudKitSyncStatusService {
                     return
                 }
 
-                // Timeout reached without remote confirmation, but no error
-                // Mark as successful since SwiftData doesn't always fire remote change notifications
-                // for outgoing-only syncs
+                // Timeout reached without remote confirmation. End the spinner and keep
+                // the previously known sync timestamp instead of inferring success.
                 self.isSyncing = false
                 self.pendingSyncCount = 0
-                let now = Date()
-                self.lastSuccessfulSync = now
-                UserDefaults.standard.set(
-                    now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
-                )
                 self.updateSyncHealth()
             }
         }
