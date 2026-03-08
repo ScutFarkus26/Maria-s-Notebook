@@ -81,11 +81,11 @@ final class CloudKitHealthCheck {
         // Check initial iCloud availability
         isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
         
-        // Set initial health based on iCloud availability
+        // Set initial health based on persisted sync state and active configuration.
         let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
         let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
-        
-        if isEnabled && isActive && isICloudAvailable {
+
+        if isEnabled && isActive {
             // Load persisted state to determine initial health
             let syncDateKey = UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
             if let lastSyncTimestamp = UserDefaults.standard.object(forKey: syncDateKey) as? TimeInterval {
@@ -164,7 +164,7 @@ final class CloudKitHealthCheck {
         isEnabled: Bool,
         isActive: Bool
     ) {
-        guard isEnabled, isActive, isNetworkAvailable, isICloudAvailable else {
+        guard isEnabled, isActive, isNetworkAvailable else {
             syncHealth = .offline
             return
         }

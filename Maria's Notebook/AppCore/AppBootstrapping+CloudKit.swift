@@ -116,22 +116,6 @@ extension AppBootstrapping {
                         )
                     }
 
-                    // Check if iCloud is available before attempting CloudKit container creation
-                    if FileManager.default.ubiquityIdentityToken == nil {
-                        // Store error state
-                        let errorMessage = "Not signed into iCloud."
-                            + " Please sign in to System Settings > Apple ID > iCloud to enable sync."
-                        UserDefaults.standard.set(
-                            errorMessage,
-                            forKey: UserDefaultsKeys.cloudKitLastErrorDescription
-                        )
-                        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-                        // Fall back to local store
-                        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
-                        let container = try ModelContainer(for: schema, configurations: config)
-                        return container
-                    }
-
                     guard let containerID = CloudKitConfiguration.getCloudKitContainerID() else {
                         let errorMessage = "Missing CloudKit container identifier."
                             + " CloudKit sync cannot be initialized."

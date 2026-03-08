@@ -37,12 +37,6 @@ extension CloudKitSyncStatusService {
             }
             // Trigger retry for any pending syncs
             retryPendingSync()
-        } else {
-            // User signed out of iCloud
-            lastSyncError = "iCloud account signed out. Sign in to resume syncing."
-            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-            // Cancel any pending retries
-            retryLogic.cancelRetry()
         }
         updateSyncHealth()
     }
@@ -156,13 +150,6 @@ extension CloudKitSyncStatusService {
                 if !self.isNetworkAvailable {
                     self.isSyncing = false
                     self.lastSyncError = "Changes saved locally. Waiting for network to sync."
-                    self.updateSyncHealth()
-                    return
-                }
-
-                if !self.isICloudAvailable {
-                    self.isSyncing = false
-                    self.lastSyncError = "Changes saved locally. Sign into iCloud to sync."
                     self.updateSyncHealth()
                     return
                 }

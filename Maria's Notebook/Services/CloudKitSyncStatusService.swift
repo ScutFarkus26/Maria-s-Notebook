@@ -220,7 +220,7 @@ final class CloudKitSyncStatusService {
         retryLogic.scheduleRetry(
             canRetry: { [weak self] in
                 guard let self = self else { return false }
-                return self.isNetworkAvailable && self.isICloudAvailable
+                return self.isNetworkAvailable
             },
             syncAction: { [weak self] in
                 guard let self = self else { return false }
@@ -246,7 +246,7 @@ final class CloudKitSyncStatusService {
         retryLogic.retryPendingSync(
             canRetry: { [weak self] in
                 guard let self = self else { return false }
-                return self.isNetworkAvailable && self.isICloudAvailable
+                return self.isNetworkAvailable
             },
             hasPendingWork: { [weak self] in
                 guard let self = self else { return false }
