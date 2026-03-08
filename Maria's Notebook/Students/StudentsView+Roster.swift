@@ -11,13 +11,22 @@ extension StudentsView {
         VStack(spacing: 0) {
             // Sort and Filter controls at the top
             if mode == .roster {
-                SortFilterControls(
-                    sortOrderRaw: $studentsSortOrderRaw,
-                    filterRaw: $studentsFilterRaw,
-                    effectiveSortOrder: effectiveSortOrder,
-                    selectedFilter: selectedFilter,
-                    showEditButton: effectiveSortOrder == .manual
-                )
+                VStack(spacing: 8) {
+                    SortFilterControls(
+                        sortOrderRaw: $studentsSortOrderRaw,
+                        filterRaw: $studentsFilterRaw,
+                        effectiveSortOrder: effectiveSortOrder,
+                        selectedFilter: selectedFilter,
+                        showEditButton: effectiveSortOrder == .manual
+                    )
+
+                    SearchField("Search students", text: $searchText)
+                        .onSubmit {
+                            if let first = filteredStudents.first {
+                                selectedStudentID = first.id
+                            }
+                        }
+                }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(.bar)

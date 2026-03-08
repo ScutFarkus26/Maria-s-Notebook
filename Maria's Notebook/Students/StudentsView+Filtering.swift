@@ -70,7 +70,7 @@ extension StudentsView {
             modelContext: modelContext,
             filter: selectedFilter,
             sortOrder: currentSortOrder,
-            searchString: "", // Search not yet implemented in UI
+            searchString: searchText,
             presentNowIDs: presentNowIDs,
             showTestStudents: showTestStudents,
             testStudentNames: testStudentNamesRaw

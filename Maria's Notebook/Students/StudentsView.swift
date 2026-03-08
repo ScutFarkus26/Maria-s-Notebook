@@ -57,6 +57,7 @@ struct StudentsView<WorkloadContent: View>: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // MARK: - State for Roster Mode
+    @State var searchText: String = ""
     @State var showingAddStudent = false
     @State var selectedStudentID: UUID?
     @State var selectedStudentForSheet: Student?
@@ -162,13 +163,23 @@ struct StudentsView<WorkloadContent: View>: View {
                 if horizontalSizeClass == .compact {
                     // iPhone: Use single pane with sheet for details
                     NavigationStack {
-                        rosterListContent
-                            .navigationTitle("Students")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .listStyle(.plain)
-                            .toolbar {
-                                toolbarContent
-                            }
+                        VStack(spacing: 0) {
+                            SearchField("Search students", text: $searchText)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .onSubmit {
+                                    if let first = filteredStudents.first {
+                                        selectedStudentForSheet = first
+                                    }
+                                }
+                            rosterListContent
+                        }
+                        .navigationTitle("Students")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .listStyle(.plain)
+                        .toolbar {
+                            toolbarContent
+                        }
                     }
                 } else {
                     // iPad: Use two-pane layout (student list + detail)
