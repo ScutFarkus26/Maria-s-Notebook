@@ -21,37 +21,56 @@ enum ChecklistMatrixBuilder {
         lessons: [Lesson],
         context: ModelContext
     ) -> [UUID: [UUID: StudentChecklistRowState]] {
-        let lessonIDs = Set(lessons.map { $0.id })
-        guard !lessonIDs.isEmpty else { return [:] }
+        let lessonIDStrings = Set(lessons.map { $0.id.uuidString })
+        guard !lessonIDStrings.isEmpty else { return [:] }
 
-        // Fetch LessonAssignments and filter to current lesson set
-        let lessonIDStrings = Set(lessonIDs.uuidStrings)
-        let laDescriptor = FetchDescriptor<LessonAssignment>()
-        let allLAs = context.safeFetch(laDescriptor)
-            .filter { lessonIDStrings.contains($0.lessonID) }
+        // Fetch LessonAssignments scoped to current lessons.
+        // LessonAssignment has an #Index on lessonID, so per-lesson predicates are fast.
+        // We batch fetches by lesson to leverage the index rather than fetching all records.
+        var lasByLessonID: [String: [LessonAssignment]] = [:]
+        for lessonIDString in lessonIDStrings {
+            let descriptor = FetchDescriptor<LessonAssignment>(
+                predicate: #Predicate { $0.lessonID == lessonIDString }
+            )
+            lasByLessonID[lessonIDString] = context.safeFetch(descriptor)
+        }
 
-        // Fetch all WorkModels to track full lifecycle (active/review/complete)
-        let workModelsDescriptor = FetchDescriptor<WorkModel>()
-        let allWorkModels = context.safeFetch(workModelsDescriptor)
+        // Fetch WorkModels scoped to current lessons using studentID index.
+        // Build a lookup by lessonID for O(1) access per cell.
+        let studentIDStrings = Set(students.map { $0.cloudKitKey })
+        var worksByLessonID: [String: [WorkModel]] = [:]
+        for lessonIDString in lessonIDStrings {
+            let descriptor = FetchDescriptor<WorkModel>(
+                predicate: #Predicate { $0.lessonID == lessonIDString }
+            )
+            worksByLessonID[lessonIDString] = context.safeFetch(descriptor)
+        }
 
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
+        // Pre-compute staleness threshold date once instead of per-cell
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
-            let studentLAs = allLAs.filter { $0.studentIDs.contains(student.cloudKitKey) }
-            let studentIDString = student.cloudKitKey
-
-            // Filter WorkModels for this student
-            let studentWorkModels = allWorkModels.filter { work in
-                (work.participants ?? []).contains { $0.studentID == studentIDString }
-            }
+            let studentKey = student.cloudKitKey
 
             for lesson in lessons {
+                let lessonIDString = lesson.id.uuidString
+                let lasForLesson = lasByLessonID[lessonIDString] ?? []
+                let studentLAs = lasForLesson.filter { $0.studentIDs.contains(studentKey) }
+                let worksForLesson = worksByLessonID[lessonIDString] ?? []
+                let studentWorks = worksForLesson.filter { work in
+                    (work.participants ?? []).contains { $0.studentID == studentKey }
+                }
+
                 let state = buildCellState(
-                    student: student,
                     lesson: lesson,
                     studentLAs: studentLAs,
-                    studentWorkModels: studentWorkModels
+                    studentWorkModels: studentWorks,
+                    calendar: calendar,
+                    today: today
                 )
                 studentRow[lesson.id] = state
             }
@@ -67,40 +86,28 @@ enum ChecklistMatrixBuilder {
     private static let staleWeekdays = 14
 
     private static func buildCellState(
-        student: Student,
         lesson: Lesson,
         studentLAs: [LessonAssignment],
-        studentWorkModels: [WorkModel]
+        studentWorkModels: [WorkModel],
+        calendar: Calendar,
+        today: Date
     ) -> StudentChecklistRowState {
-        let lessonIDString = lesson.id.uuidString
-        let lasForLesson = studentLAs.filter { $0.lessonID == lessonIDString }
-
-        let nonPresented = lasForLesson.filter { !$0.isPresented }
+        let nonPresented = studentLAs.filter { !$0.isPresented }
         let plannedCandidate = nonPresented.first
         let isScheduled = !nonPresented.isEmpty
-
-        // An inbox plan is scheduled but has no scheduledFor date
         let isInboxPlan = isScheduled && (plannedCandidate?.scheduledFor == nil)
+        let isPresented = studentLAs.contains { $0.isPresented }
 
-        let isPresented = lasForLesson.contains { $0.isPresented }
-
-        // Find WorkModels for this lesson
-        let workModelsForLesson = studentWorkModels.filter { $0.lessonID == lessonIDString }
-        let workModelForLesson = workModelsForLesson.first
-
+        let workModelForLesson = studentWorkModels.first
         let isActive = workModelForLesson?.isOpen ?? false
         let isComplete = workModelForLesson?.status == .complete
+        let isWorkActive = studentWorkModels.contains { $0.status == .active }
+        let isWorkReview = studentWorkModels.contains { $0.status == .review }
 
-        // Determine work lifecycle: active (practicing) vs review
-        let isWorkActive = workModelsForLesson.contains { $0.status == .active }
-        let isWorkReview = workModelsForLesson.contains { $0.status == .review }
-
-        // Compute staleness: if lastTouchedAt is >14 weekdays ago and work is not complete
+        // Compute staleness using pre-computed calendar & today (avoids per-cell allocation)
         let lastActivityDate = workModelForLesson?.lastTouchedAt ?? workModelForLesson?.createdAt
         let isStale: Bool = {
             guard !isComplete, let activity = lastActivityDate else { return false }
-            let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
             let activityDay = calendar.startOfDay(for: activity)
             let totalDays = calendar.dateComponents([.day], from: activityDay, to: today).day ?? 0
             guard totalDays > 0 else { return false }
@@ -115,13 +122,11 @@ enum ChecklistMatrixBuilder {
             return weekdays >= staleWeekdays
         }()
 
-        let contractID = workModelForLesson?.id
-
         return StudentChecklistRowState(
             lessonID: lesson.id,
             plannedItemID: plannedCandidate?.id,
             presentationLogID: nil,
-            contractID: contractID,
+            contractID: workModelForLesson?.id,
             isScheduled: isScheduled,
             isPresented: isPresented,
             isActive: isActive,

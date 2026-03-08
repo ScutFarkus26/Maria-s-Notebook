@@ -40,6 +40,9 @@ class ClassSubjectChecklistViewModel {
     private var cachedDuplicateFirstNameKeys: Set<String> = []
     private var lastStudentHashForDuplicates: Int?
 
+    // OPTIMIZATION: Cache lessons-per-group to avoid filtering + sorting on every body evaluation
+    private var cachedLessonsByGroup: [String: [Lesson]] = [:]
+
     // MARK: - Name Display Helpers
     private func normalizedFirstName(_ name: String) -> String {
         name.trimmed().lowercased()
@@ -91,7 +94,9 @@ class ClassSubjectChecklistViewModel {
         } else if selectedSubject.isEmpty, let first = availableSubjects.first {
             selectedSubject = first
         }
-        refreshMatrix(context: context)
+        // Refresh lessons and groups but skip matrix recompute —
+        // the caller (onAppear) will call applyVisibilityFilter which recomputes.
+        refreshLessonsAndGroups(context: context)
     }
 
     func applyVisibilityFilter(context: ModelContext, show: Bool, namesRaw: String) {
@@ -99,25 +104,36 @@ class ClassSubjectChecklistViewModel {
         recomputeMatrix(context: context)
     }
 
-    func refreshMatrix(context: ModelContext) {
+    /// Refresh lesson list and group ordering without recomputing the matrix.
+    private func refreshLessonsAndGroups(context: ModelContext) {
         guard !selectedSubject.isEmpty else { return }
         let sub = selectedSubject.trimmed()
-        
-        // OPTIMIZATION: Use predicate to filter lessons at database level
-        // Note: SwiftData predicates are case-sensitive, so we still filter in memory for case-insensitivity
-        // but this reduces the dataset significantly by filtering on subject first
         let lessonsDescriptor = FetchDescriptor<Lesson>()
         let allLessons = context.safeFetch(lessonsDescriptor)
         self.lessons = allLessons.filter { $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame }
         self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
+        invalidateLessonsCache()
+    }
+
+    func refreshMatrix(context: ModelContext) {
+        refreshLessonsAndGroups(context: context)
         recomputeMatrix(context: context)
     }
 
     func lessonsIn(group: String) -> [Lesson] {
+        if let cached = cachedLessonsByGroup[group] {
+            return cached
+        }
         let groupTrimmed = group.trimmed()
-        return lessons.filter {
+        let result = lessons.filter {
             $0.group.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
         }.sorted { $0.orderInGroup < $1.orderInGroup }
+        cachedLessonsByGroup[group] = result
+        return result
+    }
+
+    private func invalidateLessonsCache() {
+        cachedLessonsByGroup.removeAll()
     }
 
     func state(for student: Student, lesson: Lesson) -> StudentChecklistRowState? {

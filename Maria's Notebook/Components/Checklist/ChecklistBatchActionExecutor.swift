@@ -43,13 +43,18 @@ enum ChecklistBatchActionExecutor {
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
         context: ModelContext
     ) {
+        // Pre-fetch all LessonPresentations once for upsert operations
+        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
             let state = matrixStates[cell.studentID]?[cell.lessonID]
-            // Only mark presented if not already presented
             if state?.isPresented != true {
-                togglePresentedNoRecompute(student: student, lesson: lesson, context: context)
+                togglePresentedNoRecompute(
+                    student: student, lesson: lesson,
+                    prefetchedLPs: allLPs, context: context
+                )
             }
         }
         context.safeSave()
@@ -65,13 +70,21 @@ enum ChecklistBatchActionExecutor {
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
         context: ModelContext
     ) {
+        // Pre-fetch shared data once before the loop
+        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
+        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
             let state = matrixStates[cell.studentID]?[cell.lessonID]
-            // Only mark mastered if not already complete
             if state?.isComplete != true {
-                markCompleteNoRecompute(student: student, lesson: lesson, context: context)
+                markCompleteNoRecompute(
+                    student: student, lesson: lesson,
+                    prefetchedWorkModels: allWorkModels,
+                    prefetchedLPs: allLPs,
+                    context: context
+                )
             }
         }
         context.safeSave()
@@ -86,10 +99,19 @@ enum ChecklistBatchActionExecutor {
         lessons: [Lesson],
         context: ModelContext
     ) {
+        // Pre-fetch shared data once before the loop
+        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
+        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
-            clearStatusNoRecompute(student: student, lesson: lesson, context: context)
+            clearStatusNoRecompute(
+                student: student, lesson: lesson,
+                prefetchedWorkModels: allWorkModels,
+                prefetchedLPs: allLPs,
+                context: context
+            )
         }
         context.safeSave()
     }
@@ -104,11 +126,9 @@ enum ChecklistBatchActionExecutor {
             FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
         )
 
-        // Check if student is already in an unscheduled lesson
         if let existing = allLAs.first(where: {
             !$0.isPresented && $0.studentIDs.contains(studentIDString)
         }) {
-            // Remove student from lesson
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentIDString }
             if ids.isEmpty {
@@ -117,7 +137,6 @@ enum ChecklistBatchActionExecutor {
                 existing.studentIDs = ids
             }
         } else {
-            // Add to unscheduled lesson
             if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
                 if !group.studentIDs.contains(studentIDString) {
                     group.studentIDs.append(studentIDString)
@@ -132,7 +151,11 @@ enum ChecklistBatchActionExecutor {
         }
     }
 
-    private static func togglePresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
+    private static func togglePresentedNoRecompute(
+        student: Student, lesson: Lesson,
+        prefetchedLPs: [LessonPresentation],
+        context: ModelContext
+    ) {
         let studentIDString = student.cloudKitKey
         let lessonIDString = lesson.id.uuidString
 
@@ -140,11 +163,9 @@ enum ChecklistBatchActionExecutor {
             FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
         )
 
-        // Check if student is already in a presented lesson
         if let existing = allLAs.first(where: {
             $0.isPresented && $0.studentIDs.contains(studentIDString)
         }) {
-            // Remove student from lesson
             var ids = existing.studentIDs
             ids.removeAll { $0 == studentIDString }
             if ids.isEmpty {
@@ -152,27 +173,31 @@ enum ChecklistBatchActionExecutor {
             } else {
                 existing.studentIDs = ids
             }
-            // Remove LessonPresentation
-            deleteLessonPresentation(studentID: studentIDString, lessonID: lessonIDString, context: context)
+            deleteLessonPresentation(
+                studentID: studentIDString, lessonID: lessonIDString,
+                from: prefetchedLPs, context: context
+            )
         } else {
-            // Add to presented lesson
             addStudentToGivenLesson(
                 student: student, studentIDString: studentIDString,
                 lesson: lesson, in: allLAs, context: context
             )
-            // Create LessonPresentation
             upsertLessonPresentation(
                 studentID: studentIDString, lessonID: lessonIDString,
-                state: .presented, context: context
+                state: .presented, from: prefetchedLPs, context: context
             )
         }
     }
 
-    private static func markCompleteNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
+    private static func markCompleteNoRecompute(
+        student: Student, lesson: Lesson,
+        prefetchedWorkModels: [WorkModel],
+        prefetchedLPs: [LessonPresentation],
+        context: ModelContext
+    ) {
         let studentIDString = student.cloudKitKey
         let lessonIDString = lesson.id.uuidString
 
-        // First, ensure the lesson is marked as presented
         let allLAs = context.safeFetch(
             FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
         )
@@ -183,33 +208,35 @@ enum ChecklistBatchActionExecutor {
             )
         }
 
-        // Optionally create/update WorkModel if one exists
-        if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
+        if let work = findOrCreateWork(
+            student: student, lesson: lesson,
+            prefetchedWorkModels: prefetchedWorkModels, context: context
+        ) {
             work.status = .complete
             work.completedAt = AppCalendar.startOfDay(Date())
         }
 
-        // Create/update LessonPresentation with mastered state
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
-            state: .proficient, context: context
+            state: .proficient, from: prefetchedLPs, context: context
         )
 
-        // Auto-enroll in track if lesson belongs to a track
         GroupTrackService.autoEnrollInTrackIfNeeded(
             lesson: lesson, studentIDs: [studentIDString], modelContext: context
         )
-
-        // Check if track is now complete
         GroupTrackService.checkAndCompleteTrackIfNeeded(
             lesson: lesson, studentID: studentIDString, modelContext: context
         )
     }
 
-    private static func clearStatusNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let lid = lesson.id
+    private static func clearStatusNoRecompute(
+        student: Student, lesson: Lesson,
+        prefetchedWorkModels: [WorkModel],
+        prefetchedLPs: [LessonPresentation],
+        context: ModelContext
+    ) {
         let sidString = student.cloudKitKey
-        let lidString = lid.uuidString
+        let lidString = lesson.id.uuidString
 
         let las = context.safeFetch(
             FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString })
@@ -224,19 +251,19 @@ enum ChecklistBatchActionExecutor {
             }
         }
 
-        // Delete WorkModels for this student/lesson
-        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
-        let workModelsToDelete = allWorkModels.filter { work in
-            let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
-            guard hasStudent else { return false }
-            return work.lessonID == lidString
+        // Filter from pre-fetched WorkModels instead of re-fetching all
+        let workModelsToDelete = prefetchedWorkModels.filter { work in
+            guard work.lessonID == lidString else { return false }
+            return (work.participants ?? []).contains { $0.studentID == sidString }
         }
         for work in workModelsToDelete {
             context.delete(work)
         }
 
-        // Delete LessonPresentation
-        deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
+        deleteLessonPresentation(
+            studentID: sidString, lessonID: lidString,
+            from: prefetchedLPs, context: context
+        )
     }
 
     private static func addStudentToGivenLesson(
@@ -268,16 +295,18 @@ enum ChecklistBatchActionExecutor {
         }
     }
 
-    private static func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
+    private static func findOrCreateWork(
+        student: Student, lesson: Lesson,
+        prefetchedWorkModels: [WorkModel],
+        context: ModelContext
+    ) -> WorkModel? {
         let sid = student.id
-        let lid = lesson.id
-        let lidString = lid.uuidString
-        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
+        let lidString = lesson.id.uuidString
 
-        let existingWork = allWorkModels.first { work in
-            let hasStudent = (work.participants ?? []).contains { $0.studentID == sid.uuidString }
-            guard hasStudent else { return false }
-            return work.lessonID == lidString
+        // Filter from pre-fetched data instead of re-fetching all WorkModels
+        let existingWork = prefetchedWorkModels.first { work in
+            guard work.lessonID == lidString else { return false }
+            return (work.participants ?? []).contains { $0.studentID == sid.uuidString }
         }
 
         if let existing = existingWork {
@@ -288,7 +317,7 @@ enum ChecklistBatchActionExecutor {
         do {
             return try repository.createWork(
                 studentID: sid,
-                lessonID: lid,
+                lessonID: lesson.id,
                 title: nil,
                 kind: nil,
                 presentationID: nil,
@@ -304,10 +333,11 @@ enum ChecklistBatchActionExecutor {
         studentID: String,
         lessonID: String,
         state: LessonPresentationState,
+        from prefetchedLPs: [LessonPresentation],
         context: ModelContext
     ) {
-        let allLessonPresentations = context.safeFetch(FetchDescriptor<LessonPresentation>())
-        let existing = allLessonPresentations.first { lp in
+        // Filter from pre-fetched data instead of re-fetching all LessonPresentations
+        let existing = prefetchedLPs.first { lp in
             lp.studentID == studentID && lp.lessonID == lessonID
         }
 
@@ -331,9 +361,13 @@ enum ChecklistBatchActionExecutor {
         }
     }
 
-    private static func deleteLessonPresentation(studentID: String, lessonID: String, context: ModelContext) {
-        let allLessonPresentations = context.safeFetch(FetchDescriptor<LessonPresentation>())
-        let toDelete = allLessonPresentations.filter { lp in
+    private static func deleteLessonPresentation(
+        studentID: String, lessonID: String,
+        from prefetchedLPs: [LessonPresentation],
+        context: ModelContext
+    ) {
+        // Filter from pre-fetched data instead of re-fetching all LessonPresentations
+        let toDelete = prefetchedLPs.filter { lp in
             lp.studentID == studentID && lp.lessonID == lessonID
         }
         for lp in toDelete {

@@ -14,6 +14,7 @@ import AppKit
 struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ClassSubjectChecklistViewModel()
+    @State private var didFinishInitialLoad = false
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -199,18 +200,21 @@ struct ClassSubjectChecklistView: View {
             .coordinateSpace(name: "gridSpace")
         }
         .onAppear {
-            // Restore persisted subject if available
+            // Restore persisted subject before loading so loadData uses it
             if !persistedSubject.isEmpty {
                 viewModel.selectedSubject = persistedSubject
             }
+            // Single load: fetches students, lessons, and builds matrix once
             viewModel.loadData(context: modelContext)
             viewModel.applyVisibilityFilter(
                 context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
             )
+            didFinishInitialLoad = true
         }
         .onChange(of: viewModel.selectedSubject) { _, newValue in
+            // Skip during initial load — loadData already built the matrix
+            guard didFinishInitialLoad else { return }
             viewModel.refreshMatrix(context: modelContext)
-            // Persist subject selection
             persistedSubject = newValue
         }
         .onChange(of: showTestStudents) { _, _ in
