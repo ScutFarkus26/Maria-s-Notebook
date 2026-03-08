@@ -5,6 +5,7 @@ struct CloudKitStatusSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dependencies) private var dependencies
     @State private var syncService: CloudKitSyncStatusService
+    @State private var isSyncDetailsExpanded = false
     @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isCloudKitEnabled = true
     
     init() {
@@ -109,32 +110,31 @@ struct CloudKitStatusSettingsView: View {
     }
 
     private var syncDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Sync Details")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-
-            DetailRow(label: "Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
-            DetailRow(label: "iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
-            DetailRow(label: "Current Operation", value: syncService.currentOperation ?? "Idle")
-            DetailRow(label: "Pending Changes", value: "\(syncService.pendingLocalChanges)")
-            DetailRow(
-                label: "Retry",
-                value: syncService.hasPendingRetry
-                    ? "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts) scheduled"
-                    : "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts)"
-            )
-
-            if let lastOperation = syncService.lastOperation {
-                DetailRow(label: "Last Operation", value: lastOperation)
-            }
-
-            if let lastOperationDate = syncService.lastOperationDate {
+        DisclosureGroup("Sync Details", isExpanded: $isSyncDetailsExpanded) {
+            VStack(alignment: .leading, spacing: 6) {
+                DetailRow(label: "Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
+                DetailRow(label: "iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
+                DetailRow(label: "Current Operation", value: syncService.currentOperation ?? "Idle")
+                DetailRow(label: "Pending Changes", value: "\(syncService.pendingLocalChanges)")
                 DetailRow(
-                    label: "Last Operation Time",
-                    value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
+                    label: "Retry",
+                    value: syncService.hasPendingRetry
+                        ? "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts) scheduled"
+                        : "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts)"
                 )
+
+                if let lastOperation = syncService.lastOperation {
+                    DetailRow(label: "Last Operation", value: lastOperation)
+                }
+
+                if let lastOperationDate = syncService.lastOperationDate {
+                    DetailRow(
+                        label: "Last Operation Time",
+                        value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
+                    )
+                }
             }
+            .padding(.top, 6)
         }
         .padding(.top, 4)
     }
@@ -189,9 +189,9 @@ struct CloudKitStatusSettingsView: View {
         if isCloudKitActive {
             switch syncService.syncHealth {
             case .syncing:
-                return "Syncing your data with iCloud..."
+                return "Syncing your recent changes with iCloud now..."
             case .healthy, .unknown:
-                return "Your data is syncing with iCloud. Changes will sync across your devices."
+                return "Your data stays in sync with iCloud. New changes sync automatically across your devices."
             case .warning:
                 return "iCloud sync is active but experiencing minor issues."
             case .error:
