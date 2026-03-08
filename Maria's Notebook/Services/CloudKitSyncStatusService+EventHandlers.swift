@@ -72,7 +72,9 @@ extension CloudKitSyncStatusService {
             pendingSyncCount = 0
         }
 
-        let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let isEnabled = UserDefaults.standard.object(
+            forKey: UserDefaultsKeys.enableCloudKitSync
+        ) as? Bool ?? true
         let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
 
         guard isEnabled && isActive else { return }
@@ -103,6 +105,9 @@ extension CloudKitSyncStatusService {
         lastSuccessfulSync = now
         lastSyncError = nil
         isSyncing = false
+        currentOperation = nil
+        lastOperation = "Remote changes received"
+        lastOperationDate = now
         pendingSyncCount = 0
         retryLogic.resetRetryCount()
         syncingTask?.cancel()
@@ -124,6 +129,7 @@ extension CloudKitSyncStatusService {
 
         isSyncing = true
         syncStartTime = Date()
+        currentOperation = "Local save queued for iCloud"
         updateSyncHealth()
 
         // Cancel any existing timeout task
@@ -149,6 +155,9 @@ extension CloudKitSyncStatusService {
                 // Check if we're online - if not, don't mark as successful
                 if !self.isNetworkAvailable {
                     self.isSyncing = false
+                    self.currentOperation = nil
+                    self.lastOperation = "Sync paused: waiting for network"
+                    self.lastOperationDate = Date()
                     self.lastSyncError = "Changes saved locally. Waiting for network to sync."
                     self.updateSyncHealth()
                     return
@@ -158,6 +167,9 @@ extension CloudKitSyncStatusService {
                 // the previously known sync timestamp instead of inferring success.
                 self.isSyncing = false
                 self.pendingSyncCount = 0
+                self.currentOperation = nil
+                self.lastOperation = "Sync timed out awaiting confirmation"
+                self.lastOperationDate = Date()
                 self.updateSyncHealth()
             }
         }
@@ -183,8 +195,9 @@ extension CloudKitSyncStatusService {
             if !isSyncing {
                 isSyncing = true
                 syncStartTime = Date()
-                updateSyncHealth()
             }
+            currentOperation = "CloudKit event in progress"
+            updateSyncHealth()
             return
         }
 
@@ -195,6 +208,7 @@ extension CloudKitSyncStatusService {
         case .export: typeDescription = "Export"
         @unknown default: typeDescription = "Unknown"
         }
+        currentOperation = nil
 
         if succeeded {
             Self.logger.debug("CloudKit \(typeDescription) succeeded")
@@ -204,6 +218,8 @@ extension CloudKitSyncStatusService {
             if type != .setup {
                 let now = Date()
                 lastSuccessfulSync = now
+                lastOperation = "\(typeDescription) completed"
+                lastOperationDate = now
                 lastSyncError = nil
                 pendingSyncCount = 0
                 retryLogic.resetRetryCount()
@@ -223,6 +239,8 @@ extension CloudKitSyncStatusService {
             SyncEventLogger.shared.log("cloudkit", status: "error", message: "\(typeDescription) failed: \(errorDesc)")
 
             lastSyncError = "\(typeDescription) failed: \(errorDesc)"
+            lastOperation = "\(typeDescription) failed"
+            lastOperationDate = Date()
             isSyncing = false
             syncingTask?.cancel()
             syncingTask = nil

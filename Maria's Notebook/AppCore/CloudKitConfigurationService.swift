@@ -40,6 +40,34 @@ enum CloudKitConfigurationService {
         case conflict
         case schema
         case unknown
+
+        var displayName: String {
+            switch self {
+            case .authentication: return "Authentication"
+            case .network: return "Network"
+            case .quota: return "Quota"
+            case .conflict: return "Conflict"
+            case .schema: return "Schema"
+            case .unknown: return "Unknown"
+            }
+        }
+
+        var recommendedAction: String {
+            switch self {
+            case .authentication:
+                return "Sign in to iCloud and confirm this app has iCloud access."
+            case .network:
+                return "Check your internet connection and retry sync."
+            case .quota:
+                return "Free up iCloud storage space, then retry sync."
+            case .conflict:
+                return "Keep using the app; CloudKit should resolve this after a retry."
+            case .schema:
+                return "Update the app to the latest version and retry."
+            case .unknown:
+                return "Retry sync. If this persists, restart the app and check logs."
+            }
+        }
     }
 
     struct ErrorLogEntry: Codable {
@@ -56,7 +84,9 @@ enum CloudKitConfigurationService {
 
     /// Returns a summary of CloudKit sync status.
     static func getStatus() -> Status {
-        let enabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let enabled = UserDefaults.standard.object(
+            forKey: UserDefaultsKeys.enableCloudKitSync
+        ) as? Bool ?? true
         let active = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
         let containerID = getContainerID() ?? "Unknown"
         return Status(enabled: enabled, active: active, containerID: containerID)
@@ -116,6 +146,8 @@ enum CloudKitConfigurationService {
             return .unknown
         }
 
+        // Map low-level CKError codes into user-facing categories used by Settings diagnostics.
+        // Prefer stable high-level buckets so guidance remains actionable across transient failures.
         switch ckCode {
         case .internalError:                    return .unknown
         case .partialFailure:                   return .unknown
@@ -147,7 +179,7 @@ enum CloudKitConfigurationService {
         case .managedAccountRestricted:         return .authentication
         case .participantMayNeedVerification:   return .authentication
         case .accountTemporarilyUnavailable:    return .authentication
-        @unknown default:                       return .unknown
+        default:                                 return .unknown
         }
     }
 

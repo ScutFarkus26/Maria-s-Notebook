@@ -5,21 +5,31 @@ struct CloudKitStatusSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dependencies) private var dependencies
     @State private var syncService: CloudKitSyncStatusService
+    @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isCloudKitEnabled = true
     
     init() {
         _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
-    }
-
-    private var isCloudKitEnabled: Bool {
-        UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
     }
 
     private var isCloudKitActive: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
     }
 
+    private var recentErrorLogs: [CloudKitConfigurationService.ErrorLogEntry] {
+        let logs = CloudKitConfigurationService.getErrorLogs()
+        return Array(logs.suffix(3).reversed())
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Toggle("Enable iCloud Sync", isOn: $isCloudKitEnabled)
+
+            if isCloudKitEnabled != isCloudKitActive {
+                Text("Restart required for this change to take effect.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             // Status Indicator Row
             HStack(spacing: 10) {
                 SyncStatusIndicator(health: syncService.syncHealth)
@@ -44,13 +54,14 @@ struct CloudKitStatusSettingsView: View {
                             await syncService.syncNow()
                         }
                     } label: {
-                        if syncService.isSyncing {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .frame(width: 16, height: 16)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .rotationEffect(.degrees(syncService.isSyncing ? 360 : 0))
+                            .adaptiveAnimation(
+                                syncService.isSyncing
+                                    ? .linear(duration: 1).repeatForever(autoreverses: false)
+                                    : .default,
+                                value: syncService.isSyncing
+                            )
                     }
                     .buttonStyle(.bordered)
                     .disabled(syncService.isSyncing)
@@ -62,6 +73,14 @@ struct CloudKitStatusSettingsView: View {
             Text(statusDescription)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            if isCloudKitActive {
+                syncDetailsSection
+            }
+
+            if !recentErrorLogs.isEmpty {
+                recentErrorsSection
+            }
 
             // Error Display
             if case .error(let message) = syncService.syncHealth {
@@ -87,6 +106,66 @@ struct CloudKitStatusSettingsView: View {
                 .cornerRadius(8)
             }
         }
+    }
+
+    private var syncDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Sync Details")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            DetailRow(label: "Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
+            DetailRow(label: "iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
+            DetailRow(label: "Current Operation", value: syncService.currentOperation ?? "Idle")
+            DetailRow(label: "Pending Changes", value: "\(syncService.pendingLocalChanges)")
+            DetailRow(
+                label: "Retry",
+                value: syncService.hasPendingRetry
+                    ? "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts) scheduled"
+                    : "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts)"
+            )
+
+            if let lastOperation = syncService.lastOperation {
+                DetailRow(label: "Last Operation", value: lastOperation)
+            }
+
+            if let lastOperationDate = syncService.lastOperationDate {
+                DetailRow(
+                    label: "Last Operation Time",
+                    value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
+                )
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private var recentErrorsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Recent CloudKit Errors")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            ForEach(Array(recentErrorLogs.enumerated()), id: \.offset) { _, log in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(log.category.displayName): \(log.errorMessage)")
+                        .font(.caption)
+                        .foregroundStyle(AppColors.destructive)
+                        .lineLimit(3)
+
+                    Text(log.category.recommendedAction)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Text(log.timestamp.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(6)
+                .background(AppColors.destructive.opacity(0.08))
+                .cornerRadius(6)
+            }
+        }
+        .padding(.top, 4)
     }
 
     private var statusText: String {
@@ -145,6 +224,23 @@ struct CloudKitStatusSettingsView: View {
             return "iCloud account unavailable. Sign in to iCloud in System Settings to sync your data."
         } else {
             return "Unable to connect to iCloud. Changes are saved locally and will sync when connection is restored."
+        }
+    }
+}
+
+private struct DetailRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.caption)
+                .multilineTextAlignment(.trailing)
         }
     }
 }

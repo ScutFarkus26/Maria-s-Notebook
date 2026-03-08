@@ -42,6 +42,18 @@ final class CloudKitSyncStatusService {
     /// Timestamp when the service was initialized (used for startup grace period)
     let initializationTime: Date = Date()
 
+    /// Number of pending local saves waiting for CloudKit confirmation.
+    var pendingLocalChanges: Int { pendingSyncCount }
+
+    /// Retry attempt diagnostics for settings UI.
+    var retryAttempt: Int { retryLogic.retryAttempt }
+
+    /// Maximum retry attempts for settings UI.
+    var maxRetryAttempts: Int { retryLogic.maxRetryCount }
+
+    /// Whether a retry is currently scheduled.
+    var hasPendingRetry: Bool { retryLogic.hasPendingRetry }
+
     // MARK: - Specialized Services
 
     let networkMonitor = NetworkMonitoring()
@@ -65,6 +77,15 @@ final class CloudKitSyncStatusService {
 
     /// Pending sync count - tracks how many saves are waiting for CloudKit confirmation
     var pendingSyncCount: Int = 0
+
+    /// Current CloudKit operation (setup/import/export/manual) if known.
+    var currentOperation: String?
+
+    /// Most recent finished CloudKit operation description.
+    var lastOperation: String?
+
+    /// Timestamp for the most recent finished operation.
+    var lastOperationDate: Date?
 
     /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
     let syncTimeout: Duration = TimeoutConstants.defaultSyncTimeout
@@ -149,6 +170,7 @@ final class CloudKitSyncStatusService {
 
         isSyncing = true
         syncStartTime = Date()
+        currentOperation = "Manual sync"
         updateSyncHealth()
         SyncEventLogger.shared.log("cloudkit", status: "started", message: "Manual sync initiated")
 
@@ -177,6 +199,9 @@ final class CloudKitSyncStatusService {
                 // CancellationError or other — just proceed
             }
             isSyncing = false
+            lastOperation = "Manual sync succeeded"
+            lastOperationDate = now
+            currentOperation = nil
             updateSyncHealth()
             return true
         } catch {
@@ -184,6 +209,9 @@ final class CloudKitSyncStatusService {
             UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
             SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)
             isSyncing = false
+            lastOperation = "Manual sync failed"
+            lastOperationDate = Date()
+            currentOperation = nil
             updateSyncHealth()
             return false
         }
@@ -192,7 +220,9 @@ final class CloudKitSyncStatusService {
     // MARK: - Health Assessment
 
     func updateSyncHealth() {
-        let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let isEnabled = UserDefaults.standard.object(
+            forKey: UserDefaultsKeys.enableCloudKitSync
+        ) as? Bool ?? true
         let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
 
         healthCheck.updateSyncHealth(

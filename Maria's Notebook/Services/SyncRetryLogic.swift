@@ -20,6 +20,12 @@ final class SyncRetryLogic {
     
     /// Task for retry operations
     private var retryTask: Task<Void, Never>?
+
+    /// Public read-only max retry attempts for diagnostics UI.
+    var maxRetryCount: Int { maxRetryAttempts }
+
+    /// Whether a retry task is currently scheduled.
+    var hasPendingRetry: Bool { retryTask != nil }
     
     // MARK: - Public API
     
