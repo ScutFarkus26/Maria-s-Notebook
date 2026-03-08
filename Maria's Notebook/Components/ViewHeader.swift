@@ -6,6 +6,10 @@ struct ViewHeader<TrailingContent: View>: View {
     let title: String
     @ViewBuilder let trailingContent: () -> TrailingContent
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     init(title: String, @ViewBuilder trailingContent: @escaping () -> TrailingContent = { EmptyView() }) {
         self.title = title
         self.trailingContent = trailingContent
@@ -22,6 +26,13 @@ struct ViewHeader<TrailingContent: View>: View {
         }
         .padding()
         .backgroundPlatform()
+        // Hide the parent navigation bar since ViewHeader provides its own title.
+        // On iPhone compact, keep the nav bar visible for back navigation.
+        #if os(iOS)
+        .toolbar(horizontalSizeClass == .compact ? .automatic : .hidden, for: .navigationBar)
+        #else
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
     }
 }
 
