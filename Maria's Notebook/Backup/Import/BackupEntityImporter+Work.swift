@@ -5,6 +5,49 @@ import SwiftData
 
 extension BackupEntityImporter {
 
+    // MARK: - WorkModel
+
+    /// Imports WorkModel records from DTOs. Must run BEFORE child entities (check-ins, steps, participants).
+    static func importWorkModels(
+        _ dtos: [WorkModelDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<WorkModel>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+                let work = WorkModel(
+                    id: dto.id,
+                    title: dto.title,
+                    kind: dto.kindRaw.flatMap { WorkKind(rawValue: $0) } ?? .research,
+                    studentLessonID: dto.studentLessonID,
+                    createdAt: dto.createdAt,
+                    completedAt: dto.completedAt,
+                    status: WorkStatus(rawValue: dto.statusRaw) ?? .active,
+                    assignedAt: dto.assignedAt,
+                    lastTouchedAt: dto.lastTouchedAt,
+                    dueAt: dto.dueAt,
+                    completionOutcome: dto.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) },
+                    legacyContractID: dto.legacyContractID,
+                    studentID: dto.studentID,
+                    lessonID: dto.lessonID,
+                    presentationID: dto.presentationID,
+                    trackID: dto.trackID,
+                    trackStepID: dto.trackStepID,
+                    scheduledNote: dto.scheduledNote,
+                    scheduledReason: dto.scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) },
+                    sourceContextType: dto.sourceContextTypeRaw.flatMap { WorkSourceContextType(rawValue: $0) },
+                    sourceContextID: dto.sourceContextID,
+                    legacyStudentLessonID: dto.legacyStudentLessonID
+                )
+                work.sampleWorkID = dto.sampleWorkID
+                work.checkInStyleRaw = dto.checkInStyleRaw
+                return work
+            })
+    }
+
     // MARK: - Work Completion Records
 
     /// Imports work completion records from DTOs.

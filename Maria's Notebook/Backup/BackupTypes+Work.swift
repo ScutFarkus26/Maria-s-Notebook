@@ -7,6 +7,7 @@ public struct WorkParticipantDTO: Codable, Sendable {
     public var completedAt: Date?
 }
 
+/// Legacy DTO — retained for backward compatibility with older backup files.
 public struct WorkDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
@@ -16,6 +17,87 @@ public struct WorkDTO: Codable, Sendable {
     public var createdAt: Date
     public var completedAt: Date?
     public var participants: [WorkParticipantDTO]
+}
+
+/// Modern DTO that captures all WorkModel fields (format v11+).
+public struct WorkModelDTO: Codable, Sendable {
+    public var id: UUID
+    public var title: String
+    public var workTypeRaw: String
+    public var studentLessonID: UUID?
+    public var createdAt: Date
+    public var completedAt: Date?
+    // Modern work tracking
+    public var kindRaw: String?
+    public var statusRaw: String
+    public var assignedAt: Date
+    public var lastTouchedAt: Date?
+    public var dueAt: Date?
+    public var completionOutcomeRaw: String?
+    public var legacyContractID: UUID?
+    // CloudKit-compatible string FKs
+    public var studentID: String
+    public var lessonID: String
+    public var presentationID: String?
+    public var trackID: String?
+    public var trackStepID: String?
+    public var scheduledNote: String?
+    public var scheduledReasonRaw: String?
+    public var sourceContextTypeRaw: String?
+    public var sourceContextID: String?
+    public var sampleWorkID: String?
+    public var legacyStudentLessonID: String?
+    public var checkInStyleRaw: String?
+}
+
+// MARK: - PlanningRecommendation DTO
+
+public struct PlanningRecommendationDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var lessonID: String
+    public var studentIDsData: Data?
+    public var reasoning: String
+    public var confidence: Double
+    public var priority: Int
+    public var subjectContext: String
+    public var groupContext: String
+    public var planningSessionID: String
+    public var depthLevel: String
+    public var decisionRaw: String?
+    public var decisionAt: Date?
+    public var teacherNote: String?
+    public var outcomeRaw: String?
+    public var outcomeRecordedAt: Date?
+    public var presentationID: String?
+}
+
+// MARK: - Resource DTO
+
+public struct ResourceDTO: Codable, Sendable {
+    public var id: UUID
+    public var title: String
+    public var descriptionText: String
+    public var categoryRaw: String
+    public var fileRelativePath: String
+    public var fileSizeBytes: Int64
+    public var tags: [String]
+    public var isFavorite: Bool
+    public var lastViewedAt: Date?
+    public var linkedLessonIDs: String
+    public var linkedSubjects: String
+    public var createdAt: Date
+    public var modifiedAt: Date
+    // Note: fileBookmark and thumbnailData are @externalStorage and excluded from backups by design
+}
+
+// MARK: - NoteStudentLink DTO
+
+public struct NoteStudentLinkDTO: Codable, Sendable {
+    public var id: UUID
+    public var noteID: String
+    public var studentID: String
 }
 
 public struct WorkCheckInDTO: Codable, Sendable {

@@ -334,4 +334,103 @@ extension BackupEntityImporter {
             return s
         })
     }
+
+    // MARK: - PlanningRecommendation
+
+    static func importPlanningRecommendations(
+        _ dtos: [PlanningRecommendationDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<PlanningRecommendation>
+    ) rethrows {
+        for dto in dtos {
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
+            guard let lessonUUID = UUID(uuidString: dto.lessonID),
+                  let sessionUUID = UUID(uuidString: dto.planningSessionID),
+                  let depth = PlanningDepth(rawValue: dto.depthLevel) else { continue }
+            // Decode student IDs from the blob
+            let studentIDs = CloudKitStringArrayStorage.decode(from: dto.studentIDsData)
+                .compactMap { UUID(uuidString: $0) }
+            let rec = PlanningRecommendation(
+                lessonID: lessonUUID,
+                studentIDs: studentIDs,
+                reasoning: dto.reasoning,
+                confidence: dto.confidence,
+                priority: dto.priority,
+                subjectContext: dto.subjectContext,
+                groupContext: dto.groupContext,
+                planningSessionID: sessionUUID,
+                depthLevel: depth
+            )
+            // Overwrite generated fields with backup values
+            rec.id = dto.id
+            rec.createdAt = dto.createdAt
+            rec.modifiedAt = dto.modifiedAt
+            rec.decisionRaw = dto.decisionRaw
+            rec.decisionAt = dto.decisionAt
+            rec.teacherNote = dto.teacherNote
+            rec.outcomeRaw = dto.outcomeRaw
+            rec.outcomeRecordedAt = dto.outcomeRecordedAt
+            rec.presentationID = dto.presentationID
+            modelContext.insert(rec)
+        }
+    }
+
+    // MARK: - Resource
+
+    static func importResources(
+        _ dtos: [ResourceDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<Resource>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: modelContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+                let r = Resource(
+                    id: dto.id,
+                    title: dto.title,
+                    descriptionText: dto.descriptionText,
+                    category: ResourceCategory(rawValue: dto.categoryRaw) ?? .other,
+                    fileRelativePath: dto.fileRelativePath,
+                    fileSizeBytes: dto.fileSizeBytes,
+                    tags: dto.tags,
+                    isFavorite: dto.isFavorite,
+                    linkedLessonIDs: dto.linkedLessonIDs,
+                    linkedSubjects: dto.linkedSubjects
+                )
+                r.lastViewedAt = dto.lastViewedAt
+                r.createdAt = dto.createdAt
+                r.modifiedAt = dto.modifiedAt
+                return r
+            })
+    }
+
+    // MARK: - NoteStudentLink
+
+    static func importNoteStudentLinks(
+        _ dtos: [NoteStudentLinkDTO],
+        into modelContext: ModelContext,
+        existingCheck: EntityExistsCheck<NoteStudentLink>,
+        noteCheck: EntityExistsCheck<Note>
+    ) rethrows {
+        for dto in dtos {
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
+            let link = NoteStudentLink(
+                id: dto.id,
+                noteID: dto.noteID,
+                studentID: dto.studentID
+            )
+            // Link to note if exists
+            do {
+                if let noteUUID = UUID(uuidString: dto.noteID),
+                   let note = try noteCheck(noteUUID) {
+                    link.note = note
+                }
+            } catch {
+                print("⚠️ [Backup:\(#function)] Failed to check note for link: \(error)")
+            }
+            modelContext.insert(link)
+        }
+    }
 }

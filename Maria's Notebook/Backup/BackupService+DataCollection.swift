@@ -118,6 +118,8 @@ extension BackupService {
         progress: @escaping ProgressCallback
     ) {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.42), "Collecting work tracking\u{2026}")
+        payload.workModels = fetchAndTransformInBatches(
+            WorkModel.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         payload.workCheckIns = fetchAndTransformInBatches(
             WorkCheckIn.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         payload.workSteps = fetchAndTransformInBatches(
@@ -199,6 +201,14 @@ extension BackupService {
             TodoTemplate.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todayAgendaOrders = fetchAndTransformInBatches(
             TodayAgendaOrder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+
+        progress(BackupProgress.progress(for: .collecting, subProgress: 0.80), "Collecting recommendations & resources\u{2026}")
+        payload.planningRecommendations = fetchAndTransformInBatches(
+            PlanningRecommendation.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.resources = fetchAndTransformInBatches(
+            Resource.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.noteStudentLinks = fetchAndTransformInBatches(
+            NoteStudentLink.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Encode & Write
@@ -305,6 +315,7 @@ extension BackupService {
 
     private func buildExtendedEntityCounts(from payload: BackupPayload) -> [String: Int] {
         [
+            "WorkModel": payload.workModels?.count ?? 0,
             "WorkCheckIn": payload.workCheckIns?.count ?? 0,
             "WorkStep": payload.workSteps?.count ?? 0,
             "WorkParticipantEntity": payload.workParticipants?.count ?? 0,
@@ -333,7 +344,10 @@ extension BackupService {
             "TodoItem": payload.todoItems?.count ?? 0,
             "TodoSubtask": payload.todoSubtasks?.count ?? 0,
             "TodoTemplate": payload.todoTemplates?.count ?? 0,
-            "TodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0
+            "TodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0,
+            "PlanningRecommendation": payload.planningRecommendations?.count ?? 0,
+            "Resource": payload.resources?.count ?? 0,
+            "NoteStudentLink": payload.noteStudentLinks?.count ?? 0
         ]
     }
 

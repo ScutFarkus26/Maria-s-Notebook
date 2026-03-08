@@ -29,6 +29,7 @@ extension StreamingBackupWriter {
         counts["ProjectTemplateWeek"] = try modelContext.fetchCount(FetchDescriptor<ProjectTemplateWeek>())
         counts["ProjectWeekRoleAssignment"] = try modelContext.fetchCount(FetchDescriptor<ProjectWeekRoleAssignment>())
         // Format v8+ entities
+        counts["WorkModel"] = try modelContext.fetchCount(FetchDescriptor<WorkModel>())
         counts["WorkCheckIn"] = try modelContext.fetchCount(FetchDescriptor<WorkCheckIn>())
         counts["WorkStep"] = try modelContext.fetchCount(FetchDescriptor<WorkStep>())
         counts["WorkParticipantEntity"] = try modelContext.fetchCount(FetchDescriptor<WorkParticipantEntity>())
@@ -58,6 +59,10 @@ extension StreamingBackupWriter {
         counts["TodoSubtask"] = try modelContext.fetchCount(FetchDescriptor<TodoSubtask>())
         counts["TodoTemplate"] = try modelContext.fetchCount(FetchDescriptor<TodoTemplate>())
         counts["TodayAgendaOrder"] = try modelContext.fetchCount(FetchDescriptor<TodayAgendaOrder>())
+        // Format v11+ entities
+        counts["PlanningRecommendation"] = try modelContext.fetchCount(FetchDescriptor<PlanningRecommendation>())
+        counts["Resource"] = try modelContext.fetchCount(FetchDescriptor<Resource>())
+        counts["NoteStudentLink"] = try modelContext.fetchCount(FetchDescriptor<NoteStudentLink>())
 
         return counts
     }

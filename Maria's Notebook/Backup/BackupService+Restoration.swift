@@ -121,6 +121,9 @@ extension BackupService {
         progress(0.86, "Importing snapshots & todos\u{2026}")
         try importSnapshotAndTodoEntities(from: payload, into: modelContext)
 
+        progress(0.88, "Importing recommendations, resources & links\u{2026}")
+        try importAdditionalEntities(from: payload, into: modelContext)
+
         progress(0.90, "Saving\u{2026}")
         try modelContext.save()
 
@@ -286,6 +289,15 @@ extension BackupService {
         from payload: BackupPayload,
         into modelContext: ModelContext
     ) throws {
+        // WorkModel must be imported first — child entities reference it
+        if let workModels = payload.workModels {
+            try BackupEntityImporter.importWorkModels(
+                workModels,
+                into: modelContext,
+                existingCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+            )
+        }
+
         if let workCheckIns = payload.workCheckIns {
             try BackupEntityImporter.importWorkCheckIns(
                 workCheckIns,
@@ -562,6 +574,36 @@ extension BackupService {
                 agendaOrders,
                 into: modelContext,
                 existingCheck: { try fetchOne(TodayAgendaOrder.self, id: $0, using: modelContext) }
+            )
+        }
+    }
+
+    private func importAdditionalEntities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
+        if let recommendations = payload.planningRecommendations {
+            try BackupEntityImporter.importPlanningRecommendations(
+                recommendations,
+                into: modelContext,
+                existingCheck: { try fetchOne(PlanningRecommendation.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let resources = payload.resources {
+            try BackupEntityImporter.importResources(
+                resources,
+                into: modelContext,
+                existingCheck: { try fetchOne(Resource.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let noteStudentLinks = payload.noteStudentLinks {
+            try BackupEntityImporter.importNoteStudentLinks(
+                noteStudentLinks,
+                into: modelContext,
+                existingCheck: { try fetchOne(NoteStudentLink.self, id: $0, using: modelContext) },
+                noteCheck: { try fetchOne(Note.self, id: $0, using: modelContext) }
             )
         }
     }

@@ -46,6 +46,8 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(weeks)
         case let roleAssignments as [ProjectWeekRoleAssignment]:
             return BackupDTOTransformers.toDTOs(roleAssignments)
+        case let works as [WorkModel]:
+            return BackupDTOTransformers.toDTOs(works)
         case let checkIns as [WorkCheckIn]:
             return BackupDTOTransformers.toDTOs(checkIns)
         case let steps as [WorkStep]:
@@ -104,6 +106,12 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(templates)
         case let orders as [TodayAgendaOrder]:
             return BackupDTOTransformers.toDTOs(orders)
+        case let recommendations as [PlanningRecommendation]:
+            return BackupDTOTransformers.toDTOs(recommendations)
+        case let resources as [Resource]:
+            return BackupDTOTransformers.toDTOs(resources)
+        case let links as [NoteStudentLink]:
+            return BackupDTOTransformers.toDTOs(links)
         default:
             return []
         }

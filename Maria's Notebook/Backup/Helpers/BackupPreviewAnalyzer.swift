@@ -96,6 +96,7 @@ enum BackupPreviewAnalyzer {
         assign("ProposedSolution", payload.proposedSolutions.count, 0, count(ProposedSolution.self))
         assign("CommunityAttachment", payload.communityAttachments.count, 0, count(CommunityAttachment.self))
         assign("AttendanceRecord", payload.attendance.count, 0, count(AttendanceRecord.self))
+        assign("WorkModel", payload.workModels?.count ?? 0, 0, count(WorkModel.self))
         assign("WorkCompletionRecord", payload.workCompletions.count, 0, count(WorkCompletionRecord.self))
         assign("Project", payload.projects.count, 0, count(Project.self))
         assign(

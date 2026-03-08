@@ -389,6 +389,7 @@ enum BackupPayloadDeduplicator {
         )
         
         // Format v8+ entity deduplication
+        result.workModels = payload.workModels.map { uniqueBy($0) { $0.id } }
         result.workCheckIns = payload.workCheckIns.map { uniqueBy($0) { $0.id } }
         result.workSteps = payload.workSteps.map { uniqueBy($0) { $0.id } }
         result.workParticipants = payload.workParticipants.map { uniqueBy($0) { $0.id } }
@@ -418,7 +419,11 @@ enum BackupPayloadDeduplicator {
         result.todoSubtasks = payload.todoSubtasks.map { uniqueBy($0) { $0.id } }
         result.todoTemplates = payload.todoTemplates.map { uniqueBy($0) { $0.id } }
         result.todayAgendaOrders = payload.todayAgendaOrders.map { uniqueBy($0) { $0.id } }
-        
+        // Format v11+ entity deduplication
+        result.planningRecommendations = payload.planningRecommendations.map { uniqueBy($0) { $0.id } }
+        result.resources = payload.resources.map { uniqueBy($0) { $0.id } }
+        result.noteStudentLinks = payload.noteStudentLinks.map { uniqueBy($0) { $0.id } }
+
         return result
     }
 }

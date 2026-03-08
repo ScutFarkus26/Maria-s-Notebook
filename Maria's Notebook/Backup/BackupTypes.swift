@@ -188,6 +188,7 @@ public struct BackupPayload: Codable, Sendable {
         case attendance, workCompletions
         case projects, projectAssignmentTemplates, projectSessions, projectRoles
         case projectTemplateWeeks, projectWeekRoleAssignments
+        case workModels
         case workCheckIns, workSteps, workParticipants, practiceSessions
         case lessonAttachments, lessonPresentations
         case sampleWorks, sampleWorkSteps
@@ -201,6 +202,7 @@ public struct BackupPayload: Codable, Sendable {
         case developmentSnapshots
         case todoItems, todoSubtasks, todoTemplates
         case todayAgendaOrders
+        case planningRecommendations, resources, noteStudentLinks
         case preferences
     }
 
@@ -229,6 +231,9 @@ public struct BackupPayload: Codable, Sendable {
     public var projectRoles: [ProjectRoleDTO]
     public var projectTemplateWeeks: [ProjectTemplateWeekDTO]
     public var projectWeekRoleAssignments: [ProjectWeekRoleAssignmentDTO]
+
+    // Work models (format v11+) — the parent entity for work tracking
+    public var workModels: [WorkModelDTO]?
 
     // Work tracking (format v8+)
     public var workCheckIns: [WorkCheckInDTO]?
@@ -283,6 +288,15 @@ public struct BackupPayload: Codable, Sendable {
 
     // Agenda ordering (format v8+)
     public var todayAgendaOrders: [TodayAgendaOrderDTO]?
+
+    // Planning recommendations (format v11+)
+    public var planningRecommendations: [PlanningRecommendationDTO]?
+
+    // Resources (format v11+)
+    public var resources: [ResourceDTO]?
+
+    // Note-Student junction links (format v11+)
+    public var noteStudentLinks: [NoteStudentLinkDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

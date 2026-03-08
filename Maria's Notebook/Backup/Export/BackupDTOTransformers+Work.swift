@@ -1,9 +1,41 @@
 import Foundation
 import SwiftData
 
-// MARK: - Work Transformers (WorkCheckIn, WorkStep, WorkParticipant, PracticeSession)
+// MARK: - Work Transformers (WorkModel, WorkCheckIn, WorkStep, WorkParticipant, PracticeSession)
 
 extension BackupDTOTransformers {
+
+    // MARK: - WorkModel
+
+    static func toDTO(_ work: WorkModel) -> WorkModelDTO {
+        WorkModelDTO(
+            id: work.id,
+            title: work.title,
+            workTypeRaw: work.workTypeRaw,
+            studentLessonID: work.studentLessonID,
+            createdAt: work.createdAt,
+            completedAt: work.completedAt,
+            kindRaw: work.kindRaw,
+            statusRaw: work.statusRaw,
+            assignedAt: work.assignedAt,
+            lastTouchedAt: work.lastTouchedAt,
+            dueAt: work.dueAt,
+            completionOutcomeRaw: work.completionOutcomeRaw,
+            legacyContractID: work.legacyContractID,
+            studentID: work.studentID,
+            lessonID: work.lessonID,
+            presentationID: work.presentationID,
+            trackID: work.trackID,
+            trackStepID: work.trackStepID,
+            scheduledNote: work.scheduledNote,
+            scheduledReasonRaw: work.scheduledReasonRaw,
+            sourceContextTypeRaw: work.sourceContextTypeRaw,
+            sourceContextID: work.sourceContextID,
+            sampleWorkID: work.sampleWorkID,
+            legacyStudentLessonID: work.legacyStudentLessonID,
+            checkInStyleRaw: work.checkInStyleRaw
+        )
+    }
 
     // MARK: - WorkCheckIn
 
@@ -73,6 +105,10 @@ extension BackupDTOTransformers {
     }
 
     // MARK: - Batch Transformations (Work)
+
+    static func toDTOs(_ works: [WorkModel]) -> [WorkModelDTO] {
+        works.map { toDTO($0) }
+    }
 
     static func toDTOs(_ checkIns: [WorkCheckIn]) -> [WorkCheckInDTO] {
         checkIns.map { toDTO($0) }

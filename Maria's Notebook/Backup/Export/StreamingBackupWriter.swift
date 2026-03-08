@@ -211,6 +211,9 @@ public final class StreamingBackupWriter {
     ) async throws {
         progress(0.40, "Processing work tracking\u{2026}", collector.processedEntities, nil)
 
+        let workModels: [WorkModel] = try await streamFetchRaw(WorkModel.self, from: modelContext)
+        collector.payload.workModels = BackupDTOTransformers.toDTOs(workModels)
+
         let workCheckIns: [WorkCheckIn] = try await streamFetchRaw(WorkCheckIn.self, from: modelContext)
         collector.payload.workCheckIns = BackupDTOTransformers.toDTOs(workCheckIns)
 
@@ -335,6 +338,19 @@ public final class StreamingBackupWriter {
 
         let agendaOrders: [TodayAgendaOrder] = try await streamFetchRaw(TodayAgendaOrder.self, from: modelContext)
         collector.payload.todayAgendaOrders = BackupDTOTransformers.toDTOs(agendaOrders)
+
+        progress(0.58, "Processing recommendations & resources\u{2026}", collector.processedEntities, nil)
+
+        let recommendations: [PlanningRecommendation] = try await streamFetchRaw(
+            PlanningRecommendation.self, from: modelContext
+        )
+        collector.payload.planningRecommendations = BackupDTOTransformers.toDTOs(recommendations)
+
+        let resources: [Resource] = try await streamFetchRaw(Resource.self, from: modelContext)
+        collector.payload.resources = BackupDTOTransformers.toDTOs(resources)
+
+        let noteStudentLinks: [NoteStudentLink] = try await streamFetchRaw(NoteStudentLink.self, from: modelContext)
+        collector.payload.noteStudentLinks = BackupDTOTransformers.toDTOs(noteStudentLinks)
     }
 
     // MARK: - Finalization

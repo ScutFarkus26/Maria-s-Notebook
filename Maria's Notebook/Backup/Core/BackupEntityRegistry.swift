@@ -74,7 +74,11 @@ struct BackupEntityRegistry {
         TodoSubtask.self,
         TodoTemplate.self,
         // Agenda
-        TodayAgendaOrder.self
+        TodayAgendaOrder.self,
+        // Planning recommendations
+        PlanningRecommendation.self,
+        // Resources
+        Resource.self
     ]
     
     /// Entity type names for progress reporting and error messages

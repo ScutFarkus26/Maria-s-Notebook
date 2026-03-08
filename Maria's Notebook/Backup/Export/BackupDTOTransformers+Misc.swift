@@ -537,4 +537,71 @@ extension BackupDTOTransformers {
     static func toDTOs(_ orders: [TodayAgendaOrder]) -> [TodayAgendaOrderDTO] {
         orders.map { toDTO($0) }
     }
+
+    // MARK: - PlanningRecommendation
+
+    static func toDTO(_ r: PlanningRecommendation) -> PlanningRecommendationDTO {
+        PlanningRecommendationDTO(
+            id: r.id,
+            createdAt: r.createdAt,
+            modifiedAt: r.modifiedAt,
+            lessonID: r.lessonID,
+            studentIDsData: r._studentIDsData,
+            reasoning: r.reasoning,
+            confidence: r.confidence,
+            priority: r.priority,
+            subjectContext: r.subjectContext,
+            groupContext: r.groupContext,
+            planningSessionID: r.planningSessionID,
+            depthLevel: r.depthLevel,
+            decisionRaw: r.decisionRaw,
+            decisionAt: r.decisionAt,
+            teacherNote: r.teacherNote,
+            outcomeRaw: r.outcomeRaw,
+            outcomeRecordedAt: r.outcomeRecordedAt,
+            presentationID: r.presentationID
+        )
+    }
+
+    static func toDTOs(_ recommendations: [PlanningRecommendation]) -> [PlanningRecommendationDTO] {
+        recommendations.map { toDTO($0) }
+    }
+
+    // MARK: - Resource
+
+    static func toDTO(_ r: Resource) -> ResourceDTO {
+        ResourceDTO(
+            id: r.id,
+            title: r.title,
+            descriptionText: r.descriptionText,
+            categoryRaw: r.categoryRaw,
+            fileRelativePath: r.fileRelativePath,
+            fileSizeBytes: r.fileSizeBytes,
+            tags: r.tags,
+            isFavorite: r.isFavorite,
+            lastViewedAt: r.lastViewedAt,
+            linkedLessonIDs: r.linkedLessonIDs,
+            linkedSubjects: r.linkedSubjects,
+            createdAt: r.createdAt,
+            modifiedAt: r.modifiedAt
+        )
+    }
+
+    static func toDTOs(_ resources: [Resource]) -> [ResourceDTO] {
+        resources.map { toDTO($0) }
+    }
+
+    // MARK: - NoteStudentLink
+
+    static func toDTO(_ link: NoteStudentLink) -> NoteStudentLinkDTO {
+        NoteStudentLinkDTO(
+            id: link.id,
+            noteID: link.noteID,
+            studentID: link.studentID
+        )
+    }
+
+    static func toDTOs(_ links: [NoteStudentLink]) -> [NoteStudentLinkDTO] {
+        links.map { toDTO($0) }
+    }
 }
