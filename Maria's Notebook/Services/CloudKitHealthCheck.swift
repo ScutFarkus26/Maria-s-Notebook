@@ -82,7 +82,9 @@ final class CloudKitHealthCheck {
         isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
         
         // Set initial health based on persisted sync state and active configuration.
-        let isEnabled = UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync)
+        let isEnabled = UserDefaults.standard.object(
+            forKey: UserDefaultsKeys.enableCloudKitSync
+        ) as? Bool ?? true
         let isActive = UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
 
         if isEnabled && isActive {

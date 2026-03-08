@@ -345,7 +345,11 @@ extension LessonsRootView {
             if lhs.orderInGroup != rhs.orderInGroup {
                 return lhs.orderInGroup < rhs.orderInGroup
             }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            let nameCompare = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+            if nameCompare != .orderedSame {
+                return nameCompare == .orderedAscending
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
         }
     }
 

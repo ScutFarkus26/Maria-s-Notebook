@@ -25,6 +25,11 @@ final class AppBootstrapping {
     /// If SwiftData asserts internally during schema processing, we cannot catch it.
     @MainActor
     static var _sharedModelContainer: ModelContainer?
+
+    /// Runtime-only CloudKit disable flag used during XCTest runs.
+    /// This prevents tests from touching CloudKit without persisting the disabled state.
+    @MainActor
+    static var disableCloudKitForCurrentLaunch: Bool = false
     
     // MARK: - Logger
     
@@ -101,9 +106,12 @@ final class AppBootstrapping {
     /// Performs initial app setup tasks.
     /// This includes environment configuration, performance monitoring, and cleanup tasks.
     static func performInitialSetup() {
+        // Default CloudKit sync to enabled unless explicitly turned off by the user.
+        UserDefaults.standard.register(defaults: [UserDefaultsKeys.enableCloudKitSync: true])
+
         // Disable CloudKit during tests to avoid entitlement-related crashes.
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.enableCloudKitSync)
+            disableCloudKitForCurrentLaunch = true
         }
 
         // Start monitoring main thread for stutters (blocking > 100ms)

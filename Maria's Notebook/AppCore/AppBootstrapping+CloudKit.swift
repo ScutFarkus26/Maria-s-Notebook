@@ -44,13 +44,14 @@ extension AppBootstrapping {
         }
 
         // Helper to create CloudKit-enabled container with fallback handling
-        func createCloudKitContainer(schema: Schema, storeURL: URL, containerID: String) throws -> ModelContainer {
+        func createCloudKitContainer(schema: Schema, storeURL: URL) throws -> ModelContainer {
             do {
                 let cloudKitLogger = Logger.app(category: "CloudKit")
                 let cloudKitStart = Date()
                 cloudKitLogger.info("Starting CloudKit container initialization...")
 
-                let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .private(containerID))
+                // Use automatic container selection from entitlements to avoid runtime ID mismatches.
+                let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .automatic)
                 let container = try ModelContainer(for: schema, configurations: config)
 
                 let ckElapsed = String(format: "%.3f", Date().timeIntervalSince(cloudKitStart))
@@ -58,7 +59,7 @@ extension AppBootstrapping {
 
                 // NOTE: CloudKit schema initialization
                 // SwiftData automatically initializes the CloudKit schema when creating a
-                // ModelContainer with cloudKitDatabase: .private(). Unlike raw Core Data with
+                // ModelContainer with cloudKitDatabase enabled (for example: .automatic). Unlike raw Core Data with
                 // NSPersistentCloudKitContainer, there is no need to call
                 // initializeCloudKitSchema() manually for normal setup.
                 //
@@ -116,20 +117,7 @@ extension AppBootstrapping {
                         )
                     }
 
-                    guard let containerID = CloudKitConfiguration.getCloudKitContainerID() else {
-                        let errorMessage = "Missing CloudKit container identifier."
-                            + " CloudKit sync cannot be initialized."
-                        UserDefaults.standard.set(
-                            errorMessage,
-                            forKey: UserDefaultsKeys.cloudKitLastErrorDescription
-                        )
-                        let config = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
-                        let container = try ModelContainer(for: schema, configurations: config)
-                        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-                        return container
-                    }
-
-                    return try createCloudKitContainer(schema: schema, storeURL: storeURL, containerID: containerID)
+                    return try createCloudKitContainer(schema: schema, storeURL: storeURL)
                 } else {
                     // Explicitly disable CloudKit for SwiftData (we use CloudDocuments for file storage instead)
                     let config = ModelConfiguration(
@@ -191,9 +179,10 @@ extension AppBootstrapping {
 
                 // CloudKit compatibility: All model fixes are complete. Enable CloudKit by default.
                 // Users can disable it via the settings toggle if needed.
-                let enableCloudKit = UserDefaults.standard.object(
+                let cloudKitPreference = UserDefaults.standard.object(
                     forKey: UserDefaultsKeys.enableCloudKitSync
                 ) as? Bool ?? true
+                let enableCloudKit = cloudKitPreference && !AppBootstrapping.disableCloudKitForCurrentLaunch
 
                 let containerCreateStart = Date()
                 logger.info("createModelContainer: Starting container creation (CloudKit: \(enableCloudKit))...")
