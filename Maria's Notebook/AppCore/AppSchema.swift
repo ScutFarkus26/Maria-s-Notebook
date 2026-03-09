@@ -31,6 +31,7 @@ struct AppSchema {
         LessonAssignment.self,  // Entity name must match stored data; Presentation is a typealias
         // Legacy check-in system removed - now using WorkCheckIn
         StudentMeeting.self,
+        ScheduledMeeting.self,
         Project.self,
         ProjectAssignmentTemplate.self,
         ProjectSession.self,

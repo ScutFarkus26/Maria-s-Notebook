@@ -38,11 +38,15 @@ struct MeetingsWorkflowView: View {
 
     // MARK: - State
 
+    @Query(sort: [SortDescriptor(\ScheduledMeeting.date)])
+    private var scheduledMeetingsQuery: [ScheduledMeeting]
+
     @State private var selectedStudentID: UUID?
     @State private var searchText: String = ""
     @State private var showCompletedThisWeek: Bool = false
     @State private var orderedStudentIDs: [UUID] = []
     @State private var selectedAgeRanges: Set<AgeRange> = []
+    @State private var studentForMeetingDatePicker: Student?
 
     // Meeting frequency threshold (persisted)
     @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var daysSinceThreshold: Int = 7
@@ -54,6 +58,16 @@ struct MeetingsWorkflowView: View {
     private static let customOrderKey = "MeetingsWorkflow.customStudentOrder"
 
     // MARK: - Computed Properties
+
+    private var scheduledMeetingDates: [UUID: Date] {
+        var result: [UUID: Date] = [:]
+        for sm in scheduledMeetingsQuery {
+            if let sid = sm.studentIDUUID {
+                result[sid] = sm.date
+            }
+        }
+        return result
+    }
 
     private var selectedStudent: Student? {
         guard let id = selectedStudentID else { return nil }
@@ -166,7 +180,12 @@ struct MeetingsWorkflowView: View {
                 daysSinceThreshold: $daysSinceThreshold,
                 selectedAgeRanges: $selectedAgeRanges,
                 lastMeetingFor: lastMeetingFor,
-                onMove: moveStudent
+                onMove: moveStudent,
+                scheduledMeetingDates: scheduledMeetingDates,
+                onScheduleMeeting: handleScheduleMeeting,
+                onPickMeetingDate: { student in
+                    studentForMeetingDatePicker = student
+                }
             )
         } detail: {
             if let student = selectedStudent {
@@ -192,6 +211,15 @@ struct MeetingsWorkflowView: View {
         #endif
         .onAppear {
             loadCustomOrder()
+        }
+        .sheet(item: $studentForMeetingDatePicker) { student in
+            MeetingDatePickerSheet(studentName: student.fullName) { date in
+                MeetingScheduler.scheduleMeeting(
+                    studentID: student.id,
+                    date: date,
+                    context: modelContext
+                )
+            }
         }
     }
 
@@ -240,6 +268,16 @@ struct MeetingsWorkflowView: View {
             }
         } else if let first = queue.first {
             selectedStudentID = first.id
+        }
+    }
+
+    // MARK: - Meeting Scheduling
+
+    private func handleScheduleMeeting(student: Student, date: Date?) {
+        if let date {
+            MeetingScheduler.scheduleMeeting(studentID: student.id, date: date, context: modelContext)
+        } else {
+            MeetingScheduler.clearMeetings(studentID: student.id, context: modelContext)
         }
     }
 

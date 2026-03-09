@@ -30,8 +30,6 @@ struct ViewHeader<TrailingContent: View>: View {
         // On iPhone compact, keep the nav bar visible for back navigation.
         #if os(iOS)
         .toolbar(horizontalSizeClass == .compact ? .automatic : .hidden, for: .navigationBar)
-        #else
-        .toolbar(.hidden, for: .navigationBar)
         #endif
     }
 }

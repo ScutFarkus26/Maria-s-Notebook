@@ -256,3 +256,32 @@ struct CompletionListRow: View {
         .accessibilityHint("Double tap to view completion details")
     }
 }
+
+struct ScheduledMeetingListRow: View {
+    let studentName: String
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.crop.circle.badge.clock")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.teal.opacity(0.8))
+                    .frame(width: 20)
+
+                Text(studentName)
+                    .font(AppTheme.ScaledFont.callout)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("Scheduled")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.subtleRow)
+        .accessibilityLabel("Meeting with \(studentName)")
+        .accessibilityHint("Double tap to start meeting")
+    }
+}

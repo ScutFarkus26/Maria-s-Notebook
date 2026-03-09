@@ -13,6 +13,9 @@ struct MeetingsQueueSidebar: View {
     @Binding var selectedAgeRanges: Set<AgeRange>
     let lastMeetingFor: (Student) -> StudentMeeting?
     let onMove: (IndexSet, Int) -> Void
+    var scheduledMeetingDates: [UUID: Date] = [:]
+    var onScheduleMeeting: ((Student, Date?) -> Void)?
+    var onPickMeetingDate: ((Student) -> Void)?
 
     var body: some View {
         List(selection: $selectedStudentID) {
@@ -28,9 +31,13 @@ struct MeetingsQueueSidebar: View {
                         student: student,
                         lastMeeting: lastMeetingFor(student),
                         isSelected: selectedStudentID == student.id,
-                        showCheckmark: false
+                        showCheckmark: false,
+                        scheduledDate: scheduledMeetingDates[student.id]
                     )
                     .tag(student.id)
+                    .contextMenu {
+                        scheduleMeetingMenu(for: student)
+                    }
                 }
                 .onMove(perform: searchText.isEmpty ? onMove : nil)
             }
@@ -42,9 +49,13 @@ struct MeetingsQueueSidebar: View {
                             student: student,
                             lastMeeting: lastMeetingFor(student),
                             isSelected: selectedStudentID == student.id,
-                            showCheckmark: true
+                            showCheckmark: true,
+                            scheduledDate: scheduledMeetingDates[student.id]
                         )
                         .tag(student.id)
+                        .contextMenu {
+                            scheduleMeetingMenu(for: student)
+                        }
                     }
                 }
             }
@@ -61,6 +72,77 @@ struct MeetingsQueueSidebar: View {
         #if os(macOS)
         .frame(minWidth: 220)
         #endif
+    }
+
+    // MARK: - Schedule Meeting Context Menu
+
+    @ViewBuilder
+    private func scheduleMeetingMenu(for student: Student) -> some View {
+        let scheduledDate = scheduledMeetingDates[student.id]
+
+        Button {
+            selectedStudentID = student.id
+        } label: {
+            Label("Start Meeting", systemImage: "play.fill")
+        }
+
+        if let onScheduleMeeting {
+            Divider()
+
+            Menu {
+                Button {
+                    onScheduleMeeting(student, AppCalendar.startOfDay(Date()))
+                } label: {
+                    Label("Today", systemImage: "calendar")
+                }
+
+                Button {
+                    onScheduleMeeting(student, AppCalendar.addingDays(1, to: Date()))
+                } label: {
+                    Label("Tomorrow", systemImage: "calendar.badge.clock")
+                }
+
+                if let onPickDate = onPickMeetingDate {
+                    Button {
+                        onPickDate(student)
+                    } label: {
+                        Label("Pick a Day\u{2026}", systemImage: "calendar.badge.plus")
+                    }
+                }
+
+                if scheduledDate != nil {
+                    Divider()
+
+                    Button(role: .destructive) {
+                        onScheduleMeeting(student, nil)
+                    } label: {
+                        Label("Clear", systemImage: "calendar.badge.minus")
+                    }
+                }
+            } label: {
+                if let date = scheduledDate {
+                    Label(
+                        "Meeting \(MeetingsQueueSidebar.scheduledDateLabel(date))",
+                        systemImage: "person.crop.circle.badge.clock"
+                    )
+                } else {
+                    Label("Schedule Meeting", systemImage: "person.crop.circle.badge.clock")
+                }
+            }
+        }
+    }
+
+    private static func scheduledDateLabel(_ date: Date) -> String {
+        if AppCalendar.isSameDay(date, Date()) {
+            return "(Today)"
+        } else if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) {
+            return "(Tomorrow)"
+        } else {
+            let fmt = DateFormatter()
+            fmt.dateStyle = .medium
+            fmt.timeStyle = .none
+            return "(\(fmt.string(from: date)))"
+        }
     }
 }
 
@@ -198,6 +280,7 @@ struct StudentQueueRow: View {
     let lastMeeting: StudentMeeting?
     var isSelected: Bool = false
     var showCheckmark: Bool = false
+    var scheduledDate: Date?
 
     @Environment(\.modelContext) private var modelContext
 
@@ -235,12 +318,33 @@ struct StudentQueueRow: View {
 
             Spacer()
 
+            if let date = scheduledDate {
+                Text(Self.shortDateLabel(date))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.teal))
+            }
+
             if showCheckmark {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(AppColors.success)
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private static func shortDateLabel(_ date: Date) -> String {
+        if AppCalendar.isSameDay(date, Date()) {
+            return "Today"
+        } else if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) {
+            return "Tomorrow"
+        } else {
+            let fmt = DateFormatter()
+            fmt.setLocalizedDateFormatFromTemplate("MMMd")
+            return fmt.string(from: date)
+        }
     }
 }
 

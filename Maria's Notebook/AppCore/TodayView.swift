@@ -53,6 +53,10 @@ struct TodayView: View {
     // MARK: - Toast State
     @State var toastMessage: String?
 
+    // MARK: - Meeting State
+    @State var selectedMeetingStudentID: UUID?
+    @State var selectedMeetingID: UUID?
+
     // MARK: - Todo State
     @State var selectedTodoItem: TodoItem?
     @State var isShowingNewTodo = false
@@ -184,6 +188,23 @@ struct TodayView: View {
             .presentationDragIndicator(.visible)
 #endif
         }
+        .sheet(id: $selectedMeetingStudentID) { studentID in
+            ScheduledMeetingSessionSheet(studentID: studentID) {
+                if let meetingID = selectedMeetingID {
+                    MeetingScheduler.clearMeeting(id: meetingID, context: modelContext)
+                }
+                selectedMeetingStudentID = nil
+                selectedMeetingID = nil
+                viewModel.reload()
+            }
+#if os(macOS)
+            .frame(minWidth: 860, minHeight: 640)
+            .presentationSizingFitted()
+#else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+#endif
+        }
         .overlay(alignment: .top) {
             toastOverlay
         }
@@ -263,6 +284,7 @@ struct TodayView: View {
         twoColumnLayout
         #else
         List {
+            meetingsListSection
             calendarEventsListSection
             todosListSection
             remindersListSection
@@ -280,8 +302,9 @@ struct TodayView: View {
     #if os(macOS)
     private var twoColumnLayout: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Left column: Calendar + Todos + Reminders + Lessons Presented + Work Checked
+            // Left column: Meetings + Calendar + Todos + Reminders + Lessons Presented + Work Checked
             List {
+                meetingsListSection
                 calendarEventsListSection
                 todosListSection
                 remindersListSection
