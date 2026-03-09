@@ -20,11 +20,6 @@ struct PresentationNotesSectionUnified: View {
         Set([lessonAssignment.id])
     }
 
-    // Get notes from the LessonAssignment
-    private var presentationNotesForThisLesson: [Note] {
-        lessonAssignment.unifiedNotes ?? []
-    }
-
     // Get notes from WorkModels associated with this lesson assignment
     private var workNotesForThisPresentation: [Note] {
         do {
@@ -62,23 +57,17 @@ struct PresentationNotesSectionUnified: View {
         lessonAssignment.unifiedNotes ?? []
     }
     
-    // Get presentation-attached notes
-    private var presentationNotes: [Note] {
-        presentationNotesForThisLesson
-    }
-    
-    // Get all unified notes (lesson + work + presentation),
+    // Get all unified notes (lesson + work),
     // merged, de-duplicated, and sorted
     private var allUnifiedNotes: [Note] {
         let lessonNotes = self.lessonNotes
         let workNotes = workNotesForThisPresentation
-        let presentationNotes = self.presentationNotes
-        
+
         // Merge and de-duplicate by note.id (keep first occurrence)
         var seenIDs: Set<UUID> = []
         var merged: [Note] = []
-        
-        for note in lessonNotes + workNotes + presentationNotes where !seenIDs.contains(note.id) {
+
+        for note in lessonNotes + workNotes where !seenIDs.contains(note.id) {
             seenIDs.insert(note.id)
             merged.append(note)
         }
@@ -112,7 +101,7 @@ struct PresentationNotesSectionUnified: View {
                         .foregroundStyle(.accent)
                 }
             }
-            // Show lesson-attached Note objects
+            // Show Note objects
             if !allUnifiedNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(allUnifiedNotes, id: \.id) { note in
@@ -120,24 +109,9 @@ struct PresentationNotesSectionUnified: View {
                     }
                 }
             }
-            
-            // Show Presentation Notes section
-            if !presentationNotes.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Presentation Notes")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
-                    
-                    // Show presentation-attached Note objects
-                    ForEach(presentationNotes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
-                        unifiedNoteRow(note)
-                    }
-                }
-            }
-            
+
             // Show legacy string field (if it has content and no other notes)
-            if !legacyNotes.trimmed().isEmpty && allUnifiedNotes.isEmpty && presentationNotes.isEmpty {
+            if !legacyNotes.trimmed().isEmpty && allUnifiedNotes.isEmpty {
                 TextEditor(text: Binding(
                     get: { legacyNotes },
                     set: { onLegacyNotesChange($0) }
@@ -147,7 +121,7 @@ struct PresentationNotesSectionUnified: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
                 )
-            } else if allUnifiedNotes.isEmpty && presentationNotes.isEmpty && legacyNotes.trimmed().isEmpty {
+            } else if allUnifiedNotes.isEmpty && legacyNotes.trimmed().isEmpty {
                 Text("No notes yet. Tap + to add a note.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

@@ -245,9 +245,6 @@ struct TodayView: View {
             .toolbar { toolbarContent }
             #endif
         }
-        #if os(iOS)
-        .simultaneousGesture(swipeGesture)
-        #endif
     }
 
     private var attendanceSection: some View {
@@ -383,22 +380,6 @@ struct TodayView: View {
         }
     }
 
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 80)
-            .onEnded { value in
-                let horizontalAmount = value.translation.width
-                let verticalAmount = value.translation.height
-                if abs(horizontalAmount) > abs(verticalAmount) * 1.5 && abs(horizontalAmount) > 80 {
-                    if horizontalAmount > 0 {
-                        let prev = previousSchoolDaySync(before: viewModel.date)
-                        viewModel.date = AppCalendar.startOfDay(prev)
-                    } else {
-                        let next = nextSchoolDaySync(after: viewModel.date)
-                        viewModel.date = AppCalendar.startOfDay(next)
-                    }
-                }
-            }
-    }
     #endif
 
     @ViewBuilder
