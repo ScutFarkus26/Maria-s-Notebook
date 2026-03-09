@@ -15,6 +15,7 @@ struct ClassSubjectChecklistView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ClassSubjectChecklistViewModel()
     @State private var didFinishInitialLoad = false
+    @State private var isShowingAddWorkSheet = false
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -78,6 +79,16 @@ struct ClassSubjectChecklistView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(.green)
+
+                    if viewModel.selectedCellsSameLessonID != nil {
+                        Button {
+                            isShowingAddWorkSheet = true
+                        } label: {
+                            Label("Add Work", systemImage: "pencil.and.list.clipboard")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.orange)
+                    }
 
                     Button {
                         viewModel.batchClearStatus(context: modelContext)
@@ -222,6 +233,17 @@ struct ClassSubjectChecklistView: View {
                 context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
             )
             didFinishInitialLoad = true
+        }
+        .sheet(isPresented: $isShowingAddWorkSheet, onDismiss: {
+            viewModel.recomputeMatrix(context: modelContext)
+            viewModel.clearSelection()
+        }) {
+            if let lessonID = viewModel.selectedCellsSameLessonID {
+                QuickNewWorkItemSheet(
+                    preSelectedLessonID: lessonID,
+                    preSelectedStudentIDs: viewModel.selectedStudentIDs
+                )
+            }
         }
         .onChange(of: viewModel.selectedSubject) { _, newValue in
             // Skip during initial load — loadData already built the matrix

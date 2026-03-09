@@ -142,6 +142,18 @@ class ClassSubjectChecklistViewModel {
 
     // MARK: - Multi-Selection Methods
 
+    /// Returns the shared lesson ID if all selected cells are for the same lesson, otherwise nil.
+    var selectedCellsSameLessonID: UUID? {
+        guard !selectedCells.isEmpty else { return nil }
+        let lessonIDs = Set(selectedCells.map(\.lessonID))
+        return lessonIDs.count == 1 ? lessonIDs.first : nil
+    }
+
+    /// Returns the student IDs from the current selection.
+    var selectedStudentIDs: Set<UUID> {
+        Set(selectedCells.map(\.studentID))
+    }
+
     func toggleSelection(student: Student, lesson: Lesson) {
         let id = CellIdentifier(studentID: student.id, lessonID: lesson.id)
         if selectedCells.contains(id) {

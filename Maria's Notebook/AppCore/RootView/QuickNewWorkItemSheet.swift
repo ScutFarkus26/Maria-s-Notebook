@@ -10,6 +10,22 @@ struct QuickNewWorkItemSheet: View {
     /// Optional callback when work is created and user wants to view details immediately
     var onCreatedAndOpen: ((UUID) -> Void)?
 
+    /// Pre-fill support for opening from checklist batch actions
+    private var preSelectedLessonID: UUID?
+    private var preSelectedStudentIDs: Set<UUID>
+
+    init(
+        preSelectedLessonID: UUID? = nil,
+        preSelectedStudentIDs: Set<UUID> = [],
+        onCreatedAndOpen: ((UUID) -> Void)? = nil
+    ) {
+        self.preSelectedLessonID = preSelectedLessonID
+        self.preSelectedStudentIDs = preSelectedStudentIDs
+        self.onCreatedAndOpen = onCreatedAndOpen
+        _selectedLessonID = State(initialValue: preSelectedLessonID)
+        _selectedStudentIDs = State(initialValue: preSelectedStudentIDs)
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -127,6 +143,16 @@ struct QuickNewWorkItemSheet: View {
         #else
         .frame(minWidth: UIConstants.SheetSize.medium.width, minHeight: UIConstants.SheetSize.medium.height)
         #endif
+        .onAppear {
+            // Auto-fill lesson name when pre-populated from checklist
+            if let lessonID = preSelectedLessonID,
+               let lesson = allLessons.first(where: { $0.id == lessonID }) {
+                lessonSearchText = lesson.name
+                if workTitle.isEmpty {
+                    workTitle = lesson.name
+                }
+            }
+        }
     }
 
     // MARK: - Lesson Section
