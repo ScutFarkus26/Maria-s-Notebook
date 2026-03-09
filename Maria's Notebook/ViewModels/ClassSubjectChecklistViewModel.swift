@@ -185,6 +185,18 @@ class ClassSubjectChecklistViewModel {
         clearSelection()
     }
 
+    func batchMarkPreviouslyPresented(context: ModelContext) {
+        ChecklistBatchActionExecutor.batchMarkPreviouslyPresented(
+            selectedCells: selectedCells,
+            students: students,
+            lessons: lessons,
+            matrixStates: matrixStates,
+            context: context
+        )
+        recomputeMatrix(context: context)
+        clearSelection()
+    }
+
     func batchMarkProficient(context: ModelContext) {
         ChecklistBatchActionExecutor.batchMarkProficient(
             selectedCells: selectedCells,
@@ -368,6 +380,66 @@ class ClassSubjectChecklistViewModel {
             }
         } else {
             _ = PresentationFactory.insertPresented(
+                lessonID: lesson.id,
+                studentIDs: [student.id],
+                context: context
+            )
+            GroupTrackService.autoEnrollInTrackIfNeeded(
+                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+            )
+        }
+    }
+
+    // MARK: - Previously Presented (Undated)
+
+    func togglePreviouslyPresented(student: Student, lesson: Lesson, context: ModelContext) {
+        togglePreviouslyPresentedNoRecompute(student: student, lesson: lesson, context: context)
+        context.safeSave()
+        recomputeMatrix(context: context)
+    }
+
+    private func togglePreviouslyPresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
+        let studentIDString = student.id.uuidString
+        let lessonIDString = lesson.id.uuidString
+
+        let descriptor = FetchDescriptor<LessonAssignment>(
+            predicate: #Predicate { $0.lessonID == lessonIDString }
+        )
+        let allLAs = context.safeFetch(descriptor)
+
+        if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
+            removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
+            deleteLessonPresentation(
+                studentID: studentIDString, lessonID: lessonIDString, context: context
+            )
+        } else {
+            addStudentToUndatedLesson(
+                student: student, studentIDString: studentIDString,
+                lesson: lesson, in: allLAs, context: context
+            )
+            upsertLessonPresentation(
+                studentID: studentIDString, lessonID: lessonIDString,
+                state: .presented, context: context
+            )
+        }
+    }
+
+    private func addStudentToUndatedLesson(
+        student: Student, studentIDString: String, lesson: Lesson,
+        in allLAs: [LessonAssignment], context: ModelContext
+    ) {
+        let isUndatedPresented = { (la: LessonAssignment) -> Bool in
+            la.isPresented && la.presentedAt == nil
+        }
+        if let group = allLAs.first(where: isUndatedPresented) {
+            if !group.studentIDs.contains(studentIDString) {
+                group.studentIDs.append(studentIDString)
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                )
+            }
+        } else {
+            _ = PresentationFactory.insertPreviouslyPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context

@@ -151,6 +151,36 @@ enum PresentationFactory {
         return la
     }
 
+    // MARK: - Previously Presented (Undated)
+
+    /// Creates a LessonAssignment marked as previously presented (no date).
+    /// Use when the teacher wants to record that a lesson was given at some
+    /// unknown past date without cluttering the dated presentation log.
+    static func makePreviouslyPresented(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        id: UUID = UUID(),
+        createdAt: Date = Date()
+    ) -> LessonAssignment {
+        LessonAssignment(
+            id: id,
+            createdAt: createdAt,
+            state: .presented,
+            scheduledFor: nil,
+            presentedAt: nil,
+            lessonID: lessonID,
+            studentIDs: studentIDs,
+            lesson: nil,
+            needsPractice: false,
+            needsAnotherPresentation: false,
+            followUpWork: "",
+            notes: "",
+            trackID: nil,
+            trackStepID: nil,
+            manuallyUnblocked: false
+        )
+    }
+
     // MARK: - Helpers
 
     /// Attaches relationship objects to an existing LessonAssignment.
@@ -201,6 +231,18 @@ enum PresentationFactory {
         context: ModelContext
     ) -> LessonAssignment {
         let la = makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt)
+        context.insert(la)
+        return la
+    }
+
+    /// Creates and inserts a previously presented (undated) LessonAssignment.
+    @MainActor
+    static func insertPreviouslyPresented(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        context: ModelContext
+    ) -> LessonAssignment {
+        let la = makePreviouslyPresented(lessonID: lessonID, studentIDs: studentIDs)
         context.insert(la)
         return la
     }

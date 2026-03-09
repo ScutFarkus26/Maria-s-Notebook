@@ -65,6 +65,13 @@ struct ClassSubjectChecklistView: View {
                     .buttonStyle(.bordered)
 
                     Button {
+                        viewModel.batchMarkPreviouslyPresented(context: modelContext)
+                    } label: {
+                        Label("Prev. Presented", systemImage: "clock.badge.checkmark")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
                         viewModel.batchMarkProficient(context: modelContext)
                     } label: {
                         Label("Mastered", systemImage: "checkmark.circle.fill")
@@ -179,6 +186,11 @@ struct ClassSubjectChecklistView: View {
                                                     student: student, lesson: lesson, context: modelContext
                                                 )
                                             },
+                                            onMarkPreviouslyPresented: {
+                                                viewModel.togglePreviouslyPresented(
+                                                    student: student, lesson: lesson, context: modelContext
+                                                )
+                                            },
                                             onClear: {
                                                 viewModel.clearStatus(
                                                     student: student, lesson: lesson, context: modelContext
@@ -280,6 +292,7 @@ struct ClassChecklistSmartCell: View {
     var onSelect: () -> Void
     var onMarkComplete: () -> Void
     var onMarkPresented: () -> Void
+    var onMarkPreviouslyPresented: () -> Void
     var onClear: () -> Void
 
     var body: some View {
@@ -370,6 +383,7 @@ struct ClassChecklistSmartCell: View {
             Divider()
             Button { onTap() } label: { Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "tray") }
             Button { onMarkPresented() } label: { Label("Mark Presented", systemImage: "checkmark") }
+            Button { onMarkPreviouslyPresented() } label: { Label("Previously Presented", systemImage: "clock.badge.checkmark") }
             Button { onMarkComplete() } label: { Label("Mark Mastered", systemImage: "checkmark.circle.fill") }
             Divider()
             Button(role: .destructive) { onClear() } label: { Label("Clear All Status", systemImage: "xmark.circle") }
