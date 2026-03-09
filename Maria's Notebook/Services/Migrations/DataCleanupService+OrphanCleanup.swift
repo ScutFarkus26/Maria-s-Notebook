@@ -19,7 +19,7 @@ extension DataCleanupService {
 
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
         guard !allStudents.isEmpty else {
-            logger.warning("cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
+            logger.info("cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
             return
         }
 
@@ -60,7 +60,7 @@ extension DataCleanupService {
 
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
         guard !allStudents.isEmpty else {
-            logger.warning("cleanOrphanedWorkStudentIDs: No students found - skipping cleanup to prevent data loss")
+            logger.info("cleanOrphanedWorkStudentIDs: No students found - skipping cleanup to prevent data loss")
             return
         }
 

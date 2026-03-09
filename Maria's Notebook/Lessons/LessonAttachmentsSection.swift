@@ -44,7 +44,6 @@ struct LessonAttachmentsSection: View {
     let lesson: Lesson
     @Environment(\.modelContext) private var modelContext
     
-    @State private var showingImporter = false
     @State private var showingScopeSheet = false
     @State private var selectedScope: AttachmentScope = .lesson
     @State private var pendingImportURL: URL?
@@ -73,13 +72,6 @@ struct LessonAttachmentsSection: View {
         attachmentsContent
             .sheet(isPresented: $showingScopeSheet) {
                 scopeSheet
-            }
-            .fileImporter(
-                isPresented: $showingImporter,
-                allowedContentTypes: [.pdf, .png, .jpeg, UTType(filenameExtension: "pages") ?? .data],
-                allowsMultipleSelection: false
-            ) { result in
-                handleFileImport(result: result)
             }
             .alert(
                 "Delete Attachment?",
@@ -158,15 +150,15 @@ struct LessonAttachmentsSection: View {
             lesson: lesson,
             selectedScope: $selectedScope,
             deleteOriginal: $deleteOriginalAfterImport,
-            onImport: {
+            onFileSelected: { result in
                 showingScopeSheet = false
-                showingImporter = true
+                handleFileImport(result: result)
             },
             onCancel: {
                 showingScopeSheet = false
             }
         )
-        .frame(width: 400, height: 300)
+        .frame(minWidth: 400, idealWidth: 400, minHeight: 480, idealHeight: 480)
     }
     
     private var emptyState: some View {

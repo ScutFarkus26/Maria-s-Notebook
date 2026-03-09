@@ -1,12 +1,15 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Sheet for selecting import options
+/// Sheet for selecting import options and picking a file
 struct AttachmentImportOptionsSheet: View {
     let lesson: Lesson
     @Binding var selectedScope: AttachmentScope
     @Binding var deleteOriginal: Bool
-    let onImport: () -> Void
+    let onFileSelected: (Result<[URL], Error>) -> Void
     let onCancel: () -> Void
+
+    @State private var showingImporter = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -77,12 +80,19 @@ struct AttachmentImportOptionsSheet: View {
                 .keyboardShortcut(.cancelAction)
 
                 Button("Continue") {
-                    onImport()
+                    showingImporter = true
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
             }
             .padding(.bottom, 20)
+        }
+        .fileImporter(
+            isPresented: $showingImporter,
+            allowedContentTypes: [.pdf, .png, .jpeg, UTType(filenameExtension: "pages") ?? .data],
+            allowsMultipleSelection: false
+        ) { result in
+            onFileSelected(result)
         }
     }
 }

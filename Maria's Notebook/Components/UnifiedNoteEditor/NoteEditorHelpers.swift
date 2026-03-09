@@ -38,6 +38,9 @@ extension UnifiedNoteEditor {
         switch context {
         case .attendance, .workCompletion, .studentMeeting:
             return false
+        case .presentation(let pres):
+            // Planned presentations: notes are for the presentation, not specific students
+            return pres.isPresented
         default:
             return true
         }
@@ -60,7 +63,8 @@ extension UnifiedNoteEditor {
                 return [studentID]
             }
         case .presentation(let pres):
-            return Set(pres.studentUUIDs)
+            // Only pre-select students for already-presented lessons
+            return pres.isPresented ? Set(pres.studentUUIDs) : []
         case .work(let work):
             return Set((work.participants ?? []).compactMap { UUID(uuidString: $0.studentID) })
         default:
