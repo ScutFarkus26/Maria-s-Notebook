@@ -5,6 +5,8 @@ struct ResourceCard: View {
     let resource: Resource
     let onTap: () -> Void
     let onDelete: () -> Void
+    var onRename: (() -> Void)?
+    var onChangeCategory: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -69,6 +71,18 @@ struct ResourceCard: View {
         .contextMenu {
             Button(action: onTap) {
                 Label("View Details", systemImage: "eye")
+            }
+
+            if let onRename {
+                Button(action: onRename) {
+                    Label("Rename", systemImage: "pencil")
+                }
+            }
+
+            if let onChangeCategory {
+                Button(action: onChangeCategory) {
+                    Label("Change Category", systemImage: "folder")
+                }
             }
 
             Divider()

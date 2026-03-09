@@ -27,6 +27,11 @@ struct ResourceLibraryView: View {
     @State private var bulkCategory: ResourceCategory = .other
     @State private var bulkTags: [String] = []
 
+    // Rename / change category
+    @State private var resourceToRename: Resource?
+    @State private var renameText = ""
+    @State private var resourceToRecategorize: Resource?
+
     // Drag-and-drop
     @State private var isDropTargeted = false
 
@@ -226,6 +231,26 @@ struct ResourceLibraryView: View {
         }
         .sheet(isPresented: $showingBulkTagPicker) {
             bulkTagSheet
+        }
+        .alert("Rename Resource", isPresented: Binding(
+            get: { resourceToRename != nil },
+            set: { if !$0 { resourceToRename = nil } }
+        )) {
+            TextField("Title", text: $renameText)
+            Button("Cancel", role: .cancel) {
+                resourceToRename = nil
+            }
+            Button("Save") {
+                if let resource = resourceToRename, !renameText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    resource.title = renameText.trimmingCharacters(in: .whitespaces)
+                    resource.modifiedAt = Date()
+                    modelContext.safeSave()
+                }
+                resourceToRename = nil
+            }
+        }
+        .sheet(item: $resourceToRecategorize) { resource in
+            categoryPickerSheet(for: resource)
         }
         .confirmationDialog(
             "Delete \(selectedResourceIDs.count) Resource\(selectedResourceIDs.count == 1 ? "" : "s")?",
@@ -631,6 +656,11 @@ struct ResourceLibraryView: View {
                             selectedResource = resource
                         } onDelete: {
                             deleteResource(resource)
+                        } onRename: {
+                            renameText = resource.title
+                            resourceToRename = resource
+                        } onChangeCategory: {
+                            resourceToRecategorize = resource
                         }
                     }
                 }
@@ -651,6 +681,19 @@ struct ResourceLibraryView: View {
                                     selectedResource = resource
                                 } label: {
                                     Label("View Details", systemImage: "eye")
+                                }
+
+                                Button {
+                                    renameText = resource.title
+                                    resourceToRename = resource
+                                } label: {
+                                    Label("Rename", systemImage: "pencil")
+                                }
+
+                                Button {
+                                    resourceToRecategorize = resource
+                                } label: {
+                                    Label("Change Category", systemImage: "folder")
                                 }
 
                                 Button {
@@ -856,6 +899,45 @@ struct ResourceLibraryView: View {
         }
         #if os(macOS)
         .frame(minWidth: 400, minHeight: 300)
+        #endif
+    }
+
+    private func categoryPickerSheet(for resource: Resource) -> some View {
+        NavigationStack {
+            List {
+                ForEach(ResourceCategory.allCases) { category in
+                    Button {
+                        resource.category = category
+                        resource.modifiedAt = Date()
+                        modelContext.safeSave()
+                        resourceToRecategorize = nil
+                    } label: {
+                        HStack {
+                            Label(category.rawValue, systemImage: category.icon)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if resource.category == category {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Change Category")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        resourceToRecategorize = nil
+                    }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 300, minHeight: 400)
         #endif
     }
 
