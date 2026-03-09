@@ -258,11 +258,64 @@ struct AttendanceExpandedView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Attendance Summary Strip (iPhone)
+
+    @ViewBuilder
+    private var attendanceSummaryStrip: some View {
+#if os(iOS)
+        if hSizeClass == .compact {
+            HStack(spacing: 10) {
+                // Primary: In Class count
+                HStack(spacing: 6) {
+                    Text("In Class")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.secondary)
+                    Text("\(viewModel.inClassCount)")
+                        .font(AppTheme.ScaledFont.calloutSemibold)
+                        .monospacedDigit()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                }
+
+                if viewModel.countTardy > 0 {
+                    compactStatChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
+                }
+                if viewModel.countAbsent > 0 {
+                    compactStatChip(title: "Absent", count: viewModel.countAbsent, color: .red)
+                }
+                if viewModel.countLeftEarly > 0 {
+                    compactStatChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, AppTheme.Spacing.compact)
+            .padding(.bottom, AppTheme.Spacing.small)
+        }
+#endif
+    }
+
+    private func compactStatChip(title: String, count: Int, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text("\(title) \(count)")
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().strokeBorder(color.opacity(0.20), lineWidth: 1))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Divider()
 
             actionBar
+
+            attendanceSummaryStrip
 
             if isNonSchoolDay {
                 nonSchoolDayWarning
