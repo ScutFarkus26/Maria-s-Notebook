@@ -32,6 +32,7 @@ struct AttendanceExpandedView: View {
     @State private var toastMessage: String?
     @State private var isEditing: Bool = true
     @State private var localSortKey: AttendanceViewModel.SortKey = .lastName
+    @State private var activeChipPopover: AttendanceStatus?
 
     // Persistence for locking
     private static let lockKeyPrefix = "Attendance.locked."
@@ -279,13 +280,13 @@ struct AttendanceExpandedView: View {
                 }
 
                 if viewModel.countTardy > 0 {
-                    compactStatChip(title: "Tardy", count: viewModel.countTardy, color: .blue)
+                    tappableStatChip(title: "Tardy", count: viewModel.countTardy, color: .blue, status: .tardy)
                 }
                 if viewModel.countAbsent > 0 {
-                    compactStatChip(title: "Absent", count: viewModel.countAbsent, color: .red)
+                    tappableStatChip(title: "Absent", count: viewModel.countAbsent, color: .red, status: .absent)
                 }
                 if viewModel.countLeftEarly > 0 {
-                    compactStatChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple)
+                    tappableStatChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple, status: .leftEarly)
                 }
 
                 Spacer(minLength: 0)
@@ -296,17 +297,54 @@ struct AttendanceExpandedView: View {
 #endif
     }
 
-    private func compactStatChip(title: String, count: Int, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text("\(title) \(count)")
-                .font(AppTheme.ScaledFont.captionSmallSemibold)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+    private func tappableStatChip(title: String, count: Int, color: Color, status: AttendanceStatus) -> some View {
+        Button {
+            activeChipPopover = activeChipPopover == status ? nil : status
+        } label: {
+            HStack(spacing: 4) {
+                Circle().fill(color).frame(width: 6, height: 6)
+                Text("\(title) \(count)")
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().strokeBorder(color.opacity(0.20), lineWidth: 1))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().strokeBorder(color.opacity(0.20), lineWidth: 1))
+        .buttonStyle(.plain)
+        .popover(isPresented: Binding(
+            get: { activeChipPopover == status },
+            set: { if !$0 { activeChipPopover = nil } }
+        )) {
+            chipPopoverContent(title: title, color: color, status: status)
+        }
+    }
+
+    private func chipPopoverContent(title: String, color: Color, status: AttendanceStatus) -> some View {
+        let studentNames = names(for: status)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(title)
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+            }
+            .padding(.bottom, 2)
+
+            if studentNames.isEmpty {
+                Text("None")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(studentNames, id: \.self) { name in
+                    Text(name)
+                        .font(AppTheme.ScaledFont.callout)
+                }
+            }
+        }
+        .padding()
+        .frame(minWidth: 160, alignment: .leading)
+        .presentationCompactAdaptation(.popover)
     }
 
     var body: some View {
