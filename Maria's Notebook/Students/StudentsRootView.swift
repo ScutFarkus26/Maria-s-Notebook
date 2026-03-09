@@ -30,8 +30,9 @@ struct StudentsRootView: View {
         studentsForChangeDetection.map { $0.id }
     }
     
-    private var workIDs: [UUID] {
-        workForChangeDetection.map { $0.id }
+    /// Includes status so completing/reopening a work triggers a reload
+    private var workChangeToken: [String] {
+        workForChangeDetection.map { "\($0.id)-\($0.statusRaw)" }
     }
 
     // We keep the state here to persist it, but pass it down as a binding
@@ -110,8 +111,16 @@ struct StudentsRootView: View {
                 await loadWorkloadData()
             }
         }
-        .onChange(of: workIDs) { _, _ in
+        .onChange(of: workChangeToken) { _, _ in
             // Reload workload data when work changes (if in workOverview mode)
+            if mode == .workOverview {
+                Task { @MainActor in
+                    await loadWorkloadData()
+                }
+            }
+        }
+        .onChange(of: studentIDs) { _, _ in
+            // Reload when students are added/removed
             if mode == .workOverview {
                 Task { @MainActor in
                     await loadWorkloadData()
@@ -137,30 +146,20 @@ struct StudentsRootView: View {
             openWork = []
         }
         
-        // Collect student and lesson IDs from work
-        var neededStudentIDs = Set<UUID>()
+        // Collect lesson IDs referenced by open work
         var neededLessonIDs = Set<UUID>()
-        
         for work in openWork {
-            if let sid = UUID(uuidString: work.studentID) {
-                neededStudentIDs.insert(sid)
-            }
             if let lid = UUID(uuidString: work.lessonID) {
                 neededLessonIDs.insert(lid)
             }
         }
         
-        // Fetch only needed students
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
+        // Fetch ALL visible students so every student appears in the grid (even those with no open work)
         var studentsByID: [UUID: Student] = [:]
-        if !neededStudentIDs.isEmpty {
-            let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
-            let filtered = allStudents.filter { neededStudentIDs.contains($0.id) }
-            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-            let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID
-            studentsByID = Dictionary(visibleStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        }
+        let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        let visibleStudents = TestStudentsFilter.filterVisible(allStudents).uniqueByID
+        studentsByID = Dictionary(visibleStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         // Fetch only needed lessons
         // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
