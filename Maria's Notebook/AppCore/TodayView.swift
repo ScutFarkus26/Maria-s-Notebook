@@ -287,7 +287,6 @@ struct TodayView: View {
             meetingsListSection
             calendarEventsListSection
             todosListSection
-            remindersListSection
             presentedLessonsListSection
             checkedWorkListSection
             agendaListSection

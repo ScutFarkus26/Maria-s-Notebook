@@ -39,13 +39,13 @@ final class AppBootstrapper {
         let calendarStart = Date()
         AppCalendar.adopt(timeZoneFrom: Calendar.current)
         let calElapsed = Self.formatSeconds(Date().timeIntervalSince(calendarStart))
-        Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)s")
+        Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)")
         
         // 1.5. Migrate lesson files to iCloud Drive (if needed)
         let filesMigrationStart = Date()
         if let migratedCount = LessonFileStorage.migrateToICloudDrive() {
             let filesElapsed = Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart))
-            Self.logger.info("Bootstrap: Migrated \(migratedCount) files in \(filesElapsed)s")
+            Self.logger.info("Bootstrap: Migrated \(migratedCount) files in \(filesElapsed)")
         } else {
             Self.logger.info("Bootstrap: No lesson file migration needed")
         }
@@ -60,11 +60,16 @@ final class AppBootstrapper {
         // 3.6.5. GroupTrack default behavior migration
         DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
         let migElapsed = Self.formatSeconds(Date().timeIntervalSince(migrationStart))
-        Self.logger.info("Bootstrap: Quick migrations completed in \(migElapsed)s")
+        Self.logger.info("Bootstrap: Quick migrations completed in \(migElapsed)")
 
-        // 4. Initialize Reminder Sync Service
+        // 4. Initialize Reminder Sync Service (macOS only)
+        #if os(macOS)
         let reminderStart = Date()
         ReminderSyncService.shared.modelContext = context
+        // Set default reminder list if none configured
+        if ReminderSyncService.shared.syncListName == nil && ReminderSyncService.shared.syncListIdentifier == nil {
+            ReminderSyncService.shared.syncListName = "girls class reminders"
+        }
         // Perform initial sync if configured
         if ReminderSyncService.shared.syncListName != nil {
             Task {
@@ -77,16 +82,17 @@ final class AppBootstrapper {
             }
         }
         let remElapsed = Self.formatSeconds(Date().timeIntervalSince(reminderStart))
-        Self.logger.info("Bootstrap: Reminder setup completed in \(remElapsed)s")
+        Self.logger.info("Bootstrap: Reminder setup completed in \(remElapsed)")
+        #endif
         
         // 5. Signal UI (allow first render; heavy migrations continue in background)
         let routerStart = Date()
         AppRouter.shared.refreshPlanningInbox()
         let routerElapsed = Self.formatSeconds(Date().timeIntervalSince(routerStart))
-        Self.logger.info("Bootstrap: Router refresh completed in \(routerElapsed)s")
+        Self.logger.info("Bootstrap: Router refresh completed in \(routerElapsed)")
         
         let totalElapsed = Self.formatSeconds(Date().timeIntervalSince(startTime))
-        Self.logger.info("Bootstrap: Initial phase complete in \(totalElapsed)s")
+        Self.logger.info("Bootstrap: Initial phase complete in \(totalElapsed)")
         state = .ready
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
@@ -109,7 +115,7 @@ final class AppBootstrapper {
         let normalizeStart = Date()
         await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: backgroundContext)
         let normElapsed = formatSeconds(Date().timeIntervalSince(normalizeStart))
-        logger.info("Post-launch: normalizeGivenAt completed in \(normElapsed)s")
+        logger.info("Post-launch: normalizeGivenAt completed in \(normElapsed)")
 
         // 3.7. Legacy Backfill Migrations (one-time migrations)
         let backfillStart = Date()
@@ -117,19 +123,19 @@ final class AppBootstrapper {
         await DataMigrations.backfillIsPresentedIfNeeded(using: backgroundContext)
         await DataMigrations.backfillScheduledForDayIfNeeded(using: backgroundContext)
         let bfElapsed = formatSeconds(Date().timeIntervalSince(backfillStart))
-        logger.info("Post-launch: backfills completed in \(bfElapsed)s")
+        logger.info("Post-launch: backfills completed in \(bfElapsed)")
 
         // 3.7.5. Repair incorrectly scoped notes
         let scopeRepairStart = Date()
         await DataMigrations.repairScopeForContextualNotes(using: backgroundContext)
         let scopeElapsed = formatSeconds(Date().timeIntervalSince(scopeRepairStart))
-        logger.info("Post-launch: note scope repair completed in \(scopeElapsed)s")
+        logger.info("Post-launch: note scope repair completed in \(scopeElapsed)")
 
         // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
         let dedupStart = Date()
         DataMigrations.deduplicateAllModels(using: backgroundContext)
         let dedupElapsed = formatSeconds(Date().timeIntervalSince(dedupStart))
-        logger.info("Post-launch: deduplication completed in \(dedupElapsed)s")
+        logger.info("Post-launch: deduplication completed in \(dedupElapsed)")
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
@@ -137,7 +143,7 @@ final class AppBootstrapper {
             await DataMigrations.repairDenormalizedScheduledForDay(using: backgroundContext)
             await DataMigrations.cleanOrphanedStudentIDs(using: backgroundContext)
             let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
-            logger.info("Post-launch: integrity repairs completed in \(intElapsed)s")
+            logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
         }
 
         // 3.10. LessonAssignment Migration (legacy model consolidation)
@@ -145,7 +151,7 @@ final class AppBootstrapper {
         await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
         await DataMigrations.migrateLessonAssignmentsV2IfNeeded(using: backgroundContext)
         let laElapsed = formatSeconds(Date().timeIntervalSince(lessonAssignmentStart))
-        logger.info("Post-launch: lesson assignment migration in \(laElapsed)s")
+        logger.info("Post-launch: lesson assignment migration in \(laElapsed)")
 
         await MigrationRunner.runIfNeeded(context: backgroundContext)
 
@@ -157,7 +163,7 @@ final class AppBootstrapper {
             logger.error("Post-launch migrations: failed to save changes - \(error.localizedDescription)")
         }
 
-        logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))s")
+        logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
     }
 
     private static func formatSeconds(_ interval: TimeInterval) -> String {
