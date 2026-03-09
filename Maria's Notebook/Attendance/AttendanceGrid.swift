@@ -8,6 +8,8 @@ struct AttendanceGrid: View {
     let onUpdateNote: (Student, String?) -> Void
     let onUpdateAbsenceReason: (Student, AbsenceReason) -> Void
 
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+
     // Layout constants
     private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
     private let verticalPadding: CGFloat = UIConstants.AttendanceGrid.verticalPadding
@@ -17,6 +19,50 @@ struct AttendanceGrid: View {
     private let minCardHeight: CGFloat = UIConstants.AttendanceGrid.minCardHeight
 
     var body: some View {
+#if os(iOS)
+        if hSizeClass == .compact {
+            compactListLayout
+        } else {
+            gridLayout
+        }
+#else
+        gridLayout
+#endif
+    }
+
+    // MARK: - iPhone Compact: Reminders-style list
+
+#if os(iOS)
+    private var compactListLayout: some View {
+        List {
+            ForEach(students, id: \.id) { student in
+                AttendanceCard(
+                    student: student,
+                    record: recordsByStudentID[student.cloudKitKey],
+                    isEditing: true,
+                    onTap: {
+                        onCycleStatus(student)
+                    },
+                    onEditNote: { newNote in
+                        onUpdateNote(student, newNote)
+                    },
+                    onSetAbsenceReason: { reason in
+                        onUpdateAbsenceReason(student, reason)
+                    }
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
+#endif
+
+    // MARK: - iPad/macOS: Card grid
+
+    private var gridLayout: some View {
         GeometryReader { geometry in
             let availableWidth = geometry.size.width - (horizontalPadding * 2)
             let availableHeight = geometry.size.height - (verticalPadding * 2)

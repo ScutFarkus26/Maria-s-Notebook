@@ -59,16 +59,13 @@ struct AttendanceStandaloneView: View {
 
     private var mainContent: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                AttendanceExpandedView(
-                    date: date,
-                    isNonSchoolDay: isNonSchoolDaySync(date),
-                    onChange: { },
-                    onToast: { message in toast(message) }
-                )
-                .padding(.horizontal, AppTheme.Spacing.md)
-                .padding(.top, AppTheme.Spacing.small)
-            }
+            AttendanceExpandedView(
+                date: date,
+                isNonSchoolDay: isNonSchoolDaySync(date),
+                onChange: { },
+                onToast: { message in toast(message) }
+            )
+            .padding(.horizontal, AppTheme.Spacing.compact)
             .navigationTitle("Attendance")
             #if os(iOS)
             .toolbar { toolbarContent }
@@ -82,35 +79,39 @@ struct AttendanceStandaloneView: View {
     #if os(iOS)
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button {
-                showingTardyReport = true
-            } label: {
-                Image(systemName: "chart.bar.doc.horizontal")
+        ToolbarItem(placement: .principal) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                Button {
+                    let prev = previousSchoolDaySync(before: date)
+                    date = AppCalendar.startOfDay(prev)
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+
+                DatePicker("Date", selection: Binding(get: { date }, set: { newValue in
+                    let coerced = nearestSchoolDaySync(to: newValue)
+                    date = AppCalendar.startOfDay(coerced)
+                }), displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+
+                Button {
+                    let next = nextSchoolDaySync(after: date)
+                    date = AppCalendar.startOfDay(next)
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                }
             }
         }
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
-                let prev = previousSchoolDaySync(before: date)
-                date = AppCalendar.startOfDay(prev)
-            } label: { Image(systemName: "chevron.left") }
-
-            DatePicker("Date", selection: Binding(get: { date }, set: { newValue in
-                let coerced = nearestSchoolDaySync(to: newValue)
-                date = AppCalendar.startOfDay(coerced)
-            }), displayedComponents: .date)
-            .datePickerStyle(.compact)
-
-            Button {
-                let next = nextSchoolDaySync(after: date)
-                date = AppCalendar.startOfDay(next)
-            } label: { Image(systemName: "chevron.right") }
-
+        ToolbarItem(placement: .topBarTrailing) {
             Button("Today") {
                 let today = Date()
                 let coerced = nearestSchoolDaySync(to: today)
                 date = AppCalendar.startOfDay(coerced)
             }
+            .font(AppTheme.ScaledFont.captionSemibold)
         }
     }
     #endif

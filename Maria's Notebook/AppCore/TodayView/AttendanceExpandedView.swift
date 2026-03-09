@@ -70,7 +70,83 @@ struct AttendanceExpandedView: View {
         return viewModel.sortedAndFiltered(students: visible)
     }
 
-    private var actionBar: some View {
+    // MARK: - Action Bars
+
+    // Compact action bar for iPhone
+    @ViewBuilder
+    private var compactActionBar: some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            // Sort picker
+            Picker("Sort", selection: $localSortKey) {
+                Text("First").tag(AttendanceViewModel.SortKey.firstName)
+                Text("Last").tag(AttendanceViewModel.SortKey.lastName)
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 140)
+
+            Spacer()
+
+            // Mark All Present
+            Button {
+                viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
+                saveCoordinator.save(modelContext, reason: "Mark all present")
+                onChange()
+            } label: {
+                Label("All Present", systemImage: "checkmark.circle.fill")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(isNonSchoolDay || !isEditing)
+
+            // Overflow menu
+            Menu {
+                // Lock/Unlock
+                Button {
+                    isEditing.toggle()
+                    setLocked(!isEditing, for: date)
+                } label: {
+                    Label(isEditing ? "Lock Day" : "Unlock Day", systemImage: isEditing ? "lock.fill" : "lock.open")
+                }
+
+                // Reset
+                Button(role: .destructive) {
+                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
+                    saveCoordinator.save(modelContext, reason: "Reset day")
+                    onChange()
+                } label: {
+                    Label("Reset Day", systemImage: SFSymbol.Action.arrowCounterclockwise)
+                }
+                .disabled(isNonSchoolDay || !isEditing)
+
+                Divider()
+
+                // Tardy Report
+                Button {
+                    showingTardyReport = true
+                } label: {
+                    Label("Tardy Report", systemImage: "chart.bar.doc.horizontal")
+                }
+
+                // Email
+                if emailEnabled {
+                    Button {
+                        prepareAttendanceEmail()
+                    } label: {
+                        Label("Email Attendance", systemImage: SFSymbol.Communication.envelope)
+                    }
+                    .disabled(isNonSchoolDay)
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 18))
+            }
+        }
+        .padding(.vertical, AppTheme.Spacing.small)
+    }
+
+    // Full action bar for iPad/macOS
+    private var regularActionBar: some View {
         HStack(spacing: AppTheme.Spacing.md) {
             // Sort
             Picker("Sort", selection: $localSortKey) {
@@ -136,6 +212,19 @@ struct AttendanceExpandedView: View {
             }
         }
         .padding(.vertical, AppTheme.Spacing.small)
+    }
+
+    @ViewBuilder
+    private var actionBar: some View {
+#if os(iOS)
+        if hSizeClass == .compact {
+            compactActionBar
+        } else {
+            regularActionBar
+        }
+#else
+        regularActionBar
+#endif
     }
 
     private var nonSchoolDayWarning: some View {

@@ -147,111 +147,108 @@ struct AttendanceCard: View {
     }
 
     // MARK: - Layout Variants
-    
-    @ViewBuilder
-    private var compactLayout: some View {
-        // iPhone compact layout
-        HStack(spacing: 6) {
-            Text(student.fullName)
-                .font(AppTheme.ScaledFont.titleSmall)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            // Visual indicator for note
-            if hasNote {
-                Image(systemName: "note.text")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
 
-        // Compact status pill with absence reason indicator
-        HStack(spacing: 6) {
-            Text(statusLabel)
-                .id(status)
-                .font(AppTheme.ScaledFont.captionSmallSemibold)
-                .foregroundStyle(accentColor)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .bottom).combined(with: .opacity),
-                    removal: .move(edge: .top).combined(with: .opacity)
-                ))
-            if status == .absent && absenceReason != .none {
-                Image(systemName: absenceReason.icon)
-                    .font(.system(size: 10))
-                    .foregroundStyle(accentColor)
-            }
-        }
-        .padding(.horizontal, AppTheme.Spacing.sm)
-        .padding(.vertical, AppTheme.Spacing.statusPillVertical)
-        .background(
-            Capsule().fill(accentColor.opacity(UIConstants.OpacityConstants.medium))
-        )
-        .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
-
-        // Spacer to push note section to bottom
-        Spacer(minLength: 4)
-
-        // Note section at bottom
-        if !hasNote && isEditing {
-            // Add note icon button
-            Button {
-                noteToEdit = nil
-                showingNoteEditor = true
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "square.and.pencil")
-                        .imageScale(.medium)
-                        .foregroundStyle(.secondary)
-                    Text("Add Note")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Add Note")
-        } else if hasNote {
-            let noteContent = resolvedNote
-            // Note text display
-            if isEditing {
-                Button {
-                    noteToEdit = noteContent.object
-                    showingNoteEditor = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "note.text")
-                            .foregroundStyle(.secondary)
-                        Text(noteContent.text)
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .buttonStyle(.plain)
-                .help("Edit note")
-            } else {
-                HStack(spacing: 6) {
-                    Image(systemName: "note.text")
-                        .foregroundStyle(.secondary)
-                    Text(noteContent.text)
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            }
+    // Status circle icon for compact row layout (Reminders-style)
+    private var statusIconName: String {
+        switch status {
+        case .unmarked: return "circle"
+        case .present: return "checkmark.circle.fill"
+        case .absent: return "xmark.circle.fill"
+        case .tardy: return "clock.fill"
+        case .leftEarly: return "arrow.right.circle.fill"
         }
     }
-    
+
+    @ViewBuilder
+    private var compactLayout: some View {
+        // Reminders-style list row: status circle | name + details | note indicator
+        HStack(spacing: AppTheme.Spacing.compact) {
+            // Tappable status circle
+            Button {
+                if isEditing { onTap() }
+            } label: {
+                Image(systemName: statusIconName)
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(accentColor)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .id(status)
+            .transition(.asymmetric(
+                insertion: .scale.combined(with: .opacity),
+                removal: .scale.combined(with: .opacity)
+            ))
+            .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
+
+            // Name + subtitle
+            VStack(alignment: .leading, spacing: 2) {
+                Text(student.fullName)
+                    .font(AppTheme.ScaledFont.callout)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                // Status label + absence reason on one line
+                HStack(spacing: 4) {
+                    Text(statusLabel)
+                        .font(AppTheme.ScaledFont.captionSmall)
+                        .foregroundStyle(accentColor)
+                    if status == .absent && absenceReason != .none {
+                        Image(systemName: absenceReason.icon)
+                            .font(.system(size: 10))
+                            .foregroundStyle(accentColor)
+                        Text(absenceReason.displayName)
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(accentColor)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            // Trailing: note indicator or add-note button
+            if hasNote {
+                let noteContent = resolvedNote
+                if isEditing {
+                    Button {
+                        noteToEdit = noteContent.object
+                        showingNoteEditor = true
+                    } label: {
+                        Image(systemName: "note.text")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+            } else if isEditing {
+                Button {
+                    noteToEdit = nil
+                    showingNoteEditor = true
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, AppTheme.Spacing.small)
+        .padding(.horizontal, AppTheme.Spacing.medium)
+        .contentShape(Rectangle())
+    }
+
     @ViewBuilder
     private var regularLayout: some View {
         // iOS regular layout and macOS: original layout
         originalLayout
     }
 
-    var body: some View {
+    // MARK: - Card body (grid layout for iPad/macOS)
+    private var cardBody: some View {
         HStack(spacing: 0) {
             // Left accent bar indicating status color
             Rectangle()
@@ -260,15 +257,7 @@ struct AttendanceCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 2))
 
             VStack(alignment: .leading, spacing: 8) {
-#if os(iOS)
-                if hSizeClass == .compact {
-                    compactLayout
-                } else {
-                    regularLayout
-                }
-#else
                 regularLayout
-#endif
             }
             .padding(10)
         }
@@ -277,10 +266,27 @@ struct AttendanceCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .adaptiveAnimation(.spring(response: 0.4, dampingFraction: 0.7), value: status)
+    }
+
+    var body: some View {
+        Group {
+#if os(iOS)
+            if hSizeClass == .compact {
+                compactLayout
+            } else {
+                cardBody
+            }
+#else
+            cardBody
+#endif
+        }
 #if os(macOS)
         .highPriorityGesture(TapGesture(count: 1).onEnded { if isEditing { onTap() } })
 #else
-        .onTapGesture { if isEditing { onTap() } }
+        .onTapGesture {
+            // Only handle tap for non-compact (card) layout; compact uses the circle button
+            if hSizeClass != .compact && isEditing { onTap() }
+        }
 #endif
         .contextMenu {
             if isEditing {
@@ -290,23 +296,23 @@ struct AttendanceCard: View {
                 } label: {
                     Label("Note…", systemImage: "square.and.pencil")
                 }
-                
+
                 // Absence reason options (only show when status is absent)
                 if status == .absent, let onSetAbsenceReason = onSetAbsenceReason {
                     Divider()
-                    
+
                     Button {
                         onSetAbsenceReason(.sick)
                     } label: {
                         Label("Mark as Sick", systemImage: "cross.case.fill")
                     }
-                    
+
                     Button {
                         onSetAbsenceReason(.vacation)
                     } label: {
                         Label("Mark as Vacation", systemImage: "beach.umbrella.fill")
                     }
-                    
+
                     if absenceReason != .none {
                         Button {
                             onSetAbsenceReason(.none)
