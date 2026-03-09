@@ -37,7 +37,6 @@ enum ChecklistMatrixBuilder {
 
         // Fetch WorkModels scoped to current lessons using studentID index.
         // Build a lookup by lessonID for O(1) access per cell.
-        let studentIDStrings = Set(students.map { $0.cloudKitKey })
         var worksByLessonID: [String: [WorkModel]] = [:]
         for lessonIDString in lessonIDStrings {
             let descriptor = FetchDescriptor<WorkModel>(
