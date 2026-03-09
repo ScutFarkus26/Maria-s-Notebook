@@ -28,6 +28,9 @@ struct PresentationsInboxView: View {
     // Most recent lesson subject per student (for suggest-next diversity)
     let lastSubjectByStudent: [UUID: String]
 
+    // Open work count per student (fewer = needs a presentation sooner)
+    let openWorkCountByStudent: [UUID: Int]
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -322,7 +325,14 @@ struct PresentationsInboxView: View {
             using: modelContext, calendar: calendar
         ))
 
-        // Factor 3: Subject diversity — penalize if a student's last lesson
+        // Factor 3: Open work — boost lessons for students with less open work
+        // Students with 0 open work need a presentation most urgently
+        let minOpenWork = relevantStudents
+            .map { openWorkCountByStudent[$0] ?? 0 }
+            .min() ?? 0
+        let openWorkBoost = max(0.0, 20.0 - Double(minOpenWork) * 5.0)
+
+        // Factor 4: Subject diversity — penalize if a student's last lesson
         // was the same subject, to encourage variety
         let lessonSubject = lessonsByID[la.resolvedLessonID]?.subject
             .trimmed().lowercased() ?? ""
@@ -335,7 +345,7 @@ struct PresentationsInboxView: View {
             }
         }
 
-        return studentScore * 10.0 + ageInSchoolDays - diversityPenalty
+        return studentScore * 10.0 + ageInSchoolDays + openWorkBoost - diversityPenalty
     }
 
     /// Filtered and sorted ready lessons - automatically recomputes when dependencies change

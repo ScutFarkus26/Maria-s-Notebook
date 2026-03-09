@@ -15,6 +15,7 @@ final class PresentationsViewModel {
     var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     var lastSubjectByStudent: [UUID: String] = [:]
+    var openWorkCountByStudent: [UUID: Int] = [:]
 
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
     var cachedStudents: [Student] {
@@ -173,6 +174,14 @@ final class PresentationsViewModel {
             students, show: showTestStudents, namesRaw: testStudentNamesRaw
         )
         cachedStudentsStorage = visibleStudents
+
+        // Count open work items per student for suggest-next scoring
+        var workCounts: [UUID: Int] = [:]
+        for work in workModels {
+            guard let sid = UUID(uuidString: work.studentID) else { continue }
+            workCounts[sid, default: 0] += 1
+        }
+        self.openWorkCountByStudent = workCounts
 
         let openWorkByPresentationID: [String: [WorkModel]] = workModels
             .filter { $0.presentationID != nil }
