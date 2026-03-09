@@ -293,20 +293,34 @@ struct PresentationsInboxView: View {
         return lessons.max { suggestScore(for: $0) < suggestScore(for: $1) }
     }
 
+    /// Student IDs that already have a scheduled (but not yet given) lesson
+    private var scheduledStudentIDs: Set<UUID> {
+        var ids = Set<UUID>()
+        for la in lessonAssignments where la.scheduledFor != nil && !la.isGiven {
+            ids.formUnion(la.resolvedStudentIDs)
+        }
+        return ids
+    }
+
     private func suggestScore(for la: LessonAssignment) -> Double {
-        // Factor 1: Max days since last lesson across the lesson's students
-        let maxStudentDays = la.resolvedStudentIDs
+        let scheduled = scheduledStudentIDs
+
+        // Factor 1: Max days since last lesson, only counting students
+        // who don't already have a scheduled lesson
+        let unscheduledStudentDays = la.resolvedStudentIDs
+            .filter { !scheduled.contains($0) }
             .compactMap { daysSinceLastLessonByStudent[$0] }
-            .max() ?? 0
+        let maxStudentDays = unscheduledStudentDays.max() ?? 0
         let studentScore = Double(min(maxStudentDays, 999))
 
-        // Factor 2: Lesson age in inbox (calendar days since creation)
-        let ageInDays = Double(Calendar.current.dateComponents(
-            [.day], from: la.createdAt, to: Date()
-        ).day ?? 0)
+        // Factor 2: Lesson age in inbox (school days, not calendar days)
+        let ageInSchoolDays = Double(LessonAgeHelper.schoolDaysSinceCreation(
+            createdAt: la.createdAt, asOf: Date(),
+            using: modelContext, calendar: calendar
+        ))
 
         // Student need weighted more heavily
-        return studentScore * 10.0 + ageInDays
+        return studentScore * 10.0 + ageInSchoolDays
     }
 
     /// Filtered and sorted ready lessons - automatically recomputes when dependencies change
