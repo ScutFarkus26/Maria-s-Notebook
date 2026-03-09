@@ -25,6 +25,9 @@ struct PresentationsInboxView: View {
     // Days since last lesson for each student (for Students section)
     let daysSinceLastLessonByStudent: [UUID: Int]
 
+    // Most recent lesson subject per student (for suggest-next diversity)
+    let lastSubjectByStudent: [UUID: String]
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -307,10 +310,10 @@ struct PresentationsInboxView: View {
 
         // Factor 1: Max days since last lesson, only counting students
         // who don't already have a scheduled lesson
-        let unscheduledStudentDays = la.resolvedStudentIDs
-            .filter { !scheduled.contains($0) }
+        let relevantStudents = la.resolvedStudentIDs.filter { !scheduled.contains($0) }
+        let maxStudentDays = relevantStudents
             .compactMap { daysSinceLastLessonByStudent[$0] }
-        let maxStudentDays = unscheduledStudentDays.max() ?? 0
+            .max() ?? 0
         let studentScore = Double(min(maxStudentDays, 999))
 
         // Factor 2: Lesson age in inbox (school days, not calendar days)
@@ -319,8 +322,20 @@ struct PresentationsInboxView: View {
             using: modelContext, calendar: calendar
         ))
 
-        // Student need weighted more heavily
-        return studentScore * 10.0 + ageInSchoolDays
+        // Factor 3: Subject diversity — penalize if a student's last lesson
+        // was the same subject, to encourage variety
+        let lessonSubject = lessonsByID[la.resolvedLessonID]?.subject
+            .trimmed().lowercased() ?? ""
+        var diversityPenalty = 0.0
+        if !lessonSubject.isEmpty {
+            for sid in relevantStudents {
+                if lastSubjectByStudent[sid]?.trimmed().lowercased() == lessonSubject {
+                    diversityPenalty += 5.0
+                }
+            }
+        }
+
+        return studentScore * 10.0 + ageInSchoolDays - diversityPenalty
     }
 
     /// Filtered and sorted ready lessons - automatically recomputes when dependencies change

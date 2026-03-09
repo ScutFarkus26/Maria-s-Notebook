@@ -245,7 +245,8 @@ struct PresentationsView: View {
                             coordinator: coordinator,
                             cachedLessons: viewModel.lessons,
                             cachedStudents: viewModel.cachedStudents,
-                            daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
+                            daysSinceLastLessonByStudent: daysSinceLastLessonByStudent,
+                            lastSubjectByStudent: viewModel.lastSubjectByStudent
                         )
                     case .calendar:
                         PresentationsCalendarStrip(
@@ -287,7 +288,8 @@ struct PresentationsView: View {
                                 coordinator: coordinator,
                                 cachedLessons: viewModel.lessons,
                                 cachedStudents: viewModel.cachedStudents,
-                                daysSinceLastLessonByStudent: daysSinceLastLessonByStudent
+                                daysSinceLastLessonByStudent: daysSinceLastLessonByStudent,
+                                lastSubjectByStudent: viewModel.lastSubjectByStudent
                             )
                             .frame(height: inboxHeight)
 

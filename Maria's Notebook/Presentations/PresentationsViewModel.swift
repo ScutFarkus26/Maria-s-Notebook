@@ -14,6 +14,7 @@ final class PresentationsViewModel {
     var blockedLessons: [LessonAssignment] = []
     var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
+    var lastSubjectByStudent: [UUID: String] = [:]
 
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
     var cachedStudents: [Student] {
@@ -329,18 +330,26 @@ extension PresentationsViewModel {
             $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID)
         }
 
+        let lessonsByID = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
         var lastDateByStudent: [UUID: Date] = [:]
+        var lastLessonIDByStudent: [UUID: UUID] = [:]
         for la in given {
             let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
             for sid in la.resolvedStudentIDs {
                 if let existing = lastDateByStudent[sid] {
-                    if when > existing { lastDateByStudent[sid] = when }
+                    if when > existing {
+                        lastDateByStudent[sid] = when
+                        lastLessonIDByStudent[sid] = la.resolvedLessonID
+                    }
                 } else {
                     lastDateByStudent[sid] = when
+                    lastLessonIDByStudent[sid] = la.resolvedLessonID
                 }
             }
         }
 
+        var subjects: [UUID: String] = [:]
         for s in students {
             if let last = lastDateByStudent[s.id] {
                 guard let modelContext = modelContext else { continue }
@@ -354,8 +363,14 @@ extension PresentationsViewModel {
             } else {
                 result[s.id] = Int.max
             }
+            if let lessonID = lastLessonIDByStudent[s.id],
+               let subject = lessonsByID[lessonID]?.subject,
+               !subject.isEmpty {
+                subjects[s.id] = subject
+            }
         }
 
         self.daysSinceLastLessonByStudent = result
+        self.lastSubjectByStudent = subjects
     }
 }
