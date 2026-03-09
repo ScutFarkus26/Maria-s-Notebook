@@ -36,8 +36,7 @@ final class PresentationsViewModel {
     private var cachedLessonAssignments: [LessonAssignment] = []
     private var cachedStudentsStorage: [Student] = []
 
-    // PERFORMANCE: Track loading state to prevent redundant concurrent updates
-    private var isLoading = false
+    // PERFORMANCE: Track pending update for cancellation
     private var pendingUpdateTask: Task<Void, Never>?
 
     // PERFORMANCE: Use hash-based change detection
@@ -117,10 +116,6 @@ final class PresentationsViewModel {
         showTestStudents: Bool,
         testStudentNamesRaw: String
     ) async {
-        guard !isLoading else { return }
-        isLoading = true
-        defer { isLoading = false }
-
         self.modelContext = modelContext
         self.calendar = calendar
 
