@@ -302,12 +302,12 @@ struct TodayView: View {
     #if os(macOS)
     private var twoColumnLayout: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Left column: Meetings + Calendar + Todos + Reminders + Lessons Presented + Work Checked
+            // Left column: Calendar + Todos + Reminders + Meetings + Lessons Presented + Work Checked
             List {
-                meetingsListSection
                 calendarEventsListSection
                 todosListSection
                 remindersListSection
+                meetingsListSection
                 presentedLessonsListSection
                 checkedWorkListSection
             }
