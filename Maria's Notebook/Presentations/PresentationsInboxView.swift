@@ -33,7 +33,8 @@ struct PresentationsInboxView: View {
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
     @State private var searchDebounceTask: Task<Void, Never>?
-    @State private var showAIPlanning = false
+    @State var suggestedLessonID: UUID?
+    @State var suggestDismissTask: Task<Void, Never>?
 
     // Default sorting is by age
     let sortMode: PresentationsSortMode = .age
@@ -70,12 +71,27 @@ struct PresentationsInboxView: View {
     }
 
     private var aiSuggestButton: some View {
-        Button(action: { showAIPlanning = true }, label: {
+        Button(action: {
+            if let suggested = suggestedNextLesson {
+                suggestDismissTask?.cancel()
+                adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+                    suggestedLessonID = suggested.id
+                }
+                suggestDismissTask = Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled else { return }
+                    adaptiveWithAnimation(.easeOut(duration: 0.5)) {
+                        suggestedLessonID = nil
+                    }
+                }
+            }
+        }, label: {
             Label("Suggest Next", systemImage: "sparkles")
                 .font(AppTheme.ScaledFont.captionSemibold)
         })
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
+        .disabled(filteredAndSortedReadyLessons.isEmpty)
     }
 
     var body: some View {
@@ -214,8 +230,8 @@ struct PresentationsInboxView: View {
             cachedLessonsByID = Dictionary(cachedLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             cachedStudentsByID = Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         }
-        .sheet(isPresented: $showAIPlanning) {
-            AIPlanningAssistantView(mode: .quickSuggest(cachedStudents.map { $0.id }))
+        .onDisappear {
+            suggestDismissTask?.cancel()
         }
     }
     
@@ -266,6 +282,31 @@ struct PresentationsInboxView: View {
             // Sort by creation date (older first, as older lessons need more attention)
             return matched.sorted { $0.createdAt < $1.createdAt }
         }
+    }
+
+    // MARK: - Suggest Next
+
+    /// Picks the highest-priority ready lesson based on student need and lesson age.
+    var suggestedNextLesson: LessonAssignment? {
+        let lessons = filteredAndSortedReadyLessons
+        guard !lessons.isEmpty else { return nil }
+        return lessons.max { suggestScore(for: $0) < suggestScore(for: $1) }
+    }
+
+    private func suggestScore(for la: LessonAssignment) -> Double {
+        // Factor 1: Max days since last lesson across the lesson's students
+        let maxStudentDays = la.resolvedStudentIDs
+            .compactMap { daysSinceLastLessonByStudent[$0] }
+            .max() ?? 0
+        let studentScore = Double(min(maxStudentDays, 999))
+
+        // Factor 2: Lesson age in inbox (calendar days since creation)
+        let ageInDays = Double(Calendar.current.dateComponents(
+            [.day], from: la.createdAt, to: Date()
+        ).day ?? 0)
+
+        // Student need weighted more heavily
+        return studentScore * 10.0 + ageInDays
     }
 
     /// Filtered and sorted ready lessons - automatically recomputes when dependencies change
