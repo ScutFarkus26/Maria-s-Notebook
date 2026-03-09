@@ -16,6 +16,7 @@ struct IndependentWorkflowWindow: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @State private var triggerCompletion: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,8 +34,7 @@ struct IndependentWorkflowWindow: View {
                 .buttonStyle(.bordered)
 
                 Button("Complete & Save") {
-                    onComplete()
-                    dismiss()
+                    triggerCompletion = true
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -57,7 +57,7 @@ struct IndependentWorkflowWindow: View {
                     dismiss()
                     onCancel()
                 },
-                triggerCompletion: nil
+                triggerCompletion: $triggerCompletion
             )
         }
     }

@@ -122,6 +122,7 @@ struct PresentationDetailContentView: View {
     @State var lessonPickerFocused: Bool = false
     @State var showUnsavedChangesAlert: Bool = false
     @State var showIndependentWorkflowWindow: Bool = false
+    @State var triggerWorkflowCompletion: Bool = false
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass

@@ -52,7 +52,7 @@ extension PresentationDetailContentView {
                             lessonID: lessonID,
                             onComplete: handleWorkflowComplete,
                             onCancel: vm.exitWorkflowMode,
-                            triggerCompletion: nil
+                            triggerCompletion: $triggerWorkflowCompletion
                         )
                         .frame(width: geometry.size.width * 0.72)
                     }
@@ -79,7 +79,7 @@ extension PresentationDetailContentView {
             .onSubmit {
                 // Cmd+Return to complete & save
                 if canCompleteWorkflow(presentationVM: presentationVM) {
-                    handleWorkflowComplete()
+                    triggerWorkflowCompletion = true
                 }
             }
             .alert("Unsaved Changes", isPresented: $showUnsavedChangesAlert) {
@@ -105,7 +105,7 @@ extension PresentationDetailContentView {
         WorkflowHeaderBar(
             lessonTitle: lessonTitle,
             onBack: checkAndExitWorkflowMode,
-            onComplete: handleWorkflowComplete,
+            onComplete: { triggerWorkflowCompletion = true },
             canComplete: canCompleteWorkflow(presentationVM: presentationVM),
             onPopOut: {
                 popOutToIndependentWindow(
@@ -120,7 +120,7 @@ extension PresentationDetailContentView {
         WorkflowHeaderBar(
             lessonTitle: lessonTitle,
             onBack: checkAndExitWorkflowMode,
-            onComplete: handleWorkflowComplete,
+            onComplete: { triggerWorkflowCompletion = true },
             canComplete: canCompleteWorkflow(presentationVM: presentationVM)
         )
         #endif
