@@ -26,6 +26,12 @@ struct QuickNoteSheet: View {
         TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
+    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessons: [Lesson]
+    private var selectedLesson: Lesson? {
+        guard let id = viewModel.selectedLessonID else { return nil }
+        return lessons.first { $0.id == id }
+    }
+
     // MARK: - View Model
     @State private var viewModel: QuickNoteViewModel
 
@@ -131,7 +137,40 @@ struct QuickNoteSheet: View {
                         NoteTagPickerSheet(selectedTags: $viewModel.tags)
                             .frame(minWidth: 400, minHeight: 400)
                     }
-                    
+
+                    // Lesson
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Lesson", systemImage: SFSymbol.Education.book)
+                            .font(.caption).foregroundStyle(.secondary)
+
+                        if let lesson = selectedLesson {
+                            QuickNoteLessonChip(
+                                lessonName: lesson.name,
+                                subject: lesson.subject
+                            ) {
+                                adaptiveWithAnimation { viewModel.selectedLessonID = nil }
+                            }
+                        }
+
+                        Button {
+                            viewModel.isShowingLessonPicker = true
+                        } label: {
+                            Label(
+                                selectedLesson != nil ? "Change" : "Add",
+                                systemImage: selectedLesson != nil ? "arrow.triangle.2.circlepath" : "plus"
+                            )
+                            .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
+                    .popover(isPresented: $viewModel.isShowingLessonPicker) {
+                        QuickNoteLessonPicker(
+                            selectedLessonID: $viewModel.selectedLessonID,
+                            onDone: { viewModel.isShowingLessonPicker = false }
+                        )
+                    }
+
                     // Flags
                     Toggle(isOn: $viewModel.needsFollowUp) {
                         Label("Follow-Up", systemImage: SFSymbol.Rating.flag)
@@ -263,7 +302,24 @@ struct QuickNoteSheet: View {
                     .background(Color(uiColor: .secondarySystemBackground).opacity(0.3))
                     Divider()
                 }
-                
+
+                // Selected Lesson
+                if let lesson = selectedLesson {
+                    HStack {
+                        QuickNoteLessonChip(
+                            lessonName: lesson.name,
+                            subject: lesson.subject
+                        ) {
+                            adaptiveWithAnimation { viewModel.selectedLessonID = nil }
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
+                    .background(Color(uiColor: .secondarySystemBackground).opacity(0.3))
+                    Divider()
+                }
+
                 // Editor
                 QuickNoteEditor(
                     bodyText: $viewModel.bodyText,
@@ -317,6 +373,13 @@ struct QuickNoteSheet: View {
             .sheet(isPresented: $viewModel.showingTagPicker) {
                 NoteTagPickerSheet(selectedTags: $viewModel.tags)
                     .presentationDetents([.medium, .large])
+            }
+            .popover(isPresented: $viewModel.isShowingLessonPicker) {
+                QuickNoteLessonPicker(
+                    selectedLessonID: $viewModel.selectedLessonID,
+                    onDone: { viewModel.isShowingLessonPicker = false }
+                )
+                .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $viewModel.isShowingCamera) {
                 #if os(iOS)
@@ -389,6 +452,13 @@ struct QuickNoteSheet: View {
 
             if viewModel.attachedImage != nil {
                 Image(systemName: "paperclip").foregroundStyle(.blue).font(.caption)
+            }
+
+            // Lesson
+            Button { viewModel.isShowingLessonPicker = true } label: {
+                Image(systemName: SFSymbol.Education.book)
+                    .foregroundStyle(viewModel.selectedLessonID != nil ? Color.indigo : Color.primary)
+                    .font(.system(size: 20))
             }
 
             Spacer()

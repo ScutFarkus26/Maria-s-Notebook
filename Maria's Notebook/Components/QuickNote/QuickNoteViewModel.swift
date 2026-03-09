@@ -47,6 +47,10 @@ class QuickNoteViewModel {
 
     // Track Context
     var selectedEnrollmentID: UUID?
+
+    // Lesson Context
+    var selectedLessonID: UUID?
+    var isShowingLessonPicker: Bool = false
     
     // MARK: - Dependencies
     private let tagger = StudentTagger()
@@ -250,7 +254,16 @@ class QuickNoteViewModel {
             )
             studentTrackEnrollment = modelContext.safeFetchFirst(descriptor)
         }
-        
+
+        // Fetch Lesson if selectedLessonID is set
+        var lesson: Lesson?
+        if let lessonID = selectedLessonID {
+            let descriptor = FetchDescriptor<Lesson>(
+                predicate: #Predicate<Lesson> { $0.id == lessonID }
+            )
+            lesson = modelContext.safeFetchFirst(descriptor)
+        }
+
         let newNote = Note(
             createdAt: noteDate,
             body: trimmed,
@@ -258,6 +271,7 @@ class QuickNoteViewModel {
             tags: tags,
             includeInReport: includeInReport,
             needsFollowUp: needsFollowUp,
+            lesson: lesson,
             studentTrackEnrollment: studentTrackEnrollment,
             imagePath: attachedImagePath
         )

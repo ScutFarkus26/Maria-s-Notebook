@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import PhotosUI
 
 #if os(macOS)
@@ -298,6 +299,140 @@ struct Center<Content: View>: View {
     init(@ViewBuilder content: () -> Content) { self.content = content() }
     var body: some View {
         VStack { Spacer(); HStack { Spacer(); content; Spacer() }; Spacer() }
+    }
+}
+
+// MARK: - Lesson Picker
+
+struct QuickNoteLessonPicker: View {
+    @Binding var selectedLessonID: UUID?
+    var onDone: (() -> Void)?
+
+    @State private var searchText: String = ""
+    @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
+    @Environment(\.dismiss) private var dismiss
+
+    private var filteredLessons: [Lesson] {
+        if searchText.trimmed().isEmpty { return lessons }
+        let query = searchText.trimmed()
+        return lessons.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.subject.localizedCaseInsensitiveContains(query) ||
+            $0.group.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private func done() {
+        if let onDone { onDone() } else { dismiss() }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                TextField("Search lessons...", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+                if !searchText.isEmpty {
+                    Button { searchText = "" } label: {
+                        Image(systemName: SFSymbol.Action.xmarkCircleFill)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(12)
+
+            Divider()
+
+            List {
+                // "None" option to clear
+                Button {
+                    adaptiveWithAnimation { selectedLessonID = nil }
+                    done()
+                } label: {
+                    HStack {
+                        Text("None").foregroundStyle(.secondary)
+                        Spacer()
+                        if selectedLessonID == nil {
+                            Image(systemName: SFSymbol.Action.checkmark)
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+
+                ForEach(filteredLessons) { lesson in
+                    Button {
+                        adaptiveWithAnimation { selectedLessonID = lesson.id }
+                        done()
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                                    .foregroundStyle(.primary)
+                                let subtitle = [lesson.subject, lesson.group]
+                                    .filter { !$0.isEmpty }
+                                    .joined(separator: " \u{00B7} ")
+                                if !subtitle.isEmpty {
+                                    Text(subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            if selectedLessonID == lesson.id {
+                                Image(systemName: SFSymbol.Action.checkmark)
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .listStyle(.plain)
+        }
+        #if os(macOS)
+        .frame(minWidth: 360, minHeight: 300)
+        #endif
+    }
+}
+
+// MARK: - Lesson Chip
+
+struct QuickNoteLessonChip: View {
+    let lessonName: String
+    let subject: String
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: SFSymbol.Education.book)
+                .font(.system(size: 12))
+                .foregroundStyle(.indigo)
+
+            Text(lessonName)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+            if !subject.isEmpty {
+                Text(subject)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 8)
+        .padding(.vertical, 4)
+        .background(Color.indigo.opacity(0.1))
+        .clipShape(Capsule())
     }
 }
 
