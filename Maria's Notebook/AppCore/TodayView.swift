@@ -281,7 +281,6 @@ struct TodayView: View {
         twoColumnLayout
         #else
         List {
-            meetingsListSection
             calendarEventsListSection
             todosListSection
             presentedLessonsListSection
@@ -303,7 +302,6 @@ struct TodayView: View {
                 calendarEventsListSection
                 todosListSection
                 remindersListSection
-                meetingsListSection
                 presentedLessonsListSection
                 checkedWorkListSection
             }

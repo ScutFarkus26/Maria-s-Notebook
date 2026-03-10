@@ -264,6 +264,7 @@ final class TodayViewModel {
         // 8. Build unified agenda
         agendaItems = TodayAgendaBuilder.buildAgenda(
             lessons: filteredLessons,
+            meetings: meetingsResult.meetings,
             overdueSchedule: workResult.overdueSchedule,
             todaysSchedule: workResult.todaysSchedule,
             staleFollowUps: workResult.staleFollowUps,

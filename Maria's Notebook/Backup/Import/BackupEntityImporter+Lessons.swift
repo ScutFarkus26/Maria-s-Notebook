@@ -25,6 +25,9 @@ extension BackupEntityImporter {
                 writeUp: dto.writeUp
             )
             if let pages = dto.pagesFileRelativePath { lesson.pagesFileRelativePath = pages }
+            if let primaryAttachmentID = dto.primaryAttachmentID {
+                lesson.primaryAttachmentID = primaryAttachmentID.uuidString
+            }
             // Format v9+ fields
             if let v = dto.suggestedFollowUpWork { lesson.suggestedFollowUpWork = v }
             if let v = dto.sourceRaw { lesson.sourceRaw = v }

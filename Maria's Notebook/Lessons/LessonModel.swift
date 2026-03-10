@@ -57,6 +57,8 @@ final class Lesson: Identifiable {
     @Attribute(.externalStorage) var pagesFileBookmark: Data?
     /// Relative path to an imported file inside the app's managed container.
     var pagesFileRelativePath: String?
+    /// Optional attachment UUID designating which attachment should act as the lesson's primary file.
+    var primaryAttachmentID: String?
 
     // MARK: - Computed Properties
 
@@ -84,6 +86,12 @@ final class Lesson: Identifiable {
     var defaultWorkKind: WorkKind? {
         get { defaultWorkKindRaw.flatMap { WorkKind(rawValue: $0) } }
         set { defaultWorkKindRaw = newValue?.rawValue }
+    }
+
+    @Transient
+    var primaryAttachmentIDUUID: UUID? {
+        get { primaryAttachmentID.flatMap(UUID.init(uuidString:)) }
+        set { primaryAttachmentID = newValue?.uuidString }
     }
     
     /// Helper to access suggested follow-up work as an array of individual items
@@ -166,6 +174,7 @@ final class Lesson: Identifiable {
         suggestedFollowUpWork: String = "",
         pagesFileBookmark: Data? = nil,
         pagesFileRelativePath: String? = nil,
+        primaryAttachmentID: String? = nil,
         sourceRaw: String = "album",
         personalKindRaw: String? = nil,
         defaultWorkKind: WorkKind? = nil,
@@ -187,6 +196,7 @@ final class Lesson: Identifiable {
         self.suggestedFollowUpWork = suggestedFollowUpWork
         self.pagesFileBookmark = pagesFileBookmark
         self.pagesFileRelativePath = pagesFileRelativePath
+        self.primaryAttachmentID = primaryAttachmentID
         self.sourceRaw = sourceRaw
         self.personalKindRaw = personalKindRaw
         self.defaultWorkKindRaw = defaultWorkKind?.rawValue

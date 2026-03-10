@@ -97,6 +97,9 @@ struct LessonListRow: View {
     let lessonName: String
     let studentNames: String
     let isPresented: Bool
+    var trailingAccessorySystemName: String?
+    var trailingAccessoryLabel: String?
+    var onTrailingAccessoryTap: (() -> Void)?
 
     private var accessibilityLabelText: String {
         var label = "Lesson: \(lessonName)"
@@ -122,7 +125,20 @@ struct LessonListRow: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer()
-            if isPresented {
+            if let trailingAccessorySystemName, let onTrailingAccessoryTap {
+                Button(action: onTrailingAccessoryTap) {
+                    Image(systemName: trailingAccessorySystemName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(Color.secondary.opacity(0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(trailingAccessoryLabel ?? "Open attachment")
+            } else if isPresented {
                 Text("Done")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
@@ -259,29 +275,44 @@ struct CompletionListRow: View {
 
 struct ScheduledMeetingListRow: View {
     let studentName: String
-    var onTap: () -> Void
+    var showsLeadingIcon: Bool = true
+    var onTap: (() -> Void)?
 
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
+    @ViewBuilder
+    private var rowContent: some View {
+        HStack(spacing: 12) {
+            if showsLeadingIcon {
                 Image(systemName: "person.crop.circle.badge.clock")
                     .font(.system(size: 14))
                     .foregroundStyle(.teal.opacity(0.8))
                     .frame(width: 20)
-
-                Text(studentName)
-                    .font(AppTheme.ScaledFont.callout)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Text("Scheduled")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
             }
+
+            Text(studentName)
+                .font(AppTheme.ScaledFont.callout)
+                .foregroundStyle(.primary)
+
+            Spacer()
+
+            Text("Scheduled")
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
         }
-        .buttonStyle(.subtleRow)
-        .accessibilityLabel("Meeting with \(studentName)")
-        .accessibilityHint("Double tap to start meeting")
+    }
+
+    var body: some View {
+        if let onTap {
+            Button(action: onTap) {
+                rowContent
+            }
+            .buttonStyle(.subtleRow)
+            .accessibilityLabel("Meeting with \(studentName)")
+            .accessibilityHint("Double tap to start meeting")
+        } else {
+            rowContent
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Meeting with \(studentName)")
+                .accessibilityHint("Drag to reorder or double tap to start meeting")
+        }
     }
 }

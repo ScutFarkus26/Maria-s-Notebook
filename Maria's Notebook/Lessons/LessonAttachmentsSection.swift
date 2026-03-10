@@ -216,6 +216,10 @@ struct LessonAttachmentsSection: View {
                 AttachmentRow(
                     attachment: attachment,
                     isInherited: isInherited,
+                    isPrimary: lesson.primaryAttachmentIDUUID == attachment.id,
+                    onTogglePrimary: {
+                        togglePrimaryAttachment(attachment)
+                    },
                     onRename: {
                         attachmentToRename = attachment
                         renameFileName = attachment.fileName
@@ -304,6 +308,10 @@ struct LessonAttachmentsSection: View {
     
     private func deleteAttachment(_ attachment: LessonAttachment) {
         do {
+            if lesson.primaryAttachmentIDUUID == attachment.id {
+                lesson.primaryAttachmentID = nil
+            }
+
             // Delete the file if it's managed
             if !attachment.fileRelativePath.isEmpty {
                 let fileURL = try LessonFileStorage.resolve(relativePath: attachment.fileRelativePath)
@@ -316,6 +324,20 @@ struct LessonAttachmentsSection: View {
             
         } catch {
             Self.logger.error("Failed to delete attachment: \(error)")
+        }
+    }
+
+    private func togglePrimaryAttachment(_ attachment: LessonAttachment) {
+        if lesson.primaryAttachmentIDUUID == attachment.id {
+            lesson.primaryAttachmentID = nil
+        } else {
+            lesson.primaryAttachmentID = attachment.id.uuidString
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            Self.logger.error("Failed to update primary attachment: \(error)")
         }
     }
 

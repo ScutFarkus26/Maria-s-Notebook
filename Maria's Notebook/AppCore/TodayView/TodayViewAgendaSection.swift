@@ -18,10 +18,16 @@ extension TodayView {
                 emptyStateText("No lessons presented yet")
             } else {
                 ForEach(presented) { sl in
+                    let lesson = lessonForPresentation(sl)
                     LessonListRow(
                         lessonName: nameForLesson(sl.resolvedLessonID),
                         studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
-                        isPresented: true
+                        isPresented: true,
+                        trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
+                        trailingAccessoryLabel: "Open lesson plan",
+                        onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
+                            openLessonPlan(for: sl)
+                        } : nil
                     )
                     .id(sl.id)
                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
@@ -143,6 +149,8 @@ extension TodayView {
             switch item {
             case .lesson:
                 return ("book.fill", .blue)
+            case .meeting:
+                return ("person.crop.circle.badge.clock", .teal)
             case .scheduledWork:
                 return ("clock.fill", .orange)
             case .followUp:
@@ -165,14 +173,46 @@ extension TodayView {
     func agendaRowContent(for item: AgendaItem) -> some View {
         switch item {
         case .lesson(let sl):
+            let lesson = lessonForPresentation(sl)
             LessonListRow(
                 lessonName: nameForLesson(sl.resolvedLessonID),
                 studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
-                isPresented: sl.isPresented
+                isPresented: sl.isPresented,
+                trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
+                trailingAccessoryLabel: "Open lesson plan",
+                onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
+                    openLessonPlan(for: sl)
+                } : nil
             )
             .contentShape(Rectangle())
             .onTapGesture {
                 selectedLessonAssignment = sl
+            }
+
+        case .meeting(let meeting):
+            ScheduledMeetingListRow(
+                studentName: meetingStudentName(for: meeting),
+                showsLeadingIcon: false,
+                onTap: nil
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                startMeeting(meeting)
+            }
+            .contextMenu {
+                Button {
+                    startMeeting(meeting)
+                } label: {
+                    Label("Start Meeting", systemImage: "play.fill")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    clearScheduledMeeting(meeting)
+                } label: {
+                    Label("Remove", systemImage: "calendar.badge.minus")
+                }
             }
 
         case .scheduledWork(let scheduled):

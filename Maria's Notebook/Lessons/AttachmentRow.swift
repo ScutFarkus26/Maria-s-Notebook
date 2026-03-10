@@ -7,6 +7,8 @@ struct AttachmentRow: View {
 
     let attachment: LessonAttachment
     let isInherited: Bool
+    let isPrimary: Bool
+    let onTogglePrimary: () -> Void
     let onRename: () -> Void
     let onDelete: () -> Void
 
@@ -24,6 +26,13 @@ struct AttachmentRow: View {
                     Text(attachment.fileName)
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .lineLimit(1)
+
+                    if isPrimary {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                            .help("Primary lesson file")
+                    }
 
                     if isInherited {
                         Image(systemName: attachment.scope.icon)
@@ -44,6 +53,13 @@ struct AttachmentRow: View {
             // Actions
             if isHovering || isInherited {
                 HStack(spacing: 8) {
+                    Button(action: onTogglePrimary) {
+                        Image(systemName: isPrimary ? "star.slash" : "star")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.borderless)
+                    .help(isPrimary ? "Clear Primary Lesson File" : "Set as Primary Lesson File")
+
                     Button(action: { openAttachment() }, label: {
                         Image(systemName: "eye")
                             .font(.system(size: 12))

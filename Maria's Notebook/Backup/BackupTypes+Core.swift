@@ -33,6 +33,7 @@ public struct LessonDTO: Codable, Sendable {
     public var updatedAt: Date?
     // File-related fields are intentionally omitted; only include managed relative path if needed
     public var pagesFileRelativePath: String?
+    public var primaryAttachmentID: UUID?
     // Montessori album fields (format v9+)
     public var suggestedFollowUpWork: String?
     public var sourceRaw: String?

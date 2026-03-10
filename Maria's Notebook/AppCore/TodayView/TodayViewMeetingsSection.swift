@@ -3,6 +3,7 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 extension TodayView {
 
@@ -67,12 +68,12 @@ extension TodayView {
 
     // MARK: - Helpers
 
-    private func meetingStudentName(for meeting: ScheduledMeeting) -> String {
+    func meetingStudentName(for meeting: ScheduledMeeting) -> String {
         guard let studentID = meeting.studentIDUUID else { return "Unknown" }
         return viewModel.displayName(for: studentID)
     }
 
-    private func startMeeting(_ meeting: ScheduledMeeting) {
+    func startMeeting(_ meeting: ScheduledMeeting) {
         guard let studentID = meeting.studentIDUUID else { return }
         selectedMeetingStudentID = studentID
         selectedMeetingID = meeting.id
@@ -81,5 +82,109 @@ extension TodayView {
     func clearScheduledMeeting(_ meeting: ScheduledMeeting) {
         MeetingScheduler.clearMeeting(id: meeting.id, context: modelContext)
         viewModel.reload()
+    }
+
+    func lessonForPresentation(_ presentation: LessonAssignment) -> Lesson? {
+        viewModel.lessonsByID[presentation.resolvedLessonID]
+    }
+
+    func lessonHasPlanDocument(_ lesson: Lesson?) -> Bool {
+        guard let lesson else { return false }
+        if primaryLessonAttachment(for: lesson) != nil {
+            return true
+        }
+        if let relativePath = lesson.pagesFileRelativePath, !relativePath.isEmpty {
+            return true
+        }
+        return lesson.pagesFileBookmark != nil
+    }
+
+    func openLessonPlan(for presentation: LessonAssignment) {
+        guard let lesson = lessonForPresentation(presentation) else { return }
+
+        if let attachment = primaryLessonAttachment(for: lesson) {
+            openLessonAttachment(attachment)
+            return
+        }
+
+        if let relativePath = lesson.pagesFileRelativePath, !relativePath.isEmpty {
+            do {
+                let url = try LessonFileStorage.resolve(relativePath: relativePath)
+                openLessonPlan(at: url)
+                return
+            } catch {
+                Logger.app_.warning("Failed to resolve lesson plan path: \(error.localizedDescription)")
+            }
+        }
+
+        guard
+            let bookmark = lesson.pagesFileBookmark,
+            let url = resolveLessonPlanBookmark(bookmark)
+        else {
+            return
+        }
+
+        openLessonPlan(at: url)
+    }
+
+    private func primaryLessonAttachment(for lesson: Lesson) -> LessonAttachment? {
+        guard let primaryID = lesson.primaryAttachmentIDUUID else { return nil }
+        return LessonFileStorage.getAttachments(forLesson: lesson).first(where: { $0.id == primaryID })
+    }
+
+    private func openLessonAttachment(_ attachment: LessonAttachment) {
+        if !attachment.fileRelativePath.isEmpty {
+            do {
+                let url = try LessonFileStorage.resolve(relativePath: attachment.fileRelativePath)
+                openLessonPlan(at: url)
+                return
+            } catch {
+                Logger.app_.warning("Failed to resolve primary lesson attachment path: \(error.localizedDescription)")
+            }
+        }
+
+        guard
+            let bookmark = attachment.fileBookmark,
+            let url = resolveLessonPlanBookmark(bookmark)
+        else {
+            return
+        }
+
+        openLessonPlan(at: url)
+    }
+
+    private func resolveLessonPlanBookmark(_ bookmark: Data) -> URL? {
+        var stale = false
+
+        do {
+#if os(macOS)
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
+#else
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
+#endif
+            _ = url.startAccessingSecurityScopedResource()
+            return url
+        } catch {
+            Logger.app_.warning("Failed to resolve lesson plan bookmark: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func openLessonPlan(at url: URL) {
+#if os(iOS)
+        UIApplication.shared.open(url)
+#elseif os(macOS)
+        NSWorkspace.shared.open(url)
+#endif
     }
 }

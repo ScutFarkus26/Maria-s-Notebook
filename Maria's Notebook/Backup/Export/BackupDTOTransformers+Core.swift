@@ -38,6 +38,7 @@ extension BackupDTOTransformers {
             createdAt: nil,
             updatedAt: nil,
             pagesFileRelativePath: lesson.pagesFileRelativePath,
+            primaryAttachmentID: lesson.primaryAttachmentIDUUID,
             suggestedFollowUpWork: lesson.suggestedFollowUpWork,
             sourceRaw: lesson.sourceRaw,
             personalKindRaw: lesson.personalKindRaw,
