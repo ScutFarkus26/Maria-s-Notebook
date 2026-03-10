@@ -49,6 +49,8 @@ struct LessonAttachmentsSection: View {
     @State private var pendingImportURL: URL?
     @State private var showingDeleteAlert = false
     @State private var attachmentToDelete: LessonAttachment?
+    @State private var attachmentToRename: LessonAttachment?
+    @State private var renameFileName = ""
     @State private var isDropTargeted = false
     @State private var deleteOriginalAfterImport = false
     
@@ -72,6 +74,30 @@ struct LessonAttachmentsSection: View {
         attachmentsContent
             .sheet(isPresented: $showingScopeSheet) {
                 scopeSheet
+            }
+            .alert(
+                "Rename Attachment",
+                isPresented: Binding(
+                    get: { attachmentToRename != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            attachmentToRename = nil
+                            renameFileName = ""
+                        }
+                    }
+                )
+            ) {
+                TextField("Name", text: $renameFileName)
+                Button("Cancel", role: .cancel) {
+                    attachmentToRename = nil
+                    renameFileName = ""
+                }
+                Button("Save") {
+                    renameAttachment()
+                }
+                .disabled(renameFileName.trimmed().isEmpty)
+            } message: {
+                Text("Choose a new name for this attachment.")
             }
             .alert(
                 "Delete Attachment?",
@@ -190,6 +216,10 @@ struct LessonAttachmentsSection: View {
                 AttachmentRow(
                     attachment: attachment,
                     isInherited: isInherited,
+                    onRename: {
+                        attachmentToRename = attachment
+                        renameFileName = attachment.fileName
+                    },
                     onDelete: {
                         attachmentToDelete = attachment
                         showingDeleteAlert = true
@@ -286,6 +316,24 @@ struct LessonAttachmentsSection: View {
             
         } catch {
             Self.logger.error("Failed to delete attachment: \(error)")
+        }
+    }
+
+    private func renameAttachment() {
+        guard let attachment = attachmentToRename else { return }
+
+        do {
+            let renamedFile = try LessonFileStorage.renameAttachment(attachment, to: renameFileName)
+            attachment.fileName = renamedFile.fileName
+            attachment.fileRelativePath = renamedFile.relativePath
+            attachment.fileBookmark = try LessonFileStorage.makeBookmark(for: renamedFile.url)
+            attachment.fileType = renamedFile.fileType
+            try modelContext.save()
+
+            attachmentToRename = nil
+            renameFileName = ""
+        } catch {
+            Self.logger.error("Failed to rename attachment: \(error)")
         }
     }
 

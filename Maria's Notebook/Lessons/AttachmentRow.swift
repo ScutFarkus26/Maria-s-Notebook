@@ -7,6 +7,7 @@ struct AttachmentRow: View {
 
     let attachment: LessonAttachment
     let isInherited: Bool
+    let onRename: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovering = false
@@ -35,13 +36,6 @@ struct AttachmentRow: View {
                     Text(attachment.fileSizeFormatted)
                         .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
-
-                    Text("\u{2022}")
-                        .foregroundStyle(.secondary)
-
-                    Text(attachment.attachedAt, style: .relative)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -65,6 +59,13 @@ struct AttachmentRow: View {
                     .help("Share")
 
                     if !isInherited {
+                        Button(action: onRename) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Rename")
+
                         Button(action: onDelete) {
                             Image(systemName: "trash")
                                 .font(.system(size: 12))

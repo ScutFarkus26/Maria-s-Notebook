@@ -261,6 +261,52 @@ public enum LessonFileStorage {
         
         return (url: destinationURL, relativePath: relativePath)
     }
+
+    /// Renames a managed attachment file and returns updated file metadata.
+    static func renameAttachment(
+        _ attachment: LessonAttachment,
+        to requestedFileName: String
+    ) throws -> (url: URL, relativePath: String, fileName: String, fileType: String) {
+        let trimmedFileName = requestedFileName.trimmed()
+        guard !trimmedFileName.isEmpty else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+
+        guard let lesson = attachment.lesson else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+
+        let currentURL = try resolve(relativePath: attachment.fileRelativePath)
+        let requestedURL = URL(fileURLWithPath: trimmedFileName)
+        let requestedExtension = requestedURL.pathExtension
+        let currentExtension = currentURL.pathExtension
+        let resolvedExtension = requestedExtension.isEmpty ? currentExtension : requestedExtension
+        let extWithDot = resolvedExtension.isEmpty ? "" : ".\(resolvedExtension)"
+        let requestedStem = requestedURL.deletingPathExtension().lastPathComponent
+        let sanitizedBaseName = sanitizeFilenameComponent(
+            requestedStem,
+            fallback: currentURL.deletingPathExtension().lastPathComponent
+        )
+        let displayFileName = sanitizedBaseName + extWithDot
+
+        let destinationDirectory = try organizationalDirectory(forLesson: lesson)
+        let destinationURL = try uniqueAttachmentURL(
+            in: destinationDirectory,
+            lesson: lesson,
+            scope: attachment.scope,
+            baseName: sanitizedBaseName,
+            extWithDot: extWithDot,
+            excluding: currentURL
+        )
+
+        let fm = FileManager.default
+        if currentURL.standardizedFileURL != destinationURL.standardizedFileURL {
+            try fm.moveItem(at: currentURL, to: destinationURL)
+        }
+
+        let relativePath = try relativePath(forManagedURL: destinationURL)
+        return (destinationURL, relativePath, displayFileName, resolvedExtension.lowercased())
+    }
     
     /// Searches for attachments matching a keyword across subjects, groups, or specific lessons.
     /// - Parameters:
@@ -292,6 +338,60 @@ public enum LessonFileStorage {
             }
         } else {
             try fm.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
+        }
+    }
+
+    private static func uniqueAttachmentURL(
+        in directory: URL,
+        lesson: Lesson,
+        scope: AttachmentScope,
+        baseName: String,
+        extWithDot: String,
+        excluding currentURL: URL
+    ) throws -> URL {
+        let fm = FileManager.default
+
+        let scopePrefix: String
+        switch scope {
+        case .lesson:
+            scopePrefix = ""
+        case .group:
+            scopePrefix = "[Group] "
+        case .subject:
+            scopePrefix = "[Subject] "
+        }
+
+        let uuidString = lesson.id.uuidString.replacingOccurrences(of: "-", with: "")
+        let uuidSuffix = String(uuidString.suffix(8))
+
+        func candidateURL(counter: Int?) -> URL {
+            let filename: String
+            switch scope {
+            case .lesson:
+                if let counter {
+                    filename = "\(baseName)-\(uuidSuffix)-\(counter)\(extWithDot)"
+                } else {
+                    filename = "\(baseName)-\(uuidSuffix)\(extWithDot)"
+                }
+            case .group, .subject:
+                if let counter {
+                    filename = "\(scopePrefix)\(baseName)-\(counter)\(extWithDot)"
+                } else {
+                    filename = "\(scopePrefix)\(baseName)\(extWithDot)"
+                }
+            }
+
+            return directory.appendingPathComponent(filename, isDirectory: false)
+        }
+
+        var counter: Int?
+        while true {
+            let candidate = candidateURL(counter: counter)
+            if candidate.standardizedFileURL == currentURL.standardizedFileURL || !fm.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+
+            counter = (counter ?? 0) + 1
         }
     }
 
