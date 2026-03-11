@@ -281,47 +281,8 @@ extension TodayView {
                 todo.completedAt = Date()
 
                 // Handle recurring todos — create the next occurrence
-                if todo.recurrence != .none {
-                    let baseDate: Date
-                    let today = AppCalendar.startOfDay(Date())
-
-                    if todo.repeatAfterCompletion {
-                        baseDate = today
-                    } else {
-                        baseDate = todo.dueDate ?? today
-                    }
-
-                    let nextDueDate: Date?
-                    if todo.recurrence == .custom, let interval = todo.customIntervalDays {
-                        nextDueDate = Calendar.current.date(byAdding: .day, value: interval, to: baseDate)
-                    } else {
-                        nextDueDate = todo.recurrence.nextDate(after: baseDate)
-                    }
-
-                    if let nextDueDate {
-                        var nextScheduled: Date?
-                        if let scheduled = todo.scheduledDate, let due = todo.dueDate {
-                            let offset = Calendar.current.dateComponents([.day], from: due, to: scheduled).day ?? 0
-                            nextScheduled = Calendar.current.date(byAdding: .day, value: offset, to: nextDueDate)
-                        } else if todo.scheduledDate != nil {
-                            nextScheduled = nextDueDate
-                        }
-
-                        let newTodo = TodoItem(
-                            title: todo.title,
-                            notes: todo.notes,
-                            orderIndex: 0,
-                            studentIDs: todo.studentIDs,
-                            dueDate: nextDueDate,
-                            scheduledDate: nextScheduled,
-                            priority: todo.priority,
-                            recurrence: todo.recurrence
-                        )
-                        newTodo.repeatAfterCompletion = todo.repeatAfterCompletion
-                        newTodo.customIntervalDays = todo.customIntervalDays
-                        newTodo.tags = todo.tags
-                        modelContext.insert(newTodo)
-                    }
+                if todo.recurrence != .none, let newTodo = makeRecurringTodo(from: todo) {
+                    modelContext.insert(newTodo)
                 }
             } else {
                 todo.completedAt = nil
@@ -332,5 +293,48 @@ extension TodayView {
                 logger.warning("Failed to save todo: \(error)")
             }
         }
+    }
+
+    private func makeRecurringTodo(from todo: TodoItem) -> TodoItem? {
+        let baseDate: Date
+        let today = AppCalendar.startOfDay(Date())
+
+        if todo.repeatAfterCompletion {
+            baseDate = today
+        } else {
+            baseDate = todo.dueDate ?? today
+        }
+
+        let nextDueDate: Date?
+        if todo.recurrence == .custom, let interval = todo.customIntervalDays {
+            nextDueDate = Calendar.current.date(byAdding: .day, value: interval, to: baseDate)
+        } else {
+            nextDueDate = todo.recurrence.nextDate(after: baseDate)
+        }
+
+        guard let nextDueDate else { return nil }
+
+        var nextScheduled: Date?
+        if let scheduled = todo.scheduledDate, let due = todo.dueDate {
+            let offset = Calendar.current.dateComponents([.day], from: due, to: scheduled).day ?? 0
+            nextScheduled = Calendar.current.date(byAdding: .day, value: offset, to: nextDueDate)
+        } else if todo.scheduledDate != nil {
+            nextScheduled = nextDueDate
+        }
+
+        let newTodo = TodoItem(
+            title: todo.title,
+            notes: todo.notes,
+            orderIndex: 0,
+            studentIDs: todo.studentIDs,
+            dueDate: nextDueDate,
+            scheduledDate: nextScheduled,
+            priority: todo.priority,
+            recurrence: todo.recurrence
+        )
+        newTodo.repeatAfterCompletion = todo.repeatAfterCompletion
+        newTodo.customIntervalDays = todo.customIntervalDays
+        newTodo.tags = todo.tags
+        return newTodo
     }
 }

@@ -4,7 +4,8 @@ import Foundation
 public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
-    /// Format version 11: Adds WorkModel/PlanningRecommendation/Resource/NoteStudentLink; removes LegacyPresentation backward compatibility
+    /// Format version 11: Adds WorkModel/PlanningRecommendation/Resource/NoteStudentLink;
+    /// removes LegacyPresentation backward compatibility
     /// Format version 10: Adds SampleWork/SampleWorkStep, WorkStep completionOutcome, PracticeSession workStepID
     /// Format version 8: Adds backup coverage for all entity types (Work, Track, Supply, Todo, etc.)
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility

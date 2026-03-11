@@ -173,47 +173,10 @@ extension TodayView {
     func agendaRowContent(for item: AgendaItem) -> some View {
         switch item {
         case .lesson(let sl):
-            let lesson = lessonForPresentation(sl)
-            LessonListRow(
-                lessonName: nameForLesson(sl.resolvedLessonID),
-                studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
-                isPresented: sl.isPresented,
-                trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
-                trailingAccessoryLabel: "Open lesson plan",
-                onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
-                    openLessonPlan(for: sl)
-                } : nil
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                selectedLessonAssignment = sl
-            }
+            agendaLessonRow(sl)
 
         case .meeting(let meeting):
-            ScheduledMeetingListRow(
-                studentName: meetingStudentName(for: meeting),
-                showsLeadingIcon: false,
-                onTap: nil
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                startMeeting(meeting)
-            }
-            .contextMenu {
-                Button {
-                    startMeeting(meeting)
-                } label: {
-                    Label("Start Meeting", systemImage: "play.fill")
-                }
-
-                Divider()
-
-                Button(role: .destructive) {
-                    clearScheduledMeeting(meeting)
-                } label: {
-                    Label("Remove", systemImage: "calendar.badge.minus")
-                }
-            }
+            agendaMeetingRow(meeting)
 
         case .scheduledWork(let scheduled):
             ScheduledWorkListRow(
@@ -256,6 +219,53 @@ extension TodayView {
                     selectedWorkID = workID
                 }
             )
+        }
+    }
+
+    @ViewBuilder
+    private func agendaLessonRow(_ sl: LessonAssignment) -> some View {
+        let lesson = lessonForPresentation(sl)
+        LessonListRow(
+            lessonName: nameForLesson(sl.resolvedLessonID),
+            studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
+            isPresented: sl.isPresented,
+            trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
+            trailingAccessoryLabel: "Open lesson plan",
+            onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
+                openLessonPlan(for: sl)
+            } : nil
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectedLessonAssignment = sl
+        }
+    }
+
+    @ViewBuilder
+    private func agendaMeetingRow(_ meeting: ScheduledMeeting) -> some View {
+        ScheduledMeetingListRow(
+            studentName: meetingStudentName(for: meeting),
+            showsLeadingIcon: false,
+            onTap: nil
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            startMeeting(meeting)
+        }
+        .contextMenu {
+            Button {
+                startMeeting(meeting)
+            } label: {
+                Label("Start Meeting", systemImage: "play.fill")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                clearScheduledMeeting(meeting)
+            } label: {
+                Label("Remove", systemImage: "calendar.badge.minus")
+            }
         }
     }
 

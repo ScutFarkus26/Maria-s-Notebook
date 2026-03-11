@@ -237,14 +237,14 @@ struct ClassSubjectChecklistView: View {
         .sheet(isPresented: $isShowingAddWorkSheet, onDismiss: {
             viewModel.recomputeMatrix(context: modelContext)
             viewModel.clearSelection()
-        }) {
+        }, content: {
             if let lessonID = viewModel.selectedCellsSameLessonID {
                 QuickNewWorkItemSheet(
                     preSelectedLessonID: lessonID,
                     preSelectedStudentIDs: viewModel.selectedStudentIDs
                 )
             }
-        }
+        })
         .onChange(of: viewModel.selectedSubject) { _, newValue in
             // Skip during initial load — loadData already built the matrix
             guard didFinishInitialLoad else { return }
@@ -263,7 +263,11 @@ struct ClassSubjectChecklistView: View {
         }
     }
 
-    // MARK: - Header Row
+}
+
+// MARK: - Header Row
+
+extension ClassSubjectChecklistView {
     private var headerRow: some View {
         HStack(spacing: 0) {
             // Top-Left Corner (Sticky horizontally)
@@ -302,119 +306,4 @@ struct ClassSubjectChecklistView: View {
             alignment: .leading
         )
     }
-}
-
-// MARK: - THE SMART CELL
-struct ClassChecklistSmartCell: View {
-    let state: StudentChecklistRowState?
-    let isSelected: Bool
-    let isSelectionMode: Bool
-
-    var onTap: () -> Void
-    var onSelect: () -> Void
-    var onMarkComplete: () -> Void
-    var onMarkPresented: () -> Void
-    var onMarkPreviouslyPresented: () -> Void
-    var onClear: () -> Void
-
-    var body: some View {
-        let displayStatus = state?.displayStatus ?? .empty
-        let isInboxPlan = state?.isInboxPlan ?? false
-        let isStale = state?.isStale ?? false
-        let isScheduled = state?.isScheduled ?? false
-
-        ZStack {
-            // Staleness tint background
-            if isStale && displayStatus != .mastered && displayStatus != .empty {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.orange.opacity(0.1))
-            }
-
-            // Selection highlight background
-            if isSelected {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.accentColor.opacity(0.15))
-            }
-
-            Color.clear.contentShape(Rectangle()) // Hit area
-
-            switch displayStatus {
-            case .mastered:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.green)
-                    .font(.title2)
-            case .reviewing:
-                Image(systemName: "eye.fill")
-                    .foregroundStyle(Color.yellow)
-                    .font(.title3)
-            case .practicing:
-                Image(systemName: "pencil")
-                    .foregroundStyle(Color.blue)
-                    .font(.title3.weight(.bold))
-            case .presented:
-                Image(systemName: "checkmark")
-                    .foregroundStyle(Color.blue)
-                    .font(.title3.weight(.bold))
-            case .scheduled:
-                Image(systemName: isInboxPlan ? "tray" : "calendar")
-                    .foregroundStyle(Color.orange)
-                    .font(.title3)
-            case .empty:
-                Circle()
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
-                    .frame(width: 16, height: 16)
-            }
-
-            // Selection indicator
-            if isSelected {
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.accentColor)
-                            .font(.caption)
-                            .background(Circle().fill(Color.white).padding(-1))
-                    }
-                    Spacer()
-                }
-                .padding(4)
-            }
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
-                .padding(2)
-        )
-        .onTapGesture {
-            if isSelectionMode {
-                onSelect()
-            } else {
-                onTap()
-            }
-        }
-        .contextMenu {
-            Button {
-                #if os(iOS)
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                #endif
-                onSelect()
-            } label: {
-                Label("Select", systemImage: "checkmark.circle")
-            }
-            Divider()
-            Button { onTap() } label: { Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "tray") }
-            Button { onMarkPresented() } label: { Label("Mark Presented", systemImage: "checkmark") }
-            Button { onMarkPreviouslyPresented() } label: { Label("Previously Presented", systemImage: "clock.badge.checkmark") }
-            Button { onMarkComplete() } label: { Label("Mark Mastered", systemImage: "checkmark.circle.fill") }
-            Divider()
-            Button(role: .destructive) { onClear() } label: { Label("Clear All Status", systemImage: "xmark.circle") }
-        }
-    }
-}
-
-// MARK: - Cell Identifier for Multi-Selection
-struct CellIdentifier: Hashable {
-    let studentID: UUID
-    let lessonID: UUID
 }

@@ -93,7 +93,6 @@ extension AppBootstrapping {
         }
 
         // Helper to create container with defensive error handling
-        // swiftlint:disable:next function_body_length
         func makeContainer(inMemory: Bool, url: URL? = nil, cloud: Bool = false) throws -> ModelContainer {
             do {
                 if inMemory {

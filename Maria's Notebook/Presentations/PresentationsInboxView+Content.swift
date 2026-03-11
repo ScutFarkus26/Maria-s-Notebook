@@ -57,9 +57,15 @@ extension PresentationsInboxView {
                                 inboxRow(la)
                                     .id(la.id)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                                            .stroke(Color.accentColor, lineWidth: suggestedLessonID == la.id ? 2.5 : 0)
-                                            .shadow(color: .accentColor.opacity(suggestedLessonID == la.id ? 0.4 : 0), radius: 6)
+                                        RoundedRectangle(
+                                            cornerRadius: UIConstants.CornerRadius.medium,
+                                            style: .continuous
+                                        )
+                                        .stroke(Color.accentColor, lineWidth: suggestedLessonID == la.id ? 2.5 : 0)
+                                        .shadow(
+                                            color: .accentColor.opacity(suggestedLessonID == la.id ? 0.4 : 0),
+                                            radius: 6
+                                        )
                                     )
                             }
                         }

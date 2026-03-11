@@ -14,9 +14,9 @@ struct AttendanceExpandedView: View {
     let onChange: () -> Void
     let onToast: (String) -> Void
 
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var hSizeClass
-    @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.modelContext) var modelContext
+    @Environment(\.horizontalSizeClass) var hSizeClass
+    @Environment(SaveCoordinator.self) var saveCoordinator
 
     @Query(sort: Student.sortByLastName)
     private var allStudentsRaw: [Student]
@@ -24,14 +24,14 @@ struct AttendanceExpandedView: View {
     private var allStudents: [Student] { allStudentsRaw.uniqueByID }
     private var allStudentIDs: [UUID] { allStudents.map { $0.id } }
 
-    @State private var viewModel = AttendanceViewModel()
+    @State var viewModel = AttendanceViewModel()
 
-    @SyncedAppStorage("AttendanceEmail.enabled") private var emailEnabled: Bool = true
+    @SyncedAppStorage("AttendanceEmail.enabled") var emailEnabled: Bool = true
     @State private var showMailSheet = false
-    @State private var showingTardyReport = false
+    @State var showingTardyReport = false
     @State private var toastMessage: String?
-    @State private var isEditing: Bool = true
-    @State private var localSortKey: AttendanceViewModel.SortKey = .lastName
+    @State var isEditing: Bool = true
+    @State var localSortKey: AttendanceViewModel.SortKey = .lastName
     @State private var activeChipPopover: AttendanceStatus?
 
     // Persistence for locking
@@ -57,7 +57,7 @@ struct AttendanceExpandedView: View {
         syncedStore.bool(forKey: lockKey(for: date))
     }
 
-    private func setLocked(_ locked: Bool, for date: Date) {
+    func setLocked(_ locked: Bool, for date: Date) {
         let key = lockKey(for: date)
         if locked {
             syncedStore.set(true, forKey: key)
@@ -66,166 +66,9 @@ struct AttendanceExpandedView: View {
         }
     }
 
-    private var filteredStudents: [Student] {
+    var filteredStudents: [Student] {
         let visible = viewModel.visibleStudents(from: allStudents)
         return viewModel.sortedAndFiltered(students: visible)
-    }
-
-    // MARK: - Action Bars
-
-    // Compact action bar for iPhone
-    @ViewBuilder
-    private var compactActionBar: some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            // Sort picker
-            Picker("Sort", selection: $localSortKey) {
-                Text("First").tag(AttendanceViewModel.SortKey.firstName)
-                Text("Last").tag(AttendanceViewModel.SortKey.lastName)
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 140)
-
-            Spacer()
-
-            // Mark All Present
-            Button {
-                viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Mark all present")
-                onChange()
-            } label: {
-                Label("All Present", systemImage: "checkmark.circle.fill")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .disabled(isNonSchoolDay || !isEditing)
-
-            // Overflow menu
-            Menu {
-                // Lock/Unlock
-                Button {
-                    isEditing.toggle()
-                    setLocked(!isEditing, for: date)
-                } label: {
-                    Label(isEditing ? "Lock Day" : "Unlock Day", systemImage: isEditing ? "lock.fill" : "lock.open")
-                }
-
-                // Reset
-                Button(role: .destructive) {
-                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Reset day")
-                    onChange()
-                } label: {
-                    Label("Reset Day", systemImage: SFSymbol.Action.arrowCounterclockwise)
-                }
-                .disabled(isNonSchoolDay || !isEditing)
-
-                Divider()
-
-                // Tardy Report
-                Button {
-                    showingTardyReport = true
-                } label: {
-                    Label("Tardy Report", systemImage: "chart.bar.doc.horizontal")
-                }
-
-                // Email
-                if emailEnabled {
-                    Button {
-                        prepareAttendanceEmail()
-                    } label: {
-                        Label("Email Attendance", systemImage: SFSymbol.Communication.envelope)
-                    }
-                    .disabled(isNonSchoolDay)
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 18))
-            }
-        }
-        .padding(.vertical, AppTheme.Spacing.small)
-    }
-
-    // Full action bar for iPad/macOS
-    private var regularActionBar: some View {
-        HStack(spacing: AppTheme.Spacing.md) {
-            // Sort
-            Picker("Sort", selection: $localSortKey) {
-                Text("First").tag(AttendanceViewModel.SortKey.firstName)
-                Text("Last").tag(AttendanceViewModel.SortKey.lastName)
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 160)
-
-            // Tardy Report
-            Button {
-                showingTardyReport = true
-            } label: {
-                Label("Tardy Report", systemImage: "chart.bar.doc.horizontal")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.bordered)
-            .help("View Tardy Report")
-
-            Spacer()
-
-            // Lock
-            Button {
-                isEditing.toggle()
-                setLocked(!isEditing, for: date)
-            } label: {
-                Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
-            }
-            .buttonStyle(.bordered)
-            .help(isEditing ? "Lock this day" : "Unlock this day")
-
-            // Reset
-            Button {
-                viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Reset day")
-                onChange()
-            } label: {
-                Image(systemName: SFSymbol.Action.arrowCounterclockwise)
-            }
-            .buttonStyle(.bordered)
-            .disabled(isNonSchoolDay || !isEditing)
-            .help("Reset Day")
-
-            // Mark All Present
-            Button("Mark All Present") {
-                viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Mark all present")
-                onChange()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(isNonSchoolDay || !isEditing)
-
-            // Email
-            if emailEnabled {
-                Button {
-                    prepareAttendanceEmail()
-                } label: {
-                    Label("Email", systemImage: SFSymbol.Communication.envelope)
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.bordered)
-                .disabled(isNonSchoolDay)
-            }
-        }
-        .padding(.vertical, AppTheme.Spacing.small)
-    }
-
-    @ViewBuilder
-    private var actionBar: some View {
-#if os(iOS)
-        if hSizeClass == .compact {
-            compactActionBar
-        } else {
-            regularActionBar
-        }
-#else
-        regularActionBar
-#endif
     }
 
     private var nonSchoolDayWarning: some View {
@@ -286,7 +129,10 @@ struct AttendanceExpandedView: View {
                     tappableStatChip(title: "Absent", count: viewModel.countAbsent, color: .red, status: .absent)
                 }
                 if viewModel.countLeftEarly > 0 {
-                    tappableStatChip(title: "Left Early", count: viewModel.countLeftEarly, color: .purple, status: .leftEarly)
+                    tappableStatChip(
+                        title: "Left Early", count: viewModel.countLeftEarly,
+                        color: .purple, status: .leftEarly
+                    )
                 }
 
                 Spacer(minLength: 0)
@@ -421,7 +267,7 @@ struct AttendanceExpandedView: View {
         .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
-    private func prepareAttendanceEmail() {
+    func prepareAttendanceEmail() {
         let present = names(for: .present)
         let tardy = names(for: .tardy)
         let absent = names(for: .absent)

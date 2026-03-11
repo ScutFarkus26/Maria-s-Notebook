@@ -220,7 +220,7 @@ struct PresentationsInboxView: View {
                 .allowsHitTesting(false)
             }
         }
-        .onDrop(of: [.text], delegate: InboxDropDelegate(
+        .onDrop(of: [.text], delegate: PresentationsInboxDropDelegate(
             modelContext: modelContext,
             lessonAssignments: lessonAssignments,
             coordinator: coordinator
@@ -241,7 +241,11 @@ struct PresentationsInboxView: View {
         }
     }
     
-    // MARK: - Filtering and Sorting
+}
+
+// MARK: - Filtering, Sorting, and Suggest Next
+
+extension PresentationsInboxView {
 
     func lessonTitle(for la: LessonAssignment, using lookupCache: [UUID: Lesson]) -> String {
         if let lessonID = UUID(uuidString: la.lessonID), let lesson = lookupCache[lessonID] {
@@ -338,10 +342,8 @@ struct PresentationsInboxView: View {
             .trimmed().lowercased() ?? ""
         var diversityPenalty = 0.0
         if !lessonSubject.isEmpty {
-            for sid in relevantStudents {
-                if lastSubjectByStudent[sid]?.trimmed().lowercased() == lessonSubject {
-                    diversityPenalty += 5.0
-                }
+            for sid in relevantStudents where lastSubjectByStudent[sid]?.trimmed().lowercased() == lessonSubject {
+                diversityPenalty += 5.0
             }
         }
 
@@ -387,50 +389,4 @@ struct PresentationsInboxView: View {
         )
     }
 
-}
-
-// MARK: - Drop Delegate for Inbox
-private struct InboxDropDelegate: DropDelegate {
-    private static let logger = Logger.presentations
-    let modelContext: ModelContext
-    let lessonAssignments: [LessonAssignment]
-    let coordinator: PresentationsCoordinator
-
-    func dropEntered(info: DropInfo) {
-        adaptiveWithAnimation { coordinator.setInboxTargeted(true) }
-    }
-
-    func dropExited(info: DropInfo) {
-        adaptiveWithAnimation { coordinator.setInboxTargeted(false) }
-    }
-
-    func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.text])
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        adaptiveWithAnimation { coordinator.setInboxTargeted(false) }
-        let providers = info.itemProviders(for: [.text])
-        guard let provider = providers.first else { return false }
-
-        provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let str = reading as? String,
-                  let payload = UnifiedCalendarDragPayload.parse(str),
-                  case .presentation(let id) = payload else { return }
-
-            Task { @MainActor in
-                if let la = lessonAssignments.first(where: { $0.id == id }) {
-                    if la.scheduledFor != nil {
-                        la.unschedule()
-                        do {
-                            try modelContext.save()
-                        } catch {
-                            Self.logger.warning("Presentations inbox unschedule save failed: \(error)")
-                        }
-                    }
-                }
-            }
-        }
-        return true
-    }
 }

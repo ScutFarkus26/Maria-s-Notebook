@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import SwiftData
@@ -55,19 +56,22 @@ class QuickNoteViewModel {
     // MARK: - Dependencies
     private let tagger = StudentTagger()
     let initialStudentID: UUID?
-    
+
     // MARK: - Debouncing
     private var analysisTask: Task<Void, Never>?
     private var isApplyingReplacements: Bool = false
     private var lastReplacementText: String?
-    
+
     // MARK: - Initialization
-    
-    init(initialStudentID: UUID? = nil) {
+
+    init(initialStudentID: UUID? = nil, initialBodyText: String = "") {
         self.initialStudentID = initialStudentID
-        
+
         if let initialID = initialStudentID {
             self.selectedStudentIDs.insert(initialID)
+        }
+        if !initialBodyText.isEmpty {
+            self.bodyText = initialBodyText
         }
     }
     

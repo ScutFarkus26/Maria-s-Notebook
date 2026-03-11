@@ -200,7 +200,10 @@ extension BackupService {
         payload.todayAgendaOrders = fetchAndTransformInBatches(
             TodayAgendaOrder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
 
-        progress(BackupProgress.progress(for: .collecting, subProgress: 0.80), "Collecting recommendations & resources\u{2026}")
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.80),
+            "Collecting recommendations & resources\u{2026}"
+        )
         payload.planningRecommendations = fetchAndTransformInBatches(
             PlanningRecommendation.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         payload.resources = fetchAndTransformInBatches(

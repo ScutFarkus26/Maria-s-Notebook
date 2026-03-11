@@ -23,7 +23,6 @@ public final class BackupDiffService {
     //   - password: Optional decryption password
     //   - progress: Progress callback
     // - Returns: Diff showing what changed since the backup
-    // swiftlint:disable:next function_body_length
     public func diffWithCurrentData(
         backupURL: URL,
         modelContext: ModelContext,

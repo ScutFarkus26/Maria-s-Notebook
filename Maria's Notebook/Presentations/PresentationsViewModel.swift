@@ -341,22 +341,7 @@ extension PresentationsViewModel {
 
         let lessonsByID = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
-        var lastDateByStudent: [UUID: Date] = [:]
-        var lastLessonIDByStudent: [UUID: UUID] = [:]
-        for la in given {
-            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
-            for sid in la.resolvedStudentIDs {
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing {
-                        lastDateByStudent[sid] = when
-                        lastLessonIDByStudent[sid] = la.resolvedLessonID
-                    }
-                } else {
-                    lastDateByStudent[sid] = when
-                    lastLessonIDByStudent[sid] = la.resolvedLessonID
-                }
-            }
-        }
+        let (lastDateByStudent, lastLessonIDByStudent) = buildLastLessonData(from: given)
 
         var subjects: [UUID: String] = [:]
         for s in students {
@@ -381,5 +366,27 @@ extension PresentationsViewModel {
 
         self.daysSinceLastLessonByStudent = result
         self.lastSubjectByStudent = subjects
+    }
+
+    private func buildLastLessonData(
+        from given: [LessonAssignment]
+    ) -> (dateByStudent: [UUID: Date], lessonIDByStudent: [UUID: UUID]) {
+        var lastDateByStudent: [UUID: Date] = [:]
+        var lastLessonIDByStudent: [UUID: UUID] = [:]
+        for la in given {
+            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
+            for sid in la.resolvedStudentIDs {
+                if let existing = lastDateByStudent[sid] {
+                    if when > existing {
+                        lastDateByStudent[sid] = when
+                        lastLessonIDByStudent[sid] = la.resolvedLessonID
+                    }
+                } else {
+                    lastDateByStudent[sid] = when
+                    lastLessonIDByStudent[sid] = la.resolvedLessonID
+                }
+            }
+        }
+        return (lastDateByStudent, lastLessonIDByStudent)
     }
 }
