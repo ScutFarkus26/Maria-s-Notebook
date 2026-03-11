@@ -61,6 +61,8 @@ struct RootDetailContent: View {
                 ProgressionRootView()
             case .planningProjects:
                 ProjectsRootView()
+            case .progressDashboard:
+                ProgressDashboardView()
             case .community:
                 CommunityMeetingsView()
             case .schedules:

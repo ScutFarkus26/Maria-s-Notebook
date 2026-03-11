@@ -99,6 +99,10 @@ struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.planningProjects) {
                     Label("Projects", systemImage: SFSymbol.Document.folder)
                 }
+
+                NavigationLink(value: RootView.NavigationItem.progressDashboard) {
+                    Label("Progress Dashboard", systemImage: "person.text.rectangle")
+                }
             }
 
             Section("Resources") {
@@ -212,6 +216,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student projects")
+
+                Button { selection = .progressDashboard } label: {
+                    Label("Progress Dashboard", systemImage: "person.text.rectangle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View per-student progress across all subjects")
             }
 
             Section("Resources") {

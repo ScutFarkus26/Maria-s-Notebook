@@ -41,6 +41,7 @@ struct RootView: View {
         case planningWork
         case planningProgression
         case planningProjects
+        case progressDashboard
 
         case community
         case schedules
@@ -69,6 +70,7 @@ struct RootView: View {
             case .planningWork: return "Open Work"
             case .planningProgression: return "Progression"
             case .planningProjects: return "Projects"
+            case .progressDashboard: return "Progress Dashboard"
             case .community: return "Community"
             case .schedules: return "Schedules"
             case .issues: return "Issues"
@@ -96,6 +98,7 @@ struct RootView: View {
             case .planningWork: return "tray.full"
             case .planningProgression: return "chart.line.uptrend.xyaxis"
             case .planningProjects: return "folder"
+            case .progressDashboard: return "person.text.rectangle"
             case .community: return "bubble.left.and.bubble.right"
             case .schedules: return "clock.badge.checkmark"
             case .issues: return "exclamationmark.triangle"
@@ -123,7 +126,7 @@ struct RootView: View {
             switch self {
             case .lessons, .supplies, .procedures, .meetings,
                 .planningChecklist, .planningAgenda, .planningWork,
-                .planningProgression, .planningProjects,
+                .planningProgression, .planningProjects, .progressDashboard,
                 .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -144,7 +147,7 @@ struct RootView: View {
             case .more: return nil
             case .todos: return nil
             case .planningChecklist, .planningAgenda, .planningWork,
-                .planningProgression, .planningProjects: return .planning
+                .planningProgression, .planningProjects, .progressDashboard: return .planning
             case .community: return .community
             case .schedules: return nil
             case .issues: return nil
@@ -191,10 +194,18 @@ struct RootView: View {
     @Environment(\.calendar) private var calendar
     private let quickNoteTip = QuickNoteTip()
     @State private var isShowingQuickNote = false
+    @State private var isShowingCommandBar = false
     @State private var newPresentationDraftID: UUID?
     @State private var isShowingNewWorkItem = false
     @State private var isShowingNewTodo = false
     @State private var workDetailIDToOpen: UUID?
+
+    // Command bar pre-population state
+    @State private var commandBarNoteStudentID: UUID?
+    @State private var commandBarNoteText: String = ""
+    @State private var commandBarWorkLessonID: UUID?
+    @State private var commandBarWorkStudentIDs: Set<UUID> = []
+    @State private var commandBarTodoTitle: String = ""
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -255,7 +266,7 @@ struct RootView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             QuickNoteGlassButton(
-                isShowingSheet: $isShowingQuickNote,
+                isShowingCommandBar: $isShowingCommandBar,
                 onNewPresentation: {
                     let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [])
                     modelContext.insert(draft)
@@ -269,11 +280,46 @@ struct RootView: View {
                 isShowingWorkItemSheet: $isShowingNewWorkItem,
                 onNewTodo: {
                     isShowingNewTodo = true
+                },
+                onNewNote: {
+                    isShowingQuickNote = true
                 }
             )
         }
         .sheet(isPresented: $isShowingQuickNote) {
-            QuickNoteSheet()
+            QuickNoteSheet(
+                initialStudentID: commandBarNoteStudentID,
+                initialBodyText: commandBarNoteText
+            )
+            .onDisappear {
+                commandBarNoteStudentID = nil
+                commandBarNoteText = ""
+            }
+        }
+        .sheet(isPresented: $isShowingCommandBar) {
+            CommandBarSheet(
+                onPresentation: { draftID in
+                    isShowingCommandBar = false
+                    newPresentationDraftID = draftID
+                },
+                onWorkItem: { lessonID, studentIDs in
+                    isShowingCommandBar = false
+                    commandBarWorkLessonID = lessonID
+                    commandBarWorkStudentIDs = studentIDs
+                    isShowingNewWorkItem = true
+                },
+                onNote: { studentID, bodyText in
+                    isShowingCommandBar = false
+                    commandBarNoteStudentID = studentID
+                    commandBarNoteText = bodyText
+                    isShowingQuickNote = true
+                },
+                onTodo: { titleText in
+                    isShowingCommandBar = false
+                    commandBarTodoTitle = titleText
+                    isShowingNewTodo = true
+                }
+            )
         }
         .sheet(item: $newPresentationDraftID) { draftID in
             PresentationDraftSheet(id: draftID) {
@@ -288,7 +334,10 @@ struct RootView: View {
             #endif
         }
         .sheet(isPresented: $isShowingNewWorkItem) {
-            QuickNewWorkItemSheet { workID in
+            QuickNewWorkItemSheet(
+                preSelectedLessonID: commandBarWorkLessonID,
+                preSelectedStudentIDs: commandBarWorkStudentIDs
+            ) { workID in
                 // Delay slightly to allow sheet dismiss animation to complete
                 Task { @MainActor in
                     do {
@@ -298,6 +347,10 @@ struct RootView: View {
                     }
                     workDetailIDToOpen = workID
                 }
+            }
+            .onDisappear {
+                commandBarWorkLessonID = nil
+                commandBarWorkStudentIDs = []
             }
         }
         .sheet(item: $workDetailIDToOpen) { workID in
@@ -312,7 +365,7 @@ struct RootView: View {
         }
         .sheet(isPresented: $isShowingNewTodo) {
             NavigationStack {
-                NewTodoForm()
+                NewTodoForm(initialTitle: commandBarTodoTitle)
                     .navigationTitle("New Todo")
                     #if !os(macOS)
                     .navigationBarTitleDisplayMode(.inline)
@@ -324,6 +377,9 @@ struct RootView: View {
                             }
                         }
                     }
+            }
+            .onDisappear {
+                commandBarTodoTitle = ""
             }
         }
     #if os(macOS)
