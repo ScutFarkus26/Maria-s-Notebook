@@ -220,11 +220,18 @@ struct PresentationsInboxView: View {
                 .allowsHitTesting(false)
             }
         }
-        .onDrop(of: [.text], delegate: PresentationsInboxDropDelegate(
-            modelContext: modelContext,
-            lessonAssignments: lessonAssignments,
-            coordinator: coordinator
-        ))
+        .dropDestination(for: String.self) { items, _ in
+            guard let str = items.first,
+                  let payload = UnifiedCalendarDragPayload.parse(str),
+                  case .presentation(let id) = payload,
+                  let la = lessonAssignments.first(where: { $0.id == id }),
+                  la.scheduledFor != nil else { return false }
+            la.unschedule()
+            modelContext.safeSave()
+            return true
+        } isTargeted: { targeted in
+            adaptiveWithAnimation { coordinator.setInboxTargeted(targeted) }
+        }
         .onChange(of: cachedLessons) { _, newLessons in
             cachedLessonsByID = Dictionary(newLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         }
