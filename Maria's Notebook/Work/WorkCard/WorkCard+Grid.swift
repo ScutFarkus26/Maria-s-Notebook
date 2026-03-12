@@ -152,7 +152,7 @@ struct WorkCardGridContent: View {
                 Label("Copy Title", systemImage: "doc.on.doc")
             }
         }
-        .draggable(WorkAgendaDragPayload.work(config.work.id).stringRepresentation) {
+        .draggable(UnifiedCalendarDragPayload.work(config.work.id).stringRepresentation) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(displayTitle).font(.subheadline)
                 Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)

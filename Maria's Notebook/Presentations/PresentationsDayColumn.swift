@@ -291,8 +291,8 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         switch payload {
         case .presentation(let id):
             applyPresentationDrop(id: id, locationY: locationY)
-        case .workCheckIn:
-            // Work check-ins are not supported in presentations view
+        case .workCheckIn, .work:
+            // Work items and check-ins are not supported in presentations view
             break
         }
     }

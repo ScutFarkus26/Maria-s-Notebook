@@ -159,33 +159,20 @@ struct WorkAgendaCalendarPane: View {
             guard let ns = reading as? NSString else { return }
             let s = (ns as String).trimmed()
             
-            // Try parsing as UnifiedCalendarDragPayload first
-            if let unifiedPayload = UnifiedCalendarDragPayload.parse(s) {
-                Task { @MainActor in
-                    let normalizedDay = AppCalendar.startOfDay(day)
-                    switch unifiedPayload {
-                    case .presentation(let id):
-                        rescheduleLessonAssignment(id: id, to: normalizedDay)
-                    case .workCheckIn(let id):
-                        rescheduleCheckIn(id: id, to: normalizedDay)
-                    // Phase 6: workPlanItem case removed - migrated to workCheckIn
-                    }
-                }
-            }
-            // Fallback to legacy WorkAgendaDragPayload for backwards compatibility
-            else if let legacyPayload = WorkAgendaDragPayload.parse(s) {
-                Task { @MainActor in
-                    let normalizedDay = AppCalendar.startOfDay(day)
-                    switch legacyPayload {
-                    case .work(let id):
-                        prompt = PlanPrompt(workID: id, date: normalizedDay)
-                        updateWorkDueDate(
-                            workID: id, to: normalizedDay,
-                            reason: "Sync work dueDate on drop (prompt pending)"
-                        )
-                    case .checkIn(let id):
-                        rescheduleCheckIn(id: id, to: normalizedDay)
-                    }
+            guard let payload = UnifiedCalendarDragPayload.parse(s) else { return }
+            Task { @MainActor in
+                let normalizedDay = AppCalendar.startOfDay(day)
+                switch payload {
+                case .presentation(let id):
+                    rescheduleLessonAssignment(id: id, to: normalizedDay)
+                case .workCheckIn(let id):
+                    rescheduleCheckIn(id: id, to: normalizedDay)
+                case .work(let id):
+                    prompt = PlanPrompt(workID: id, date: normalizedDay)
+                    updateWorkDueDate(
+                        workID: id, to: normalizedDay,
+                        reason: "Sync work dueDate on drop (prompt pending)"
+                    )
                 }
             }
         }
