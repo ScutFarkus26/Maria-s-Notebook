@@ -277,64 +277,6 @@ struct AgendaSlotDropDelegate: DropDelegate {
         return performDropFromProvidersAsync(providers: providers, location: info.location)
     }
 
-    // swiftlint:disable:next function_body_length
-    nonisolated func performDropFromProviders(providers: [NSItemProvider], location: CGPoint) -> Bool {
-        guard let provider = providers.first else { return false }
-        var result = false
-        let semaphore = DispatchSemaphore(value: 0)
-        _ = provider.loadObject(ofClass: NSString.self) { reading, _ in
-            defer { semaphore.signal() }
-            guard let ns = reading as? NSString else { return }
-            let payload = ns as String
-            if let id = UUID(uuidString: payload.trimmed()) {
-                Task { @MainActor in
-                    let calendar = self.calendar
-                    let day = self.day
-                    let period = self.period
-                    let modelContext = self.modelContext
-                    let allLessonAssignments = self.allLessonAssignments
-                    let currentLessons = self.getCurrent()
-                    var ids = currentLessons.map { $0.id }
-                    if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
-                    let frames = self.itemFramesProvider()
-                    let dict: [UUID: CGRect] = Dictionary(
-                        currentLessons.compactMap { item -> (UUID, CGRect)? in
-                            if let rect = frames[item.id] { return (item.id, rect) }
-                            return nil
-                        },
-                        uniquingKeysWith: { first, _ in first }
-                    )
-                    let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
-                    let bounded = max(0, min(insertionIndex, ids.count))
-                    ids.insert(id, at: bounded)
-                    let baseDate = AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar)
-                    let timeMap = PlanningDropUtils.assignSequentialTimes(
-                        ids: ids,
-                        base: baseDate,
-                        calendar: calendar,
-                        spacingSeconds: 1
-                    )
-                    for id in ids {
-                        if let item = allLessonAssignments.first(where: { $0.id == id }) {
-                            item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
-                            // Auto-enroll students in track if lesson belongs to a track
-                            if let lesson = item.lesson {
-                                GroupTrackService.autoEnrollInTrackIfNeeded(
-                                    lesson: lesson,
-                                    studentIDs: item.studentIDs,
-                                    modelContext: modelContext
-                                )
-                            }
-                        }
-                    }
-                    result = true
-                }
-            }
-        }
-        semaphore.wait()
-        return result
-    }
-
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     nonisolated func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else {
