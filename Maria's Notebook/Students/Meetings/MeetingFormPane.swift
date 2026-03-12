@@ -20,6 +20,7 @@ struct MeetingFormPane: View {
     @State private var focusText: String = ""
     @State private var requestsText: String = ""
     @State private var guideNotesText: String = ""
+    @State private var nextMeetingDate: Date?
     @State private var showingAddLessonSheet: Bool = false
 
     // Get the active meeting template for placeholder prompts
@@ -85,6 +86,14 @@ struct MeetingFormPane: View {
                 meetingField(title: "Lesson Requests", text: $requestsText, placeholder: requestsPlaceholder)
                 meetingField(title: "Guide Notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
+                // Schedule Next Meeting
+                OptionalDatePicker(
+                    toggleLabel: "Schedule Next Meeting",
+                    dateLabel: "Next Meeting",
+                    date: $nextMeetingDate,
+                    displayedComponents: [.date]
+                )
+
                 // Action buttons
                 HStack {
                     Button {
@@ -130,6 +139,7 @@ struct MeetingFormPane: View {
         .onChange(of: focusText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
+        .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
         .onChange(of: isCompleted) { _, _ in saveCurrentToDefaults() }
     }
 
@@ -175,7 +185,8 @@ struct MeetingFormPane: View {
             reflectionText: reflectionText,
             focusText: focusText,
             requestsText: requestsText,
-            guideNotesText: guideNotesText
+            guideNotesText: guideNotesText,
+            nextMeetingDate: nextMeetingDate
         )
     }
 
@@ -186,6 +197,7 @@ struct MeetingFormPane: View {
         focusText = data.focusText
         requestsText = data.requestsText
         guideNotesText = data.guideNotesText
+        nextMeetingDate = data.nextMeetingDate
     }
 
     private func saveCurrentToDefaults() {
@@ -198,6 +210,7 @@ struct MeetingFormPane: View {
         focusText = ""
         requestsText = ""
         guideNotesText = ""
+        nextMeetingDate = nil
         MeetingPersistenceService.clearCurrent(studentID: student.id)
     }
 
@@ -208,6 +221,14 @@ struct MeetingFormPane: View {
             data: currentMeetingData,
             context: modelContext
         ) {
+            // Schedule next meeting if date was set
+            if let date = nextMeetingDate {
+                MeetingScheduler.scheduleMeeting(
+                    studentID: student.id,
+                    date: date,
+                    context: modelContext
+                )
+            }
             clearForm()
             onComplete?()
         }

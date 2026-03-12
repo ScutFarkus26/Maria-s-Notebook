@@ -285,6 +285,7 @@ struct TodayView: View {
             todosListSection
             presentedLessonsListSection
             checkedWorkListSection
+            completedMeetingsListSection
             agendaListSection
         }
         .listStyle(.insetGrouped)
@@ -297,13 +298,15 @@ struct TodayView: View {
     #if os(macOS)
     private var twoColumnLayout: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Left column: Calendar + Todos + Reminders + Meetings + Lessons Presented + Work Checked
+            // Left column: Calendar + Todos + Reminders + Meetings
+            // + Lessons Presented + Work Checked + Completed Meetings
             List {
                 calendarEventsListSection
                 todosListSection
                 remindersListSection
                 presentedLessonsListSection
                 checkedWorkListSection
+                completedMeetingsListSection
             }
             .listStyle(.inset)
             .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)

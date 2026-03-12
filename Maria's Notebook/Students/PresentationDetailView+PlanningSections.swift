@@ -36,6 +36,7 @@ extension PresentationDetailContentView {
             onOpenPicker: { vm.showingStudentPickerPopover = true },
             onOpenMove: openMoveStudentsSheet,
             canMoveStudents: selectedStudentsList.count > 1 && !vm.isPresented,
+            onOpenFindStudents: { vm.showingFindStudentsSheet = true },
             onOpenMoveAbsent: openMoveAbsentStudents,
             canMoveAbsentStudents: canMoveAbsentStudents
         )
@@ -47,6 +48,21 @@ extension PresentationDetailContentView {
             )
             .padding(12)
             .frame(minWidth: 320)
+        }
+        .sheet(isPresented: $vm.showingFindStudentsSheet) {
+            FindStudentsSheet(
+                lessonID: vm.editingLessonID,
+                existingStudentIDs: vm.selectedStudentIDs,
+                allStudents: studentsAll,
+                allLessonAssignments: lessonAssignmentsAll,
+                onAdd: { newIDs in
+                    vm.selectedStudentIDs.formUnion(newIDs)
+                    vm.showingFindStudentsSheet = false
+                },
+                onCancel: { vm.showingFindStudentsSheet = false }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 

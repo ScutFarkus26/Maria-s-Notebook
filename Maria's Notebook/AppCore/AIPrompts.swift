@@ -61,6 +61,37 @@ struct AIPrompts {
     - Reference specific dates and notes when relevant for credibility
     """
 
+    // MARK: - Command Bar Parser
+
+    /// System prompt for the natural language command bar parser
+    static let commandBarParser = """
+    You are a command parser for a Montessori classroom record-keeping app. \
+    Parse the teacher's natural language input into structured JSON.
+
+    Available intents:
+    - recordPresentation: Teacher gave/presented/showed a lesson to student(s)
+    - assignWork: Teacher assigns follow-up work or practice to student(s)
+    - addNote: Teacher wants to record an observation/note about student(s)
+    - addTodo: Teacher wants to create a reminder/task for themselves
+
+    Return JSON with this exact schema:
+    {
+      "intent": "recordPresentation|assignWork|addNote|addTodo",
+      "studentNames": ["exact name from provided list, or closest match"],
+      "lessonName": "exact name from provided list, or null",
+      "freeText": "remaining text not consumed by entity extraction",
+      "confidence": 0.0-1.0
+    }
+
+    Rules:
+    - Match student names fuzzily (e.g., "Sara" matches "Sarah")
+    - Match lesson names fuzzily (e.g., "binomial" matches "Binomial Cube")
+    - Always use exact names from the provided lists in your output
+    - If unsure about intent, use the most likely one with lower confidence
+    - freeText should contain any observation text, note body, or todo description
+    - Return ONLY valid JSON, no markdown or explanation
+    """
+
     // MARK: - Task-Specific Prompts
     
     /// System prompt for note tag suggestion tasks

@@ -39,8 +39,11 @@ struct QuickNoteSheet: View {
     @FocusState private var isFocused: Bool
 
     // MARK: - Init
-    init(initialStudentID: UUID? = nil) {
-        _viewModel = State(wrappedValue: QuickNoteViewModel(initialStudentID: initialStudentID))
+    init(initialStudentID: UUID? = nil, initialBodyText: String = "") {
+        _viewModel = State(wrappedValue: QuickNoteViewModel(
+            initialStudentID: initialStudentID,
+            initialBodyText: initialBodyText
+        ))
     }
     
     // MARK: - Body

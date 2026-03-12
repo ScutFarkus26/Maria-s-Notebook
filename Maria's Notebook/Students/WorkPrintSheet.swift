@@ -95,17 +95,19 @@ struct WorkPrintSheet: View {
         #endif
     }
 
+    private var groups: [WorkPrintGroup] {
+        WorkPrintView.computeGroups(workItems: workItems, students: students)
+    }
+
     private func presentPrint() {
         #if os(iOS)
-        let printView = WorkPrintView(
-            workItems: workItems,
-            students: students,
+        if let pdfData = PDFRenderer.renderGroupedPDF(
+            groups: groups,
             lessons: lessons,
             filterDescription: filterDescription,
-            sortDescription: sortDescription
-        )
-
-        if let pdfData = PDFRenderer.render(view: printView, size: CGSize(width: 612, height: 792)) {
+            sortDescription: sortDescription,
+            workItemCount: workItems.count
+        ) {
             let printController = UIPrintInteractionController.shared
             printController.printingItem = pdfData
 
@@ -121,106 +123,36 @@ struct WorkPrintSheet: View {
             }
         }
         #else
-        let printableWidth: CGFloat = 612 - 72
-
-        let printView = WorkPrintView(
-            workItems: workItems,
-            students: students,
+        if let pdfData = MacPDFRenderer.renderGroupedPDF(
+            groups: groups,
             lessons: lessons,
             filterDescription: filterDescription,
-            sortDescription: sortDescription
-        )
+            sortDescription: sortDescription,
+            workItemCount: workItems.count
+        ) {
+            guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
+            printInfo.topMargin = 36
+            printInfo.bottomMargin = 36
+            printInfo.leftMargin = 36
+            printInfo.rightMargin = 36
 
-        guard let pdfData = renderSheetViewToPDF(printView, width: printableWidth) else {
-            dismiss()
-            return
-        }
-
-        guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
-        printInfo.topMargin = 36
-        printInfo.bottomMargin = 36
-        printInfo.leftMargin = 36
-        printInfo.rightMargin = 36
-
-        if let doc = PDFDocument(data: pdfData),
-           let keyWindow = NSApp.keyWindow,
-           let operation = doc.printOperation(for: printInfo, scalingMode: .pageScaleToFit, autoRotate: false) {
-            operation.showsPrintPanel = true
-            operation.runModal(for: keyWindow, delegate: nil, didRun: nil, contextInfo: nil)
+            if let doc = PDFDocument(data: pdfData),
+               let keyWindow = NSApp.keyWindow,
+               let operation = doc.printOperation(
+                for: printInfo,
+                scalingMode: .pageScaleNone,
+                autoRotate: false
+               ) {
+                operation.showsPrintPanel = true
+                operation.runModal(
+                    for: keyWindow,
+                    delegate: nil,
+                    didRun: nil,
+                    contextInfo: nil
+                )
+            }
         }
         dismiss()
         #endif
     }
-
-    #if os(macOS)
-    // swiftlint:disable:next function_body_length
-    private func renderSheetViewToPDF<V: View>(_ view: V, width: CGFloat) -> Data? {
-        let hostingView = NSHostingView(rootView: view)
-        hostingView.appearance = NSAppearance(named: .aqua)
-
-        let tempWindow = NSWindow(
-            contentRect: NSRect(
-                x: TimeoutConstants.offscreenCoordinate,
-                y: TimeoutConstants.offscreenCoordinate,
-                width: width, height: 2000
-            ),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        tempWindow.contentView = hostingView
-        tempWindow.backgroundColor = .white
-        tempWindow.makeKeyAndOrderFront(nil)
-
-        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: 2000)
-        hostingView.needsLayout = true
-        hostingView.layoutSubtreeIfNeeded()
-
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
-
-        let fittingSize = hostingView.fittingSize
-        let finalHeight = max(fittingSize.height, 100)
-        let finalSize = NSSize(width: width, height: finalHeight)
-
-        hostingView.setFrameSize(finalSize)
-        tempWindow.setContentSize(finalSize)
-        hostingView.needsLayout = true
-        hostingView.layoutSubtreeIfNeeded()
-
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
-
-        let image = NSImage(size: finalSize)
-        image.lockFocus()
-        NSColor.white.setFill()
-        NSRect(origin: .zero, size: finalSize).fill()
-        if let context = NSGraphicsContext.current?.cgContext {
-            hostingView.layer?.render(in: context)
-        }
-        image.unlockFocus()
-
-        guard let tiffData = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData),
-              let cgImage = bitmap.cgImage else {
-            tempWindow.orderOut(nil)
-            return nil
-        }
-
-        let pdfData = NSMutableData()
-        var mediaBox = CGRect(origin: .zero, size: finalSize)
-
-        guard let consumer = CGDataConsumer(data: pdfData as CFMutableData),
-              let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
-            tempWindow.orderOut(nil)
-            return nil
-        }
-
-        pdfContext.beginPDFPage(nil)
-        pdfContext.draw(cgImage, in: mediaBox)
-        pdfContext.endPDFPage()
-        pdfContext.closePDF()
-
-        tempWindow.orderOut(nil)
-        return pdfData as Data
-    }
-    #endif
 }

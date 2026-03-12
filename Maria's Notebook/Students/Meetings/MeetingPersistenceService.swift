@@ -17,6 +17,7 @@ enum MeetingPersistenceService {
         var focusText: String = ""
         var requestsText: String = ""
         var guideNotesText: String = ""
+        var nextMeetingDate: Date?
 
         var isEmpty: Bool {
             reflectionText.trimmed().isEmpty &&
@@ -37,7 +38,8 @@ enum MeetingPersistenceService {
             reflectionText: d.string(forKey: prefix + ".reflection") ?? "",
             focusText: d.string(forKey: prefix + ".focus") ?? "",
             requestsText: d.string(forKey: prefix + ".requests") ?? "",
-            guideNotesText: d.string(forKey: prefix + ".guideNotes") ?? ""
+            guideNotesText: d.string(forKey: prefix + ".guideNotes") ?? "",
+            nextMeetingDate: d.object(forKey: prefix + ".nextMeetingDate") as? Date
         )
     }
 
@@ -52,6 +54,7 @@ enum MeetingPersistenceService {
         d.set(data.focusText, forKey: prefix + ".focus")
         d.set(data.requestsText, forKey: prefix + ".requests")
         d.set(data.guideNotesText, forKey: prefix + ".guideNotes")
+        d.set(data.nextMeetingDate, forKey: prefix + ".nextMeetingDate")
     }
 
     // MARK: - Clear Current

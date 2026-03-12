@@ -9,12 +9,14 @@ enum PieMenuAction: String, CaseIterable, Hashable {
     case newPresentation
     case newWorkItem
     case newTodo
+    case newNote
 
     var icon: String {
         switch self {
         case .newPresentation: return "person.crop.rectangle.stack"
         case .newWorkItem: return "tray.and.arrow.down"
         case .newTodo: return "checklist.checked"
+        case .newNote: return "square.and.pencil"
         }
     }
 
@@ -23,6 +25,7 @@ enum PieMenuAction: String, CaseIterable, Hashable {
         case .newPresentation: return "Present"
         case .newWorkItem: return "Work"
         case .newTodo: return "Todo"
+        case .newNote: return "Note"
         }
     }
 
@@ -31,6 +34,7 @@ enum PieMenuAction: String, CaseIterable, Hashable {
         case .newPresentation: return .blue
         case .newWorkItem: return .orange
         case .newTodo: return .green
+        case .newNote: return .purple
         }
     }
 
@@ -42,19 +46,22 @@ enum PieMenuAction: String, CaseIterable, Hashable {
             return [Color.orange, Color.pink]
         case .newTodo:
             return [Color.mint, Color.green]
+        case .newNote:
+            return [Color.purple, Color.indigo]
         }
     }
 
     var startAngle: Double {
         switch self {
-        case .newPresentation: return -160
-        case .newWorkItem: return -40
-        case .newTodo: return 80
+        case .newPresentation: return -180
+        case .newWorkItem: return -90
+        case .newTodo: return 0
+        case .newNote: return 90
         }
     }
 
     var endAngle: Double {
-        startAngle + 120
+        startAngle + 90
     }
 
     var centerAngle: Double {
@@ -64,8 +71,9 @@ enum PieMenuAction: String, CaseIterable, Hashable {
     var animationDelay: Double {
         switch self {
         case .newPresentation: return 0.00
-        case .newWorkItem: return 0.04
-        case .newTodo: return 0.08
+        case .newWorkItem: return 0.03
+        case .newTodo: return 0.06
+        case .newNote: return 0.09
         }
     }
 }

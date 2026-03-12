@@ -39,6 +39,7 @@ final class PresentationDetailViewModel {
     var showingStudentPickerPopover: Bool = false
     var showDeleteAlert: Bool = false
     var showingMoveStudentsSheet: Bool = false
+    var showingFindStudentsSheet: Bool = false
 
     // MARK: - Workflow Panel State (for embedded presentation workflow)
     var showWorkflowPanel: Bool = false

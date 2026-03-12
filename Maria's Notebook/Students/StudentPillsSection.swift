@@ -7,6 +7,7 @@ struct StudentPillsSection: View {
     var onOpenPicker: () -> Void
     var onOpenMove: () -> Void
     let canMoveStudents: Bool
+    var onOpenFindStudents: () -> Void
     var onOpenMoveAbsent: () -> Void
     let canMoveAbsentStudents: Bool
 
@@ -21,6 +22,12 @@ struct StudentPillsSection: View {
             HStack(spacing: 12) {
                 Button(action: onOpenPicker) {
                     Label("Add/Remove Students", systemImage: "person.2.badge.gearshape")
+                        .font(AppTheme.ScaledFont.callout)
+                }
+                .buttonStyle(.bordered)
+
+                Button(action: onOpenFindStudents) {
+                    Label("Find Students", systemImage: "person.badge.plus")
                         .font(AppTheme.ScaledFont.callout)
                 }
                 .buttonStyle(.bordered)

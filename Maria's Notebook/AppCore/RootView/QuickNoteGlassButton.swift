@@ -6,10 +6,11 @@ import SwiftUI
 // Isolated component to prevent RootView re-renders during drag
 // swiftlint:disable:next type_body_length
 struct QuickNoteGlassButton: View {
-    @Binding var isShowingSheet: Bool
+    @Binding var isShowingCommandBar: Bool
     var onNewPresentation: () -> Void
     @Binding var isShowingWorkItemSheet: Bool
     var onNewTodo: () -> Void
+    var onNewNote: () -> Void
 
     @State private var offset: CGSize = .zero
     @State private var isPressed: Bool = false
@@ -54,10 +55,10 @@ struct QuickNoteGlassButton: View {
         .onDisappear {
             longPressTask?.cancel()
         }
-        .accessibilityLabel("Add quick note")
+        .accessibilityLabel("Quick command")
         .accessibilityHint(
-            "Double tap to open note editor, hold for presentation,"
-            + " work, and todo actions, or drag to reposition"
+            "Double tap to open command bar, hold for presentation,"
+            + " work, todo, and note actions, or drag to reposition"
         )
         .accessibilityAddTraits(.isButton)
     }
@@ -222,9 +223,9 @@ struct QuickNoteGlassButton: View {
                         highlightedAction = nil
                     }
                 } else if distance < 2 {
-                    // Simple tap - open quick note sheet
+                    // Simple tap - open command bar
                     self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
-                    isShowingSheet = true
+                    isShowingCommandBar = true
                 } else {
                     // Drag ended - save new position
                     let finalOffset = CGSize(
@@ -278,12 +279,15 @@ struct QuickNoteGlassButton: View {
 
         let angle = normalizedDegrees(atan2(translation.height, translation.width) * 180 / .pi)
 
-        if angleInRange(angle, from: 200, to: 320) {
+        // 4 quadrants of 90° each
+        if angleInRange(angle, from: 180, to: 270) {
             highlightedAction = .newPresentation
-        } else if angleInRange(angle, from: 320, to: 80) {
+        } else if angleInRange(angle, from: 270, to: 360) {
             highlightedAction = .newWorkItem
-        } else {
+        } else if angleInRange(angle, from: 0, to: 90) {
             highlightedAction = .newTodo
+        } else {
+            highlightedAction = .newNote
         }
     }
 
@@ -300,6 +304,8 @@ struct QuickNoteGlassButton: View {
             isShowingWorkItemSheet = true
         case .newTodo:
             onNewTodo()
+        case .newNote:
+            onNewNote()
         }
     }
 

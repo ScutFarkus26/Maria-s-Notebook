@@ -75,6 +75,7 @@ struct StudentMeetingsTab: View {
     @State private var focusText: String = ""
     @State private var requestsText: String = ""
     @State private var guideNotesText: String = ""
+    @State private var nextMeetingDate: Date?
 
     @State var expandedHistoryIDs: Set<UUID> = []
     @State var meetingSummaries: [UUID: String] = [:]
@@ -160,6 +161,7 @@ struct StudentMeetingsTab: View {
         .onChange(of: focusText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
+        .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
         .sheet(item: $editingMeeting) { meeting in
             VStack(alignment: .leading, spacing: 12) {
                 Text("Edit Meeting").font(.headline)
@@ -252,6 +254,13 @@ struct StudentMeetingsTab: View {
                 textArea(title: "Lesson requests", text: $requestsText, placeholder: requestsPlaceholder)
                 textArea(title: "Guide notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
+                OptionalDatePicker(
+                    toggleLabel: "Schedule Next Meeting",
+                    dateLabel: "Next Meeting",
+                    date: $nextMeetingDate,
+                    displayedComponents: [.date]
+                )
+
                 HStack {
                     Spacer()
                     Button("Clear") {
@@ -329,7 +338,8 @@ struct StudentMeetingsTab: View {
             reflectionText: reflectionText,
             focusText: focusText,
             requestsText: requestsText,
-            guideNotesText: guideNotesText
+            guideNotesText: guideNotesText,
+            nextMeetingDate: nextMeetingDate
         )
     }
 
@@ -340,6 +350,7 @@ struct StudentMeetingsTab: View {
         focusText = data.focusText
         requestsText = data.requestsText
         guideNotesText = data.guideNotesText
+        nextMeetingDate = data.nextMeetingDate
     }
 
     private func saveCurrentToDefaults() {
@@ -352,6 +363,7 @@ struct StudentMeetingsTab: View {
         focusText = ""
         requestsText = ""
         guideNotesText = ""
+        nextMeetingDate = nil
         MeetingPersistenceService.clearCurrent(studentID: student.id)
     }
 
@@ -369,6 +381,14 @@ struct StudentMeetingsTab: View {
             data: currentMeetingData,
             context: modelContext
         ) {
+            // Schedule next meeting if date was set
+            if let date = nextMeetingDate {
+                MeetingScheduler.scheduleMeeting(
+                    studentID: student.id,
+                    date: date,
+                    context: modelContext
+                )
+            }
             clearCurrent()
         }
     }

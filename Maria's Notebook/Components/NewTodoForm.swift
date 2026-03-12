@@ -20,7 +20,15 @@ struct NewTodoForm: View {
         )
     }
 
-    @State private var title = ""
+    /// Optional initial title from the command bar
+    private let initialTitle: String
+
+    init(initialTitle: String = "") {
+        self.initialTitle = initialTitle
+        _title = State(initialValue: initialTitle)
+    }
+
+    @State private var title: String
     @State private var notes = ""
     @State private var dueDate: Date?
     @State private var scheduledDate: Date?

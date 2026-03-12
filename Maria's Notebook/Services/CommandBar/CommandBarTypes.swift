@@ -1,0 +1,75 @@
+// CommandBarTypes.swift
+// Data types for the natural language command bar
+
+import Foundation
+
+// MARK: - Record Intent
+
+/// The intent detected from natural language input
+enum RecordIntent: String, Codable, CaseIterable, Sendable {
+    case recordPresentation  // gave, presented, showed, demonstrated
+    case assignWork          // assign, work, practice
+    case addNote             // note, observe, noticed, saw
+    case addTodo             // todo, remind, reminder, task
+
+    var displayName: String {
+        switch self {
+        case .recordPresentation: return "Presentation"
+        case .assignWork: return "Work"
+        case .addNote: return "Note"
+        case .addTodo: return "Todo"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .recordPresentation: return "person.crop.rectangle.stack"
+        case .assignWork: return "tray.and.arrow.down"
+        case .addNote: return "square.and.pencil"
+        case .addTodo: return "checklist.checked"
+        }
+    }
+
+    var pieMenuAction: PieMenuAction {
+        switch self {
+        case .recordPresentation: return .newPresentation
+        case .assignWork: return .newWorkItem
+        case .addNote: return .newNote
+        case .addTodo: return .newTodo
+        }
+    }
+}
+
+// MARK: - Parsed Command
+
+/// The result of parsing natural language input into structured data
+struct ParsedCommand: Sendable {
+    let intent: RecordIntent
+    let studentIDs: [UUID]
+    let lessonID: UUID?
+    let rawStudentNames: [String]
+    let rawLessonName: String?
+    let freeText: String
+    let confidence: Double
+
+    static let confidenceThreshold: Double = 0.6
+}
+
+// MARK: - Parse Result
+
+/// Outcome of the parsing pipeline
+enum CommandParseResult: Sendable {
+    case parsed(ParsedCommand)
+    case ambiguous(suggestions: [ParsedCommand])
+    case failed(reason: String)
+}
+
+// MARK: - Command Action
+
+/// The action to execute after a successful parse, used to route to the correct sheet
+enum CommandAction {
+    case openPresentation(draftID: UUID)
+    case openWorkItem(lessonID: UUID?, studentIDs: Set<UUID>)
+    case openNote(studentID: UUID?, bodyText: String)
+    case openTodo(titleText: String)
+}

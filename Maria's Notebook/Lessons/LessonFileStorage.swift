@@ -5,6 +5,21 @@ import OSLog
 // swiftlint:disable type_body_length
 public enum LessonFileStorage {
     private static let logger = Logger.lessons
+
+    // MARK: - Result Types
+
+    /// Metadata returned after a successful attachment rename.
+    struct RenameAttachmentResult {
+        let url: URL
+        let relativePath: String
+        let fileName: String
+        let fileType: String
+    }
+
+    private struct AttachmentName {
+        let base: String
+        let extWithDot: String
+    }
     /// Returns the root directory URL where lesson files are stored.
     /// Uses the app's iCloud container Documents folder (visible in Finder as "Maria's Notebook") if available,
     /// otherwise falls back to the app's local Documents directory.
@@ -266,7 +281,7 @@ public enum LessonFileStorage {
     static func renameAttachment(
         _ attachment: LessonAttachment,
         to requestedFileName: String
-    ) throws -> (url: URL, relativePath: String, fileName: String, fileType: String) {
+    ) throws -> RenameAttachmentResult {
         let trimmedFileName = requestedFileName.trimmed()
         guard !trimmedFileName.isEmpty else {
             throw CocoaError(.fileWriteInvalidFileName)
@@ -294,8 +309,7 @@ public enum LessonFileStorage {
             in: destinationDirectory,
             lesson: lesson,
             scope: attachment.scope,
-            baseName: sanitizedBaseName,
-            extWithDot: extWithDot,
+            name: AttachmentName(base: sanitizedBaseName, extWithDot: extWithDot),
             excluding: currentURL
         )
 
@@ -305,7 +319,12 @@ public enum LessonFileStorage {
         }
 
         let relativePath = try relativePath(forManagedURL: destinationURL)
-        return (destinationURL, relativePath, displayFileName, resolvedExtension.lowercased())
+        return RenameAttachmentResult(
+            url: destinationURL,
+            relativePath: relativePath,
+            fileName: displayFileName,
+            fileType: resolvedExtension.lowercased()
+        )
     }
     
     /// Searches for attachments matching a keyword across subjects, groups, or specific lessons.
@@ -345,8 +364,7 @@ public enum LessonFileStorage {
         in directory: URL,
         lesson: Lesson,
         scope: AttachmentScope,
-        baseName: String,
-        extWithDot: String,
+        name: AttachmentName,
         excluding currentURL: URL
     ) throws -> URL {
         let fm = FileManager.default
@@ -369,15 +387,15 @@ public enum LessonFileStorage {
             switch scope {
             case .lesson:
                 if let counter {
-                    filename = "\(baseName)-\(uuidSuffix)-\(counter)\(extWithDot)"
+                    filename = "\(name.base)-\(uuidSuffix)-\(counter)\(name.extWithDot)"
                 } else {
-                    filename = "\(baseName)-\(uuidSuffix)\(extWithDot)"
+                    filename = "\(name.base)-\(uuidSuffix)\(name.extWithDot)"
                 }
             case .group, .subject:
                 if let counter {
-                    filename = "\(scopePrefix)\(baseName)-\(counter)\(extWithDot)"
+                    filename = "\(scopePrefix)\(name.base)-\(counter)\(name.extWithDot)"
                 } else {
-                    filename = "\(scopePrefix)\(baseName)\(extWithDot)"
+                    filename = "\(scopePrefix)\(name.base)\(name.extWithDot)"
                 }
             }
 
@@ -387,7 +405,8 @@ public enum LessonFileStorage {
         var counter: Int?
         while true {
             let candidate = candidateURL(counter: counter)
-            if candidate.standardizedFileURL == currentURL.standardizedFileURL || !fm.fileExists(atPath: candidate.path) {
+            if candidate.standardizedFileURL == currentURL.standardizedFileURL
+                || !fm.fileExists(atPath: candidate.path) {
                 return candidate
             }
 

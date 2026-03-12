@@ -14,40 +14,10 @@
             filePath = "Maria&apos;s Notebook/AppCore/CloudKitConfigurationService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "148"
-            endingLineNumber = "148"
+            startingLineNumber = "151"
+            endingLineNumber = "151"
             landmarkName = "categorizeError(_:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "75B3C4C7-041D-4BE0-AAB6-62F8F43CC9F0 - 602a1b23cf414a96"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "static Maria_s_Notebook.CloudKitConfigurationService.categorizeError(__C.NSError) -&gt; Maria_s_Notebook.CloudKitConfigurationService.ErrorCategory"
-                  moduleName = "Maria&apos;s Notebook.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/dannydeberry/Documents/Projects/Maria&apos;s%20Notebook/Maria&apos;s%20Notebook/AppCore/CloudKitConfigurationService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "150"
-                  endingLineNumber = "150">
-               </Location>
-               <Location
-                  uuid = "75B3C4C7-041D-4BE0-AAB6-62F8F43CC9F0 - 602a1b23cf414ad4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "static Maria_s_Notebook.CloudKitConfigurationService.categorizeError(__C.NSError) -&gt; Maria_s_Notebook.CloudKitConfigurationService.ErrorCategory"
-                  moduleName = "Maria&apos;s Notebook.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/dannydeberry/Documents/Projects/Maria&apos;s%20Notebook/Maria&apos;s%20Notebook/AppCore/CloudKitConfigurationService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "152"
-                  endingLineNumber = "152">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

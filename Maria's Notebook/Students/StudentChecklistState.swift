@@ -9,11 +9,11 @@ public enum ChecklistDisplayStatus: Sendable {
     case presented
     case practicing
     case reviewing
-    case mastered
+    case proficient
 
     public var iconName: String {
         switch self {
-        case .mastered:    return "checkmark.circle.fill"
+        case .proficient:  return "checkmark.circle.fill"
         case .reviewing:   return "eye.fill"
         case .practicing:  return "pencil"
         case .presented:   return "checkmark"
@@ -24,7 +24,7 @@ public enum ChecklistDisplayStatus: Sendable {
 
     public var color: SwiftUI.Color {
         switch self {
-        case .mastered:    return .green
+        case .proficient:  return .green
         case .reviewing:   return .yellow
         case .practicing:  return .blue
         case .presented:   return .blue
@@ -35,7 +35,7 @@ public enum ChecklistDisplayStatus: Sendable {
 
     public var label: String {
         switch self {
-        case .mastered:    return "Mastered"
+        case .proficient:  return "Mastered"
         case .reviewing:   return "Reviewing"
         case .practicing:  return "Practicing"
         case .presented:   return "Presented"
@@ -63,9 +63,9 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let isStale: Bool
     public let isInboxPlan: Bool
 
-    /// Resolved display status, priority: mastered > reviewing > practicing > presented > scheduled > empty
+    /// Resolved display status, priority: proficient > reviewing > practicing > presented > scheduled > empty
     public var displayStatus: ChecklistDisplayStatus {
-        if isComplete { return .mastered }
+        if isComplete { return .proficient }
         if isWorkReview { return .reviewing }
         if isWorkActive { return .practicing }
         if isPresented { return .presented }

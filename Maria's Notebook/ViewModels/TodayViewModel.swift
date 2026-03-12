@@ -79,6 +79,9 @@ final class TodayViewModel {
     // Scheduled meetings for today
     var scheduledMeetings: [ScheduledMeeting] = []
 
+    // Completed meetings for today
+    var completedMeetings: [StudentMeeting] = []
+
     var attendanceSummary: AttendanceSummary = AttendanceSummary()
     var absentToday: [UUID] = []
     var leftEarlyToday: [UUID] = []
@@ -221,6 +224,12 @@ final class TodayViewModel {
         let meetingsResult = TodayDataFetcher.fetchScheduledMeetings(day: day, nextDay: nextDay, context: context)
         cacheManager.loadStudentsIfNeeded(ids: meetingsResult.neededStudentIDs, context: context)
 
+        // 6a. Fetch completed meetings
+        let completedMeetingsResult = TodayDataFetcher.fetchCompletedMeetings(
+            day: day, nextDay: nextDay, context: context
+        )
+        cacheManager.loadStudentsIfNeeded(ids: completedMeetingsResult.neededStudentIDs, context: context)
+
         // 7. Fetch attendance
         let attendanceResult = TodayDataFetcher.fetchAttendance(day: day, nextDay: nextDay, context: context)
         cacheManager.loadStudentsIfNeeded(ids: attendanceResult.neededStudentIDs, context: context)
@@ -255,6 +264,7 @@ final class TodayViewModel {
         anytimeReminders = remindersResult.anytime
         todaysCalendarEvents = calendarEvents
         scheduledMeetings = meetingsResult.meetings
+        completedMeetings = completedMeetingsResult.meetings
         attendanceSummary = processedAttendance.summary
         absentToday = processedAttendance.absentStudentIDs
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
@@ -354,6 +364,9 @@ extension TodayViewModel: Equatable {
 
               lhs.scheduledMeetings.count == rhs.scheduledMeetings.count,
               lhs.scheduledMeetings.map(\.id) == rhs.scheduledMeetings.map(\.id),
+
+              lhs.completedMeetings.count == rhs.completedMeetings.count,
+              lhs.completedMeetings.map(\.id) == rhs.completedMeetings.map(\.id),
 
               lhs.recentNotes.count == rhs.recentNotes.count,
               lhs.recentNotes.map(\.id) == rhs.recentNotes.map(\.id) else {
