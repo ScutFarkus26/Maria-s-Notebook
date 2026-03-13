@@ -68,6 +68,9 @@ struct StudentDetailView: View {
         case .progress:
             StudentProgressTab(student: student)
                 .padding(.top, 36)
+        case .developmentalTraits:
+            DevelopmentalTraitsView(studentID: student.id)
+                .padding(.top, 36)
         case .history:
             StudentHistoryTab(student: student)
                 .padding(.top, 36)
@@ -156,7 +159,7 @@ struct StudentDetailView: View {
 
             if selectedTab == .notes {
                 StudentNotesTab(student: student)
-            } else if selectedTab == .progress || selectedTab == .history || selectedTab == .files {
+            } else if selectedTab == .progress || selectedTab == .developmentalTraits || selectedTab == .history || selectedTab == .files {
                 tabContent
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)

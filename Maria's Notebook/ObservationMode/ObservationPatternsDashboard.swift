@@ -1,0 +1,348 @@
+// ObservationPatternsDashboard.swift
+// Dashboard showing observation tag patterns over time per student.
+// Fetches Notes containing Montessori observation tags and displays frequency charts.
+
+import SwiftUI
+import SwiftData
+import Charts
+
+struct ObservationPatternsDashboard: View {
+    @Environment(\.modelContext) private var modelContext
+    @State private var viewModel = ObservationPatternsViewModel()
+
+    var body: some View {
+        content
+            .navigationTitle("Observation Patterns")
+            .onAppear { viewModel.loadData(context: modelContext) }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if viewModel.isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if viewModel.tagCounts.isEmpty {
+            emptyState
+        } else {
+            scrollContent
+        }
+    }
+
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // Time range picker
+                timeRangeRow
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+
+                // Summary
+                summaryRow
+                    .padding(.horizontal)
+
+                // Tag frequency chart
+                tagFrequencyChart
+                    .padding(.horizontal)
+
+                // Per-student breakdown
+                studentBreakdown
+                    .padding(.horizontal)
+                    .padding(.bottom, 24)
+            }
+        }
+    }
+
+    // MARK: - Time Range
+
+    private var timeRangeRow: some View {
+        HStack(spacing: 8) {
+            ForEach(ObservationTimeRange.allCases) { range in
+                timeRangeCapsule(range)
+            }
+            Spacer()
+        }
+    }
+
+    private func timeRangeCapsule(_ range: ObservationTimeRange) -> some View {
+        let isSelected = viewModel.timeRange == range
+        return Button {
+            withAnimation(.snappy(duration: 0.2)) {
+                viewModel.timeRange = range
+                viewModel.loadData(context: modelContext)
+            }
+        } label: {
+            Text(range.rawValue)
+                .font(.caption)
+                .fontWeight(isSelected ? .semibold : .medium)
+                .foregroundStyle(isSelected ? .white : .secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Summary
+
+    private var summaryRow: some View {
+        HStack(spacing: 0) {
+            Text("\(viewModel.totalObservations)")
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
+            Text(" observations · ")
+                .foregroundStyle(.tertiary)
+            Text("\(viewModel.studentsObserved)")
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
+            Text(" students")
+                .foregroundStyle(.tertiary)
+            Spacer()
+        }
+        .font(.caption)
+    }
+
+    // MARK: - Tag Frequency Chart
+
+    private var tagFrequencyChart: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Tag Frequency")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Chart(viewModel.tagCounts, id: \.tagName) { item in
+                BarMark(
+                    x: .value("Count", item.count),
+                    y: .value("Tag", item.tagName)
+                )
+                .foregroundStyle(item.color.gradient)
+                .cornerRadius(4)
+            }
+            .chartXAxis {
+                AxisMarks(position: .bottom)
+            }
+            .frame(height: CGFloat(viewModel.tagCounts.count) * 28 + 20)
+        }
+        .cardStyle()
+    }
+
+    // MARK: - Student Breakdown
+
+    private var studentBreakdown: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("By Student")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            LazyVStack(spacing: 8) {
+                ForEach(viewModel.studentSummaries) { summary in
+                    studentSummaryRow(summary)
+                }
+            }
+        }
+    }
+
+    private func studentSummaryRow(_ summary: StudentObservationSummary) -> some View {
+        HStack(spacing: 10) {
+            Text(summary.initials)
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(summary.levelColor.gradient, in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                FlowLayout(spacing: 4) {
+                    ForEach(summary.topTags, id: \.self) { tag in
+                        let parsed = TagHelper.parseTag(tag)
+                        Text(parsed.name)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(parsed.color.color.opacity(0.12))
+                            )
+                    }
+                }
+            }
+
+            Spacer()
+
+            Text("\(summary.observationCount)")
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundStyle(.primary)
+        }
+        .cardStyle()
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        ContentUnavailableView {
+            Label("No Observations", systemImage: "eye")
+        } description: {
+            Text("Use the Observe tab to record Montessori observations. Patterns will appear here over time.")
+        }
+    }
+}
+
+// MARK: - Supporting Types
+
+enum ObservationTimeRange: String, CaseIterable, Identifiable {
+    case week = "Week"
+    case month = "Month"
+    case quarter = "Quarter"
+    case year = "Year"
+
+    var id: String { rawValue }
+
+    func dateRange(from now: Date) -> (start: Date, end: Date) {
+        let calendar = AppCalendar.shared
+        switch self {
+        case .week:
+            let start = calendar.date(byAdding: .day, value: -7, to: now) ?? now
+            return (start, now)
+        case .month:
+            let start = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+            return (start, now)
+        case .quarter:
+            let start = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+            return (start, now)
+        case .year:
+            let start = calendar.date(byAdding: .year, value: -1, to: now) ?? now
+            return (start, now)
+        }
+    }
+}
+
+struct TagCount: Identifiable {
+    let id = UUID()
+    let tagName: String
+    let count: Int
+    let color: Color
+}
+
+struct StudentObservationSummary: Identifiable {
+    let id: UUID
+    let name: String
+    let initials: String
+    let levelColor: Color
+    let observationCount: Int
+    let topTags: [String]
+}
+
+// MARK: - ViewModel
+
+@Observable
+@MainActor
+final class ObservationPatternsViewModel {
+    private(set) var tagCounts: [TagCount] = []
+    private(set) var studentSummaries: [StudentObservationSummary] = []
+    private(set) var totalObservations: Int = 0
+    private(set) var studentsObserved: Int = 0
+    private(set) var isLoading = false
+    var timeRange: ObservationTimeRange = .month
+
+    func loadData(context: ModelContext) {
+        isLoading = true
+        defer { isLoading = false }
+
+        let allObservationTags = MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allTags
+
+        // Fetch all notes
+        let descriptor = FetchDescriptor<Note>(
+            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
+        )
+        let allNotes = context.safeFetch(descriptor)
+
+        // Filter to date range
+        let range = timeRange.dateRange(from: Date())
+        let filteredNotes = allNotes.filter {
+            $0.createdAt >= range.start && $0.createdAt <= range.end
+        }
+
+        // Filter to notes containing observation tags
+        let observationNotes = filteredNotes.filter { note in
+            note.tags.contains { tag in
+                let name = TagHelper.tagName(tag)
+                return allObservationTags.contains { TagHelper.tagName($0) == name }
+            }
+        }
+
+        totalObservations = observationNotes.count
+
+        // Count tags
+        var tagCountMap: [String: Int] = [:]
+        for note in observationNotes {
+            for tag in note.tags {
+                let name = TagHelper.tagName(tag)
+                if allObservationTags.contains(where: { TagHelper.tagName($0) == name }) {
+                    tagCountMap[tag, default: 0] += 1
+                }
+            }
+        }
+
+        tagCounts = tagCountMap
+            .map { tag, count in
+                let parsed = TagHelper.parseTag(tag)
+                return TagCount(tagName: parsed.name, count: count, color: parsed.color.color)
+            }
+            .sorted { $0.count > $1.count }
+
+        // Build student summaries
+        let students = context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName))
+        let visibleStudents = TestStudentsFilter.filterVisible(students)
+
+        var studentObservationMap: [UUID: [Note]] = [:]
+        for note in observationNotes {
+            let scope = note.scope
+            switch scope {
+            case .all:
+                // All-scope observations count for everyone — skip for per-student
+                break
+            case .student(let studentID):
+                studentObservationMap[studentID, default: []].append(note)
+            case .students(let studentIDs):
+                for studentID in studentIDs {
+                    studentObservationMap[studentID, default: []].append(note)
+                }
+            }
+        }
+
+        var summaries: [StudentObservationSummary] = []
+        for student in visibleStudents {
+            let notes = studentObservationMap[student.id] ?? []
+            guard !notes.isEmpty else { continue }
+
+            // Find top tags for this student
+            var studentTagCounts: [String: Int] = [:]
+            for note in notes {
+                for tag in note.tags where allObservationTags.contains(where: { TagHelper.tagName($0) == TagHelper.tagName(tag) }) {
+                    studentTagCounts[tag, default: 0] += 1
+                }
+            }
+            let topTags = studentTagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+
+            summaries.append(StudentObservationSummary(
+                id: student.id,
+                name: "\(student.firstName) \(student.lastName)",
+                initials: "\(student.firstName.prefix(1))\(student.lastName.prefix(1))",
+                levelColor: AppColors.color(forLevel: student.level),
+                observationCount: notes.count,
+                topTags: topTags
+            ))
+        }
+
+        studentSummaries = summaries.sorted { $0.observationCount > $1.observationCount }
+        studentsObserved = summaries.count
+    }
+}

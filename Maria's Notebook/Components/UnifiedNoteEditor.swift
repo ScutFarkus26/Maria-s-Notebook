@@ -58,6 +58,7 @@ struct UnifiedNoteEditor: View {
         case communityTopic(CommunityTopic)
         case reminder(Reminder)
         case schoolDayOverride(SchoolDayOverride)
+        case goingOut(GoingOut)
     }
 
     // MARK: - Properties

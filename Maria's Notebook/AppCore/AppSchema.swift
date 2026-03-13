@@ -58,6 +58,8 @@ struct AppSchema {
         TodoTemplate.self,
         TodayAgendaOrder.self,
         PlanningRecommendation.self,
-        Resource.self
+        Resource.self,
+        GoingOut.self,
+        GoingOutChecklistItem.self
     ])
 }

@@ -49,6 +49,14 @@ struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.community) {
                     Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
+
+                NavigationLink(value: RootView.NavigationItem.observationMode) {
+                    Label("Observe", systemImage: "eye")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.goingOut) {
+                    Label("Going Out", systemImage: "figure.walk")
+                }
             }
 
             Section("Planning") {
@@ -102,6 +110,18 @@ struct RootSidebar: View {
 
                 NavigationLink(value: RootView.NavigationItem.progressDashboard) {
                     Label("Progress Dashboard", systemImage: "person.text.rectangle")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.lessonFrequency) {
+                    Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                }
+
+                NavigationLink(value: RootView.NavigationItem.curriculumBalance) {
+                    Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
+                }
+
+                NavigationLink(value: RootView.NavigationItem.cosmicMap) {
+                    Label("Cosmic Map", systemImage: "globe.americas")
                 }
             }
 
@@ -172,6 +192,18 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View community meetings and topics")
+
+                Button { selection = .observationMode } label: {
+                    Label("Observe", systemImage: "eye")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Record Montessori observations with guided prompts")
+
+                Button { selection = .goingOut } label: {
+                    Label("Going Out", systemImage: "figure.walk")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Plan and track student going-out excursions")
             }
 
             Section("Planning") {
@@ -222,6 +254,24 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View per-student progress across all subjects")
+
+                Button { selection = .lessonFrequency } label: {
+                    Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View weekly lesson frequency per student")
+
+                Button { selection = .curriculumBalance } label: {
+                    Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Analyze subject distribution and curriculum gaps")
+
+                Button { selection = .cosmicMap } label: {
+                    Label("Cosmic Map", systemImage: "globe.americas")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Explore lessons organized by the Five Great Lessons")
             }
 
             Section("Resources") {

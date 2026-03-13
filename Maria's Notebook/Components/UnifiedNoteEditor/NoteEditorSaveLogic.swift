@@ -127,6 +127,9 @@ extension UnifiedNoteEditor {
         case .schoolDayOverride(let override):
             note.schoolDayOverride = override
 
+        case .goingOut(let goingOut):
+            note.goingOut = goingOut
+
         case .general:
             break
         }

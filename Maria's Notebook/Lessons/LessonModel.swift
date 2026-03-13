@@ -43,6 +43,12 @@ final class Lesson: Identifiable {
     /// Comma-separated UUIDs of related/companion lessons
     var relatedLessonIDs: String = ""
 
+    // MARK: - Cosmic Education
+
+    /// Great Lesson connection stored as raw string (CloudKit compatible).
+    /// Maps to GreatLesson enum values (e.g., "comingOfUniverse", "comingOfLife").
+    var greatLessonRaw: String?
+
     /// Raw storage for source ("album" or "personal"). Defaults to album for backward compatibility.
     var sourceRaw: String = "album"
     /// Raw storage for optional personal kind when source is personal. Nil or empty means default .personal.
@@ -86,6 +92,13 @@ final class Lesson: Identifiable {
     var defaultWorkKind: WorkKind? {
         get { defaultWorkKindRaw.flatMap { WorkKind(rawValue: $0) } }
         set { defaultWorkKindRaw = newValue?.rawValue }
+    }
+
+    /// Computed Great Lesson enum value (transient, not persisted)
+    @Transient
+    var greatLesson: GreatLesson? {
+        get { greatLessonRaw.flatMap { GreatLesson(rawValue: $0) } }
+        set { greatLessonRaw = newValue?.rawValue }
     }
 
     @Transient
@@ -183,7 +196,8 @@ final class Lesson: Identifiable {
         ageRange: String = "",
         teacherNotes: String = "",
         prerequisiteLessonIDs: String = "",
-        relatedLessonIDs: String = ""
+        relatedLessonIDs: String = "",
+        greatLessonRaw: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -206,6 +220,7 @@ final class Lesson: Identifiable {
         self.teacherNotes = teacherNotes
         self.prerequisiteLessonIDs = prerequisiteLessonIDs
         self.relatedLessonIDs = relatedLessonIDs
+        self.greatLessonRaw = greatLessonRaw
         self.notes = []
         self.lessonAssignments = []
         self.sampleWorks = []

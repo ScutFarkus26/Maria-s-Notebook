@@ -42,6 +42,11 @@ struct RootView: View {
         case planningProgression
         case planningProjects
         case progressDashboard
+        case lessonFrequency
+        case curriculumBalance
+        case cosmicMap
+        case observationMode
+        case goingOut
 
         case community
         case schedules
@@ -71,6 +76,11 @@ struct RootView: View {
             case .planningProgression: return "Progression"
             case .planningProjects: return "Projects"
             case .progressDashboard: return "Progress Dashboard"
+            case .lessonFrequency: return "Lesson Frequency"
+            case .curriculumBalance: return "Curriculum Balance"
+            case .cosmicMap: return "Cosmic Map"
+            case .observationMode: return "Observe"
+            case .goingOut: return "Going Out"
             case .community: return "Community"
             case .schedules: return "Schedules"
             case .issues: return "Issues"
@@ -99,6 +109,11 @@ struct RootView: View {
             case .planningProgression: return "chart.line.uptrend.xyaxis"
             case .planningProjects: return "folder"
             case .progressDashboard: return "person.text.rectangle"
+            case .lessonFrequency: return SFSymbol.Chart.chartBar
+            case .curriculumBalance: return SFSymbol.Chart.chartPie
+            case .cosmicMap: return "globe.americas"
+            case .observationMode: return "eye"
+            case .goingOut: return "figure.walk"
             case .community: return "bubble.left.and.bubble.right"
             case .schedules: return "clock.badge.checkmark"
             case .issues: return "exclamationmark.triangle"
@@ -127,6 +142,8 @@ struct RootView: View {
             case .lessons, .supplies, .procedures, .meetings,
                 .planningChecklist, .planningAgenda, .planningWork,
                 .planningProgression, .planningProjects, .progressDashboard,
+                .lessonFrequency, .curriculumBalance, .cosmicMap,
+                .observationMode, .goingOut,
                 .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -147,7 +164,10 @@ struct RootView: View {
             case .more: return nil
             case .todos: return nil
             case .planningChecklist, .planningAgenda, .planningWork,
-                .planningProgression, .planningProjects, .progressDashboard: return .planning
+                .planningProgression, .planningProjects, .progressDashboard,
+                .lessonFrequency, .curriculumBalance, .cosmicMap: return .planning
+            case .observationMode: return nil
+            case .goingOut: return nil
             case .community: return .community
             case .schedules: return nil
             case .issues: return nil

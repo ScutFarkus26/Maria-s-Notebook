@@ -34,6 +34,7 @@ struct LessonDetailView: View {
     @State var draftAgeRange: String = ""
     @State var draftTeacherNotes: String = ""
     @State private var showDeleteAlert = false
+    @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
     @State var editingSampleWork: SampleWork?
 
@@ -108,6 +109,23 @@ struct LessonDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingGreatLessonTagEditor) {
+            NavigationStack {
+                GreatLessonTagEditor(lesson: lesson)
+                    .navigationTitle("Tag Great Lesson")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingGreatLessonTagEditor = false }
+                        }
+                    }
+            }
+            #if os(iOS)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            #else
+            .frame(minWidth: 340, minHeight: 300)
+            #endif
         }
         .onAppear {
             seedDrafts()
@@ -195,7 +213,24 @@ struct LessonDetailView: View {
                 if !lesson.ageRange.isEmpty {
                     StatusPill(text: lesson.ageRange, color: .orange, icon: nil)
                 }
+                if let gl = lesson.greatLesson {
+                    StatusPill(text: gl.shortName, color: gl.color, icon: gl.icon)
+                }
             }
+
+            // Great Lesson tag button
+            Button {
+                showingGreatLessonTagEditor = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "globe.americas")
+                        .font(.caption2)
+                    Text(lesson.greatLesson != nil ? "Change Great Lesson" : "Tag Great Lesson")
+                        .font(.caption)
+                }
+                .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
     }

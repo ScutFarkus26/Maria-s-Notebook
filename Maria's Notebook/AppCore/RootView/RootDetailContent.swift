@@ -63,6 +63,16 @@ struct RootDetailContent: View {
                 ProjectsRootView()
             case .progressDashboard:
                 ProgressDashboardView()
+            case .lessonFrequency:
+                LessonFrequencyView()
+            case .curriculumBalance:
+                CurriculumBalanceView()
+            case .cosmicMap:
+                CosmicMapRootView()
+            case .observationMode:
+                ObservationModeView()
+            case .goingOut:
+                GoingOutRootView()
             case .community:
                 CommunityMeetingsView()
             case .schedules:
@@ -136,6 +146,8 @@ struct MoreMenuView: View {
             List {
                 Section("Daily") {
                     moreMenuButton(.meetings)
+                    moreMenuButton(.observationMode)
+                    moreMenuButton(.goingOut)
                 }
 
                 Section("Planning") {
@@ -145,6 +157,9 @@ struct MoreMenuView: View {
                     moreMenuButton(.planningWork)
                     moreMenuButton(.planningProgression)
                     moreMenuButton(.planningProjects)
+                    moreMenuButton(.lessonFrequency)
+                    moreMenuButton(.curriculumBalance)
+                    moreMenuButton(.cosmicMap)
                 }
 
                 Section("Resources") {
