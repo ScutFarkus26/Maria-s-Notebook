@@ -38,13 +38,14 @@ struct WorkDetailView: View {
         viewModel.practiceSessions(allSessions: allPracticeSessions)
     }
 
+    // PERF: Uses ViewModel's cached resolvedLessonID/resolvedStudentID
+    // instead of parsing UUID(uuidString:) on every body evaluation.
     var unlockInfo: (lessonID: UUID, studentID: UUID)? {
         guard viewModel.status == .complete,
               let outcome = viewModel.completionOutcome,
               outcome == .proficient || outcome == .needsReview,
-              let work = viewModel.work,
-              let lessonID = UUID(uuidString: work.lessonID),
-              let studentID = UUID(uuidString: work.studentID) else {
+              let lessonID = viewModel.resolvedLessonID,
+              let studentID = viewModel.resolvedStudentID else {
             return nil
         }
         return (lessonID, studentID)
@@ -52,17 +53,15 @@ struct WorkDetailView: View {
 
     var representSheetInfo: (student: Student, lessonID: UUID)? {
         guard let student = viewModel.relatedStudent,
-              let work = viewModel.work,
-              let lessonID = UUID(uuidString: work.lessonID) else {
+              let lessonID = viewModel.resolvedLessonID else {
             return nil
         }
         return (student, lessonID)
     }
 
     var unlockNextLessonInfo: (lessonID: UUID, studentID: UUID)? {
-        guard let work = viewModel.work,
-              let lessonID = UUID(uuidString: work.lessonID),
-              let studentID = UUID(uuidString: work.studentID) else {
+        guard let lessonID = viewModel.resolvedLessonID,
+              let studentID = viewModel.resolvedStudentID else {
             return nil
         }
         return (lessonID, studentID)

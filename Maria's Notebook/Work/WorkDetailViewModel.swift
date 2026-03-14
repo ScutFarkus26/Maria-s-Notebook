@@ -17,6 +17,9 @@ final class WorkDetailViewModel {
     var relatedPresentation: LessonAssignment?
     var relatedLessonAssignments: [LessonAssignment] = []
     var resolvedPresentationID: UUID?
+    // PERF: Cached UUID parses to avoid repeated UUID(uuidString:) in body-path computed properties
+    var resolvedLessonID: UUID?
+    var resolvedStudentID: UUID?
 
     var showPresentationNotes = false
     var showAddNoteSheet = false
@@ -109,6 +112,9 @@ final class WorkDetailViewModel {
         self.workKind = fetchedWork.kind ?? .practiceLesson
         self.checkInStyle = fetchedWork.checkInStyle
         self.completionOutcome = fetchedWork.completionOutcome
+        // PERF: Parse UUIDs once on load instead of on every body evaluation
+        self.resolvedLessonID = UUID(uuidString: fetchedWork.lessonID)
+        self.resolvedStudentID = UUID(uuidString: fetchedWork.studentID)
         
         loadRelatedData(for: fetchedWork, modelContext: modelContext)
         loadWorkNotes(for: fetchedWork)
