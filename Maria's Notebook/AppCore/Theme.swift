@@ -186,6 +186,47 @@ enum AppTheme {
         )
     }
 
+    // MARK: - Semantic Style Tokens (#24)
+    // Purpose-named font tokens that encode intent rather than appearance.
+    // Use these for new code instead of choosing between caption/captionSemibold/captionSmall.
+
+    enum SemanticFont {
+        /// Timestamps, "3 days ago", "last updated", relative dates
+        nonisolated static var metadata: Font {
+            .system(.caption2, design: .rounded, weight: .light)
+        }
+
+        /// Form labels, field names, row labels
+        nonisolated static var label: Font {
+            .system(.callout, design: .rounded, weight: .medium)
+        }
+
+        /// Form values, data points, row values
+        nonisolated static var value: Font {
+            .system(.headline, design: .rounded, weight: .semibold)
+        }
+
+        /// Hero numbers on dashboards, large stats
+        nonisolated static var stat: Font {
+            .system(.largeTitle, design: .rounded, weight: .heavy)
+        }
+
+        /// Numeric data in grids/tables — monospaced digits for column alignment (#22)
+        nonisolated static var tabularNumber: Font {
+            .system(.subheadline, design: .rounded, weight: .medium).monospacedDigit()
+        }
+
+        /// Small numeric data in dense grids — heavier stroke at small sizes (#23)
+        nonisolated static var denseGridCell: Font {
+            .system(.caption2, design: .rounded, weight: .medium).monospacedDigit()
+        }
+
+        /// Chart axis labels and legend text
+        nonisolated static var chartLabel: Font {
+            .system(.caption2, design: .rounded, weight: .regular).monospacedDigit()
+        }
+    }
+
     // MARK: - Tracking (Letter Spacing) Constants (#12-14)
 
     /// Standardized letter-spacing values for typographic refinement
