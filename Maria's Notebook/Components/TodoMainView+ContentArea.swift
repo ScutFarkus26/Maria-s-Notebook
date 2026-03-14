@@ -232,18 +232,21 @@ extension TodoMainView {
         return sorted
     }
 
+    // PERF: Static cached DateFormatter to avoid allocating per call.
+    // DateFormatter is expensive to create; called once per todo during grouping.
+    private static let dayTimelineFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f
+    }()
+
     func dayTimelineKey(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d"
-        return formatter.string(from: date)
+        Self.dayTimelineFormatter.string(from: date)
     }
 
     func dayTimelineDate(_ key: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d"
-        // Set the year context for parsing
-        formatter.defaultDate = AppCalendar.startOfDay(Date())
-        return formatter.date(from: key)
+        Self.dayTimelineFormatter.defaultDate = AppCalendar.startOfDay(Date())
+        return Self.dayTimelineFormatter.date(from: key)
     }
 
     // swiftlint:disable:next function_body_length

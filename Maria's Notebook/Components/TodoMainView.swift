@@ -27,6 +27,12 @@ struct TodoMainView: View {
     @State var newFolderName = ""
     @State private var draggingTag: String?
 
+    // PERF: Cached computed results to avoid recomputing on every body evaluation.
+    // Refreshed via .onChange handlers when source data changes.
+    @State var cachedAllUsedTags: [String] = []
+    @State var cachedFilterCounts: [TodoListFilter: Int] = [:]
+    @State var cachedTagCounts: [String: Int] = [:]
+
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             sidebar
@@ -131,6 +137,39 @@ struct TodoMainView: View {
         .sheet(isPresented: $isShowingNewFolder) {
             newFolderSheet
         }
+        .onAppear { refreshTagCaches() }
+        .onChange(of: allTodos.count) { _, _ in refreshTagCaches() }
+    }
+
+    // PERF: Compute tag data and filter/tag counts in a single pass over allTodos.
+    // Previously each was a separate computed property scanning allTodos independently.
+    func refreshTagCaches() {
+        // Build allUsedTags
+        var tagSet = Set<String>()
+        // Build filter counts and tag counts in the same pass
+        var filterCounts: [TodoListFilter: Int] = [:]
+        var tagCounts: [String: Int] = [:]
+
+        for todo in allTodos {
+            // Count filters
+            for filter in TodoListFilter.allCases where filter != .all {
+                if filter.matches(todo) {
+                    filterCounts[filter, default: 0] += 1
+                }
+            }
+            // Collect tags and count per-tag
+            for tag in todo.tags {
+                tagSet.insert(tag)
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+
+        cachedAllUsedTags = tagSet.sorted {
+            TodoTagHelper.tagName($0)
+                .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
+        }
+        cachedFilterCounts = filterCounts
+        cachedTagCounts = tagCounts
     }
 
     // MARK: - Helper Functions

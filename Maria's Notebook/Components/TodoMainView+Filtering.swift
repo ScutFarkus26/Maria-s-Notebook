@@ -50,12 +50,14 @@ extension TodoMainView {
         }
     }
 
+    // PERF: Uses cached counts computed in a single pass over allTodos (refreshTagCaches).
+    // Previously each call scanned allTodos independently.
     func countForFilter(_ filter: TodoListFilter) -> Int {
         guard filter != .all else { return 0 }
-        return allTodos.filter { filter.matches($0) }.count
+        return cachedFilterCounts[filter] ?? 0
     }
 
     func countForTag(_ tag: String) -> Int {
-        allTodos.filter { $0.tags.contains(tag) }.count
+        cachedTagCounts[tag] ?? 0
     }
 }

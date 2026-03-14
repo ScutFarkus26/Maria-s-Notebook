@@ -8,18 +8,9 @@ import SwiftData
 extension TodoMainView {
     // MARK: - Tag Data
 
-    var allUsedTags: [String] {
-        var tagSet = Set<String>()
-        for todo in allTodos {
-            for tag in todo.tags {
-                tagSet.insert(tag)
-            }
-        }
-        return tagSet.sorted {
-            TodoTagHelper.tagName($0)
-                .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
-        }
-    }
+    // PERF: Uses cachedAllUsedTags (computed in refreshTagCaches) instead of
+    // iterating all todos and sorting on every body evaluation.
+    var allUsedTags: [String] { cachedAllUsedTags }
 
     /// All sidebar items (top-level tags + group names) in user-defined order.
     /// Items not yet in tagOrder are appended alphabetically.
