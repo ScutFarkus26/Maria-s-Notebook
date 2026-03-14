@@ -355,6 +355,39 @@ extension View {
     }
 }
 
+// MARK: - Data-Dense View Helpers (#21, #23)
+extension View {
+    /// Highlighted data series in charts — semibold for focus effect (#21)
+    func chartHighlightStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.chartLabel)
+            .fontWeight(.semibold)
+            .foregroundStyle(.primary)
+    }
+
+    /// Non-highlighted data series — light weight for visual recession (#21)
+    func chartDimmedStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.chartLabel)
+            .fontWeight(.light)
+            .foregroundStyle(.secondary)
+    }
+
+    /// Dense grid cell style — medium weight for legibility at small sizes (#23)
+    func denseGridStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.denseGridCell)
+            .foregroundStyle(.primary)
+    }
+
+    /// Tabular number style for vertically-aligned numeric columns (#22)
+    func tabularNumberStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.tabularNumber)
+            .foregroundStyle(.primary)
+    }
+}
+
 // MARK: - Color-Weight Combination Modifiers (#15-17)
 extension View {
     /// Use weight instead of color for primary/secondary distinction (#15).
