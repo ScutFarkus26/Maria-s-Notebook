@@ -144,6 +144,18 @@ enum AppTheme {
             .system(.headline, design: .rounded, weight: .bold)
         }
 
+        // MARK: - Serif Display Variants (#7)
+
+        /// Serif display font for the largest titles — editorial, premium feel
+        nonisolated static var displaySerif: Font {
+            .system(.largeTitle, design: .serif, weight: .bold)
+        }
+
+        /// Serif title font for detail view headers
+        nonisolated static var titleSerif: Font {
+            .system(.title, design: .serif, weight: .semibold)
+        }
+
         // MARK: - Monospaced Variants (#6)
 
         /// Full monospaced font for grid cells, codes, IDs
