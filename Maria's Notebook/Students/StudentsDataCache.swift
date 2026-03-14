@@ -41,28 +41,12 @@ final class StudentsDataCache {
         modelContext: ModelContext,
         calendar: Calendar
     ) async {
-        guard mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson else {
-            // Clear caches when not in roster mode
-            clearCaches()
-            return
-        }
-
         // Load today's attendance records using the data loader
         attendanceRecords = StudentsDataLoader.loadTodaysAttendance(context: modelContext)
 
-        // Load days since last lesson only when in lastLesson mode or roster mode
-        // (roster mode needs it for the list row display)
-        if mode == .lastLesson || mode == .roster {
-            daysSinceLastLesson = StudentsFilterService.computeDaysSinceLastPresentation(
-                students: students,
-                modelContext: modelContext,
-                calendar: calendar
-            )
-        } else {
-            daysSinceLastLesson = [:]
-        }
+        daysSinceLastLesson = [:]
 
-        // Clear lesson assignments cache (no longer needed for lastLesson mode)
+        // Clear lesson assignments cache
         lessonAssignments = []
         lessons = [:]
     }

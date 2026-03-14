@@ -152,11 +152,8 @@ struct StudentModePicker: View {
     var body: some View {
         Picker("Mode", selection: $mode) {
             Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-            Label("Open Work", systemImage: "doc.text").tag(StudentMode.workOverview)
             Label("Ages", systemImage: "calendar").tag(StudentMode.age)
             Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-            Label("Needs Lesson", systemImage: "clock.badge.exclamationmark").tag(StudentMode.lastLesson)
-            Label("Observations", systemImage: "chart.bar.fill").tag(StudentMode.observationHeatmap)
         }
         .pickerStyle(.segmented)
         .labelsHidden()

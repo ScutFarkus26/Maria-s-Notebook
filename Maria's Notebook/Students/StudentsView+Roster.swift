@@ -156,8 +156,6 @@ extension StudentsView {
                 BirthdayModePlaceholderView()
             case .age:
                 AgeModePlaceholderView()
-            case .lastLesson:
-                LastLessonModePlaceholderView()
             default:
                 rosterGridContent
             }

@@ -40,8 +40,8 @@ struct StudentsContentRenderer {
                 students: students,
                 isBirthdayMode: effectiveSortOrder == .birthday,
                 isAgeMode: effectiveSortOrder == .age,
-                isLastLessonMode: effectiveSortOrder == .lastLesson,
-                lastLessonDays: effectiveSortOrder == .lastLesson ? daysSinceLastLesson : [:],
+                isLastLessonMode: false,
+                lastLessonDays: [:],
                 isManualMode: false,
                 onTapStudent: onTapStudent ?? { _ in },
                 onReorder: { _, _, _, _ in

@@ -42,24 +42,6 @@ extension StudentsView {
     }
     #endif
 
-    // MARK: - Full-Screen Mode Toolbar
-
-    @ToolbarContentBuilder
-    var fullScreenModeToolbar: some ToolbarContent {
-        #if os(iOS)
-        if horizontalSizeClass != .compact {
-            ToolbarItem(placement: .automatic) {
-                modePickerContent
-                    .controlSize(.regular)
-            }
-        }
-        #else
-        ToolbarItem(placement: .automatic) {
-            modePickerContent
-        }
-        #endif
-    }
-
     // MARK: - Toolbar Content
 
     @ToolbarContentBuilder
@@ -85,10 +67,8 @@ extension StudentsView {
             modePickerContent
         }
 
-        if mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson {
-            ToolbarItem(placement: .primaryAction) {
-                addStudentButton
-            }
+        ToolbarItem(placement: .primaryAction) {
+            addStudentButton
         }
         #endif
     }

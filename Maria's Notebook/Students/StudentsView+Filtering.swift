@@ -11,7 +11,6 @@ extension StudentsView {
         case "manual": return .manual
         case "age": return .age
         case "birthday": return .birthday
-        case "lastLesson": return .lastLesson
         default: return .alphabetical
         }
     }
@@ -55,12 +54,8 @@ extension StudentsView {
             return .age
         case .birthday:
             return .birthday
-        case .lastLesson:
-            return .lastLesson
         case .roster:
             return sortOrder
-        case .workOverview, .observationHeatmap:
-            return .alphabetical // Not used in these modes
         }
     }
 
@@ -78,34 +73,13 @@ extension StudentsView {
 
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-        let deduplicated = base.uniqueByID
-
-        // Apply lastLesson sorting in-memory (requires access to presentation data)
-        if currentSortOrder == .lastLesson {
-            let daysMap = daysSinceLastLessonByStudent
-            return deduplicated.sorted { lhs, rhs in
-                let lDays = daysMap[lhs.id] ?? -1
-                let rDays = daysMap[rhs.id] ?? -1
-                // Students with no presentations (-1) go first, then sort by most days since last presentation
-                if lDays == -1 && rDays == -1 {
-                    return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-                }
-                if lDays == -1 { return true }
-                if rDays == -1 { return false }
-                if lDays == rDays {
-                    return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-                }
-                return lDays > rDays // More days = needs lesson more urgently
-            }
-        }
-
-        return deduplicated
+        return base.uniqueByID
     }
 
     // MARK: - Grid View Support
 
     var shouldUseGridView: Bool {
-        mode == .age || mode == .birthday || mode == .lastLesson
+        mode == .age || mode == .birthday
     }
 
     #if DEBUG

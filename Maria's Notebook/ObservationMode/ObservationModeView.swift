@@ -10,6 +10,12 @@ struct ObservationModeView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ObservationModeViewModel()
     @State private var showingPatterns = false
+    @State private var selectedTab: ObserveTab = .record
+
+    private enum ObserveTab: String, CaseIterable {
+        case record = "Record"
+        case heatmap = "Heatmap"
+    }
 
     // Change detection
     @Query(sort: [SortDescriptor(\Note.createdAt, order: .reverse)])
@@ -17,36 +23,52 @@ struct ObservationModeView: View {
     private var noteChangeToken: Int { notesForChange.count }
 
     var body: some View {
-        content
-            .navigationTitle("Observe")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingPatterns = true
-                    } label: {
-                        Label("Patterns", systemImage: SFSymbol.Chart.chartBar)
+        Group {
+            switch selectedTab {
+            case .record:
+                content
+            case .heatmap:
+                ObservationHeatmapView()
+            }
+        }
+        .navigationTitle("Observe")
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Tab", selection: $selectedTab) {
+                    ForEach(ObserveTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
                     }
                 }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 200)
             }
-            .onAppear { viewModel.loadData(context: modelContext) }
-            .sheet(isPresented: $showingPatterns) {
-                NavigationStack {
-                    ObservationPatternsDashboard()
-                        .navigationTitle("Observation Patterns")
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") { showingPatterns = false }
-                            }
-                        }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingPatterns = true
+                } label: {
+                    Label("Patterns", systemImage: SFSymbol.Chart.chartBar)
                 }
-                #if os(iOS)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
             }
-            .sheet(isPresented: $viewModel.showingStudentPicker) {
-                studentPickerSheet
+        }
+        .onAppear { viewModel.loadData(context: modelContext) }
+        .sheet(isPresented: $showingPatterns) {
+            NavigationStack {
+                ObservationPatternsDashboard()
+                    .navigationTitle("Observation Patterns")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingPatterns = false }
+                        }
+                    }
             }
+            #if os(iOS)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+        }
+        .sheet(isPresented: $viewModel.showingStudentPicker) {
+            studentPickerSheet
+        }
     }
 
     // MARK: - Content

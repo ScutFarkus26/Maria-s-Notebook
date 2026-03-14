@@ -14,7 +14,7 @@ struct StudentsViewToolbarHelper<ModePicker: View, AddButton: View> {
     #endif
 
     var showAddButton: Bool {
-        mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson
+        true // All remaining modes show the add button
     }
 
     #if os(iOS)

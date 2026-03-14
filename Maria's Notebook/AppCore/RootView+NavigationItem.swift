@@ -34,6 +34,7 @@ extension RootView {
         case threePeriod
         case classroomJobs
         case transitionPlanner
+        case needsLesson
 
         case community
         case schedules
@@ -73,6 +74,7 @@ extension RootView {
             case .threePeriod:         return ("Three-Period", "3.circle")
             case .classroomJobs:       return ("Jobs", "person.2.badge.gearshape")
             case .transitionPlanner:   return ("Transitions", "arrow.right.arrow.left")
+            case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
             case .schedules:           return ("Schedules", "clock.badge.checkmark")
             case .issues:              return ("Issues", "exclamationmark.triangle")
@@ -106,7 +108,7 @@ extension RootView {
                  .planningProgression, .planningProjects, .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .cosmicMap,
                  .observationMode, .goingOut,
-                 .threePeriod, .classroomJobs, .transitionPlanner,
+                 .threePeriod, .classroomJobs, .transitionPlanner, .needsLesson,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -129,7 +131,7 @@ extension RootView {
             case .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .cosmicMap,
-                 .threePeriod, .transitionPlanner:
+                 .threePeriod, .transitionPlanner, .needsLesson:
                 return .planning
             case .observationMode:   return nil
             case .goingOut:          return nil

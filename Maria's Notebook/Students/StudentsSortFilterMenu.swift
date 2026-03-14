@@ -11,7 +11,7 @@ struct StudentsSortFilterMenu: View {
     private var isAlphabetical: Bool {
         sortOrderRaw == "alphabetical"
             || (sortOrderRaw != "manual" && sortOrderRaw != "age"
-                && sortOrderRaw != "birthday" && sortOrderRaw != "lastLesson")
+                && sortOrderRaw != "birthday")
     }
 
     /// Check if current sort is manual

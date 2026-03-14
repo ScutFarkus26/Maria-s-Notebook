@@ -6,7 +6,6 @@ enum SortOrder: Hashable {
     case alphabetical
     case age
     case birthday
-    case lastLesson
 }
 
 // Shared logical filter for the students list (used by StudentsView and StudentsViewModel)
