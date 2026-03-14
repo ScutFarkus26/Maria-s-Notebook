@@ -186,6 +186,25 @@ enum AppTheme {
         )
     }
 
+    // MARK: - Tracking (Letter Spacing) Constants (#12-14)
+
+    /// Standardized letter-spacing values for typographic refinement
+    enum Tracking {
+        /// Tight tracking for large display titles (26pt+) — more refined, editorial feel (#13)
+        nonisolated static let display: CGFloat = -0.3
+
+        /// Standard tracking — no adjustment (default)
+        nonisolated static let standard: CGFloat = 0
+
+        /// Slightly wider tracking for small text in pills/badges (#14)
+        nonisolated static let badge: CGFloat = 0.2
+
+        /// Wide tracking for uppercase section labels / overline text (#12)
+        nonisolated static let overline: CGFloat = 0.8
+
+        /// Extra wide tracking for very small uppercase labels
+        nonisolated static let wideUppercase: CGFloat = 1.0
+    }
 }
 
 // MARK: - Font Extension for Easy Migration
@@ -202,6 +221,28 @@ extension View {
     /// Apply a standardized shadow style
     func shadow(_ style: AppTheme.ShadowStyle) -> some View {
         self.shadow(color: style.color, radius: style.radius, x: style.x, y: style.y)
+    }
+}
+
+// MARK: - Tracking View Modifiers (#12-14)
+extension View {
+    /// Apply display-level tight tracking for large titles
+    func displayTracking() -> some View {
+        self.tracking(AppTheme.Tracking.display)
+    }
+
+    /// Apply overline styling: uppercase section label with wide tracking (#12)
+    func overlineStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
+            .tracking(AppTheme.Tracking.overline)
+            .textCase(.uppercase)
+            .foregroundStyle(.secondary)
+    }
+
+    /// Apply badge tracking for small text in pills (#14)
+    func badgeTracking() -> some View {
+        self.tracking(AppTheme.Tracking.badge)
     }
 }
 
