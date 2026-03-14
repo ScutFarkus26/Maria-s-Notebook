@@ -79,6 +79,8 @@ struct RootDetailContent: View {
                 ClassroomJobsRootView()
             case .transitionPlanner:
                 TransitionPlannerRootView()
+            case .needsLesson:
+                NeedsLessonView()
             case .community:
                 CommunityMeetingsView()
             case .schedules:
@@ -119,29 +121,138 @@ struct LessonsMenuRootView: View {
     }
 }
 
-/// Compact iPhone tabs using a standard TabView with grouped navigation items.
-struct RootCompactTabs: View {
+#if os(iOS)
+/// Adaptive tabs that show a tab bar on iPhone and a sidebar on iPad.
+/// Uses `.sidebarAdaptable` so iPad users can toggle between tab bar and sidebar.
+struct RootAdaptiveTabs: View {
     @Binding var selectedNavItem: RootView.NavigationItem
 
-    private var mainTabs: [RootView.NavigationItem] {
-        [.attendance, .today, .students, .community]
-    }
-
     var body: some View {
-        TabView(selection: Binding(
-            get: { selectedNavItem.rawValue },
-            set: { if let item = RootView.NavigationItem(rawValue: $0) { selectedNavItem = item } }
-        )) {
-            ForEach(mainTabs) { item in
-                RootDetailContent(selectedNavItem: item)
-                    .tabItem {
-                        Label(item.displayName, systemImage: item.icon)
-                    }
-                    .tag(item.rawValue)
+        TabView(selection: $selectedNavItem) {
+            // Top-level tabs (visible in tab bar on iPhone)
+            Tab("Today", systemImage: "sun.max", value: .today) {
+                RootDetailContent(selectedNavItem: .today)
+            }
+
+            Tab("Students", systemImage: "person.3", value: .students) {
+                RootDetailContent(selectedNavItem: .students)
+            }
+
+            Tab("Attendance", systemImage: "checklist", value: .attendance) {
+                RootDetailContent(selectedNavItem: .attendance)
+            }
+
+            Tab("Community", systemImage: "bubble.left.and.bubble.right", value: .community) {
+                RootDetailContent(selectedNavItem: .community)
+            }
+
+            // Sections (shown in sidebar on iPad, accessible via More on iPhone)
+            TabSection("Today") {
+                Tab("Todos", systemImage: "checkmark.circle", value: .todos) {
+                    RootDetailContent(selectedNavItem: .todos)
+                }
+            }
+
+            TabSection("Students") {
+                Tab("Observe", systemImage: "eye", value: .observationMode) {
+                    RootDetailContent(selectedNavItem: .observationMode)
+                }
+                Tab("Meetings", systemImage: "person.2", value: .meetings) {
+                    RootDetailContent(selectedNavItem: .meetings)
+                }
+                Tab("Going Out", systemImage: "figure.walk", value: .goingOut) {
+                    RootDetailContent(selectedNavItem: .goingOut)
+                }
+                Tab("Three-Period", systemImage: "3.circle", value: .threePeriod) {
+                    RootDetailContent(selectedNavItem: .threePeriod)
+                }
+            }
+
+            TabSection("Classroom") {
+                Tab("Jobs", systemImage: "person.2.badge.gearshape", value: .classroomJobs) {
+                    RootDetailContent(selectedNavItem: .classroomJobs)
+                }
+            }
+
+            TabSection("Curriculum") {
+                Tab("Lessons", systemImage: "book", value: .lessons) {
+                    RootDetailContent(selectedNavItem: .lessons)
+                }
+                Tab("Checklist", systemImage: "list.clipboard", value: .planningChecklist) {
+                    RootDetailContent(selectedNavItem: .planningChecklist)
+                }
+                Tab("Presentations", systemImage: "calendar", value: .planningAgenda) {
+                    RootDetailContent(selectedNavItem: .planningAgenda)
+                }
+                Tab("Open Work", systemImage: "tray.full", value: .planningWork) {
+                    RootDetailContent(selectedNavItem: .planningWork)
+                }
+                Tab("Cosmic Map", systemImage: "globe.americas", value: .cosmicMap) {
+                    RootDetailContent(selectedNavItem: .cosmicMap)
+                }
+                Tab("Needs Lesson", systemImage: "clock.badge.exclamationmark", value: .needsLesson) {
+                    RootDetailContent(selectedNavItem: .needsLesson)
+                }
+                Tab("Projects", systemImage: "folder", value: .planningProjects) {
+                    RootDetailContent(selectedNavItem: .planningProjects)
+                }
+            }
+
+            TabSection("Progress") {
+                Tab("Progression", systemImage: "chart.line.uptrend.xyaxis", value: .planningProgression) {
+                    RootDetailContent(selectedNavItem: .planningProgression)
+                }
+                Tab("Progress Dashboard", systemImage: "person.text.rectangle", value: .progressDashboard) {
+                    RootDetailContent(selectedNavItem: .progressDashboard)
+                }
+                Tab("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar, value: .lessonFrequency) {
+                    RootDetailContent(selectedNavItem: .lessonFrequency)
+                }
+                Tab("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie, value: .curriculumBalance) {
+                    RootDetailContent(selectedNavItem: .curriculumBalance)
+                }
+                Tab("Transitions", systemImage: "arrow.right.arrow.left", value: .transitionPlanner) {
+                    RootDetailContent(selectedNavItem: .transitionPlanner)
+                }
+            }
+
+            TabSection("Resources") {
+                Tab("Resources", systemImage: "tray.2", value: .resourceLibrary) {
+                    RootDetailContent(selectedNavItem: .resourceLibrary)
+                }
+                Tab("Supplies", systemImage: "shippingbox", value: .supplies) {
+                    RootDetailContent(selectedNavItem: .supplies)
+                }
+                Tab("Procedures", systemImage: "doc.text", value: .procedures) {
+                    RootDetailContent(selectedNavItem: .procedures)
+                }
+                Tab("Schedules", systemImage: "clock.badge.checkmark", value: .schedules) {
+                    RootDetailContent(selectedNavItem: .schedules)
+                }
+                Tab("Issues", systemImage: "exclamationmark.triangle", value: .issues) {
+                    RootDetailContent(selectedNavItem: .issues)
+                }
+            }
+
+            TabSection("Tools") {
+                Tab("Ask AI", systemImage: "bubble.left.and.text.bubble.right", value: .askAI) {
+                    RootDetailContent(selectedNavItem: .askAI)
+                }
+            }
+
+            TabSection("System") {
+                Tab("Logs", systemImage: "list.bullet", value: .logs) {
+                    RootDetailContent(selectedNavItem: .logs)
+                }
+                Tab("Settings", systemImage: "gear", value: .settings) {
+                    RootDetailContent(selectedNavItem: .settings)
+                }
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
     }
 }
+#endif
 
 /// More menu view for iPhone that shows additional navigation items
 struct MoreMenuView: View {
@@ -169,6 +280,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.cosmicMap)
                     moreMenuButton(.threePeriod)
                     moreMenuButton(.transitionPlanner)
+                    moreMenuButton(.needsLesson)
                 }
 
                 Section("Resources") {

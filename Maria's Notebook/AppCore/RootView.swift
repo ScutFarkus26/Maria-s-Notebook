@@ -44,10 +44,6 @@ struct RootView: View {
     @State private var commandBarWorkLessonID: UUID?
     @State private var commandBarWorkStudentIDs: Set<UUID> = []
     @State private var commandBarTodoTitle: String = ""
-    #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    #endif
-    
     // Preferences for presentations preloading
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
@@ -249,16 +245,10 @@ struct RootView: View {
     @ViewBuilder
     private var mainContent: some View {
         #if os(iOS)
-        Group {
-            if horizontalSizeClass == .compact {
-                RootCompactTabs(selectedNavItem: Binding(
-                    get: { selectedNavItem },
-                    set: { selectedNavItemRaw = $0.rawValue }
-                ))
-            } else {
-                splitViewContent
-            }
-        }
+        RootAdaptiveTabs(selectedNavItem: Binding(
+            get: { selectedNavItem },
+            set: { selectedNavItemRaw = $0.rawValue }
+        ))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         #else
         splitViewContent
