@@ -1,3 +1,4 @@
+import CoreData
 import OSLog
 import SwiftUI
 import SwiftData

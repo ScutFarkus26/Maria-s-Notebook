@@ -5,6 +5,7 @@
 // - WorksAgendaView+DataHelpers.swift  (cache loading, filtering, display helpers)
 // - WorksAgendaView+Actions.swift      (calendar navigation, work item actions)
 
+import CoreData
 import OSLog
 import SwiftUI
 import SwiftData

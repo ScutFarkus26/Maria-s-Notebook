@@ -105,7 +105,7 @@ struct TodayView: View {
         // PERFORMANCE: Use .task instead of .onAppear for automatic cancellation
         // .task automatically cancels when view disappears, preventing unnecessary work
         .task(priority: .userInitiated) {
-            handleViewAppear()
+            await handleViewAppear()
         }
         .onChange(of: calendar) { _, newCal in
             viewModel.setCalendar(newCal)
@@ -403,24 +403,31 @@ struct TodayView: View {
 
     // MARK: - Event Handlers
 
-    private func handleViewAppear() {
+    // PERF: Structured concurrency — async let runs both syncs in parallel
+    // while inheriting .task cancellation (no more fire-and-forget Task blocks).
+    private func handleViewAppear() async {
         viewModel.setCalendar(calendar)
-        syncReminders()
-        syncCalendarEvents()
+        async let reminderSync: Void = syncReminders()
+        async let calendarSync: Void = syncCalendarEvents()
         AppCalendar.adopt(timeZoneFrom: calendar)
         let coerced = nearestSchoolDaySync(to: viewModel.date)
         if coerced != viewModel.date {
             viewModel.date = AppCalendar.startOfDay(coerced)
         }
         updateFilteredQueries()
+        // Await both syncs — cancellation propagates automatically when view disappears
+        _ = await (reminderSync, calendarSync)
     }
     
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
         switch newPhase {
         case .active:
             // Resume syncs when app becomes active
-            syncReminders()
-            syncCalendarEvents()
+            Task {
+                async let reminderSync: Void = syncReminders()
+                async let calendarSync: Void = syncCalendarEvents()
+                _ = await (reminderSync, calendarSync)
+            }
         case .inactive, .background:
             // App is inactive or in background - expensive syncs will be paused automatically
             // because sync Tasks check for cancellation
@@ -443,34 +450,32 @@ struct TodayView: View {
         updateFilteredQueries()
     }
 
-    private func syncReminders() {
-        Task {
-            let syncService = ReminderSyncService.shared
-            syncService.modelContext = modelContext
-            if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
-                do {
-                    try await syncService.syncReminders()
-                } catch {
-                    #if DEBUG
-                    Logger.sync.error("Reminder sync failed: \(error.localizedDescription)")
-                    #endif
-                }
+    // PERF: Async functions instead of fire-and-forget Task blocks.
+    // Callers use structured concurrency (async let / .task) for automatic cancellation.
+    private func syncReminders() async {
+        let syncService = ReminderSyncService.shared
+        syncService.modelContext = modelContext
+        if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
+            do {
+                try await syncService.syncReminders()
+            } catch {
+                #if DEBUG
+                Logger.sync.error("Reminder sync failed: \(error.localizedDescription)")
+                #endif
             }
         }
     }
 
-    private func syncCalendarEvents() {
-        Task {
-            let calendarSyncService = CalendarSyncService.shared
-            calendarSyncService.modelContext = modelContext
-            if !calendarSyncService.syncCalendarIdentifiers.isEmpty {
-                do {
-                    try await calendarSyncService.syncEvents()
-                } catch {
-                    #if DEBUG
-                    Logger.sync.error("Calendar sync failed: \(error.localizedDescription)")
-                    #endif
-                }
+    private func syncCalendarEvents() async {
+        let calendarSyncService = CalendarSyncService.shared
+        calendarSyncService.modelContext = modelContext
+        if !calendarSyncService.syncCalendarIdentifiers.isEmpty {
+            do {
+                try await calendarSyncService.syncEvents()
+            } catch {
+                #if DEBUG
+                Logger.sync.error("Calendar sync failed: \(error.localizedDescription)")
+                #endif
             }
         }
     }
