@@ -15,16 +15,15 @@ extension ClassSubjectChecklistViewModel {
         let lid = lesson.id
         let lidString = lid.uuidString
 
-        // OPTIMIZATION: Fetch only non-complete work since we're looking for active/review work
+        // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
+        // Previously fetched ALL non-complete WorkModels then filtered in memory.
         let workDescriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
+            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" && $0.lessonID == lidString }
         )
-        let allWorkModels = context.safeFetch(workDescriptor)
+        let matchingWorkModels = context.safeFetch(workDescriptor)
 
-        let existingWork = allWorkModels.first { work in
-            let hasStudent = (work.participants ?? []).contains { $0.studentID == sid.uuidString }
-            guard hasStudent else { return false }
-            return work.lessonID == lidString
+        let existingWork = matchingWorkModels.first { work in
+            (work.participants ?? []).contains { $0.studentID == sid.uuidString }
         }
 
         if let existing = existingWork {

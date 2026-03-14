@@ -75,12 +75,19 @@ class ClassSubjectChecklistViewModel {
     }
 
     /// Refresh lesson list and group ordering without recomputing the matrix.
+    /// PERF: Uses subject predicate to narrow the query instead of loading all lessons.
     private func refreshLessonsAndGroups(context: ModelContext) {
         guard !selectedSubject.isEmpty else { return }
         let sub = selectedSubject.trimmed()
-        let lessonsDescriptor = FetchDescriptor<Lesson>()
-        let allLessons = context.safeFetch(lessonsDescriptor)
-        self.lessons = allLessons.filter { $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame }
+        // SwiftData #Predicate supports localizedStandardContains for case-insensitive matching
+        let lessonsDescriptor = FetchDescriptor<Lesson>(
+            predicate: #Predicate<Lesson> { $0.subject.localizedStandardContains(sub) }
+        )
+        let fetchedLessons = context.safeFetch(lessonsDescriptor)
+        // Post-filter for exact match (localizedStandardContains is substring-based)
+        self.lessons = fetchedLessons.filter {
+            $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame
+        }
         self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
         invalidateLessonsCache()
     }

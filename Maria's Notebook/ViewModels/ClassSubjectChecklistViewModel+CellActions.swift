@@ -250,16 +250,12 @@ extension ClassSubjectChecklistViewModel {
             }
         }
 
-        // OPTIMIZATION: Filter WorkModels to only non-complete work
-        // Complete work doesn't need to be deleted in the checklist context
+        // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
         let workDescriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
+            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" && $0.lessonID == lidString }
         )
-        let allWorkModels = context.safeFetch(workDescriptor)
-        let workModelsToDelete = allWorkModels.filter { work in
-            let hasStudent = (work.participants ?? []).contains { $0.studentID == sidString }
-            guard hasStudent else { return false }
-            return work.lessonID == lidString
+        let workModelsToDelete = context.safeFetch(workDescriptor).filter { work in
+            (work.participants ?? []).contains { $0.studentID == sidString }
         }
         for work in workModelsToDelete {
             context.delete(work)
