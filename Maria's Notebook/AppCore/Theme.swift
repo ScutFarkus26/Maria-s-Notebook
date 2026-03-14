@@ -21,8 +21,9 @@ enum AppTheme {
     // Note: All properties marked nonisolated to allow access from Sendable closures (e.g., PhotosPicker)
     enum ScaledFont {
         /// Extra large title (32pt base) - scales with .largeTitle
+        /// Uses .heavy weight for strong visual anchoring at display sizes (#10)
         nonisolated static var titleXLarge: Font {
-            .system(.largeTitle, design: .rounded, weight: .bold)
+            .system(.largeTitle, design: .rounded, weight: .heavy)
         }
 
         /// Large title (26pt base) - scales with .title
@@ -31,13 +32,15 @@ enum AppTheme {
         }
 
         /// Header (24pt base) - scales with .title2
+        /// Uses .bold for confident section boundaries (#9)
         nonisolated static var header: Font {
-            .system(.title2, design: .rounded, weight: .semibold)
+            .system(.title2, design: .rounded, weight: .bold)
         }
 
         /// Medium title (20pt base) - scales with .title3
+        /// Uses .bold for confident section boundaries (#9)
         nonisolated static var titleMedium: Font {
-            .system(.title3, design: .rounded, weight: .semibold)
+            .system(.title3, design: .rounded, weight: .bold)
         }
 
         /// Small title (18pt base) - scales with .headline
@@ -46,8 +49,9 @@ enum AppTheme {
         }
 
         /// Callout (16pt base) - scales with .callout
+        /// Uses .medium weight to differentiate from body text (#11)
         nonisolated static var callout: Font {
-            .system(.callout, design: .rounded)
+            .system(.callout, design: .rounded, weight: .medium)
         }
 
         /// Body text (14pt base) - scales with .subheadline
@@ -61,13 +65,15 @@ enum AppTheme {
         }
 
         /// Caption (13pt base) - scales with .footnote
+        /// Uses .light weight for clear separation from body text (#8)
         nonisolated static var caption: Font {
-            .system(.footnote, design: .rounded)
+            .system(.footnote, design: .rounded, weight: .light)
         }
 
         /// Small caption (11pt base) - scales with .caption2
+        /// Uses .light weight for the most receded text level (#8)
         nonisolated static var captionSmall: Font {
-            .system(.caption2, design: .rounded)
+            .system(.caption2, design: .rounded, weight: .light)
         }
 
         /// Small caption with semibold weight
