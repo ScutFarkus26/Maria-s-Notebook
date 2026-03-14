@@ -146,110 +146,183 @@ struct RootAdaptiveTabs: View {
                 RootDetailContent(selectedNavItem: .community)
             }
 
-            // Sections (shown in sidebar on iPad, accessible via More on iPhone)
-            TabSection("Today") {
-                Tab("Todos", systemImage: "checkmark.circle", value: .todos) {
-                    RootDetailContent(selectedNavItem: .todos)
-                }
-            }
-
-            TabSection("Students") {
-                Tab("Observe", systemImage: "eye", value: .observationMode) {
-                    RootDetailContent(selectedNavItem: .observationMode)
-                }
-                Tab("Meetings", systemImage: "person.2", value: .meetings) {
-                    RootDetailContent(selectedNavItem: .meetings)
-                }
-                Tab("Going Out", systemImage: "figure.walk", value: .goingOut) {
-                    RootDetailContent(selectedNavItem: .goingOut)
-                }
-                Tab("Three-Period", systemImage: "3.circle", value: .threePeriod) {
-                    RootDetailContent(selectedNavItem: .threePeriod)
-                }
-            }
-
-            TabSection("Classroom") {
-                Tab("Jobs", systemImage: "person.2.badge.gearshape", value: .classroomJobs) {
-                    RootDetailContent(selectedNavItem: .classroomJobs)
-                }
-            }
-
-            TabSection("Curriculum") {
-                Tab("Lessons", systemImage: "book", value: .lessons) {
-                    RootDetailContent(selectedNavItem: .lessons)
-                }
-                Tab("Checklist", systemImage: "list.clipboard", value: .planningChecklist) {
-                    RootDetailContent(selectedNavItem: .planningChecklist)
-                }
-                Tab("Presentations", systemImage: "calendar", value: .planningAgenda) {
-                    RootDetailContent(selectedNavItem: .planningAgenda)
-                }
-                Tab("Open Work", systemImage: "tray.full", value: .planningWork) {
-                    RootDetailContent(selectedNavItem: .planningWork)
-                }
-                Tab("Cosmic Map", systemImage: "globe.americas", value: .cosmicMap) {
-                    RootDetailContent(selectedNavItem: .cosmicMap)
-                }
-                Tab("Needs Lesson", systemImage: "clock.badge.exclamationmark", value: .needsLesson) {
-                    RootDetailContent(selectedNavItem: .needsLesson)
-                }
-                Tab("Projects", systemImage: "folder", value: .planningProjects) {
-                    RootDetailContent(selectedNavItem: .planningProjects)
-                }
-            }
-
-            TabSection("Progress") {
-                Tab("Progression", systemImage: "chart.line.uptrend.xyaxis", value: .planningProgression) {
-                    RootDetailContent(selectedNavItem: .planningProgression)
-                }
-                Tab("Progress Dashboard", systemImage: "person.text.rectangle", value: .progressDashboard) {
-                    RootDetailContent(selectedNavItem: .progressDashboard)
-                }
-                Tab("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar, value: .lessonFrequency) {
-                    RootDetailContent(selectedNavItem: .lessonFrequency)
-                }
-                Tab("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie, value: .curriculumBalance) {
-                    RootDetailContent(selectedNavItem: .curriculumBalance)
-                }
-                Tab("Transitions", systemImage: "arrow.right.arrow.left", value: .transitionPlanner) {
-                    RootDetailContent(selectedNavItem: .transitionPlanner)
-                }
-            }
-
-            TabSection("Resources") {
-                Tab("Resources", systemImage: "tray.2", value: .resourceLibrary) {
-                    RootDetailContent(selectedNavItem: .resourceLibrary)
-                }
-                Tab("Supplies", systemImage: "shippingbox", value: .supplies) {
-                    RootDetailContent(selectedNavItem: .supplies)
-                }
-                Tab("Procedures", systemImage: "doc.text", value: .procedures) {
-                    RootDetailContent(selectedNavItem: .procedures)
-                }
-                Tab("Schedules", systemImage: "clock.badge.checkmark", value: .schedules) {
-                    RootDetailContent(selectedNavItem: .schedules)
-                }
-                Tab("Issues", systemImage: "exclamationmark.triangle", value: .issues) {
-                    RootDetailContent(selectedNavItem: .issues)
-                }
-            }
-
-            TabSection("Tools") {
-                Tab("Ask AI", systemImage: "bubble.left.and.text.bubble.right", value: .askAI) {
-                    RootDetailContent(selectedNavItem: .askAI)
-                }
-            }
-
-            TabSection("System") {
-                Tab("Logs", systemImage: "list.bullet", value: .logs) {
-                    RootDetailContent(selectedNavItem: .logs)
-                }
-                Tab("Settings", systemImage: "gear", value: .settings) {
-                    RootDetailContent(selectedNavItem: .settings)
-                }
-            }
+            secondaryTabs
         }
         .tabViewStyle(.sidebarAdaptable)
+    }
+
+    @TabContentBuilder<RootView.NavigationItem>
+    private var secondaryTabs: some TabContent<RootView.NavigationItem> {
+        // Sections (shown in sidebar on iPad, accessible via More on iPhone)
+        TabSection {
+            Tab(value: RootView.NavigationItem.todos) {
+                RootDetailContent(selectedNavItem: .todos)
+            } label: {
+                Label("Todos", systemImage: "checkmark.circle")
+            }
+        } header: {
+            Text("Today")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.observationMode) {
+                RootDetailContent(selectedNavItem: .observationMode)
+            } label: {
+                Label("Observe", systemImage: "eye")
+            }
+            Tab(value: RootView.NavigationItem.meetings) {
+                RootDetailContent(selectedNavItem: .meetings)
+            } label: {
+                Label("Meetings", systemImage: "person.2")
+            }
+            Tab(value: RootView.NavigationItem.goingOut) {
+                RootDetailContent(selectedNavItem: .goingOut)
+            } label: {
+                Label("Going Out", systemImage: "figure.walk")
+            }
+            Tab(value: RootView.NavigationItem.threePeriod) {
+                RootDetailContent(selectedNavItem: .threePeriod)
+            } label: {
+                Label("Three-Period", systemImage: "3.circle")
+            }
+        } header: {
+            Text("Students")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.classroomJobs) {
+                RootDetailContent(selectedNavItem: .classroomJobs)
+            } label: {
+                Label("Jobs", systemImage: "person.2.badge.gearshape")
+            }
+        } header: {
+            Text("Classroom")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.lessons) {
+                RootDetailContent(selectedNavItem: .lessons)
+            } label: {
+                Label("Lessons", systemImage: "book")
+            }
+            Tab(value: RootView.NavigationItem.planningChecklist) {
+                RootDetailContent(selectedNavItem: .planningChecklist)
+            } label: {
+                Label("Checklist", systemImage: "list.clipboard")
+            }
+            Tab(value: RootView.NavigationItem.planningAgenda) {
+                RootDetailContent(selectedNavItem: .planningAgenda)
+            } label: {
+                Label("Presentations", systemImage: "calendar")
+            }
+            Tab(value: RootView.NavigationItem.planningWork) {
+                RootDetailContent(selectedNavItem: .planningWork)
+            } label: {
+                Label("Open Work", systemImage: "tray.full")
+            }
+            Tab(value: RootView.NavigationItem.cosmicMap) {
+                RootDetailContent(selectedNavItem: .cosmicMap)
+            } label: {
+                Label("Cosmic Map", systemImage: "globe.americas")
+            }
+            Tab(value: RootView.NavigationItem.needsLesson) {
+                RootDetailContent(selectedNavItem: .needsLesson)
+            } label: {
+                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
+            }
+            Tab(value: RootView.NavigationItem.planningProjects) {
+                RootDetailContent(selectedNavItem: .planningProjects)
+            } label: {
+                Label("Projects", systemImage: "folder")
+            }
+        } header: {
+            Text("Curriculum")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.planningProgression) {
+                RootDetailContent(selectedNavItem: .planningProgression)
+            } label: {
+                Label("Progression", systemImage: "chart.line.uptrend.xyaxis")
+            }
+            Tab(value: RootView.NavigationItem.progressDashboard) {
+                RootDetailContent(selectedNavItem: .progressDashboard)
+            } label: {
+                Label("Progress Dashboard", systemImage: "person.text.rectangle")
+            }
+            Tab(value: RootView.NavigationItem.lessonFrequency) {
+                RootDetailContent(selectedNavItem: .lessonFrequency)
+            } label: {
+                Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+            }
+            Tab(value: RootView.NavigationItem.curriculumBalance) {
+                RootDetailContent(selectedNavItem: .curriculumBalance)
+            } label: {
+                Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
+            }
+            Tab(value: RootView.NavigationItem.transitionPlanner) {
+                RootDetailContent(selectedNavItem: .transitionPlanner)
+            } label: {
+                Label("Transitions", systemImage: "arrow.right.arrow.left")
+            }
+        } header: {
+            Text("Progress")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.resourceLibrary) {
+                RootDetailContent(selectedNavItem: .resourceLibrary)
+            } label: {
+                Label("Resources", systemImage: "tray.2")
+            }
+            Tab(value: RootView.NavigationItem.supplies) {
+                RootDetailContent(selectedNavItem: .supplies)
+            } label: {
+                Label("Supplies", systemImage: "shippingbox")
+            }
+            Tab(value: RootView.NavigationItem.procedures) {
+                RootDetailContent(selectedNavItem: .procedures)
+            } label: {
+                Label("Procedures", systemImage: "doc.text")
+            }
+            Tab(value: RootView.NavigationItem.schedules) {
+                RootDetailContent(selectedNavItem: .schedules)
+            } label: {
+                Label("Schedules", systemImage: "clock.badge.checkmark")
+            }
+            Tab(value: RootView.NavigationItem.issues) {
+                RootDetailContent(selectedNavItem: .issues)
+            } label: {
+                Label("Issues", systemImage: "exclamationmark.triangle")
+            }
+        } header: {
+            Text("Resources")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.askAI) {
+                RootDetailContent(selectedNavItem: .askAI)
+            } label: {
+                Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
+            }
+        } header: {
+            Text("Tools")
+        }
+
+        TabSection {
+            Tab(value: RootView.NavigationItem.logs) {
+                RootDetailContent(selectedNavItem: .logs)
+            } label: {
+                Label("Logs", systemImage: "list.bullet")
+            }
+            Tab(value: RootView.NavigationItem.settings) {
+                RootDetailContent(selectedNavItem: .settings)
+            } label: {
+                Label("Settings", systemImage: "gear")
+            }
+        } header: {
+            Text("System")
+        }
     }
 }
 #endif

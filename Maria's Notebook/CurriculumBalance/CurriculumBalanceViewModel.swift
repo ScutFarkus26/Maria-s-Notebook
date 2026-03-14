@@ -153,8 +153,6 @@ final class CurriculumBalanceViewModel {
     // MARK: - Weekly Trends Computation
 
     private func computeWeeklyTrends(records: [LessonAnalyticsService.PresentedRecord]) -> [SubjectWeeklyTrend] {
-        let cal = AppCalendar.shared
-
         // Group records by (subject, weekStart)
         var grouped: [String: [Date: Int]] = [:]
         for record in records {
