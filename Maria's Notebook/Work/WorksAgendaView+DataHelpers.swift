@@ -7,6 +7,20 @@ import OSLog
 
 extension WorksAgendaView {
 
+    // MARK: - Change Detection
+
+    /// PERF: Lightweight change detection using fetchCount() instead of loading full tables.
+    func refreshChangeTokens() {
+        do {
+            let lCount = try modelContext.fetchCount(FetchDescriptor<Lesson>())
+            if lCount != lessonChangeToken { lessonChangeToken = lCount }
+            let sCount = try modelContext.fetchCount(FetchDescriptor<Student>())
+            if sCount != studentChangeToken { studentChangeToken = sCount }
+        } catch {
+            Self.logger.warning("Failed to refresh change tokens: \(error)")
+        }
+    }
+
     // MARK: - Cache Loading
 
     func loadLessonsAndStudentsIfNeeded() {

@@ -12,9 +12,7 @@ final class StudentsViewModel {
     var cachedDaysSinceLastLesson: [UUID: Int] = [:]
     
     // MARK: - Change Detection
-    private var lastAttendanceIDs: Set<UUID> = []
-    private var lastLessonAssignmentIDs: Set<UUID> = []
-    private var lastLessonIDs: Set<UUID> = []
+    private var lastLoadTimestamp: Date = .distantPast
     
     // MARK: - Filtering & Sorting
     func filteredStudents(
@@ -52,7 +50,7 @@ final class StudentsViewModel {
             return [SortDescriptor(\.firstName), SortDescriptor(\.lastName), SortDescriptor(\.manualOrder)]
         case .age:
             return [SortDescriptor(\.birthday, order: .reverse), SortDescriptor(\.manualOrder)]
-        case .birthday, .lastLesson:
+        case .birthday:
             return [SortDescriptor(\.manualOrder)]
         }
     }
@@ -90,7 +88,7 @@ final class StudentsViewModel {
 
     private func applySortToFetched(_ students: [Student], sortOrder: SortOrder, today: Date) -> [Student] {
         switch sortOrder {
-        case .manual, .age, .lastLesson:
+        case .manual, .age:
             return students
         case .alphabetical:
             return students.sorted { lhs, rhs in
@@ -181,53 +179,22 @@ final class StudentsViewModel {
     }
 
     // MARK: - Data Loading
-    // swiftlint:disable:next function_parameter_count
     func loadDataOnDemand(
         mode: StudentMode,
         modelContext: ModelContext,
         calendar: Calendar,
-        attendanceRecordIDs: Set<UUID>,
-        presentationIDs: Set<UUID>,
-        lessonIDs: Set<UUID>,
         students: [Student]
     ) {
-        // Only load data for modes that need it
-        guard mode == .roster || mode == .age || mode == .birthday || mode == .lastLesson else {
-            return
-        }
-        
-        // Check if data changed
-        let dataChanged = attendanceRecordIDs != lastAttendanceIDs ||
-                         presentationIDs != lastLessonAssignmentIDs ||
-                         lessonIDs != lastLessonIDs
-        
-        guard dataChanged else { return }
-        
         // Load today's attendance records for roster view
-        if mode == .roster || mode == .age || mode == .birthday {
-            let today = calendar.startOfDay(for: Date())
-            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
-            let descriptor = FetchDescriptor<AttendanceRecord>(
-                predicate: #Predicate<AttendanceRecord> { record in
-                    record.date >= today && record.date < tomorrow
-                }
-            )
-            cachedAttendanceRecords = modelContext.safeFetch(descriptor)
-        }
-        
-        // Load data for lastLesson mode
-        if mode == .lastLesson {
-            cachedDaysSinceLastLesson = computeDaysSinceLastLessonCache(
-                for: students,
-                using: modelContext,
-                calendar: calendar
-            )
-        }
-        
-        // Update change tracking
-        lastAttendanceIDs = attendanceRecordIDs
-        lastLessonAssignmentIDs = presentationIDs
-        lastLessonIDs = lessonIDs
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        let descriptor = FetchDescriptor<AttendanceRecord>(
+            predicate: #Predicate<AttendanceRecord> { record in
+                record.date >= today && record.date < tomorrow
+            }
+        )
+        cachedAttendanceRecords = modelContext.safeFetch(descriptor)
+        lastLoadTimestamp = Date()
     }
     
     // MARK: - Computed Helpers
@@ -353,7 +320,7 @@ extension StudentsViewModel {
         }
     }
     
-    private func computeDaysSinceLastLessonCache(
+    func computeDaysSinceLastLessonCache(
         for students: [Student],
         using modelContext: ModelContext,
         calendar: Calendar

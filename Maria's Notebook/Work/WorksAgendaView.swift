@@ -34,14 +34,9 @@ struct WorksAgendaView: View {
     )
     var scheduledCheckIns: [WorkCheckIn]
 
-    // MEMORY OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
-    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
-    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
-    @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
-
-    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
-    private var lessonIDs: [UUID] { lessonsForChangeDetection.map { $0.id } }
-    private var studentIDs: [UUID] { studentsForChangeDetection.map { $0.id } }
+    // PERF: Use lightweight count-based change detection instead of loading full tables.
+    @State var lessonChangeToken: Int = 0
+    @State var studentChangeToken: Int = 0
 
     // Lazy-loaded caches (only populated when needed)
     @State var lessonsByIDCache: [UUID: Lesson] = [:]
@@ -71,9 +66,9 @@ struct WorksAgendaView: View {
     /// Combined trigger for data reload — changes when any relevant data changes
     private var dataReloadTrigger: Int {
         var hasher = Hasher()
-        hasher.combine(openWork.map { $0.id })
-        hasher.combine(lessonIDs)
-        hasher.combine(studentIDs)
+        hasher.combine(openWork.count)
+        hasher.combine(lessonChangeToken)
+        hasher.combine(studentChangeToken)
         hasher.combine(showTestStudents)
         hasher.combine(testStudentNamesRaw)
         return hasher.finalize()
@@ -164,10 +159,14 @@ struct WorksAgendaView: View {
             }
         }
         .onAppear {
+            refreshChangeTokens()
             loadLessonsAndStudentsIfNeeded()
         }
         .onChange(of: dataReloadTrigger) { _, _ in
             loadLessonsAndStudentsIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            refreshChangeTokens()
         }
     }
 

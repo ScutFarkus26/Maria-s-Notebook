@@ -238,27 +238,25 @@ extension WorkDetailView {
         }
     }
 
+    // PERF: Uses ViewModel's pre-loaded relatedLessons and relatedLessonAssignments
+    // instead of full-table @Query properties
     func checkAndOfferUnlock(lessonID: UUID, studentID: UUID) {
-        // Find current lesson
-        guard let currentLesson = allLessons.first(where: { $0.id == lessonID }) else { return }
+        let lessons = viewModel.relatedLessons
+        guard let currentLesson = lessons.first(where: { $0.id == lessonID }) else { return }
 
-        // Find next lesson using PlanNextLessonService
-        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: allLessons) else {
-            return // No next lesson available
+        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {
+            return
         }
 
-        // Check if already unlocked
-        let existingLAs = allLessonAssignments.filter { la in
+        let existingLAs = viewModel.relatedLessonAssignments.filter { la in
             la.lessonIDUUID == nextLesson.id &&
             la.studentUUIDs.contains(studentID)
         }
 
-        // If already manually unlocked, don't show prompt
         if existingLAs.contains(where: { $0.manuallyUnblocked }) {
             return
         }
 
-        // Show unlock prompt
         viewModel.nextLessonToUnlock = nextLesson
         viewModel.showUnlockNextLessonAlert = true
     }
@@ -270,8 +268,8 @@ extension WorkDetailView {
             after: info.lessonID,
             for: info.studentID,
             modelContext: modelContext,
-            lessons: allLessons,
-            lessonAssignments: allLessonAssignments
+            lessons: viewModel.relatedLessons,
+            lessonAssignments: viewModel.relatedLessonAssignments
         )
 
         saveCoordinator.save(modelContext, reason: "Unlocking next lesson")

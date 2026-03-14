@@ -15,6 +15,7 @@ final class WorkDetailViewModel {
     var relatedStudent: Student?
     var workModelNotes: [Note] = []
     var relatedPresentation: LessonAssignment?
+    var relatedLessonAssignments: [LessonAssignment] = []
     var resolvedPresentationID: UUID?
 
     var showPresentationNotes = false
@@ -70,11 +71,12 @@ final class WorkDetailViewModel {
         WorkScheduleDateLogic.compute(forCheckIns: checkIns)
     }
     
-    func likelyNextLesson(allLessons: [Lesson]) -> Lesson? {
+    // PERF: Uses pre-fetched relatedLessons (same subject+group) instead of all lessons
+    func likelyNextLesson() -> Lesson? {
         guard let currentLesson = relatedLesson else { return nil }
         return PlanNextLessonService.findNextLesson(
             after: currentLesson,
-            in: relatedLessons.isEmpty ? allLessons : relatedLessons
+            in: relatedLessons
         )
     }
     
@@ -145,6 +147,17 @@ final class WorkDetailViewModel {
             relatedLessons = safeFetch(descriptor, context: modelContext)
         }
         
+        // PERF: Load only lesson assignments for lessons in the same subject+group
+        // instead of loading all LessonAssignments via @Query
+        if !relatedLessons.isEmpty {
+            let relatedLessonIDs = Set(relatedLessons.map { $0.id.uuidString })
+            let allLADescriptor = FetchDescriptor<LessonAssignment>()
+            let allLAs = safeFetch(allLADescriptor, context: modelContext)
+            relatedLessonAssignments = allLAs.filter { la in
+                relatedLessonIDs.contains(la.lessonID)
+            }
+        }
+
         // Load presentation
         relatedPresentation = workModel.fetchPresentation(from: modelContext)
     }
@@ -164,48 +177,42 @@ final class WorkDetailViewModel {
     }
     
     // MARK: - Actions
-    func checkAndOfferUnlock(
-        allLessons: [Lesson],
-        allLessonAssignments: [LessonAssignment]
-    ) {
+    // PERF: Uses pre-loaded relatedLessons and relatedLessonAssignments
+    func checkAndOfferUnlock() {
         guard status == .complete,
               completionOutcome == .proficient,
               relatedLesson != nil,
               let studentID = UUID(uuidString: work?.studentID ?? ""),
-              let nextLesson = likelyNextLesson(allLessons: allLessons) else {
+              let nextLesson = likelyNextLesson() else {
             return
         }
-        
+
         // Find LessonAssignment for next lesson
-        let nextLessonAssignment = allLessonAssignments.first { la in
+        let nextLessonAssignment = relatedLessonAssignments.first { la in
             la.lessonIDUUID == nextLesson.id &&
             la.studentUUIDs.contains(studentID)
         }
-        
+
         // Offer unlock if blocked
         if let la = nextLessonAssignment, !la.manuallyUnblocked && !la.isGiven {
             nextLessonToUnlock = nextLesson
             showUnlockNextLessonAlert = true
         }
     }
-    
-    func unlockNextLesson(
-        allLessons: [Lesson],
-        allLessonAssignments: [LessonAssignment],
-        modelContext: ModelContext
-    ) {
+
+    func unlockNextLesson(modelContext: ModelContext) {
         guard let lesson = relatedLesson,
               let studentIDString = work?.studentID,
               let studentID = UUID(uuidString: studentIDString) else { return }
-        
+
         _ = UnlockNextLessonService.unlockNextLesson(
             after: lesson.id,
             for: Set([studentID]),
             modelContext: modelContext,
-            lessons: allLessons,
-            lessonAssignments: allLessonAssignments
+            lessons: relatedLessons,
+            lessonAssignments: relatedLessonAssignments
         )
-        
+
         showScheduleSheet = true
     }
     

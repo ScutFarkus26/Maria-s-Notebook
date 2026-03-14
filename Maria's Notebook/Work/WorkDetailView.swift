@@ -20,8 +20,8 @@ struct WorkDetailView: View {
     #endif
     @Query var checkIns: [WorkCheckIn]
     @Query var allPracticeSessions: [PracticeSession]
-    @Query(sort: \Lesson.sortIndex) var allLessons: [Lesson]
-    @Query var allLessonAssignments: [LessonAssignment]
+    // PERF: allLessons and allLessonAssignments moved into WorkDetailViewModel.loadWork()
+    // to avoid loading entire tables via @Query. The ViewModel fetches only what's needed.
     #if DEBUG
     @Query var peerWorks: [WorkModel]
     #endif
@@ -31,7 +31,7 @@ struct WorkDetailView: View {
     }
 
     var likelyNextLesson: Lesson? {
-        viewModel.likelyNextLesson(allLessons: allLessons)
+        viewModel.likelyNextLesson()
     }
 
     var practiceSessions: [PracticeSession] {

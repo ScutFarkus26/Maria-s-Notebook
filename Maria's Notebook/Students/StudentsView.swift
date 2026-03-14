@@ -7,9 +7,8 @@ private let logger = Logger.students
 
 // Top-level view for managing and browsing students with a unified sidebar.
 // swiftlint:disable:next type_body_length
-struct StudentsView<WorkloadContent: View>: View {
+struct StudentsView: View {
     @Binding var mode: StudentMode
-    @ViewBuilder let workloadContent: WorkloadContent
 
     @Environment(\.modelContext) var modelContext
     @Environment(\.appRouter) private var appRouter
@@ -26,26 +25,11 @@ struct StudentsView<WorkloadContent: View>: View {
     var uniqueStudents: [Student] { students.uniqueByID }
     var uniqueStudentIDs: [UUID] { uniqueStudents.map { $0.id } }
 
-    // OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
-    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
-    @Query(sort: [SortDescriptor(\AttendanceRecord.id)])
-    private var attendanceRecordsForChangeDetection: [AttendanceRecord]
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
-    private var lessonAssignmentsForChangeDetection: [LessonAssignment]
-    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
-
-    // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
-    private var attendanceRecordIDs: [UUID] {
-        attendanceRecordsForChangeDetection.map { $0.id }
-    }
-
-    private var presentationIDs: [UUID] {
-        lessonAssignmentsForChangeDetection.map { $0.id }
-    }
-
-    private var lessonIDs: [UUID] {
-        lessonsForChangeDetection.map { $0.id }
-    }
+    // PERF: Use lightweight count-based change detection instead of loading full tables.
+    // SwiftData @Query always materializes full objects, so we use fetchCount() instead.
+    @State private var attendanceChangeToken: Int = 0
+    @State private var presentationChangeToken: Int = 0
+    @State private var lessonChangeToken: Int = 0
 
     // OPTIMIZATION: Cache data loaded on-demand based on mode and filters (moved to ViewModel)
     @State var viewModel = StudentsViewModel()
@@ -82,11 +66,7 @@ struct StudentsView<WorkloadContent: View>: View {
     @ViewBuilder
     private var macOSModeContent: some View {
         switch mode {
-        case .observationHeatmap:
-            ObservationHeatmapView()
-        case .workOverview:
-            workloadContent
-        case .age, .birthday, .lastLesson:
+        case .age, .birthday:
             rosterGridContent
         case .roster:
             HStack(spacing: 0) {
@@ -120,27 +100,7 @@ struct StudentsView<WorkloadContent: View>: View {
         #else
         // iOS: Keep existing structure for different layout needs
         Group {
-            if mode == .observationHeatmap {
-                // Full-screen dashboard view - no split needed
-                NavigationStack {
-                    ObservationHeatmapView()
-                    .navigationTitle("Observations")
-                    .toolbar {
-                        fullScreenModeToolbar
-                    }
-                    .navigationBarTitleDisplayMode(.inline)
-                }
-            } else if mode == .workOverview {
-                // Full-screen dashboard view - no split needed
-                NavigationStack {
-                    workloadContent
-                    .navigationTitle("Open Work")
-                    .toolbar {
-                        fullScreenModeToolbar
-                    }
-                    .navigationBarTitleDisplayMode(.inline)
-                }
-            } else if shouldUseGridView {
+            if shouldUseGridView {
                 // Full-screen grid view for age/birthday modes or lastLesson sort order
                 NavigationStack {
                     Group {
@@ -256,6 +216,7 @@ struct StudentsView<WorkloadContent: View>: View {
             }
 #endif
             .task {
+                refreshChangeTokens()
                 ensureInitialManualOrderIfNeeded()
                 await loadDataOnDemand()
             }
@@ -268,14 +229,17 @@ struct StudentsView<WorkloadContent: View>: View {
             .onChange(of: studentsFilterRaw) { _, _ in
                 reloadDataAsync()
             }
-            .onChange(of: attendanceRecordIDs) { _, _ in
+            .onChange(of: attendanceChangeToken) { _, _ in
                 reloadDataAsync()
             }
-            .onChange(of: presentationIDs) { _, _ in
+            .onChange(of: presentationChangeToken) { _, _ in
                 reloadDataAsync()
             }
-            .onChange(of: lessonIDs) { _, _ in
+            .onChange(of: lessonChangeToken) { _, _ in
                 reloadDataAsync()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+                refreshChangeTokens()
             }
             .onChange(of: uniqueStudentIDs) { _, _ in
                 ensureInitialManualOrderIfNeeded()
@@ -300,9 +264,6 @@ struct StudentsView<WorkloadContent: View>: View {
             mode: mode,
             modelContext: modelContext,
             calendar: calendar,
-            attendanceRecordIDs: Set(attendanceRecordIDs),
-            presentationIDs: Set(presentationIDs),
-            lessonIDs: Set(lessonIDs),
             students: uniqueStudents
         )
     }
@@ -311,6 +272,27 @@ struct StudentsView<WorkloadContent: View>: View {
     private func reloadDataAsync() {
         Task { @MainActor in
             await loadDataOnDemand()
+        }
+    }
+
+    /// PERF: Lightweight change detection using fetchCount() instead of loading full tables.
+    /// Called when SwiftData saves, so we detect inserts/deletes without materializing objects.
+    private func refreshChangeTokens() {
+        do {
+            let attendanceCount = try modelContext.fetchCount(FetchDescriptor<AttendanceRecord>())
+            if attendanceCount != attendanceChangeToken {
+                attendanceChangeToken = attendanceCount
+            }
+            let presentationCount = try modelContext.fetchCount(FetchDescriptor<LessonAssignment>())
+            if presentationCount != presentationChangeToken {
+                presentationChangeToken = presentationCount
+            }
+            let lessonCount = try modelContext.fetchCount(FetchDescriptor<Lesson>())
+            if lessonCount != lessonChangeToken {
+                lessonChangeToken = lessonCount
+            }
+        } catch {
+            logger.warning("Failed to refresh change tokens: \(error)")
         }
     }
 
@@ -370,17 +352,15 @@ struct StudentsView<WorkloadContent: View>: View {
     }
 
     private func handleModeChange(oldMode: StudentMode, newMode: StudentMode) {
-        let specialModes: [StudentMode] = [.age, .birthday, .lastLesson]
-        let specialSortOrders = ["age", "birthday", "lastLesson"]
+        let specialModes: [StudentMode] = [.age, .birthday]
+        let specialSortOrders = ["age", "birthday"]
 
-        // Automatically set sort order when switching to age/birthday/lastLesson modes
+        // Automatically set sort order when switching to age/birthday modes
         switch newMode {
         case .age:
             studentsSortOrderRaw = "age"
         case .birthday:
             studentsSortOrderRaw = "birthday"
-        case .lastLesson:
-            studentsSortOrderRaw = "lastLesson"
         case .roster where specialModes.contains(oldMode) && specialSortOrders.contains(studentsSortOrderRaw):
             // When switching back to roster from special modes, default to alphabetical
             studentsSortOrderRaw = "alphabetical"
