@@ -27,7 +27,7 @@ struct DatabaseStatsSubsection<Content: View>: View {
                         .foregroundStyle(.tint)
                         .frame(width: 20)
                     Text(title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
                     Spacer()
                     Text(summaryValue)
@@ -70,7 +70,7 @@ struct DatabaseTotalSummary: View {
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Total Records")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
                 Text("\(totalRecords) records across all entities")
                     .font(.caption)

@@ -61,7 +61,7 @@ struct SchedulePresentationSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Students")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                         Spacer()
                         if !selectedStudentIDs.isEmpty {
                             Text("\(selectedStudentIDs.count) selected")

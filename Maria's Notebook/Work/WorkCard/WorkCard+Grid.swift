@@ -57,7 +57,7 @@ struct WorkCardGridContent: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Text(displayTitle)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                             .lineLimit(2)
                         Spacer()
                         if config.needsAttention {

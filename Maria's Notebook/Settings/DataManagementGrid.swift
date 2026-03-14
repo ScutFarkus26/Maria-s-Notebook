@@ -157,7 +157,7 @@ struct DataManagementGrid: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 HStack {
                     Label("Backup", systemImage: "externaldrive.fill")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.blue)
                     Spacer()
                     encryptionPill
@@ -204,7 +204,7 @@ struct DataManagementGrid: View {
         CompactGridCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 Label("Restore", systemImage: SFSymbol.Action.arrowCounterclockwise)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(AppColors.warning)
 
                 Picker("", selection: $viewModel.restoreMode) {
@@ -239,7 +239,7 @@ struct DataManagementGrid: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                 HStack {
                     Label("Storage", systemImage: SFSymbol.Document.folderFill)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.purple)
                     Spacer()
                     folderMenu
@@ -307,7 +307,7 @@ struct DataManagementGrid: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                 HStack {
                     Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(AppColors.success)
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)

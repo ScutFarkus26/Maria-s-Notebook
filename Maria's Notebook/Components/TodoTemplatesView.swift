@@ -173,7 +173,7 @@ private struct TemplateRow: View {
                 onCreate()
             } label: {
                 Text("Use")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.blue)

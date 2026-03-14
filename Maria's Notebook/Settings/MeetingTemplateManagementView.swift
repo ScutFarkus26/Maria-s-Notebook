@@ -34,7 +34,7 @@ struct MeetingTemplateManagementView: View {
                 if !builtInTemplates.isEmpty {
                     VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                         Text("Built-in Templates")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(.secondary)
 
                         ForEach(builtInTemplates) { template in
@@ -57,7 +57,7 @@ struct MeetingTemplateManagementView: View {
                 // Custom templates section
                 VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                     Text("My Templates")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.secondary)
 
                     if customTemplates.isEmpty {
@@ -314,7 +314,7 @@ private struct PromptSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: icon)
-                .font(.subheadline.weight(.semibold))
+                .font(.subheadline.weight(.bold))
                 .foregroundStyle(.secondary)
 
             Text(content)

@@ -72,7 +72,7 @@ struct BackupRestoreSettingsView: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small + 2) {
                 HStack {
                     Label("Backup", systemImage: "externaldrive.fill")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.blue)
                     Spacer()
                     encryptionPill
@@ -124,7 +124,7 @@ struct BackupRestoreSettingsView: View {
         CompactCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small + 2) {
                 Label("Restore", systemImage: SFSymbol.Action.arrowCounterclockwise)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(AppColors.warning)
 
                 Picker("", selection: $restoreMode) {
@@ -155,7 +155,7 @@ struct BackupRestoreSettingsView: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 HStack {
                     Label("Storage", systemImage: SFSymbol.Document.folderFill)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.pink)
                     Spacer()
                     folderMenu
@@ -204,7 +204,7 @@ struct BackupRestoreSettingsView: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 HStack {
                     Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(AppColors.success)
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)

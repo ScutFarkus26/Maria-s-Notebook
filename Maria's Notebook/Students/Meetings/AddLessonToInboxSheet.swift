@@ -134,7 +134,7 @@ struct AddLessonToInboxSheet: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(lesson.name)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                         HStack(spacing: 4) {
                             if !lesson.subject.isEmpty {
                                 Text(lesson.subject)

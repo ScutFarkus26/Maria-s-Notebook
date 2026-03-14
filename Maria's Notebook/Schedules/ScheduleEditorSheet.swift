@@ -181,7 +181,7 @@ struct ScheduleEditorSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(weekday.rawValue)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
 
                 Spacer()
 

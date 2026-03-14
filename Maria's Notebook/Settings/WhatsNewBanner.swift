@@ -27,7 +27,7 @@ struct WhatsNewBanner: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label("What's New", systemImage: "sparkles")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.tint)
                     Spacer()
                     Button {

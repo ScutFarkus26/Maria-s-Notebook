@@ -84,7 +84,7 @@ struct PostPresentationAssignmentsSheet: View {
                 ForEach(students, id: \.id) { s in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(StudentFormatter.displayName(for: s))
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                         TextField("Assignment for \(StudentFormatter.displayName(for: s))…", text: Binding(
                             get: { entries[s.id]?.text ?? "" },
                             set: { entries[s.id]?.text = $0 }

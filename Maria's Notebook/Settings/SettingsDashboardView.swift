@@ -40,7 +40,7 @@ struct SettingsDashboardView: View {
         ) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(service.syncHealth.displayText)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(service.syncHealth.color)
                 if let lastSync = service.lastSuccessfulSync {
                     Text("Last: \(lastSync, style: .relative) ago")
@@ -69,7 +69,7 @@ struct SettingsDashboardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 if let date = lastDate {
                     Text("\(date, style: .relative) ago")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(isOld ? AppColors.warning : .primary)
                     if isOld {
                         Text("Consider creating a backup")
@@ -78,7 +78,7 @@ struct SettingsDashboardView: View {
                     }
                 } else {
                     Text("No backup found")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(AppColors.warning)
                     Text("Create your first backup")
                         .font(.caption)
@@ -100,7 +100,7 @@ struct SettingsDashboardView: View {
         ) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(chatModel.displayName)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
                 if !hasKey && chatModel.requiresAPIKey {
                     Text("API key required")
@@ -127,7 +127,7 @@ struct SettingsDashboardView: View {
         ) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(total) templates")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
                 Text(
                     "\(statsViewModel.noteTemplatesCount) note, "
@@ -156,7 +156,7 @@ private struct DashboardCard<Content: View>: View {
                     .font(.subheadline)
                     .foregroundStyle(color)
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.secondary)
                 Spacer()
             }

@@ -307,7 +307,7 @@ extension SettingsView {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Anthropic API")
-                                .font(.subheadline.weight(.semibold))
+                                .font(.subheadline.weight(.bold))
                                 .foregroundStyle(.primary)
 
                             if AnthropicAPIClient.hasAPIKey() {

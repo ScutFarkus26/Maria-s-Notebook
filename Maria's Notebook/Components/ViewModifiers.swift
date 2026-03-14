@@ -7,7 +7,7 @@ extension View {
     /// - Returns: A view with section header styling applied
     func sectionHeaderStyle() -> some View {
         self
-            .font(.subheadline.weight(.semibold))
+            .font(.subheadline.weight(.bold))
             .foregroundStyle(.secondary)
             .textCase(nil)
     }

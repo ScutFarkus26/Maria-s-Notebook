@@ -76,7 +76,7 @@ struct SectionHeader: View {
             Image(systemName: systemImage)
                 .foregroundStyle(.tint)
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.subheadline.weight(.bold))
         }
         .textCase(nil)
         .padding(.bottom, 2)

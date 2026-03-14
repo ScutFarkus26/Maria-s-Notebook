@@ -34,7 +34,7 @@ struct NoteTemplateManagementView: View {
                 if !builtInTemplates.isEmpty {
                     VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                         Text("Built-in Templates")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(.secondary)
 
                         ForEach(builtInTemplates) { template in
@@ -56,7 +56,7 @@ struct NoteTemplateManagementView: View {
                 // Custom templates section
                 VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                     Text("My Templates")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.secondary)
 
                     if customTemplates.isEmpty {
@@ -236,7 +236,7 @@ private struct NoteTemplatePreviewSheet: View {
                     // Template content
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Template Content")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(.secondary)
 
                         Text(template.body)
