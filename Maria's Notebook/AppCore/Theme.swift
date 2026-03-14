@@ -94,6 +94,48 @@ enum AppTheme {
         nonisolated static var bodyBold: Font {
             .system(.subheadline, design: .rounded, weight: .bold)
         }
+
+        // MARK: - Expanded Weight Palette (#1-4)
+
+        /// Body text with light weight - for long-form descriptions, observation notes
+        nonisolated static var bodyLight: Font {
+            .system(.subheadline, design: .rounded, weight: .light)
+        }
+
+        /// Caption with light weight - for tertiary metadata, timestamps, "last updated"
+        nonisolated static var captionLight: Font {
+            .system(.footnote, design: .rounded, weight: .light)
+        }
+
+        /// Small caption with light weight - for the most receded text
+        nonisolated static var captionSmallLight: Font {
+            .system(.caption2, design: .rounded, weight: .light)
+        }
+
+        /// Body text with medium weight - subtle emphasis without full semibold
+        nonisolated static var bodyMedium: Font {
+            .system(.subheadline, design: .rounded, weight: .medium)
+        }
+
+        /// Callout with medium weight - distinct from both regular and semibold
+        nonisolated static var calloutMedium: Font {
+            .system(.callout, design: .rounded, weight: .medium)
+        }
+
+        /// Large title with heavy weight - hero display text
+        nonisolated static var titleXLargeHeavy: Font {
+            .system(.largeTitle, design: .rounded, weight: .heavy)
+        }
+
+        /// Title with heavy weight - strong section anchors
+        nonisolated static var titleLargeHeavy: Font {
+            .system(.title, design: .rounded, weight: .heavy)
+        }
+
+        /// Headline with bold weight - stronger list item titles
+        nonisolated static var titleSmallBold: Font {
+            .system(.headline, design: .rounded, weight: .bold)
+        }
     }
     
     // MARK: - Shadow Styles
