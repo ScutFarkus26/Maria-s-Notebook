@@ -49,83 +49,84 @@ enum AppTheme {
         }
 
         /// Callout (16pt base) - scales with .callout
-        /// Uses .medium weight to differentiate from body text (#11)
+        /// Uses .default design + .medium weight (#5, #11)
         nonisolated static var callout: Font {
-            .system(.callout, design: .rounded, weight: .medium)
+            .system(.callout, design: .default, weight: .medium)
         }
 
         /// Body text (14pt base) - scales with .subheadline
+        /// Uses .default (SF Pro) design for reading comfort (#5)
         nonisolated static var body: Font {
-            .system(.subheadline, design: .rounded)
+            .system(.subheadline, design: .default)
         }
 
         /// Body text with semibold weight
         nonisolated static var bodySemibold: Font {
-            .system(.subheadline, design: .rounded, weight: .semibold)
+            .system(.subheadline, design: .default, weight: .semibold)
         }
 
         /// Caption (13pt base) - scales with .footnote
-        /// Uses .light weight for clear separation from body text (#8)
+        /// Uses .default design + .light weight for clear separation from body (#5, #8)
         nonisolated static var caption: Font {
-            .system(.footnote, design: .rounded, weight: .light)
+            .system(.footnote, design: .default, weight: .light)
         }
 
         /// Small caption (11pt base) - scales with .caption2
-        /// Uses .light weight for the most receded text level (#8)
+        /// Uses .default design + .light weight (#5, #8)
         nonisolated static var captionSmall: Font {
-            .system(.caption2, design: .rounded, weight: .light)
+            .system(.caption2, design: .default, weight: .light)
         }
 
         /// Small caption with semibold weight
         nonisolated static var captionSmallSemibold: Font {
-            .system(.caption2, design: .rounded, weight: .semibold)
+            .system(.caption2, design: .default, weight: .semibold)
         }
 
         /// Caption with semibold weight
         nonisolated static var captionSemibold: Font {
-            .system(.footnote, design: .rounded, weight: .semibold)
+            .system(.footnote, design: .default, weight: .semibold)
         }
 
         /// Callout with semibold weight
         nonisolated static var calloutSemibold: Font {
-            .system(.callout, design: .rounded, weight: .semibold)
+            .system(.callout, design: .default, weight: .semibold)
         }
 
         /// Callout with bold weight
         nonisolated static var calloutBold: Font {
-            .system(.callout, design: .rounded, weight: .bold)
+            .system(.callout, design: .default, weight: .bold)
         }
 
         /// Body text with bold weight
         nonisolated static var bodyBold: Font {
-            .system(.subheadline, design: .rounded, weight: .bold)
+            .system(.subheadline, design: .default, weight: .bold)
         }
 
         // MARK: - Expanded Weight Palette (#1-4)
 
         /// Body text with light weight - for long-form descriptions, observation notes
         nonisolated static var bodyLight: Font {
-            .system(.subheadline, design: .rounded, weight: .light)
+            .system(.subheadline, design: .default, weight: .light)
         }
 
         /// Caption with light weight - for tertiary metadata, timestamps, "last updated"
         nonisolated static var captionLight: Font {
-            .system(.footnote, design: .rounded, weight: .light)
+            .system(.footnote, design: .default, weight: .light)
         }
 
         /// Small caption with light weight - for the most receded text
         nonisolated static var captionSmallLight: Font {
-            .system(.caption2, design: .rounded, weight: .light)
+            .system(.caption2, design: .default, weight: .light)
         }
 
         /// Body text with medium weight - subtle emphasis without full semibold
         nonisolated static var bodyMedium: Font {
-            .system(.subheadline, design: .rounded, weight: .medium)
+            .system(.subheadline, design: .default, weight: .medium)
         }
 
         /// Callout with medium weight - distinct from both regular and semibold
         nonisolated static var calloutMedium: Font {
-            .system(.callout, design: .rounded, weight: .medium)
+            .system(.callout, design: .default, weight: .medium)
         }
 
         /// Large title with heavy weight - hero display text
@@ -193,37 +194,37 @@ enum AppTheme {
     enum SemanticFont {
         /// Timestamps, "3 days ago", "last updated", relative dates
         nonisolated static var metadata: Font {
-            .system(.caption2, design: .rounded, weight: .light)
+            .system(.caption2, design: .default, weight: .light)
         }
 
         /// Form labels, field names, row labels
         nonisolated static var label: Font {
-            .system(.callout, design: .rounded, weight: .medium)
+            .system(.callout, design: .default, weight: .medium)
         }
 
-        /// Form values, data points, row values
+        /// Form values, data points, row values — rounded to match title hierarchy
         nonisolated static var value: Font {
             .system(.headline, design: .rounded, weight: .semibold)
         }
 
-        /// Hero numbers on dashboards, large stats
+        /// Hero numbers on dashboards, large stats — rounded for display impact
         nonisolated static var stat: Font {
             .system(.largeTitle, design: .rounded, weight: .heavy)
         }
 
         /// Numeric data in grids/tables — monospaced digits for column alignment (#22)
         nonisolated static var tabularNumber: Font {
-            .system(.subheadline, design: .rounded, weight: .medium).monospacedDigit()
+            .system(.subheadline, design: .default, weight: .medium).monospacedDigit()
         }
 
         /// Small numeric data in dense grids — heavier stroke at small sizes (#23)
         nonisolated static var denseGridCell: Font {
-            .system(.caption2, design: .rounded, weight: .medium).monospacedDigit()
+            .system(.caption2, design: .default, weight: .medium).monospacedDigit()
         }
 
         /// Chart axis labels and legend text
         nonisolated static var chartLabel: Font {
-            .system(.caption2, design: .rounded, weight: .regular).monospacedDigit()
+            .system(.caption2, design: .default, weight: .regular).monospacedDigit()
         }
     }
 
