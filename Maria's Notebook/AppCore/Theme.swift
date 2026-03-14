@@ -143,6 +143,18 @@ enum AppTheme {
         nonisolated static var titleSmallBold: Font {
             .system(.headline, design: .rounded, weight: .bold)
         }
+
+        // MARK: - Monospaced Variants (#6)
+
+        /// Full monospaced font for grid cells, codes, IDs
+        nonisolated static var monoBody: Font {
+            .system(.subheadline, design: .monospaced, weight: .medium)
+        }
+
+        /// Small monospaced font for dense data tables
+        nonisolated static var monoCaption: Font {
+            .system(.caption2, design: .monospaced, weight: .medium)
+        }
     }
     
     // MARK: - Shadow Styles
