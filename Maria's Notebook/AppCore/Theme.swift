@@ -312,6 +312,41 @@ extension View {
     }
 }
 
+// MARK: - Color-Weight Combination Modifiers (#15-17)
+extension View {
+    /// Use weight instead of color for primary/secondary distinction (#15).
+    /// Label: regular weight, primary color. Value: semibold weight, primary color.
+    /// Reserves color differences for meaning (status, subject, alert level).
+    func formLabelStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.label)
+            .foregroundStyle(.primary)
+    }
+
+    /// Form value style — semibold weight at primary color (#15)
+    func formValueStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.value)
+            .foregroundStyle(.primary)
+    }
+
+    /// Muted-but-heavy style for inactive/disabled states (#16).
+    /// Maintains structural hierarchy while appearing visually receded.
+    func mutedHeavyStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.bodySemibold)
+            .foregroundStyle(.primary.opacity(0.45))
+    }
+
+    /// Light weight at full opacity for elegant de-emphasis (#17).
+    /// Preserves contrast for accessibility while creating visual hierarchy.
+    func deemphasizedStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.bodyLight)
+            .foregroundStyle(.primary)
+    }
+}
+
 // MARK: - iOS 26 Liquid Glass Preparation
 // When targeting iOS 26+, consider replacing CardBackgroundModifier and SubtleCardModifier
 // backgrounds with the new .glassEffect() modifier for Apple's Liquid Glass design language.
