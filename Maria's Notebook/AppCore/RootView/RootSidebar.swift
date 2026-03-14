@@ -24,11 +24,17 @@ extension RootSidebar {
     #if os(macOS)
     var macOSSidebar: some View {
         List(selection: $selection) {
-            Section("Daily") {
+            Section("Today") {
                 NavigationLink(value: RootView.NavigationItem.today) {
                     Label("Today", systemImage: SFSymbol.Weather.sun)
                 }
 
+                NavigationLink(value: RootView.NavigationItem.todos) {
+                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+                }
+            }
+
+            Section("Students") {
                 NavigationLink(value: RootView.NavigationItem.students) {
                     Label("Students", systemImage: SFSymbol.People.person3)
                 }
@@ -46,32 +52,38 @@ extension RootSidebar {
                     }
                 }
 
-                NavigationLink(value: RootView.NavigationItem.meetings) {
-                    Label("Meetings", systemImage: SFSymbol.People.person2)
-                }
-
-                NavigationLink(value: RootView.NavigationItem.community) {
-                    Label("Community", systemImage: "bubble.left.and.bubble.right")
-                }
-
                 NavigationLink(value: RootView.NavigationItem.observationMode) {
                     Label("Observe", systemImage: "eye")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.meetings) {
+                    Label("Meetings", systemImage: SFSymbol.People.person2)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.goingOut) {
                     Label("Going Out", systemImage: "figure.walk")
                 }
 
-                NavigationLink(value: RootView.NavigationItem.classroomJobs) {
-                    Label("Jobs", systemImage: "person.2.badge.gearshape")
+                NavigationLink(value: RootView.NavigationItem.threePeriod) {
+                    Label("Three-Period", systemImage: "3.circle")
                 }
             }
 
-            Section("Planning") {
-                NavigationLink(value: RootView.NavigationItem.todos) {
-                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+            Section("Classroom") {
+                NavigationLink(value: RootView.NavigationItem.community) {
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
                 }
 
+                NavigationLink(value: RootView.NavigationItem.classroomJobs) {
+                    Label("Jobs", systemImage: "person.2.badge.gearshape")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.attendance) {
+                    Label("Attendance", systemImage: "checklist")
+                }
+            }
+
+            Section("Curriculum") {
                 NavigationLink(value: RootView.NavigationItem.lessons) {
                     Label("Lessons", systemImage: SFSymbol.Education.book)
                 }
@@ -108,12 +120,22 @@ extension RootSidebar {
                     }
                 }
 
-                NavigationLink(value: RootView.NavigationItem.planningProgression) {
-                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
+                NavigationLink(value: RootView.NavigationItem.cosmicMap) {
+                    Label("Cosmic Map", systemImage: "globe.americas")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.needsLesson) {
+                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
                 }
 
                 NavigationLink(value: RootView.NavigationItem.planningProjects) {
                     Label("Projects", systemImage: SFSymbol.Document.folder)
+                }
+            }
+
+            Section("Progress") {
+                NavigationLink(value: RootView.NavigationItem.planningProgression) {
+                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
                 }
 
                 NavigationLink(value: RootView.NavigationItem.progressDashboard) {
@@ -126,14 +148,6 @@ extension RootSidebar {
 
                 NavigationLink(value: RootView.NavigationItem.curriculumBalance) {
                     Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
-                }
-
-                NavigationLink(value: RootView.NavigationItem.cosmicMap) {
-                    Label("Cosmic Map", systemImage: "globe.americas")
-                }
-
-                NavigationLink(value: RootView.NavigationItem.threePeriod) {
-                    Label("Three-Period", systemImage: "3.circle")
                 }
 
                 NavigationLink(value: RootView.NavigationItem.transitionPlanner) {
@@ -163,7 +177,7 @@ extension RootSidebar {
                 }
             }
 
-            Section("AI") {
+            Section("Tools") {
                 NavigationLink(value: RootView.NavigationItem.askAI) {
                     Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
                 }
@@ -184,30 +198,26 @@ extension RootSidebar {
 
     var iOSSidebar: some View {
         List {
-            Section("Daily") {
+            Section("Today") {
                 Button { selection = .today } label: {
                     Label("Today", systemImage: SFSymbol.Weather.sun)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View today's schedule, reminders, and tasks")
 
+                Button { selection = .todos } label: {
+                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Manage your personal todos and tasks")
+            }
+
+            Section("Students") {
                 Button { selection = .students } label: {
                     Label("Students", systemImage: SFSymbol.People.person3)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student profiles and records")
-
-                Button { selection = .meetings } label: {
-                    Label("Meetings", systemImage: SFSymbol.People.person2)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Conduct weekly student meetings")
-
-                Button { selection = .community } label: {
-                    Label("Community", systemImage: "bubble.left.and.bubble.right")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View community meetings and topics")
 
                 Button { selection = .observationMode } label: {
                     Label("Observe", systemImage: "eye")
@@ -215,26 +225,46 @@ extension RootSidebar {
                 .buttonStyle(.plain)
                 .accessibilityHint("Record Montessori observations with guided prompts")
 
+                Button { selection = .meetings } label: {
+                    Label("Meetings", systemImage: SFSymbol.People.person2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Conduct weekly student meetings")
+
                 Button { selection = .goingOut } label: {
                     Label("Going Out", systemImage: "figure.walk")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Plan and track student going-out excursions")
 
+                Button { selection = .threePeriod } label: {
+                    Label("Three-Period", systemImage: "3.circle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track student progress through the three-period lesson cycle")
+            }
+
+            Section("Classroom") {
+                Button { selection = .community } label: {
+                    Label("Community", systemImage: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View community meetings and topics")
+
                 Button { selection = .classroomJobs } label: {
                     Label("Jobs", systemImage: "person.2.badge.gearshape")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage classroom job rotation board")
-            }
 
-            Section("Planning") {
-                Button { selection = .todos } label: {
-                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+                Button { selection = .attendance } label: {
+                    Label("Attendance", systemImage: "checklist")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Manage your personal todos and tasks")
+                .accessibilityHint("Track daily student attendance")
+            }
 
+            Section("Curriculum") {
                 Button { selection = .lessons } label: {
                     Label("Lessons", systemImage: SFSymbol.Education.book)
                 }
@@ -259,17 +289,31 @@ extension RootSidebar {
                 .buttonStyle(.plain)
                 .accessibilityHint("View and manage student work")
 
-                Button { selection = .planningProgression } label: {
-                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
+                Button { selection = .cosmicMap } label: {
+                    Label("Cosmic Map", systemImage: "globe.americas")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("View student progression through curriculum")
+                .accessibilityHint("Explore lessons organized by the Five Great Lessons")
+
+                Button { selection = .needsLesson } label: {
+                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("See which students need a lesson based on days since last presentation")
 
                 Button { selection = .planningProjects } label: {
                     Label("Projects", systemImage: SFSymbol.Document.folder)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student projects")
+            }
+
+            Section("Progress") {
+                Button { selection = .planningProgression } label: {
+                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View student progression through curriculum")
 
                 Button { selection = .progressDashboard } label: {
                     Label("Progress Dashboard", systemImage: "person.text.rectangle")
@@ -288,18 +332,6 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Analyze subject distribution and curriculum gaps")
-
-                Button { selection = .cosmicMap } label: {
-                    Label("Cosmic Map", systemImage: "globe.americas")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Explore lessons organized by the Five Great Lessons")
-
-                Button { selection = .threePeriod } label: {
-                    Label("Three-Period", systemImage: "3.circle")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track student progress through the three-period lesson cycle")
 
                 Button { selection = .transitionPlanner } label: {
                     Label("Transitions", systemImage: "arrow.right.arrow.left")
@@ -340,7 +372,7 @@ extension RootSidebar {
                 .accessibilityHint("Track and resolve classroom issues")
             }
 
-            Section("AI") {
+            Section("Tools") {
                 Button { selection = .askAI } label: {
                     Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
                 }
