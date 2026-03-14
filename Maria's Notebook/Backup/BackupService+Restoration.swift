@@ -3,6 +3,28 @@ import Foundation
 import SwiftData
 import SwiftUI
 
+// MARK: - Import Progress Steps
+
+/// Named progress milestones for backup restoration, replacing inline magic numbers.
+/// Each value corresponds to the fraction-complete reported to the caller's ProgressCallback.
+private enum RestoreProgress {
+    static let deduplication:       Double = 0.35
+    static let clearing:            Double = 0.40
+    static let coreEntities:        Double = 0.65
+    static let workTracking:        Double = 0.70
+    static let lessonExtras:        Double = 0.74
+    static let templates:           Double = 0.76
+    static let tracks:              Double = 0.78
+    static let documentsSupplies:   Double = 0.80
+    static let schedules:           Double = 0.82
+    static let issues:              Double = 0.84
+    static let snapshotsTodos:      Double = 0.86
+    static let additionalEntities:  Double = 0.88
+    static let saving:              Double = 0.90
+    static let denormalizedRepair:  Double = 0.92
+    static let done:                Double = 1.00
+}
+
 // MARK: - Restore Preview & Import
 
 extension BackupService {
@@ -20,7 +42,7 @@ extension BackupService {
             try loadAndDecodeBackup(from: url, password: password, progress: progress)
         }
 
-        progress(0.50, "Analyzing\u{2026}")
+        progress(0.50, "Analyzing\u{2026}") // preview analysis: fixed midpoint
 
         // Use BackupPreviewAnalyzer to compute insert/skip/delete counts
         let analysis = BackupPreviewAnalyzer.analyze(
@@ -38,7 +60,7 @@ extension BackupService {
             }
         )
 
-        progress(1.0, "Done")
+        progress(RestoreProgress.done, "Done")
         return RestorePreview(
             mode: mode.rawValue,
             entityInserts: analysis.inserts,
@@ -83,58 +105,58 @@ extension BackupService {
         }
 
         var payload = loadedPayload
-        progress(0.35, "Deduplicating records\u{2026}")
+        progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
         payload = deduplicatePayload(payload)
 
         if mode == .replace {
-            progress(0.40, "Clearing existing data\u{2026}")
+            progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
             try deleteAll(modelContext: modelContext)
         }
 
-        progress(0.65, "Importing records\u{2026}")
+        progress(RestoreProgress.coreEntities, "Importing records\u{2026}")
         try importCoreEntities(from: payload, into: modelContext)
         try importCalendarAndRecordEntities(from: payload, into: modelContext)
         try importProjectEntities(from: payload, into: modelContext)
 
-        progress(0.70, "Importing work tracking\u{2026}")
+        progress(RestoreProgress.workTracking, "Importing work tracking\u{2026}")
         try importWorkTrackingEntities(from: payload, into: modelContext)
 
-        progress(0.74, "Importing lesson extras\u{2026}")
+        progress(RestoreProgress.lessonExtras, "Importing lesson extras\u{2026}")
         try importLessonExtras(from: payload, into: modelContext)
 
-        progress(0.76, "Importing templates\u{2026}")
+        progress(RestoreProgress.templates, "Importing templates\u{2026}")
         try importTemplateEntities(from: payload, into: modelContext)
 
-        progress(0.78, "Importing tracks\u{2026}")
+        progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
         try importTrackEntities(from: payload, into: modelContext)
 
-        progress(0.80, "Importing documents & supplies\u{2026}")
+        progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
         try importDocumentEntities(from: payload, into: modelContext)
 
-        progress(0.82, "Importing schedules\u{2026}")
+        progress(RestoreProgress.schedules, "Importing schedules\u{2026}")
         try importScheduleEntities(from: payload, into: modelContext)
 
-        progress(0.84, "Importing issues\u{2026}")
+        progress(RestoreProgress.issues, "Importing issues\u{2026}")
         try importIssueEntities(from: payload, into: modelContext)
 
-        progress(0.86, "Importing snapshots & todos\u{2026}")
+        progress(RestoreProgress.snapshotsTodos, "Importing snapshots & todos\u{2026}")
         try importSnapshotAndTodoEntities(from: payload, into: modelContext)
 
-        progress(0.88, "Importing recommendations, resources & links\u{2026}")
+        progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
         try importAdditionalEntities(from: payload, into: modelContext)
 
-        progress(0.90, "Saving\u{2026}")
+        progress(RestoreProgress.saving, "Saving\u{2026}")
         try modelContext.save()
 
-        progress(0.92, "Repairing denormalized fields\u{2026}")
+        progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
         try repairDenormalizedFields(modelContext: modelContext)
 
         applyPreferencesDTO(payload.preferences)
         appRouter.signalAppDataDidRestore()
 
         let counts = envelope.manifest.entityCounts
-        progress(1.0, "Done")
+        progress(RestoreProgress.done, "Done")
         return BackupOperationSummary(
             kind: .import,
             fileName: url.lastPathComponent,
