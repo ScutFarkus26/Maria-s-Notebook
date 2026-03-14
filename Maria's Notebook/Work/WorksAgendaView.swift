@@ -1,4 +1,10 @@
-// swiftlint:disable file_length
+// WorksAgendaView.swift
+// Split view combining open-work grid with a planning calendar pane.
+//
+// Helpers live in:
+// - WorksAgendaView+DataHelpers.swift  (cache loading, filtering, display helpers)
+// - WorksAgendaView+Actions.swift      (calendar navigation, work item actions)
+
 import OSLog
 import SwiftUI
 import SwiftData
@@ -8,68 +14,61 @@ import UniformTypeIdentifiers
 import PDFKit
 #endif
 
-// swiftlint:disable:next type_body_length
 struct WorksAgendaView: View {
-    private static let logger = Logger.work
+    static let logger = Logger.work
 
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.calendar) private var calendar
-    @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.modelContext) var modelContext
+    @Environment(\.calendar) var calendar
+    @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
 
     @Query(
         filter: #Predicate<WorkModel> { $0.statusRaw != "complete" },
         sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
     )
-    private var openWork: [WorkModel]
-    
+    var openWork: [WorkModel]
+
     @Query(
         filter: #Predicate<WorkCheckIn> { $0.statusRaw == "Scheduled" },
         sort: [SortDescriptor(\WorkCheckIn.date)]
     )
-    private var scheduledCheckIns: [WorkCheckIn]
-    
+    var scheduledCheckIns: [WorkCheckIn]
+
     // MEMORY OPTIMIZATION: Use lightweight queries for change detection only (IDs only)
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
     @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
-    
+
     // MEMORY OPTIMIZATION: Extract only IDs for change detection to avoid loading full objects
-    private var lessonIDs: [UUID] {
-        lessonsForChangeDetection.map { $0.id }
-    }
-    
-    private var studentIDs: [UUID] {
-        studentsForChangeDetection.map { $0.id }
-    }
-    
+    private var lessonIDs: [UUID] { lessonsForChangeDetection.map { $0.id } }
+    private var studentIDs: [UUID] { studentsForChangeDetection.map { $0.id } }
+
     // Lazy-loaded caches (only populated when needed)
-    @State private var lessonsByIDCache: [UUID: Lesson] = [:]
-    @State private var studentsByIDCache: [UUID: Student] = [:]
+    @State var lessonsByIDCache: [UUID: Lesson] = [:]
+    @State var studentsByIDCache: [UUID: Student] = [:]
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-    @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) private var hideScheduled: Bool = false
+    var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
 
-    @State private var sortMode: WorkAgendaSortMode = .lesson
-    @State private var searchText: String = ""
-    @State private var debouncedSearchText: String = ""
-    @State private var searchDebounceTask: Task<Void, Never>?
-    @State private var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
-    @State private var isCalendarMinimized: Bool = false
-    @State private var calendarStartDate: Date = AppCalendar.startOfDay(Date())
+    @State var sortMode: WorkAgendaSortMode = .lesson
+    @State var searchText: String = ""
+    @State var debouncedSearchText: String = ""
+    @State var searchDebounceTask: Task<Void, Never>?
+    @State var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
+    @State var isCalendarMinimized: Bool = false
+    @State var calendarStartDate: Date = AppCalendar.startOfDay(Date())
 
-    @State private var selectedWorkID: UUID?
+    @State var selected: SelectionToken?
 
-    private struct SelectionToken: Identifiable, Equatable { let id: UUID; let workID: UUID }
-    @State private var selected: SelectionToken?
+    struct SelectionToken: Identifiable, Equatable { let id: UUID; let workID: UUID }
 
     // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
-    private var lessonsByID: [UUID: Lesson] { lessonsByIDCache }
-    private var studentsByID: [UUID: Student] { studentsByIDCache }
+    var lessonsByID: [UUID: Lesson] { lessonsByIDCache }
+    var studentsByID: [UUID: Student] { studentsByIDCache }
 
-    /// Combined trigger for data reload - changes when any relevant data changes
+    /// Combined trigger for data reload — changes when any relevant data changes
     private var dataReloadTrigger: Int {
         var hasher = Hasher()
         hasher.combine(openWork.map { $0.id })
@@ -78,62 +77,6 @@ struct WorksAgendaView: View {
         hasher.combine(showTestStudents)
         hasher.combine(testStudentNamesRaw)
         return hasher.finalize()
-    }
-    
-    private func loadLessonsAndStudentsIfNeeded() {
-        // Collect IDs from open work
-        var neededLessonIDs = Set<UUID>()
-        var neededStudentIDs = Set<UUID>()
-        
-        for work in openWork {
-            if let lid = UUID(uuidString: work.lessonID) {
-                neededLessonIDs.insert(lid)
-            }
-            if let sid = UUID(uuidString: work.studentID) {
-                neededStudentIDs.insert(sid)
-            }
-        }
-        
-        // Load only needed lessons
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
-        // Use uniquingKeysWith to handle CloudKit sync duplicates
-        if !neededLessonIDs.isEmpty {
-            let all: [Lesson]
-            do {
-                all = try modelContext.fetch(FetchDescriptor<Lesson>())
-            } catch {
-                Self.logger.warning("Failed to fetch lessons: \(error)")
-                all = []
-            }
-            let filtered = all.filter { neededLessonIDs.contains($0.id) }
-            lessonsByIDCache = Dictionary(filtered.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        } else {
-            lessonsByIDCache = [:]
-        }
-
-        // Load only needed students
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
-        // Use uniquingKeysWith to handle CloudKit sync duplicates
-        if !neededStudentIDs.isEmpty {
-            let all: [Student]
-            do {
-                all = try modelContext.fetch(FetchDescriptor<Student>())
-            } catch {
-                Self.logger.warning("Failed to fetch students: \(error)")
-                all = []
-            }
-            let filtered = all.filter { neededStudentIDs.contains($0.id) }
-            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-            let visible = TestStudentsFilter.filterVisible(
-                filtered, show: showTestStudents,
-                namesRaw: testStudentNamesRaw
-            ).uniqueByID
-            studentsByIDCache = Dictionary(visible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        } else {
-            studentsByIDCache = [:]
-        }
     }
 
     var body: some View {
@@ -251,7 +194,7 @@ struct WorksAgendaView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 420)
-                    
+
                     Button {
                         hideScheduled.toggle()
                     } label: {
@@ -301,229 +244,6 @@ struct WorksAgendaView: View {
             }
         }
     }
-
-    // MARK: - Data helpers
-    
-    private func openWorksFiltered() -> [WorkModel] {
-        // Filter open work in memory (anything NOT .complete)
-        var works = openWork
-        
-        // Hide scheduled work if enabled
-        if hideScheduled {
-            let scheduledWorkIDs = Set(scheduledCheckIns.compactMap { UUID(uuidString: $0.workID) })
-            works = works.filter { !scheduledWorkIDs.contains($0.id) }
-        }
-        
-        // Optional search (use debounced text for filtering)
-        if !debouncedSearchText.trimmed().isEmpty {
-            let query = debouncedSearchText.lowercased()
-            works = works.filter { w in
-                var hay: [String] = []
-                hay.append(lessonTitle(forLessonID: w.lessonID))
-                if let sid = UUID(uuidString: w.studentID), let s = studentsByID[sid] {
-                    hay.append(s.firstName)
-                    hay.append(s.lastName)
-                    hay.append(s.fullName)
-                    hay.append(StudentFormatter.displayName(for: s))
-                }
-                return hay.joined(separator: " ").lowercased().contains(query)
-            }
-        }
-        return works
-    }
-
-    private func lessonTitle(forLessonID lessonID: String) -> String {
-        if let lid = UUID(uuidString: lessonID), let lesson = lessonsByID[lid] {
-            let name = lesson.name.trimmed()
-            if !name.isEmpty { return name }
-        }
-        return "Lesson \(String(lessonID.prefix(6)))"
-    }
-
-    #if os(macOS)
-    private func makePrintItems(from works: [WorkModel]) -> [WorkPDFRenderer.PrintItem] {
-        works.map { w in
-            let title = lessonTitle(forLessonID: w.lessonID)
-            let student = (UUID(uuidString: w.studentID))
-                .flatMap { studentsByID[$0] }
-                .map(studentPrintName(for:)) ?? "Student"
-            return WorkPDFRenderer.PrintItem(
-                id: w.id,
-                lessonTitle: title,
-                studentName: student,
-                statusLabel: statusLabel(for: w),
-                ageDays: ageDays(for: w),
-                dueAt: w.dueAt,
-                needsAttention: needsAttention(for: w)
-            )
-        }
-    }
-    #endif
-
-    private func studentPrintName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-
-    private func statusLabel(for w: WorkModel) -> String {
-        switch w.status {
-        case .active: return "Practice"
-        case .review: return "Follow-Up"
-        case .complete: return "Completed"
-        }
-    }
-
-    private func ageDays(for w: WorkModel) -> Int {
-        let start = AppCalendar.startOfDay(w.createdAt)
-        let end = AppCalendar.startOfDay(Date())
-        return AppCalendar.shared.dateComponents(
-            [.day], from: start, to: end
-        ).day ?? 0
-    }
-
-    private func needsAttention(for w: WorkModel) -> Bool {
-        if let due = w.dueAt,
-           AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) {
-            return true
-        }
-        if let lastNoteDate = (w.unifiedNotes ?? [])
-            .map({ max($0.updatedAt, $0.createdAt) }).max() {
-            let days = AppCalendar.shared.dateComponents(
-                [.day],
-                from: AppCalendar.startOfDay(lastNoteDate),
-                to: AppCalendar.startOfDay(Date())
-            ).day ?? 0
-            if days >= 10 { return true }
-        }
-        return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: w.createdAt, asOf: Date(),
-            using: modelContext, calendar: calendar
-        ) >= 10
-    }
-
-    // MARK: - Calendar Navigation
-
-    private func moveCalendarStart(bySchoolDays delta: Int) {
-        guard delta != 0 else { return }
-        var remaining = abs(delta)
-        var cursor = AppCalendar.startOfDay(calendarStartDate)
-        let step = delta > 0 ? 1 : -1
-        while remaining > 0 {
-            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if !SchoolDayChecker.isNonSchoolDay(cursor, using: modelContext) { remaining -= 1 }
-        }
-        calendarStartDate = cursor
-    }
-
-    // MARK: - Actions
-    private func openDetail(_ w: WorkModel) {
-        // Force save before opening
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error)")
-        }
-
-        selected = nil
-        let token = SelectionToken(id: UUID(), workID: w.id)
-        Task { @MainActor in
-            selected = token
-        }
-    }
-
-    private func markCompleted(_ w: WorkModel) {
-        w.status = .complete
-        _ = saveCoordinator.save(modelContext, reason: "Mark work completed")
-        HapticService.shared.notification(.success)
-    }
-
-    private func scheduleToday(_ w: WorkModel) {
-        let today = AppCalendar.startOfDay(Date())
-        // Phase 6: Update or create a WorkCheckIn for this work
-        let workID: UUID = w.id
-        let workIDString = workID.uuidString
-        var fetch = FetchDescriptor<WorkCheckIn>(
-            predicate: #Predicate<WorkCheckIn> { $0.workID == workIDString },
-            sortBy: [SortDescriptor(\.date, order: .forward)]
-        )
-        fetch.fetchLimit = 1
-        do {
-            if let first = try modelContext.fetch(fetch).first {
-                first.date = today
-            } else {
-                let item = WorkCheckIn(
-                    id: UUID(), workID: workID,
-                    date: today, status: .scheduled,
-                    purpose: "progressCheck"
-                )
-                modelContext.insert(item)
-            }
-        } catch {
-            Self.logger.warning("Failed to fetch WorkCheckIn: \(error)")
-            // Create new check-in as fallback
-            let item = WorkCheckIn(
-                id: UUID(), workID: workID,
-                date: today, status: .scheduled,
-                purpose: "progressCheck"
-            )
-            modelContext.insert(item)
-        }
-        w.dueAt = today
-        _ = saveCoordinator.save(modelContext, reason: "Quick schedule today")
-    }
-
-    #if os(macOS)
-    private func printWorkView() {
-        let works = openWorksFiltered()
-        let items = makePrintItems(from: works)
-        guard let pdfData = WorkPDFRenderer.renderPDF(
-            items: items, sortMode: sortMode,
-            searchText: debouncedSearchText
-        ) else {
-            NSSound.beep()
-            return
-        }
-
-        let printInfo = WorkPDFRenderer.configuredPrintInfo()
-        if let doc = PDFDocument(data: pdfData),
-           let operation = doc.printOperation(for: printInfo, scalingMode: .pageScaleToFit, autoRotate: false) {
-            operation.showsPrintPanel = true
-            operation.showsProgressPanel = true
-            operation.run()
-        }
-    }
-
-    private func exportWorkPDF() {
-        let works = openWorksFiltered()
-        let items = makePrintItems(from: works)
-        let currentSortMode = sortMode
-        let currentSearchText = debouncedSearchText
-
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.pdf]
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "Open Work.pdf"
-        panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            guard let pdfData = WorkPDFRenderer.renderPDF(
-                items: items,
-                sortMode: currentSortMode,
-                searchText: currentSearchText
-            ) else {
-                NSSound.beep()
-                return
-            }
-            do {
-                try pdfData.write(to: url, options: .atomic)
-            } catch {
-                NSSound.beep()
-            }
-        }
-    }
-    #endif
 }
 
 #Preview {
@@ -538,7 +258,7 @@ struct WorksAgendaView: View {
             fatalError("Failed to create preview container: \(error)")
         }
         let ctx = container.mainContext
-        
+
         let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
         let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
         ctx.insert(s)
