@@ -423,6 +423,50 @@ extension View {
     }
 }
 
+// MARK: - Font Hierarchy Context Modifier (#25)
+
+/// Hierarchy levels that shift font weights downward for nested contexts.
+/// When a card is inside a section inside a page, its internal titles
+/// don't need the same weight as standalone titles.
+enum FontHierarchyLevel: Int, Sendable {
+    case primary = 0    // Default — full weight
+    case secondary = 1  // One rung down (bold → semibold, semibold → medium, etc.)
+    case tertiary = 2   // Two rungs down
+}
+
+private struct FontHierarchyLevelKey: EnvironmentKey {
+    static let defaultValue: FontHierarchyLevel = .primary
+}
+
+extension EnvironmentValues {
+    var fontHierarchyLevel: FontHierarchyLevel {
+        get { self[FontHierarchyLevelKey.self] }
+        set { self[FontHierarchyLevelKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Sets the font hierarchy level for this view and its children (#25).
+    /// Child text that reads the hierarchy level can automatically shift
+    /// weights downward to prevent competing visual weight in nested layouts.
+    func fontHierarchy(_ level: FontHierarchyLevel) -> some View {
+        self.environment(\.fontHierarchyLevel, level)
+    }
+}
+
+extension Font.Weight {
+    /// Shift weight down by the given number of steps.
+    /// heavy → bold → semibold → medium → regular → light → thin → ultraLight
+    func shifted(by steps: Int) -> Font.Weight {
+        let ladder: [Font.Weight] = [
+            .heavy, .bold, .semibold, .medium, .regular, .light, .thin, .ultraLight
+        ]
+        guard let index = ladder.firstIndex(of: self) else { return self }
+        let newIndex = min(index + steps, ladder.count - 1)
+        return ladder[newIndex]
+    }
+}
+
 // MARK: - iOS 26 Liquid Glass Preparation
 // When targeting iOS 26+, consider replacing CardBackgroundModifier and SubtleCardModifier
 // backgrounds with the new .glassEffect() modifier for Apple's Liquid Glass design language.
