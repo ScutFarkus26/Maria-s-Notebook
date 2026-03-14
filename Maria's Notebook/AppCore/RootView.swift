@@ -47,6 +47,9 @@ struct RootView: View {
         case cosmicMap
         case observationMode
         case goingOut
+        case threePeriod
+        case classroomJobs
+        case transitionPlanner
 
         case community
         case schedules
@@ -81,6 +84,9 @@ struct RootView: View {
             case .cosmicMap: return "Cosmic Map"
             case .observationMode: return "Observe"
             case .goingOut: return "Going Out"
+            case .threePeriod: return "Three-Period"
+            case .classroomJobs: return "Jobs"
+            case .transitionPlanner: return "Transitions"
             case .community: return "Community"
             case .schedules: return "Schedules"
             case .issues: return "Issues"
@@ -114,6 +120,9 @@ struct RootView: View {
             case .cosmicMap: return "globe.americas"
             case .observationMode: return "eye"
             case .goingOut: return "figure.walk"
+            case .threePeriod: return "3.circle"
+            case .classroomJobs: return "person.2.badge.gearshape"
+            case .transitionPlanner: return "arrow.right.arrow.left"
             case .community: return "bubble.left.and.bubble.right"
             case .schedules: return "clock.badge.checkmark"
             case .issues: return "exclamationmark.triangle"
@@ -144,6 +153,7 @@ struct RootView: View {
                 .planningProgression, .planningProjects, .progressDashboard,
                 .lessonFrequency, .curriculumBalance, .cosmicMap,
                 .observationMode, .goingOut,
+                .threePeriod, .classroomJobs, .transitionPlanner,
                 .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -165,9 +175,11 @@ struct RootView: View {
             case .todos: return nil
             case .planningChecklist, .planningAgenda, .planningWork,
                 .planningProgression, .planningProjects, .progressDashboard,
-                .lessonFrequency, .curriculumBalance, .cosmicMap: return .planning
+                .lessonFrequency, .curriculumBalance, .cosmicMap,
+                .threePeriod, .transitionPlanner: return .planning
             case .observationMode: return nil
             case .goingOut: return nil
+            case .classroomJobs: return nil
             case .community: return .community
             case .schedules: return nil
             case .issues: return nil

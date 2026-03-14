@@ -57,6 +57,10 @@ struct RootSidebar: View {
                 NavigationLink(value: RootView.NavigationItem.goingOut) {
                     Label("Going Out", systemImage: "figure.walk")
                 }
+
+                NavigationLink(value: RootView.NavigationItem.classroomJobs) {
+                    Label("Jobs", systemImage: "person.2.badge.gearshape")
+                }
             }
 
             Section("Planning") {
@@ -122,6 +126,14 @@ struct RootSidebar: View {
 
                 NavigationLink(value: RootView.NavigationItem.cosmicMap) {
                     Label("Cosmic Map", systemImage: "globe.americas")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.threePeriod) {
+                    Label("Three-Period", systemImage: "3.circle")
+                }
+
+                NavigationLink(value: RootView.NavigationItem.transitionPlanner) {
+                    Label("Transitions", systemImage: "arrow.right.arrow.left")
                 }
             }
 
@@ -204,6 +216,12 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Plan and track student going-out excursions")
+
+                Button { selection = .classroomJobs } label: {
+                    Label("Jobs", systemImage: "person.2.badge.gearshape")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Manage classroom job rotation board")
             }
 
             Section("Planning") {
@@ -272,6 +290,18 @@ struct RootSidebar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Explore lessons organized by the Five Great Lessons")
+
+                Button { selection = .threePeriod } label: {
+                    Label("Three-Period", systemImage: "3.circle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track student progress through the three-period lesson cycle")
+
+                Button { selection = .transitionPlanner } label: {
+                    Label("Transitions", systemImage: "arrow.right.arrow.left")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Plan and track student transitions between levels")
             }
 
             Section("Resources") {

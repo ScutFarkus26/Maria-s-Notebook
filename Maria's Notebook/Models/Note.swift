@@ -143,6 +143,7 @@ final class Note: Identifiable {
     @Relationship var practiceSession: PracticeSession?
     @Relationship var issue: Issue?
     @Relationship var goingOut: GoingOut?
+    @Relationship var transitionPlan: TransitionPlan?
 
     /// Junction records for efficient multi-student scope queries.
     /// Automatically maintained when scope is set to `.students([UUID])`.
@@ -220,6 +221,7 @@ final class Note: Identifiable {
         if practiceSession != nil { return "practiceSession" }
         if issue != nil { return "issue" }
         if goingOut != nil { return "goingOut" }
+        if transitionPlan != nil { return "transitionPlan" }
         return "general"
     }
 
@@ -249,6 +251,7 @@ final class Note: Identifiable {
         practiceSession: PracticeSession? = nil,
         issue: Issue? = nil,
         goingOut: GoingOut? = nil,
+        transitionPlan: TransitionPlan? = nil,
         imagePath: String? = nil,
         reportedBy: String? = nil,
         reporterName: String? = nil
@@ -276,6 +279,7 @@ final class Note: Identifiable {
         self.practiceSession = practiceSession
         self.issue = issue
         self.goingOut = goingOut
+        self.transitionPlan = transitionPlan
         self.imagePath = imagePath
         self.reportedBy = reportedBy
         self.reporterName = reporterName

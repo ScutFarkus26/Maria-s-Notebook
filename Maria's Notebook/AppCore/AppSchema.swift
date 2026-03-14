@@ -60,6 +60,10 @@ struct AppSchema {
         PlanningRecommendation.self,
         Resource.self,
         GoingOut.self,
-        GoingOutChecklistItem.self
+        GoingOutChecklistItem.self,
+        ClassroomJob.self,
+        JobAssignment.self,
+        TransitionPlan.self,
+        TransitionChecklistItem.self
     ])
 }

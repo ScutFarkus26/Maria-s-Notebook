@@ -32,6 +32,7 @@ extension UnifiedNoteEditor {
         case .reminder: return "Reminder Note"
         case .schoolDayOverride: return "Override Note"
         case .goingOut: return "Going-Out Note"
+        case .transitionPlan: return "Transition Note"
         }
     }
 
@@ -309,6 +310,7 @@ extension UnifiedNoteEditor {
         case .reminder: return ".reminder"
         case .schoolDayOverride: return ".schoolDayOverride"
         case .goingOut: return ".goingOut"
+        case .transitionPlan: return ".transitionPlan"
         }
     }
 }

@@ -73,6 +73,12 @@ struct RootDetailContent: View {
                 ObservationModeView()
             case .goingOut:
                 GoingOutRootView()
+            case .threePeriod:
+                ThreePeriodRootView()
+            case .classroomJobs:
+                ClassroomJobsRootView()
+            case .transitionPlanner:
+                TransitionPlannerRootView()
             case .community:
                 CommunityMeetingsView()
             case .schedules:
@@ -148,6 +154,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.meetings)
                     moreMenuButton(.observationMode)
                     moreMenuButton(.goingOut)
+                    moreMenuButton(.classroomJobs)
                 }
 
                 Section("Planning") {
@@ -160,6 +167,8 @@ struct MoreMenuView: View {
                     moreMenuButton(.lessonFrequency)
                     moreMenuButton(.curriculumBalance)
                     moreMenuButton(.cosmicMap)
+                    moreMenuButton(.threePeriod)
+                    moreMenuButton(.transitionPlanner)
                 }
 
                 Section("Resources") {
