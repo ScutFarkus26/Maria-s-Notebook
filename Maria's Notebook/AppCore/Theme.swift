@@ -312,6 +312,49 @@ extension View {
     }
 }
 
+// MARK: - Structural Hierarchy Helpers (#18-19)
+
+/// A consistent page-level weight ladder (#18):
+/// page title (.heavy 32pt) → section header (.bold 20pt) → item title (.semibold 16-18pt)
+/// → body (.regular 14pt) → metadata (.light 13pt)
+///
+/// These are convenience wrappers that enforce the ladder consistently.
+extension View {
+    /// Page-level title — heaviest weight, largest size
+    func pageTitleStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.titleXLarge)
+            .tracking(AppTheme.Tracking.display)
+    }
+
+    /// Major section header — bold weight, clear section boundary
+    func majorSectionHeaderStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.titleMedium)
+    }
+
+    /// List row primary text — semibold weight for scannability (#19)
+    func rowTitleStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.calloutSemibold)
+            .foregroundStyle(.primary)
+    }
+
+    /// List row secondary text — light weight for clear hierarchy (#19)
+    func rowSubtitleStyle() -> some View {
+        self
+            .font(AppTheme.ScaledFont.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    /// Metadata text — lightest weight, smallest size
+    func metadataStyle() -> some View {
+        self
+            .font(AppTheme.SemanticFont.metadata)
+            .foregroundStyle(.tertiary)
+    }
+}
+
 // MARK: - Color-Weight Combination Modifiers (#15-17)
 extension View {
     /// Use weight instead of color for primary/secondary distinction (#15).
