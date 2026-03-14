@@ -257,92 +257,97 @@ final class ObservationPatternsViewModel {
         defer { isLoading = false }
 
         let allObservationTags = MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allTags
+        let range = timeRange.dateRange(from: Date())
 
-        // Fetch all notes
         let descriptor = FetchDescriptor<Note>(
             sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
         )
-        let allNotes = context.safeFetch(descriptor)
-
-        // Filter to date range
-        let range = timeRange.dateRange(from: Date())
-        let filteredNotes = allNotes.filter {
-            $0.createdAt >= range.start && $0.createdAt <= range.end
-        }
-
-        // Filter to notes containing observation tags
-        let observationNotes = filteredNotes.filter { note in
-            note.tags.contains { tag in
+        let observationNotes = context.safeFetch(descriptor).filter { note in
+            note.createdAt >= range.start && note.createdAt <= range.end
+            && note.tags.contains { TagHelper.tagName($0) != "" }
+            && note.tags.contains { tag in
                 let name = TagHelper.tagName(tag)
                 return allObservationTags.contains { TagHelper.tagName($0) == name }
             }
         }
 
         totalObservations = observationNotes.count
+        tagCounts = computeTagCounts(from: observationNotes, allTags: allObservationTags)
 
-        // Count tags
+        let students = TestStudentsFilter.filterVisible(
+            context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName))
+        )
+        let observationMap = buildStudentObservationMap(from: observationNotes)
+        let summaries = buildStudentSummaries(
+            map: observationMap,
+            students: students,
+            allTags: allObservationTags
+        )
+        studentSummaries = summaries.sorted { $0.observationCount > $1.observationCount }
+        studentsObserved = summaries.count
+    }
+
+    // MARK: - Private Helpers
+
+    private func computeTagCounts(from notes: [Note], allTags: [String]) -> [TagCount] {
         var tagCountMap: [String: Int] = [:]
-        for note in observationNotes {
+        for note in notes {
             for tag in note.tags {
                 let name = TagHelper.tagName(tag)
-                if allObservationTags.contains(where: { TagHelper.tagName($0) == name }) {
-                    tagCountMap[tag, default: 0] += 1
-                }
+                guard allTags.contains(where: { TagHelper.tagName($0) == name }) else { continue }
+                tagCountMap[tag, default: 0] += 1
             }
         }
-
-        tagCounts = tagCountMap
+        return tagCountMap
             .map { tag, count in
                 let parsed = TagHelper.parseTag(tag)
                 return TagCount(tagName: parsed.name, count: count, color: parsed.color.color)
             }
             .sorted { $0.count > $1.count }
+    }
 
-        // Build student summaries
-        let students = context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName))
-        let visibleStudents = TestStudentsFilter.filterVisible(students)
-
-        var studentObservationMap: [UUID: [Note]] = [:]
-        for note in observationNotes {
-            let scope = note.scope
-            switch scope {
+    private func buildStudentObservationMap(from notes: [Note]) -> [UUID: [Note]] {
+        var map: [UUID: [Note]] = [:]
+        for note in notes {
+            switch note.scope {
             case .all:
-                // All-scope observations count for everyone — skip for per-student
                 break
             case .student(let studentID):
-                studentObservationMap[studentID, default: []].append(note)
+                map[studentID, default: []].append(note)
             case .students(let studentIDs):
                 for studentID in studentIDs {
-                    studentObservationMap[studentID, default: []].append(note)
+                    map[studentID, default: []].append(note)
                 }
             }
         }
+        return map
+    }
 
-        var summaries: [StudentObservationSummary] = []
-        for student in visibleStudents {
-            let notes = studentObservationMap[student.id] ?? []
-            guard !notes.isEmpty else { continue }
-
-            // Find top tags for this student
-            var studentTagCounts: [String: Int] = [:]
+    private func buildStudentSummaries(
+        map: [UUID: [Note]],
+        students: [Student],
+        allTags: [String]
+    ) -> [StudentObservationSummary] {
+        students.compactMap { student in
+            let notes = map[student.id] ?? []
+            guard !notes.isEmpty else { return nil }
+            var tagCounts: [String: Int] = [:]
             for note in notes {
-                for tag in note.tags where allObservationTags.contains(where: { TagHelper.tagName($0) == TagHelper.tagName(tag) }) {
-                    studentTagCounts[tag, default: 0] += 1
+                for tag in note.tags {
+                    let tagName = TagHelper.tagName(tag)
+                    guard allTags.contains(where: { TagHelper.tagName($0) == tagName }) else { continue }
+                    tagCounts[tag, default: 0] += 1
                 }
             }
-            let topTags = studentTagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
-
-            summaries.append(StudentObservationSummary(
+            let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+            return StudentObservationSummary(
                 id: student.id,
                 name: "\(student.firstName) \(student.lastName)",
                 initials: "\(student.firstName.prefix(1))\(student.lastName.prefix(1))",
                 levelColor: AppColors.color(forLevel: student.level),
                 observationCount: notes.count,
                 topTags: topTags
-            ))
+            )
         }
-
-        studentSummaries = summaries.sorted { $0.observationCount > $1.observationCount }
-        studentsObserved = summaries.count
     }
 }

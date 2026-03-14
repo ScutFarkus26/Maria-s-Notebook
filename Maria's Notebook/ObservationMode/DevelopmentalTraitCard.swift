@@ -17,7 +17,10 @@ struct DevelopmentalTraitCard: View {
                 .font(.title3)
                 .foregroundStyle(characteristic.color)
                 .frame(width: 36, height: 36)
-                .background(characteristic.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(
+                    characteristic.color.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
 
             // Name and description
             VStack(alignment: .leading, spacing: 2) {

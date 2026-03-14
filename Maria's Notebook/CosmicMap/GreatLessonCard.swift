@@ -16,7 +16,10 @@ struct GreatLessonCard: View {
                     .font(.title2)
                     .foregroundStyle(greatLesson.color)
                     .frame(width: 40, height: 40)
-                    .background(greatLesson.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .background(
+                        greatLesson.color.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(greatLesson.displayName)

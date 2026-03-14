@@ -5,11 +5,11 @@
 import SwiftUI
 
 enum GreatLesson: String, CaseIterable, Identifiable, Codable {
-    case comingOfUniverse = "comingOfUniverse"
-    case comingOfLife = "comingOfLife"
-    case comingOfHumans = "comingOfHumans"
-    case communicationInSigns = "communicationInSigns"
-    case storyOfNumbers = "storyOfNumbers"
+    case comingOfUniverse
+    case comingOfLife
+    case comingOfHumans
+    case communicationInSigns
+    case storyOfNumbers
 
     var id: String { rawValue }
 

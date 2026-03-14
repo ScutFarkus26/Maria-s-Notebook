@@ -54,7 +54,10 @@ final class CosmicMapViewModel {
         defer { isLoading = false }
 
         // Fetch all lessons
-        let lessonDescriptor = FetchDescriptor<Lesson>(sortBy: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
+        let lessonDescriptor = FetchDescriptor<Lesson>(sortBy: [
+            SortDescriptor(\Lesson.subject),
+            SortDescriptor(\Lesson.sortIndex)
+        ])
         let allLessons = context.safeFetch(lessonDescriptor)
         totalLessonCount = allLessons.count
 

@@ -4,6 +4,14 @@
 import SwiftData
 import SwiftUI
 
+struct ClassroomJobFields {
+    var name: String
+    var description: String
+    var icon: String
+    var colorRaw: String
+    var maxStudents: Int
+}
+
 @Observable
 @MainActor
 final class ClassroomJobsViewModel {
@@ -67,26 +75,26 @@ final class ClassroomJobsViewModel {
 
     // MARK: - CRUD
 
-    func createJob(name: String, description: String, icon: String, colorRaw: String, maxStudents: Int, context: ModelContext) {
+    func createJob(_ fields: ClassroomJobFields, context: ModelContext) {
         let job = ClassroomJob(
-            name: name,
-            jobDescription: description,
-            icon: icon,
-            colorRaw: colorRaw,
+            name: fields.name,
+            jobDescription: fields.description,
+            icon: fields.icon,
+            colorRaw: fields.colorRaw,
             sortOrder: jobs.count,
-            maxStudents: maxStudents
+            maxStudents: fields.maxStudents
         )
         context.insert(job)
         context.safeSave()
         loadData(context: context)
     }
 
-    func updateJob(_ job: ClassroomJob, name: String, description: String, icon: String, colorRaw: String, maxStudents: Int, context: ModelContext) {
-        job.name = name
-        job.jobDescription = description
-        job.icon = icon
-        job.colorRaw = colorRaw
-        job.maxStudents = maxStudents
+    func updateJob(_ job: ClassroomJob, with fields: ClassroomJobFields, context: ModelContext) {
+        job.name = fields.name
+        job.jobDescription = fields.description
+        job.icon = fields.icon
+        job.colorRaw = fields.colorRaw
+        job.maxStudents = fields.maxStudents
         job.modifiedAt = Date()
         context.safeSave()
         loadData(context: context)
@@ -111,74 +119,82 @@ final class ClassroomJobsViewModel {
         guard !activeJobs.isEmpty, !students.isEmpty else { return }
 
         let weekStart = currentWeekStart
+        let lastWeekMap = fetchLastWeekMap(context: context, weekStart: weekStart)
+        clearCurrentWeekAssignments(context: context, weekStart: weekStart)
 
-        // Get last week's assignments to determine rotation
-        let lastWeekStart = Calendar.current.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
-        let lastWeekEnd = weekStart
-        let lastWeekDescriptor = FetchDescriptor<JobAssignment>(
-            predicate: #Predicate {
-                $0.weekStartDate >= lastWeekStart && $0.weekStartDate < lastWeekEnd
-            }
-        )
-        let lastWeekAssignments = context.safeFetch(lastWeekDescriptor)
-
-        // Build mapping: jobID -> [studentID] from last week
-        var lastWeekMap: [String: [String]] = [:]
-        for assignment in lastWeekAssignments {
-            lastWeekMap[assignment.jobID, default: []].append(assignment.studentID)
-        }
-
-        // Delete any existing assignments for current week
-        let currentWeekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
-        let currentDescriptor = FetchDescriptor<JobAssignment>(
-            predicate: #Predicate {
-                $0.weekStartDate >= weekStart && $0.weekStartDate < currentWeekEnd
-            }
-        )
-        for existing in context.safeFetch(currentDescriptor) {
-            context.delete(existing)
-        }
-
-        // Rotate: shift students to the next job
         let studentIDs = students.map { $0.id.uuidString }
         var usedStudents: Set<String> = []
 
         for (index, job) in activeJobs.enumerated() {
             let nextJobIndex = (index + 1) % activeJobs.count
             let nextJob = activeJobs[nextJobIndex]
-
-            // Get students who were assigned to the next job last week
-            let previousStudents = lastWeekMap[nextJob.id.uuidString] ?? []
-
-            var assignees: [String] = []
-            for studentID in previousStudents {
-                if !usedStudents.contains(studentID) {
-                    assignees.append(studentID)
-                    usedStudents.insert(studentID)
-                }
-                if assignees.count >= job.maxStudents { break }
-            }
-
-            // Fill remaining slots with unassigned students
-            if assignees.count < job.maxStudents {
-                for studentID in studentIDs where !usedStudents.contains(studentID) {
-                    assignees.append(studentID)
-                    usedStudents.insert(studentID)
-                    if assignees.count >= job.maxStudents { break }
-                }
-            }
-
+            let assignees = buildAssignees(
+                for: job,
+                previousStudents: lastWeekMap[nextJob.id.uuidString] ?? [],
+                allStudentIDs: studentIDs,
+                usedStudents: &usedStudents
+            )
             for studentID in assignees {
-                let assignment = JobAssignment(
+                context.insert(JobAssignment(
                     jobID: job.id.uuidString,
                     studentID: studentID,
                     weekStartDate: weekStart
-                )
-                context.insert(assignment)
+                ))
             }
         }
 
         context.safeSave()
         loadData(context: context)
+    }
+
+    // MARK: - Rotation Helpers
+
+    private func fetchLastWeekMap(context: ModelContext, weekStart: Date) -> [String: [String]] {
+        let lastWeekStart = Calendar.current.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
+        let descriptor = FetchDescriptor<JobAssignment>(
+            predicate: #Predicate {
+                $0.weekStartDate >= lastWeekStart && $0.weekStartDate < weekStart
+            }
+        )
+        var map: [String: [String]] = [:]
+        for assignment in context.safeFetch(descriptor) {
+            map[assignment.jobID, default: []].append(assignment.studentID)
+        }
+        return map
+    }
+
+    private func clearCurrentWeekAssignments(context: ModelContext, weekStart: Date) {
+        let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        let descriptor = FetchDescriptor<JobAssignment>(
+            predicate: #Predicate {
+                $0.weekStartDate >= weekStart && $0.weekStartDate < weekEnd
+            }
+        )
+        for existing in context.safeFetch(descriptor) {
+            context.delete(existing)
+        }
+    }
+
+    private func buildAssignees(
+        for job: ClassroomJob,
+        previousStudents: [String],
+        allStudentIDs: [String],
+        usedStudents: inout Set<String>
+    ) -> [String] {
+        var assignees: [String] = []
+        for studentID in previousStudents {
+            guard !usedStudents.contains(studentID) else { continue }
+            assignees.append(studentID)
+            usedStudents.insert(studentID)
+            if assignees.count >= job.maxStudents { break }
+        }
+        if assignees.count < job.maxStudents {
+            for studentID in allStudentIDs where !usedStudents.contains(studentID) {
+                assignees.append(studentID)
+                usedStudents.insert(studentID)
+                if assignees.count >= job.maxStudents { break }
+            }
+        }
+        return assignees
     }
 }

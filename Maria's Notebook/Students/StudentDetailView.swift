@@ -41,6 +41,11 @@ struct StudentDetailView: View {
     private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
     private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.map(\.id) }
 
+    private var tabUsesUnscrolledLayout: Bool {
+        selectedTab == .progress || selectedTab == .developmentalTraits
+            || selectedTab == .history || selectedTab == .files
+    }
+
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
@@ -159,7 +164,7 @@ struct StudentDetailView: View {
 
             if selectedTab == .notes {
                 StudentNotesTab(student: student)
-            } else if selectedTab == .progress || selectedTab == .developmentalTraits || selectedTab == .history || selectedTab == .files {
+            } else if tabUsesUnscrolledLayout {
                 tabContent
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)

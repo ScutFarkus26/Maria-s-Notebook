@@ -191,8 +191,12 @@ struct LessonDetailView: View {
         }
     }
 
-    // MARK: - Subviews
-    private var headerContent: some View {
+}
+
+// MARK: - Subviews
+
+extension LessonDetailView {
+    var headerContent: some View {
         VStack(spacing: AppTheme.Spacing.compact) {
             Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                 .font(AppTheme.ScaledFont.titleXLarge)
@@ -235,7 +239,7 @@ struct LessonDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var bottomBar: some View {
+    var bottomBar: some View {
         VStack(spacing: 0) {
             Divider()
             HStack {
@@ -287,7 +291,7 @@ struct LessonDetailView: View {
         }
     }
 
-    private func seedDrafts() {
+    func seedDrafts() {
         draftName = lesson.name
         draftSubject = lesson.subject
         draftGroup = lesson.group

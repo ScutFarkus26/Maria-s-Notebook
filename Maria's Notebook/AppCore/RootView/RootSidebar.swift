@@ -16,9 +16,13 @@ struct RootSidebar: View {
         iOSSidebar
         #endif
     }
+}
 
+// MARK: - Platform Sidebars
+
+extension RootSidebar {
     #if os(macOS)
-    private var macOSSidebar: some View {
+    var macOSSidebar: some View {
         List(selection: $selection) {
             Section("Daily") {
                 NavigationLink(value: RootView.NavigationItem.today) {
@@ -178,7 +182,7 @@ struct RootSidebar: View {
     }
     #endif
 
-    private var iOSSidebar: some View {
+    var iOSSidebar: some View {
         List {
             Section("Daily") {
                 Button { selection = .today } label: {

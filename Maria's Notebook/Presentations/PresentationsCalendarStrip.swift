@@ -19,21 +19,27 @@ struct PresentationsCalendarStrip: View {
     @Query private var lessonAssignments: [LessonAssignment]
     
     @AppStorage(UserDefaultsKeys.presentationsCalendarShowWork) private var showWork: Bool = true
-    
-    // OPTIMIZATION: Pre-fetch all WorkCheckIn items for the date range once instead of per-column
-    // This reduces ~33 database queries to 1, significantly improving performance
-    private var allWorkItemsForRange: [WorkCheckIn] {
-        guard showWork, let firstDay = days.first, let lastDay = days.last else { return [] }
+
+    // OPTIMIZATION: Cache work items in @State instead of fetching in a computed property.
+    // The computed property was executing a DB query on every body evaluation.
+    // Now fetched once in .task and refreshed via .onChange when days or showWork change.
+    @State private var cachedWorkItems: [WorkCheckIn] = []
+
+    private func fetchWorkItems() {
+        guard showWork, let firstDay = days.first, let lastDay = days.last else {
+            cachedWorkItems = []
+            return
+        }
         let (start, _) = AppCalendar.dayRange(for: firstDay)
         let (_, end) = AppCalendar.dayRange(for: lastDay)
         let descriptor = FetchDescriptor<WorkCheckIn>(
             predicate: #Predicate { $0.date >= start && $0.date < end }
         )
         do {
-            return try modelContext.fetch(descriptor)
+            cachedWorkItems = try modelContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch work items for range: \(error)")
-            return []
+            cachedWorkItems = []
         }
     }
     
@@ -112,7 +118,7 @@ struct PresentationsCalendarStrip: View {
                                 day: day,
                                 allLessonAssignments: lessonAssignments,
                                 showWork: showWork,
-                                preloadedWorkItems: allWorkItemsForRange,
+                                preloadedWorkItems: cachedWorkItems,
                                 onClear: onClear,
                                 onSelect: onSelect
                             )
@@ -124,6 +130,7 @@ struct PresentationsCalendarStrip: View {
                 }
             }
             .task {
+                fetchWorkItems()
                 // Scroll to the first day (which is the earliest of: first lesson date or today)
                 if let first = days.first {
                     do {
@@ -136,6 +143,9 @@ struct PresentationsCalendarStrip: View {
                     }
                 }
             }
+            .onChange(of: showWork) { _, _ in
+                fetchWorkItems()
+            }
             .onChange(of: startDate) { _, _ in
                 if let first = days.first {
                     adaptiveWithAnimation {
@@ -144,6 +154,7 @@ struct PresentationsCalendarStrip: View {
                 }
             }
             .onChange(of: days) { _, _ in
+                fetchWorkItems()
                 // When days change, scroll to first day (earliest of: first lesson date or today)
                 if let first = days.first {
                     Task { @MainActor in

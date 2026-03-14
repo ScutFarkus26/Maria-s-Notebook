@@ -188,6 +188,6 @@ enum TransitionChecklistTemplates {
         ("Can plan multi-step projects", .executive),
         ("Time awareness and planning", .executive),
         ("Self-assessment capability", .executive),
-        ("Organizes workspace independently", .executive),
+        ("Organizes workspace independently", .executive)
     ]
 }

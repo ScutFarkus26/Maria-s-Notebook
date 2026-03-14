@@ -33,39 +33,42 @@ final class DevelopmentalTraitsViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        // Fetch all notes
         let descriptor = FetchDescriptor<Note>(
             sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
         )
         let allNotes = context.safeFetch(descriptor)
-
-        // Filter to date range
         let range = timeRange.dateRange(from: Date())
+        let traitNotes = filterTraitNotes(from: allNotes, studentID: studentID, range: range)
 
-        // Filter notes for this student
-        let studentNotes = allNotes.filter { note in
-            let scope = note.scope
+        totalTraitObservations = traitNotes.count
+        traitCards = buildTraitCards(from: traitNotes)
+        recentObservations = buildRecentObservations(from: traitNotes)
+    }
+
+    // MARK: - Private Helpers
+
+    private func filterTraitNotes(
+        from allNotes: [Note],
+        studentID: UUID,
+        range: (start: Date, end: Date)
+    ) -> [Note] {
+        allNotes.filter { note in
             let inRange = note.createdAt >= range.start && note.createdAt <= range.end
             guard inRange else { return false }
-
-            switch scope {
+            switch note.scope {
             case .all:
-                return false // Skip class-wide notes for per-student view
+                return false
             case .student(let id):
                 return id == studentID
             case .students(let ids):
                 return ids.contains(studentID)
             }
-        }
-
-        // Filter to notes with developmental characteristic tags
-        let traitNotes = studentNotes.filter { note in
+        }.filter { note in
             note.tags.contains { DevelopmentalCharacteristic.isCharacteristicTag($0) }
         }
+    }
 
-        totalTraitObservations = traitNotes.count
-
-        // Count per trait
+    private func buildTraitCards(from traitNotes: [Note]) -> [DevelopmentalTraitCardData] {
         var traitNotesMap: [DevelopmentalCharacteristic: [Note]] = [:]
         for note in traitNotes {
             for tag in note.tags {
@@ -74,22 +77,19 @@ final class DevelopmentalTraitsViewModel {
                 }
             }
         }
-
-        // Build trait cards
-        traitCards = DevelopmentalCharacteristic.allCases.map { characteristic in
+        return DevelopmentalCharacteristic.allCases.map { characteristic in
             let notes = traitNotesMap[characteristic] ?? []
-            let mostRecent = notes.first?.createdAt
-
             return DevelopmentalTraitCardData(
                 characteristic: characteristic,
                 observationCount: notes.count,
-                mostRecentDate: mostRecent
+                mostRecentDate: notes.first?.createdAt
             )
         }
         .sorted { $0.observationCount > $1.observationCount }
+    }
 
-        // Build recent observations list (last 20)
-        recentObservations = traitNotes.prefix(20).map { note in
+    private func buildRecentObservations(from traitNotes: [Note]) -> [TraitObservation] {
+        traitNotes.prefix(20).map { note in
             let traits = note.tags.compactMap { DevelopmentalCharacteristic.from(tag: $0) }
             return TraitObservation(
                 id: note.id,

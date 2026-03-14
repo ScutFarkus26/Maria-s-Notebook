@@ -45,7 +45,10 @@ struct GreatLessonTagEditor: View {
                                 .font(.title3)
                                 .foregroundStyle(gl.color)
                                 .frame(width: 32, height: 32)
-                                .background(gl.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .background(
+                                    gl.color.opacity(0.12),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                )
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(gl.displayName)

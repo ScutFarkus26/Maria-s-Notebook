@@ -251,7 +251,6 @@ enum MacPDFRenderer {
 
     // MARK: - Block Rendering
 
-    // swiftlint:disable:next function_body_length
     private static func renderBlocks(_ views: [AnyView], width: CGFloat) -> [Block] {
         let tempWindow = NSWindow(
             contentRect: NSRect(
@@ -311,7 +310,6 @@ enum MacPDFRenderer {
 
     // MARK: - PDF Composition
 
-    // swiftlint:disable:next function_body_length
     private static func composePDF(from blocks: [Block]) -> Data? {
         let pageWidth = PrintLayout.pageSize.width
         let pageHeight = PrintLayout.pageSize.height

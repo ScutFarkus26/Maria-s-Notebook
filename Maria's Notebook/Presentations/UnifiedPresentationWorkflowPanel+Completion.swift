@@ -19,10 +19,7 @@ extension UnifiedPresentationWorkflowPanel {
 
     var canComplete: Bool {
         // Must have valid presentation status
-        guard presentationViewModel.canDismiss else { return false }
-
-        // At least one work item must be created
-        return workDrafts.values.contains { !$0.isEmpty }
+        presentationViewModel.canDismiss
     }
 
     // Progress tracking

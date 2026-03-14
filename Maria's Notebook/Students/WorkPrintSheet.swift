@@ -101,58 +101,61 @@ struct WorkPrintSheet: View {
 
     private func presentPrint() {
         #if os(iOS)
-        if let pdfData = PDFRenderer.renderGroupedPDF(
-            groups: groups,
-            lessons: lessons,
-            filterDescription: filterDescription,
-            sortDescription: sortDescription,
-            workItemCount: workItems.count
-        ) {
-            let printController = UIPrintInteractionController.shared
-            printController.printingItem = pdfData
-
-            let printInfo = UIPrintInfo.printInfo()
-            printInfo.outputType = .general
-            printInfo.jobName = "Open Work Report"
-            printController.printInfo = printInfo
-
-            printController.present(animated: true) { _, completed, _ in
-                if completed {
-                    dismiss()
-                }
-            }
-        }
+        presentPrintiOS()
         #else
-        if let pdfData = MacPDFRenderer.renderGroupedPDF(
-            groups: groups,
-            lessons: lessons,
-            filterDescription: filterDescription,
-            sortDescription: sortDescription,
-            workItemCount: workItems.count
-        ) {
-            guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
-            printInfo.topMargin = 36
-            printInfo.bottomMargin = 36
-            printInfo.leftMargin = 36
-            printInfo.rightMargin = 36
-
-            if let doc = PDFDocument(data: pdfData),
-               let keyWindow = NSApp.keyWindow,
-               let operation = doc.printOperation(
-                for: printInfo,
-                scalingMode: .pageScaleNone,
-                autoRotate: false
-               ) {
-                operation.showsPrintPanel = true
-                operation.runModal(
-                    for: keyWindow,
-                    delegate: nil,
-                    didRun: nil,
-                    contextInfo: nil
-                )
-            }
-        }
+        presentPrintMacOS()
         dismiss()
         #endif
     }
+
+    #if os(iOS)
+    private func presentPrintiOS() {
+        guard let pdfData = PDFRenderer.renderGroupedPDF(
+            groups: groups,
+            lessons: lessons,
+            filterDescription: filterDescription,
+            sortDescription: sortDescription,
+            workItemCount: workItems.count
+        ) else { return }
+
+        let printController = UIPrintInteractionController.shared
+        printController.printingItem = pdfData
+
+        let printInfo = UIPrintInfo.printInfo()
+        printInfo.outputType = .general
+        printInfo.jobName = "Open Work Report"
+        printController.printInfo = printInfo
+
+        printController.present(animated: true) { _, completed, _ in
+            if completed { dismiss() }
+        }
+    }
+    #else
+    private func presentPrintMacOS() {
+        guard let pdfData = MacPDFRenderer.renderGroupedPDF(
+            groups: groups,
+            lessons: lessons,
+            filterDescription: filterDescription,
+            sortDescription: sortDescription,
+            workItemCount: workItems.count
+        ) else { return }
+
+        guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
+        printInfo.topMargin = 36
+        printInfo.bottomMargin = 36
+        printInfo.leftMargin = 36
+        printInfo.rightMargin = 36
+
+        if let doc = PDFDocument(data: pdfData),
+           let keyWindow = NSApp.keyWindow,
+           let operation = doc.printOperation(
+            for: printInfo,
+            scalingMode: .pageScaleNone,
+            autoRotate: false
+           ) {
+            operation.showsPrintPanel = true
+            operation.runModal(for: keyWindow, delegate: nil, didRun: nil, contextInfo: nil)
+        }
+    }
+    #endif
 }

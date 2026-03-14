@@ -118,14 +118,17 @@ struct ClassroomJobEditorSheet: View {
     }
 
     private func save() {
+        let fields = ClassroomJobFields(
+            name: name.trimmed(),
+            description: jobDescription.trimmed(),
+            icon: selectedIcon,
+            colorRaw: selectedColor,
+            maxStudents: maxStudents
+        )
         if let job = existingJob {
-            viewModel.updateJob(job, name: name.trimmed(), description: jobDescription.trimmed(),
-                                icon: selectedIcon, colorRaw: selectedColor, maxStudents: maxStudents,
-                                context: modelContext)
+            viewModel.updateJob(job, with: fields, context: modelContext)
         } else {
-            viewModel.createJob(name: name.trimmed(), description: jobDescription.trimmed(),
-                                icon: selectedIcon, colorRaw: selectedColor, maxStudents: maxStudents,
-                                context: modelContext)
+            viewModel.createJob(fields, context: modelContext)
         }
     }
 

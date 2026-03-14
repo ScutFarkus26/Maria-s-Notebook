@@ -117,7 +117,10 @@ struct TransitionPlanDetailView: View {
                         .stroke(Color.secondary.opacity(0.2), lineWidth: 6)
                     Circle()
                         .trim(from: 0, to: pct)
-                        .stroke(pct >= 1.0 ? Color.green : Color.accentColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                        .stroke(
+                            pct >= 1.0 ? Color.green : Color.accentColor,
+                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                        )
                         .rotationEffect(.degrees(-90))
                     Text("\(Int(pct * 100))%")
                         .font(.caption)
