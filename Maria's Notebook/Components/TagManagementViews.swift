@@ -37,7 +37,8 @@ struct TagBadge: View {
 struct TagPicker: View {
     @Binding var selectedTags: [String]
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: Student.sortByName) private var students: [Student]
+    @Query(sort: Student.sortByName) private var studentsRaw: [Student]
+    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
     @State private var isShowingCustomTagSheet = false
     @State private var searchText = ""

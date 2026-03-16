@@ -69,7 +69,7 @@ struct StudentsView: View {
         switch mode {
         case .age, .birthday:
             rosterGridContent
-        case .roster:
+        case .roster, .withdrawn:
             HStack(spacing: 0) {
                 threePaneSidebar
                     .frame(width: 360)
@@ -119,8 +119,8 @@ struct StudentsView: View {
                     .navigationTitle("Students")
                     .navigationBarTitleDisplayMode(.inline)
                 }
-            } else if mode == .roster {
-                // Three-pane layout for Roster mode
+            } else if mode == .roster || mode == .withdrawn {
+                // Three-pane layout for Roster/Withdrawn mode
                 if horizontalSizeClass == .compact {
                     // iPhone: Use single pane with sheet for details
                     NavigationStack {
@@ -356,15 +356,21 @@ struct StudentsView: View {
         let specialModes: [StudentMode] = [.age, .birthday]
         let specialSortOrders = ["age", "birthday"]
 
-        // Automatically set sort order when switching to age/birthday modes
+        // Automatically set sort order and filter when switching modes
         switch newMode {
         case .age:
             studentsSortOrderRaw = "age"
         case .birthday:
             studentsSortOrderRaw = "birthday"
+        case .withdrawn:
+            studentsFilterRaw = "withdrawn"
+            studentsSortOrderRaw = "alphabetical"
         case .roster where specialModes.contains(oldMode) && specialSortOrders.contains(studentsSortOrderRaw):
             // When switching back to roster from special modes, default to alphabetical
             studentsSortOrderRaw = "alphabetical"
+        case .roster where oldMode == .withdrawn:
+            // When switching back from withdrawn mode, reset filter to all
+            studentsFilterRaw = "all"
         default:
             break
         }

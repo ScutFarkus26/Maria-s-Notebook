@@ -5,6 +5,7 @@ enum StudentMode: String, CaseIterable, Identifiable {
     case roster = "Roster"
     case age = "Ages"
     case birthday = "Birthday"
+    case withdrawn = "Withdrawn"
     var id: String { rawValue }
 }
 

@@ -70,7 +70,8 @@ struct UnifiedNoteEditor: View {
 
     // MARK: - Query
     @Query(sort: Student.sortByName)
-    var students: [Student]
+    var studentsRaw: [Student]
+    var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
 
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []

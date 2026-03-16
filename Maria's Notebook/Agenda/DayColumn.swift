@@ -19,7 +19,7 @@ struct DayColumn: View {
     // Filter out test students when setting is disabled
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID,
+            allStudentsRaw.uniqueByID.filter { $0.isEnrolled },
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

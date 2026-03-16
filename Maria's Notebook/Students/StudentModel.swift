@@ -12,11 +12,16 @@ import SwiftData
 final class Student: Identifiable {
     // Modern indexes for 2026 - optimized for common lookups
     // Multiple indexes defined in one #Index macro (SwiftData limitation)
-    #Index<Student>([\.levelRaw], [\.manualOrder], [\.modifiedAt])
-    
+    #Index<Student>([\.levelRaw], [\.manualOrder], [\.modifiedAt], [\.enrollmentStatusRaw])
+
     enum Level: String, Codable, CaseIterable, Sendable {
         case lower = "Lower"
         case upper = "Upper"
+    }
+
+    enum EnrollmentStatus: String, Codable, CaseIterable, Sendable {
+        case enrolled = "enrolled"
+        case withdrawn = "withdrawn"
     }
 
     var id: UUID = UUID()
@@ -30,6 +35,9 @@ final class Student: Identifiable {
     var nextLessons: [String] = []
     var manualOrder: Int = 0
     var dateStarted: Date?
+    // Store enrollment status as raw string for CloudKit compatibility
+    private var enrollmentStatusRaw: String = EnrollmentStatus.enrolled.rawValue
+    var dateWithdrawn: Date?
 
     /// Timestamp of when this record was last modified locally.
     /// Used for smarter CloudKit conflict resolution - prefer the most recently modified record.
@@ -40,6 +48,15 @@ final class Student: Identifiable {
         get { Level(rawValue: levelRaw) ?? .lower }
         set { levelRaw = newValue.rawValue }
     }
+
+    // Computed property for enrollment status enum
+    var enrollmentStatus: EnrollmentStatus {
+        get { EnrollmentStatus(rawValue: enrollmentStatusRaw) ?? .enrolled }
+        set { enrollmentStatusRaw = newValue.rawValue }
+    }
+
+    var isWithdrawn: Bool { enrollmentStatus == .withdrawn }
+    var isEnrolled: Bool { enrollmentStatus == .enrolled }
 
     @Relationship(deleteRule: .cascade, inverse: \Document.student)
     var documents: [Document]? = []
@@ -57,7 +74,9 @@ final class Student: Identifiable {
         level: Level = .lower,
         dateStarted: Date? = nil,
         nextLessons: [UUID] = [],
-        manualOrder: Int = 0
+        manualOrder: Int = 0,
+        enrollmentStatus: EnrollmentStatus = .enrolled,
+        dateWithdrawn: Date? = nil
     ) {
         self.id = id
         self.firstName = firstName
@@ -69,6 +88,8 @@ final class Student: Identifiable {
         // Convert UUIDs to strings for CloudKit compatibility
         self.nextLessons = nextLessons.map { $0.uuidString }
         self.manualOrder = manualOrder
+        self.enrollmentStatusRaw = enrollmentStatus.rawValue
+        self.dateWithdrawn = dateWithdrawn
     }
     
     /// Convenience computed property to get nextLessons as UUIDs

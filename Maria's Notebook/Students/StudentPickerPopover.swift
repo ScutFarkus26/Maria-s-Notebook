@@ -21,8 +21,9 @@ struct StudentPickerPopover: View {
 
     var filteredStudentsForPicker: [Student] {
         let search = searchText.normalizedForComparison()
+        let enrolled = students.filter { $0.isEnrolled }
 
-        let searched = students.filter { student in
+        let searched = enrolled.filter { student in
             if search.isEmpty { return true }
             let first = student.firstName.lowercased()
             let last = student.lastName.lowercased()

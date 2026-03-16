@@ -105,7 +105,9 @@ struct StudentRepository: SavingRepository {
         birthday: Date? = nil,
         nickname: String? = nil,
         level: Student.Level? = nil,
-        dateStarted: Date? = nil
+        dateStarted: Date? = nil,
+        enrollmentStatus: Student.EnrollmentStatus? = nil,
+        dateWithdrawn: Date?? = nil
     ) -> Bool {
         guard let student = fetchStudent(id: id) else { return false }
 
@@ -127,7 +129,31 @@ struct StudentRepository: SavingRepository {
         if let dateStarted = dateStarted {
             student.dateStarted = dateStarted
         }
+        if let enrollmentStatus = enrollmentStatus {
+            student.enrollmentStatus = enrollmentStatus
+        }
+        if let dateWithdrawn = dateWithdrawn {
+            student.dateWithdrawn = dateWithdrawn
+        }
 
+        return true
+    }
+
+    /// Withdraw a student, setting their status to withdrawn and recording the date
+    @discardableResult
+    func withdrawStudent(id: UUID, date: Date = Date()) -> Bool {
+        guard let student = fetchStudent(id: id) else { return false }
+        student.enrollmentStatus = .withdrawn
+        student.dateWithdrawn = date
+        return true
+    }
+
+    /// Re-enroll a withdrawn student, clearing their withdrawal date
+    @discardableResult
+    func reenrollStudent(id: UUID) -> Bool {
+        guard let student = fetchStudent(id: id) else { return false }
+        student.enrollmentStatus = .enrolled
+        student.dateWithdrawn = nil
         return true
     }
 

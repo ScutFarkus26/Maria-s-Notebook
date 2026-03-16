@@ -29,7 +29,7 @@ struct PlanningWeekViewMac: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""

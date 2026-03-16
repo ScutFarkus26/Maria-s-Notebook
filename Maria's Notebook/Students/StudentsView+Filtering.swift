@@ -21,6 +21,7 @@ extension StudentsView {
         case "lower": return .lower
         case "presentNow": return .presentNow
         case "presentToday": return .presentNow
+        case "withdrawn": return .withdrawn
         default: return .all
         }
     }
@@ -56,6 +57,8 @@ extension StudentsView {
             return .birthday
         case .roster:
             return sortOrder
+        case .withdrawn:
+            return .alphabetical
         }
     }
 

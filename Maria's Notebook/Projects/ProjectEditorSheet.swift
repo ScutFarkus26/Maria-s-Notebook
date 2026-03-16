@@ -18,7 +18,7 @@ struct ProjectEditorSheet: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID,
+            studentsRaw.uniqueByID.filter { $0.isEnrolled },
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

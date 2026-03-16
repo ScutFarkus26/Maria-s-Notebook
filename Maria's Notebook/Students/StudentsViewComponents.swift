@@ -154,6 +154,7 @@ struct StudentModePicker: View {
             Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
             Label("Ages", systemImage: "calendar").tag(StudentMode.age)
             Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
+            Label("Withdrawn", systemImage: "person.badge.minus").tag(StudentMode.withdrawn)
         }
         .pickerStyle(.segmented)
         .labelsHidden()

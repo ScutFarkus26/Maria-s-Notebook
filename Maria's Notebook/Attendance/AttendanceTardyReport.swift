@@ -10,7 +10,7 @@ struct AttendanceTardyReport: View {
 
     @Query(sort: Student.sortByLastName)
     private var allStudentsRaw: [Student]
-    private var students: [Student] { allStudentsRaw.uniqueByID }
+    private var students: [Student] { allStudentsRaw.uniqueByID.filter { $0.isEnrolled } }
 
     // Default range: last 30 days
     @State private var startDate: Date = AppCalendar.startOfDay(

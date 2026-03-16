@@ -27,7 +27,7 @@ struct CommandBarSheet: View {
 
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudents.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw
+            allStudents.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw
         )
     }
 

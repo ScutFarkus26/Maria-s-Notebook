@@ -14,6 +14,8 @@ struct StudentEditForm: View {
     @Binding var draftBirthday: Date
     @Binding var draftLevel: Student.Level
     @Binding var draftStartDate: Date
+    @Binding var draftEnrollmentStatus: Student.EnrollmentStatus
+    @Binding var draftDateWithdrawn: Date?
 
     var body: some View {
         VStack(spacing: 14) {
@@ -32,8 +34,66 @@ struct StudentEditForm: View {
                 Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
             }
             .pickerStyle(.segmented)
+
+            Divider()
+
+            Picker("Enrollment", selection: $draftEnrollmentStatus) {
+                Text("Enrolled").tag(Student.EnrollmentStatus.enrolled)
+                Text("Withdrawn").tag(Student.EnrollmentStatus.withdrawn)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: draftEnrollmentStatus) { _, newValue in
+                if newValue == .withdrawn && draftDateWithdrawn == nil {
+                    draftDateWithdrawn = Date()
+                } else if newValue == .enrolled {
+                    draftDateWithdrawn = nil
+                }
+            }
+
+            if draftEnrollmentStatus == .withdrawn {
+                DatePicker(
+                    "Date Withdrawn",
+                    selection: Binding(
+                        get: { draftDateWithdrawn ?? Date() },
+                        set: { draftDateWithdrawn = $0 }
+                    ),
+                    displayedComponents: .date
+                )
+            }
         }
         .padding(.horizontal, AppTheme.Spacing.small)
+    }
+}
+
+// MARK: - Withdrawn Banner
+
+struct WithdrawnBanner: View {
+    let dateWithdrawn: Date?
+
+    private static let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .none
+        return df
+    }()
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.badge.minus")
+            Text("Withdrawn")
+                .font(AppTheme.ScaledFont.calloutSemibold)
+            if let date = dateWithdrawn {
+                Text("on \(Self.dateFormatter.string(from: date))")
+                    .font(AppTheme.ScaledFont.callout)
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity)
+        .background(.gray, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, AppTheme.Spacing.small)
+        .padding(.top, AppTheme.Spacing.small)
     }
 }
 

@@ -12,7 +12,8 @@ struct PracticeSessionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
-    @Query private var allStudents: [Student]
+    @Query private var allStudentsRaw: [Student]
+    private var allStudents: [Student] { allStudentsRaw.filter { $0.isEnrolled } }
     @Query private var allWork: [WorkModel]
     @Query private var allLessonAssignments: [LessonAssignment]
     @Query private var allPracticeSessions: [PracticeSession]

@@ -30,6 +30,8 @@ struct StudentDetailView: View {
     @State private var draftBirthday = Date()
     @State private var draftLevel: Student.Level = .lower
     @State private var draftStartDate = Date()
+    @State private var draftEnrollmentStatus: Student.EnrollmentStatus = .enrolled
+    @State private var draftDateWithdrawn: Date?
     @State private var showDeleteAlert = false
 
     @AppStorage(UserDefaultsKeys.studentDetailViewActiveTab) private var selectedTab: StudentDetailTab = .overview
@@ -59,6 +61,8 @@ struct StudentDetailView: View {
                 draftBirthday: $draftBirthday,
                 draftLevel: $draftLevel,
                 draftStartDate: $draftStartDate,
+                draftEnrollmentStatus: $draftEnrollmentStatus,
+                draftDateWithdrawn: $draftDateWithdrawn,
                 workCache: $workCache,
                 selectedWorkID: $selectedWorkID,
                 lessonsByID: vm.lessonsByID,
@@ -115,7 +119,9 @@ struct StudentDetailView: View {
             birthday: draftBirthday,
             nickname: nick.isEmpty ? "" : nick,
             level: draftLevel,
-            dateStarted: draftStartDate
+            dateStarted: draftStartDate,
+            enrollmentStatus: draftEnrollmentStatus,
+            dateWithdrawn: .some(draftDateWithdrawn)
         )
         _ = repository.save(reason: "Edit student details")
         isEditing = false
@@ -128,6 +134,8 @@ struct StudentDetailView: View {
         draftBirthday = student.birthday
         draftLevel = student.level
         draftStartDate = student.dateStarted ?? Date()
+        draftEnrollmentStatus = student.enrollmentStatus
+        draftDateWithdrawn = student.dateWithdrawn
         isEditing = true
     }
 

@@ -16,7 +16,7 @@ struct NewTodoForm: View {
 
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw
+            allStudentsRaw.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw
         )
     }
 

@@ -22,7 +22,7 @@ struct GoingOutEditorSheet: View {
     private var allStudents: [Student]
 
     private var visibleStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudents)
+        TestStudentsFilter.filterVisible(allStudents.filter { $0.isEnrolled })
     }
 
     init(existingGoingOut: GoingOut? = nil, onSave: @escaping (GoingOut) -> Void) {

@@ -64,8 +64,15 @@ final class StudentsViewModel {
         presentNowIDs: Set<UUID>?
     ) -> [Student] {
         students.filter { student in
+            // When showing withdrawn students, only show withdrawn; otherwise exclude them
+            if filter == .withdrawn {
+                if student.isEnrolled { return false }
+            } else {
+                if student.isWithdrawn { return false }
+            }
+
             switch filter {
-            case .all: break
+            case .all, .withdrawn: break
             case .upper: if student.level != .upper { return false }
             case .lower: if student.level != .lower { return false }
             case .presentNow:

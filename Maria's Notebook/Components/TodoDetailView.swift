@@ -17,7 +17,7 @@ struct TodoDetailView: View {
 
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID,
+            allStudentsRaw.uniqueByID.filter { $0.isEnrolled },
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

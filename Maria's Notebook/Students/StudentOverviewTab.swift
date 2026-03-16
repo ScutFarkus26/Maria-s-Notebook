@@ -16,6 +16,8 @@ struct StudentOverviewTab: View {
     @Binding var draftBirthday: Date
     @Binding var draftLevel: Student.Level
     @Binding var draftStartDate: Date
+    @Binding var draftEnrollmentStatus: Student.EnrollmentStatus
+    @Binding var draftDateWithdrawn: Date?
     @Binding var workCache: [WorkModel]
     @Binding var selectedWorkID: UUID?
     
@@ -99,9 +101,14 @@ struct StudentOverviewTab: View {
                     draftNickname: $draftNickname,
                     draftBirthday: $draftBirthday,
                     draftLevel: $draftLevel,
-                    draftStartDate: $draftStartDate
+                    draftStartDate: $draftStartDate,
+                    draftEnrollmentStatus: $draftEnrollmentStatus,
+                    draftDateWithdrawn: $draftDateWithdrawn
                 )
             } else {
+                if student.isWithdrawn {
+                    WithdrawnBanner(dateWithdrawn: student.dateWithdrawn)
+                }
                 StudentInfoRows(student: student)
                 
                 Divider()

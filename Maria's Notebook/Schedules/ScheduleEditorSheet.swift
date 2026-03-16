@@ -22,7 +22,8 @@ struct ScheduleEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @Query(sort: \Student.firstName) private var students: [Student]
+    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
+    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
 
     // Form state
     @State private var name: String = ""
