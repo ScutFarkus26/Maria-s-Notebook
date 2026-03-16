@@ -14,15 +14,19 @@ struct WorkCardPillContent: View {
         WorkCardWorkKind(from: config.item.work.kind)
     }
 
+    private var lesson: Lesson? {
+        guard let lid = UUID(uuidString: config.item.work.lessonID) else { return nil }
+        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
+        return modelContext.safeFetchFirst(fetch)
+    }
+
     private var lessonTitle: String {
-        if let lid = UUID(uuidString: config.item.work.lessonID) {
-            let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
-            if let lesson = modelContext.safeFetchFirst(fetch) {
-                let name = lesson.name.trimmed()
-                if !name.isEmpty { return name }
-            }
-        }
+        if let name = lesson?.name.trimmed(), !name.isEmpty { return name }
         return "Work"
+    }
+
+    private var lessonSubject: String {
+        lesson?.subject ?? ""
     }
 
     private struct StudentChipData: Identifiable {
@@ -82,8 +86,14 @@ struct WorkCardPillContent: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Capsule().fill(Color.primary.opacity(0.06)))
-            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            .background {
+                Capsule().fill(Color.primary.opacity(0.04))
+                    .overlay {
+                        SubjectGrainBackground(subject: lessonSubject)
+                            .clipShape(Capsule())
+                    }
+            }
+            .overlay(Capsule().stroke(AppColors.color(forSubject: lessonSubject).opacity(0.15), lineWidth: 1))
         }
     }
 }

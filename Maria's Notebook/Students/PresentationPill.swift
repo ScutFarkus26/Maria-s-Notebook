@@ -408,8 +408,14 @@ struct PresentationPill: View {
             pillContent
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Capsule().fill(Color.primary.opacity(0.06)))
-            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            .background {
+                Capsule().fill(Color.primary.opacity(0.04))
+                    .overlay {
+                        SubjectGrainBackground(subject: lessonObject?.subject ?? "")
+                            .clipShape(Capsule())
+                    }
+            }
+            .overlay(Capsule().stroke(subjectColor.opacity(0.15), lineWidth: 1))
             .overlay(Capsule().stroke(Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0), lineWidth: 2))
             .overlay(mergeHighlightOverlay)
             .overlay(alignment: .trailing) { timeBadge }
