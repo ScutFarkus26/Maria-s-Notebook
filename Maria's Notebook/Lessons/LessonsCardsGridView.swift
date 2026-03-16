@@ -88,6 +88,30 @@ struct LessonsCardsGridView: View {
         }
     }
 
+    /// Organizes lessons within a group by subheading for hierarchical display.
+    /// Returns ordered subheading keys (empty string = no subheading) and a lookup of lessons per subheading.
+    private func subheadingsForGroup(_ groupLessons: [Lesson], groupName: String) -> (order: [String], bySubheading: [String: [Lesson]]) {
+        let bySubheading = groupLessons.grouped { $0.subheading.trimmed() }
+        let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        let subject = selectedSubject ?? groupLessons.first?.subject ?? ""
+        let ordered = FilterOrderStore.loadSubheadingOrder(for: subject, group: groupName, existing: nonEmpty)
+
+        // Append the empty-subheading bucket at the end if present
+        var result = ordered
+        if bySubheading.keys.contains("") {
+            result.append("")
+        }
+        return (order: result, bySubheading: bySubheading)
+    }
+
+    /// Whether a group has more than one distinct non-empty subheading (worth showing sub-sections).
+    private func groupHasSubheadings(_ groupLessons: [Lesson]) -> Bool {
+        let distinct = Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty })
+        return !distinct.isEmpty
+    }
+
     private var groupedByGroup: [(key: String, value: [Lesson])] {
         let dict = lessons.grouped { $0.group.trimmed() }
         let mapped = dict
@@ -151,21 +175,15 @@ struct LessonsCardsGridView: View {
                     if groupedItems.count > 1 {
                         ForEach(groupedItems, id: \.key) { entry in
                             Section {
-                                ForEach(entry.value, id: \.id) { item in
-                                    gridItemView(item)
-                                        .id(item.id)
-                                }
+                                groupItemsWithSubheadings(entry: entry)
                             } header: {
                                 groupHeader(for: entry.key, subject: selectedSubject)
                             }
                         }
                     } else {
-                        // Single group or no grouping - show items directly
-                        let items = groupedItems.first?.value ?? lessons.map { LessonsGridItem.lesson($0) }
-                        ForEach(items, id: \.id) { item in
-                            gridItemView(item)
-                                .id(item.id)
-                        }
+                        // Single group or no grouping - show items with subheadings if applicable
+                        let entry = groupedItems.first ?? (key: "", value: lessons.map { LessonsGridItem.lesson($0) })
+                        groupItemsWithSubheadings(entry: entry)
                     }
                 }
                 .transaction { tx in
@@ -253,6 +271,63 @@ struct LessonsCardsGridView: View {
         }
         .padding(.horizontal, 4)
         .padding(.top, 8)
+    }
+
+    // MARK: - Subheading Sub-Sections
+
+    /// Renders items within a group, inserting subheading divider rows when the group has subheadings.
+    @ViewBuilder
+    private func groupItemsWithSubheadings(entry: (key: String, value: [LessonsGridItem])) -> some View {
+        let groupLessons = entry.value.compactMap { $0.asLesson }
+        let introItems = entry.value.filter { $0.isIntroduction }
+
+        if groupHasSubheadings(groupLessons) {
+            let (order, bySubheading) = subheadingsForGroup(groupLessons, groupName: entry.key)
+
+            // Show introduction cards first
+            ForEach(introItems, id: \.id) { item in
+                gridItemView(item)
+                    .id(item.id)
+            }
+
+            // Then subheading clusters
+            ForEach(order, id: \.self) { sh in
+                if let shLessons = bySubheading[sh], !shLessons.isEmpty {
+                    Section {
+                        ForEach(shLessons, id: \.id) { lesson in
+                            gridItemView(.lesson(lesson))
+                                .id("lesson-\(lesson.id.uuidString)")
+                        }
+                    } header: {
+                        subheadingHeader(sh.isEmpty ? "Other" : sh)
+                    }
+                }
+            }
+        } else {
+            // No subheadings — render flat
+            ForEach(entry.value, id: \.id) { item in
+                gridItemView(item)
+                    .id(item.id)
+            }
+        }
+    }
+
+    /// A lightweight subheading divider row that spans the grid.
+    @ViewBuilder
+    private func subheadingHeader(_ name: String) -> some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 0.5)
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 3, height: 14)
+
+            Text(name)
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            VStack { Divider() }
+        }
+        .padding(.leading, 8)
+        .padding(.top, 4)
     }
 
     // MARK: - Grid Item View

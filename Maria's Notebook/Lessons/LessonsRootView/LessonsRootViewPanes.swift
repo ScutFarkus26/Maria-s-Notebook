@@ -169,11 +169,9 @@ extension LessonsRootView {
             ForEach(displayGroups, id: \.self) { group in
                 organizeGroupRow(group: group, in: displayGroups)
             }
-            #if os(iOS)
             .onMove { source, destination in
                 moveGroups(from: source, to: destination, in: displayGroups)
             }
-            #endif
         }
         .listStyle(.plain)
         .id("OrganizeGroupsList")
@@ -266,61 +264,23 @@ extension LessonsRootView {
         let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
 
         if !groupLessons.isEmpty {
+            let subheadings = orderedSubheadings(for: groupLessons, group: group)
+
             Section {
-                if canReorderInPlanMode {
-                    ForEach(groupLessons, id: \.id) { lesson in
-                        ExpandedLessonRowView(
-                            lesson: lesson,
-                            isSelected: selectedLessonDetail?.id == lesson.id,
-                            showsReorderHandle: true,
-                            onSelect: {
-                                guard displayMode != .plan else { return }
-                                selectedLessonDetail = lesson
-                                Task { @MainActor in
-                                    do {
-                                        try await Task.sleep(for: .milliseconds(100))
-                                        adaptiveWithAnimation {
-                                            scrollProxy.scrollTo(lesson.id, anchor: .center)
-                                        }
-                                    } catch {
-                                        logger.warning("Task sleep failed in expandedGroupSection: \(error)")
-                                    }
-                                }
-                            },
-                            onSchedule: {
-                                lessonToSchedule = lesson
-                            }
-                        )
+                if subheadings.hasSubheadings {
+                    ForEach(subheadings.order, id: \.self) { sh in
+                        if let shLessons = subheadings.bySubheading[sh], !shLessons.isEmpty {
+                            subheadingDisclosureGroup(
+                                subheading: sh.isEmpty ? "Other" : sh,
+                                lessons: shLessons,
+                                group: group,
+                                ungroupedLabel: ungroupedLabel,
+                                scrollProxy: scrollProxy
+                            )
+                        }
                     }
-                    .onMove { source, destination in
-                        moveLessonsInGroup(from: source, to: destination, group: group, ungroupedLabel: ungroupedLabel)
-                    }
-                    .moveDisabled(!canReorderInPlanMode)
                 } else {
-                    ForEach(groupLessons, id: \.id) { lesson in
-                        ExpandedLessonRowView(
-                            lesson: lesson,
-                            isSelected: selectedLessonDetail?.id == lesson.id,
-                            showsReorderHandle: false,
-                            onSelect: {
-                                guard displayMode != .plan else { return }
-                                selectedLessonDetail = lesson
-                                Task { @MainActor in
-                                    do {
-                                        try await Task.sleep(for: .milliseconds(100))
-                                        adaptiveWithAnimation {
-                                            scrollProxy.scrollTo(lesson.id, anchor: .center)
-                                        }
-                                    } catch {
-                                        logger.warning("Task sleep failed in expandedGroupSection: \(error)")
-                                    }
-                                }
-                            },
-                            onSchedule: {
-                                lessonToSchedule = lesson
-                            }
-                        )
-                    }
+                    lessonRows(groupLessons, group: group, ungroupedLabel: ungroupedLabel, scrollProxy: scrollProxy)
                 }
             } header: {
                 if let subject = selectedSubject {
@@ -328,6 +288,112 @@ extension LessonsRootView {
                 } else {
                     Text(group)
                 }
+            }
+        }
+    }
+
+    /// Computes ordered subheadings and a lookup for a group's lessons.
+    private func orderedSubheadings(for groupLessons: [Lesson], group: String)
+        -> (order: [String], bySubheading: [String: [Lesson]], hasSubheadings: Bool) {
+        let bySubheading = Dictionary(grouping: groupLessons) { $0.subheading.trimmed() }
+        let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        guard !nonEmpty.isEmpty else {
+            return (order: [], bySubheading: bySubheading, hasSubheadings: false)
+        }
+
+        let subject = selectedSubject ?? groupLessons.first?.subject ?? ""
+        var ordered = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: nonEmpty)
+        if bySubheading.keys.contains("") {
+            ordered.append("")
+        }
+        return (order: ordered, bySubheading: bySubheading, hasSubheadings: true)
+    }
+
+    /// A collapsible DisclosureGroup for a subheading cluster within a group.
+    @ViewBuilder
+    private func subheadingDisclosureGroup(
+        subheading: String,
+        lessons: [Lesson],
+        group: String,
+        ungroupedLabel: String,
+        scrollProxy: ScrollViewProxy
+    ) -> some View {
+        DisclosureGroup {
+            lessonRows(lessons, group: group, ungroupedLabel: ungroupedLabel, scrollProxy: scrollProxy)
+        } label: {
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 3, height: 14)
+
+                Text(subheading)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text("\(lessons.count)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 12))
+    }
+
+    /// Renders lesson rows (with or without reorder handles) for a flat list of lessons.
+    @ViewBuilder
+    private func lessonRows(
+        _ lessons: [Lesson],
+        group: String,
+        ungroupedLabel: String,
+        scrollProxy: ScrollViewProxy
+    ) -> some View {
+        if canReorderInPlanMode {
+            ForEach(lessons, id: \.id) { lesson in
+                ExpandedLessonRowView(
+                    lesson: lesson,
+                    isSelected: selectedLessonDetail?.id == lesson.id,
+                    showsReorderHandle: true,
+                    onSelect: {
+                        guard displayMode != .plan else { return }
+                        selectedLessonDetail = lesson
+                        scrollToLesson(lesson.id, proxy: scrollProxy)
+                    },
+                    onSchedule: { lessonToSchedule = lesson }
+                )
+            }
+            .onMove { source, destination in
+                moveLessonsInGroup(from: source, to: destination, group: group, ungroupedLabel: ungroupedLabel)
+            }
+            .moveDisabled(!canReorderInPlanMode)
+        } else {
+            ForEach(lessons, id: \.id) { lesson in
+                ExpandedLessonRowView(
+                    lesson: lesson,
+                    isSelected: selectedLessonDetail?.id == lesson.id,
+                    showsReorderHandle: false,
+                    onSelect: {
+                        guard displayMode != .plan else { return }
+                        selectedLessonDetail = lesson
+                        scrollToLesson(lesson.id, proxy: scrollProxy)
+                    },
+                    onSchedule: { lessonToSchedule = lesson }
+                )
+            }
+        }
+    }
+
+    private func scrollToLesson(_ id: UUID, proxy: ScrollViewProxy) {
+        Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(100))
+                adaptiveWithAnimation {
+                    proxy.scrollTo(id, anchor: .center)
+                }
+            } catch {
+                logger.warning("Task sleep failed in scrollToLesson: \(error)")
             }
         }
     }
