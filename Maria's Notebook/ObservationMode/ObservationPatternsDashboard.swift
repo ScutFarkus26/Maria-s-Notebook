@@ -275,7 +275,7 @@ final class ObservationPatternsViewModel {
         tagCounts = computeTagCounts(from: observationNotes, allTags: allObservationTags)
 
         let students = TestStudentsFilter.filterVisible(
-            context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName))
+            context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName)).filter { $0.isEnrolled }
         )
         let observationMap = buildStudentObservationMap(from: observationNotes)
         let summaries = buildStudentSummaries(

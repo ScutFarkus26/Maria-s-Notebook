@@ -101,8 +101,8 @@ final class TodayCacheManager {
         // SwiftData #Predicate doesn't support capturing local Set variables
         var descriptor = FetchDescriptor<Student>()
         descriptor.fetchLimit = 500 // Safety limit for student roster
-        let allStudents = context.safeFetch(descriptor)
-        
+        let allStudents = context.safeFetch(descriptor).filter { $0.isEnrolled }
+
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)
         let filtered = allStudents.filter { missingIDSet.contains($0.id) }

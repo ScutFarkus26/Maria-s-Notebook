@@ -11,7 +11,9 @@ struct ClassroomJobHistoryView: View {
     private var allAssignments: [JobAssignment]
 
     @Query(sort: Student.sortByName)
-    private var allStudents: [Student]
+    private var allStudentsRaw: [Student]
+
+    private var allStudents: [Student] { allStudentsRaw.filter { $0.isEnrolled } }
 
     @Query(sort: [SortDescriptor(\ClassroomJob.sortOrder)])
     private var allJobs: [ClassroomJob]

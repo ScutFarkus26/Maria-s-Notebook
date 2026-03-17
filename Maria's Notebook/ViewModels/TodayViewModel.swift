@@ -246,7 +246,7 @@ final class TodayViewModel {
         if !missingStudentIDs.isEmpty {
             var descriptor = FetchDescriptor<Student>()
             descriptor.fetchLimit = 500 // Safety limit for student roster
-            let allStudents = context.safeFetch(descriptor)
+            let allStudents = context.safeFetch(descriptor).filter { $0.isEnrolled }
             let missingStudents = allStudents.filter { missingStudentIDs.contains($0.id) }
             for student in missingStudents {
                 updatedRecentNoteStudents[student.id] = student

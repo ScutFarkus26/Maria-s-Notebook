@@ -99,7 +99,7 @@ final class LessonFrequencyViewModel {
         // 3. Fetch all students, filter visible
         let allStudents = context.safeFetch(
             FetchDescriptor<Student>(sortBy: Student.sortByName)
-        )
+        ).filter { $0.isEnrolled }
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
 
         // 4. Group records by studentID

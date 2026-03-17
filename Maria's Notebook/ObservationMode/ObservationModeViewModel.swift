@@ -57,7 +57,7 @@ final class ObservationModeViewModel {
 
     func loadData(context: ModelContext) {
         let descriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        allStudents = context.safeFetch(descriptor)
+        allStudents = context.safeFetch(descriptor).filter { $0.isEnrolled }
         allStudents = TestStudentsFilter.filterVisible(allStudents)
 
         if shuffledPrompts.isEmpty {

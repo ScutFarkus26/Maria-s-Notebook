@@ -41,7 +41,7 @@ final class ClassroomJobsViewModel {
         jobs = context.safeFetch(jobDescriptor)
 
         let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor))
+        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter { $0.isEnrolled })
 
         loadCurrentAssignments(context: context)
     }

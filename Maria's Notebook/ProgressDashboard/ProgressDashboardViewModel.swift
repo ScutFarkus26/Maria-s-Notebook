@@ -281,7 +281,7 @@ final class ProgressDashboardViewModel {
     // MARK: - Fetching
 
     private func fetchAllStudents(context: ModelContext) -> [Student] {
-        context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName))
+        context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName)).filter { $0.isEnrolled }
     }
 
     private func fetchAllLessons(context: ModelContext) -> [Lesson] {

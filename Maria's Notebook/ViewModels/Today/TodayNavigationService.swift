@@ -178,7 +178,7 @@ enum TodayNavigationService {
             if !neededStudentIDs.isEmpty {
                 var studentDescriptor = FetchDescriptor<Student>()
                 studentDescriptor.fetchLimit = 500 // Safety limit for student roster
-                let allStudents = try context.fetch(studentDescriptor)
+                let allStudents = try context.fetch(studentDescriptor).filter { $0.isEnrolled }
                 let filtered = allStudents.filter { neededStudentIDs.contains($0.id) }
                 // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
                 let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID

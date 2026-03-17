@@ -79,7 +79,7 @@ enum ObservationsDataLoader {
         // so we fetch all and filter in memory
         let allStudents: [Student]
         do {
-            allStudents = try context.fetch(FetchDescriptor<Student>())
+            allStudents = try context.fetch(FetchDescriptor<Student>()).filter { $0.isEnrolled }
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []
