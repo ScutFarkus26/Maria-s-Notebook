@@ -70,6 +70,15 @@ struct UnifiedPresentationWorkflowPanel: View {
             splitPanelLayout
             #endif
         }
+        .onAppear {
+            let studentIDs = Set(students.map(\.id))
+            presentationViewModel.resolveNextLesson(
+                lessonID: lessonID,
+                studentIDs: studentIDs,
+                lessons: lessons,
+                lessonAssignments: lessonAssignments
+            )
+        }
         .onChange(of: triggerCompletion?.wrappedValue) { _, newValue in
             if let newValue, newValue {
                 completeWorkflow()

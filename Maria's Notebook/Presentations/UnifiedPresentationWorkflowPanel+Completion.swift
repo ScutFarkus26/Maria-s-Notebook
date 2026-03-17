@@ -90,7 +90,16 @@ extension UnifiedPresentationWorkflowPanel {
             }
         }
 
-        // 3. Save everything
+        // 3. Execute next lesson action
+        presentationViewModel.executeNextLessonAction(
+            studentIDs: Set(students.map(\.id)),
+            allStudents: students,
+            allLessons: lessons,
+            lessonAssignments: lessonAssignments,
+            modelContext: modelContext
+        )
+
+        // 4. Save everything
         saveCoordinator.save(modelContext, reason: "Unified Presentation Workflow")
 
         onComplete()

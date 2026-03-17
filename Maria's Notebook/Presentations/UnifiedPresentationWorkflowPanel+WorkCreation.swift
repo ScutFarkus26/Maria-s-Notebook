@@ -20,6 +20,12 @@ extension UnifiedPresentationWorkflowPanel {
                     ForEach(sortedStudents, id: \.id) { student in
                         studentWorkSection(for: student)
                     }
+
+                    // Next Lesson Section
+                    if presentationViewModel.nextLesson != nil {
+                        Divider()
+                        NextLessonSection(viewModel: presentationViewModel)
+                    }
                 }
                 .padding(16)
             }

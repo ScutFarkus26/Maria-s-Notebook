@@ -143,6 +143,15 @@ struct UnifiedPostPresentationSheet: View {
                     Divider()
                         .padding(.horizontal, AppTheme.Spacing.medium)
 
+                    // Next Lesson Section
+                    if viewModel.nextLesson != nil {
+                        NextLessonSection(viewModel: viewModel)
+                            .padding(.horizontal, AppTheme.Spacing.medium)
+                    }
+
+                    Divider()
+                        .padding(.horizontal, AppTheme.Spacing.medium)
+
                     // Group Observation Section
                     groupObservationSection
                 }
@@ -154,6 +163,17 @@ struct UnifiedPostPresentationSheet: View {
 
             // Footer
             footer
+        }
+        .onAppear {
+            if let lessonID {
+                let studentIDs = Set(students.map(\.id))
+                viewModel.resolveNextLesson(
+                    lessonID: lessonID,
+                    studentIDs: studentIDs,
+                    lessons: lessons,
+                    lessonAssignments: lessonAssignments
+                )
+            }
         }
         #if os(macOS)
         .frame(minWidth: UIConstants.SheetSize.medium.width + 80, minHeight: UIConstants.SheetSize.medium.height + 140)
@@ -503,6 +523,17 @@ struct UnifiedPostPresentationSheet: View {
                         modelContext: modelContext,
                         lessons: lessons,
                         lessonAssignments: lessonAssignments
+                    )
+                }
+
+                // Execute next lesson action
+                if lessonID != nil {
+                    viewModel.executeNextLessonAction(
+                        studentIDs: Set(students.map(\.id)),
+                        allStudents: students,
+                        allLessons: lessons,
+                        lessonAssignments: lessonAssignments,
+                        modelContext: modelContext
                     )
                 }
 
