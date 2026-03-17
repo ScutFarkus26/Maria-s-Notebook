@@ -79,6 +79,17 @@ final class PresentationsViewModel {
         return hasher.finalize()
     }
 
+    /// Computes a hash for WorkModel change detection (includes status and presentation link)
+    private func computeWorkModelHash(_ workModels: [WorkModel]) -> Int {
+        var hasher = Hasher()
+        for w in workModels {
+            hasher.combine(w.id)
+            hasher.combine(w.statusRaw)
+            hasher.combine(w.presentationID)
+        }
+        return hasher.finalize()
+    }
+
     // MARK: - Public API
 
     // Fetch data and update the view model.
@@ -133,14 +144,6 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
-        let laHash = computeLessonAssignmentHash(lessonAssignments)
-        let lHash = computeIDHash(lessons)
-        let sHash = computeIDHash(students)
-        let coreChanged = laHash != lastLessonAssignmentChangeHash
-            || lHash != lastLessonsHash
-            || sHash != lastStudentsHash
-        if !coreChanged && lastUpdateDate != nil { return }
-
         let descriptor = FetchDescriptor<WorkModel>(
             predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
         )
@@ -148,9 +151,19 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
+        let laHash = computeLessonAssignmentHash(lessonAssignments)
+        let lHash = computeIDHash(lessons)
+        let sHash = computeIDHash(students)
+        let wHash = computeWorkModelHash(workModels)
+        let coreChanged = laHash != lastLessonAssignmentChangeHash
+            || lHash != lastLessonsHash
+            || sHash != lastStudentsHash
+            || wHash != lastWorkModelHash
+        if !coreChanged && lastUpdateDate != nil { return }
+
         lastLessonAssignmentChangeHash = laHash
         lastLessonsHash = lHash
-        lastWorkModelHash = computeIDHash(workModels)
+        lastWorkModelHash = wHash
         lastStudentsHash = sHash
 
         #if DEBUG

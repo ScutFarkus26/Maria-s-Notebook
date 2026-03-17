@@ -38,10 +38,17 @@ enum BlockingAlgorithmEngine {
             self.precedingLessonCache = precedingCache
             
             // Build lesson assignment lookup by composite key (lessonID + sorted student IDs)
+            // Normalize through UUID to ensure consistent casing (e.g. CloudKit sync)
             var assignmentLookup: [String: LessonAssignment] = [:]
             for assignment in lessonAssignments where assignment.state == .presented {
-                let sortedIDs = assignment.studentIDs.sorted().joined(separator: ",")
-                let key = "\(assignment.lessonID)|\(sortedIDs)"
+                let normalizedIDs = assignment.studentIDs
+                    .compactMap { UUID(uuidString: $0) }
+                    .map { $0.uuidString }
+                    .sorted()
+                    .joined(separator: ",")
+                let normalizedLessonID = UUID(uuidString: assignment.lessonID)?.uuidString
+                    ?? assignment.lessonID
+                let key = "\(normalizedLessonID)|\(normalizedIDs)"
                 assignmentLookup[key] = assignment
             }
             self.lessonAssignmentsByKey = assignmentLookup
