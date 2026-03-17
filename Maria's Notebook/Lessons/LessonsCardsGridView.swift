@@ -18,6 +18,7 @@ struct LessonsCardsGridView: View {
     // Optional reorder callback; if provided and manual mode is enabled, supports drag reordering
     let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
     let onGiveLesson: ((Lesson) -> Void)?
+    let onActivateJiggle: (() -> Void)?
     let statusCounts: [UUID: Int]?
     let selectedSubject: String?
     let selectedLessonID: UUID?
@@ -30,6 +31,7 @@ struct LessonsCardsGridView: View {
         onTapLesson: @escaping (Lesson) -> Void,
         onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)? = nil,
         onGiveLesson: ((Lesson) -> Void)? = nil,
+        onActivateJiggle: (() -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
         selectedSubject: String? = nil,
         selectedLessonID: UUID? = nil,
@@ -41,6 +43,7 @@ struct LessonsCardsGridView: View {
         self.onTapLesson = onTapLesson
         self.onReorder = onReorder
         self.onGiveLesson = onGiveLesson
+        self.onActivateJiggle = onActivateJiggle
         self.statusCounts = statusCounts
         self.selectedSubject = selectedSubject
         self.selectedLessonID = selectedLessonID
@@ -369,6 +372,7 @@ struct LessonsCardsGridView: View {
             statusCount: statusCounts?[lesson.id],
             lastPresentedDate: lastPresentedDates?[lesson.id]
         )
+        .jiggle(isActive: isManualMode, seed: lessons.firstIndex(where: { $0.id == lesson.id }) ?? 0)
 #if os(macOS)
         .highPriorityGesture(TapGesture(count: 1).onEnded { onTapLesson(lesson) })
 #else
@@ -376,6 +380,14 @@ struct LessonsCardsGridView: View {
 #endif
         .when(isManualMode && onReorder != nil) { view in
             view.simultaneousGesture(longPressThenDrag(for: lesson))
+        }
+        .when(!isManualMode && onActivateJiggle != nil) { view in
+            view.onLongPressGesture(minimumDuration: 0.4) {
+                #if os(iOS)
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                #endif
+                onActivateJiggle?()
+            }
         }
 #if os(macOS)
         .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))

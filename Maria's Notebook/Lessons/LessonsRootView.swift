@@ -30,6 +30,12 @@ struct TrackSettingsItem: Identifiable {
     let group: String
 }
 
+struct SubheadingReorderItem: Identifiable {
+    let id = UUID()
+    let subject: String
+    let group: String
+}
+
 // MARK: - LessonsRootView
 
 struct LessonsRootView: View {
@@ -49,6 +55,7 @@ struct LessonsRootView: View {
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
     @State var listSelectedSubject: String?
+    @State var isJiggling = false
 
     // MARK: - Scene Storage
     @SceneStorage("Lessons.selectedSubject") var selectedSubjectRaw: String = ""
@@ -58,13 +65,13 @@ struct LessonsRootView: View {
     // MARK: - Sheet State
     @State var lessonToSchedule: Lesson?
     @State var trackSettingsItem: TrackSettingsItem?
+    @State var reorderSubheadingsItem: SubheadingReorderItem?
     @State var selectedLessonDetail: Lesson?
     @State var showingAddLesson = false
     @State var showingBulkEntry = false
 
     // MARK: - Reordering State
     @State var reorderableGroups: [String] = []
-    @State var isOrganizingGroups: Bool = false
 
     // MARK: - Presentation History State
     @State var statusCounts: [UUID: Int]?
@@ -130,58 +137,66 @@ struct LessonsRootView: View {
         (filterState.selectedSubject?.trimmed().isEmpty == false)
     }
 
+    var canReorder: Bool {
+        isJiggling &&
+        filterState.debouncedSearchText.trimmed().isEmpty &&
+        (filterState.selectedSubject?.trimmed().isEmpty == false)
+    }
+
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
             ViewHeader(title: "Lessons") {
                 HStack(spacing: 12) {
-                    Picker("Mode", selection: Binding(
-                        get: { displayMode },
-                        set: { displayModeRaw = $0.rawValue }
-                    )) {
-                        ForEach(LessonsDisplayMode.allCases) { mode in
-                            Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                    if isJiggling {
+                        Button {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isJiggling = false
+                            }
+                        } label: {
+                            Text("Done")
+                                .fontWeight(.semibold)
                         }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Picker("Mode", selection: Binding(
+                            get: { displayMode },
+                            set: { displayModeRaw = $0.rawValue }
+                        )) {
+                            ForEach(LessonsDisplayMode.allCases) { mode in
+                                Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(maxWidth: 180)
+                        .disabled(selectedSubject == nil)
+
+                        Menu {
+                            Button {
+                                showingAddLesson = true
+                            } label: {
+                                Label("New Lesson", systemImage: "plus.circle")
+                            }
+
+                            Button {
+                                showingBulkEntry = true
+                            } label: {
+                                Label("Bulk Entry…", systemImage: "square.grid.3x3")
+                            }
+
+                            Button {
+                                appRouter.requestImportLessons()
+                            } label: {
+                                Label("Import Lessons…", systemImage: "square.and.arrow.down")
+                            }
+                        } label: {
+                            Label("Add", systemImage: "plus")
+                        }
+                        #if os(macOS)
+                        .menuStyle(.borderedButton)
+                        #endif
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 180)
-                    .disabled(selectedSubject == nil)
-
-                    if displayMode == .plan && selectedSubject != nil {
-                        Button {
-                            isOrganizingGroups.toggle()
-                        } label: {
-                            Label(isOrganizingGroups ? "Done Organizing" : "Organize Groups",
-                                  systemImage: isOrganizingGroups ? "checkmark.circle.fill" : "list.bullet.indent")
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    Menu {
-                        Button {
-                            showingAddLesson = true
-                        } label: {
-                            Label("New Lesson", systemImage: "plus.circle")
-                        }
-
-                        Button {
-                            showingBulkEntry = true
-                        } label: {
-                            Label("Bulk Entry…", systemImage: "square.grid.3x3")
-                        }
-
-                        Button {
-                            appRouter.requestImportLessons()
-                        } label: {
-                            Label("Import Lessons…", systemImage: "square.and.arrow.down")
-                        }
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    #if os(macOS)
-                    .menuStyle(.borderedButton)
-                    #endif
                 }
             }
             Divider()
@@ -194,7 +209,7 @@ struct LessonsRootView: View {
                 lessonsContentColumn
                     .frame(maxWidth: .infinity)
 
-                if displayMode != .plan, let selectedLesson = selectedLessonDetail {
+                if let selectedLesson = selectedLessonDetail {
                     Divider()
                     lessonDetailPane(lesson: selectedLesson)
                         .frame(width: 520)
@@ -204,6 +219,17 @@ struct LessonsRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
+        #if os(macOS)
+        .onKeyPress(.escape) {
+            if isJiggling {
+                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isJiggling = false
+                }
+                return .handled
+            }
+            return .ignored
+        }
+        #endif
         #if os(iOS)
         .environment(\.editMode, $editMode)
         #endif
@@ -219,11 +245,18 @@ struct LessonsRootView: View {
         .onChange(of: filterState.selectedSubject) { _, newValue in
             handleSubjectChange(newValue)
         }
-        .onChange(of: isOrganizingGroups) { _, newValue in
-            if newValue { syncReorderableGroups() }
-        }
         .onChange(of: filterState.searchText) { _, newValue in
-            Task { @MainActor in searchTextRaw = newValue }
+            Task { @MainActor in
+                searchTextRaw = newValue
+                if !newValue.trimmed().isEmpty {
+                    isJiggling = false
+                }
+            }
+        }
+        .onChange(of: isJiggling) { _, newValue in
+            #if os(iOS)
+            editMode = newValue ? .active : .inactive
+            #endif
         }
         .onChange(of: displayMode) { _, newValue in
             handleDisplayModeChange(newValue)
@@ -239,6 +272,13 @@ struct LessonsRootView: View {
         }
         .sheet(item: $trackSettingsItem) { item in
             GroupTrackSettingsSheet(subject: item.subject, group: item.group)
+        }
+        .sheet(item: $reorderSubheadingsItem) { item in
+            ReorderSubheadingsSheet(
+                subject: item.subject,
+                group: item.group,
+                lessons: lessons
+            )
         }
         .sheet(isPresented: $showingAddLesson) {
             AddLessonView(defaultSubject: selectedSubject)
@@ -280,6 +320,7 @@ struct LessonsRootView: View {
                 listSelectedSubject = newValue
             }
             selectedSubjectRaw = newValue ?? ""
+            isJiggling = false
             syncReorderableGroups()
         }
     }
@@ -287,13 +328,12 @@ struct LessonsRootView: View {
     private func handleDisplayModeChange(_ newValue: LessonsDisplayMode) {
         Task { @MainActor in
             displayModeRaw = newValue.rawValue
-            if newValue != .plan {
-                isOrganizingGroups = false
-            } else {
-                selectedLessonDetail = nil
+            isJiggling = false
+            if newValue == .plan {
+                syncReorderableGroups()
             }
             #if os(iOS)
-            editMode = (newValue == .plan) ? .active : .inactive
+            editMode = isJiggling ? .active : .inactive
             #endif
         }
     }
