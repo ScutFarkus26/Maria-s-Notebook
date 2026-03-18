@@ -9,6 +9,7 @@ import AppKit
 struct LessonDetailView: View {
     static let logger = Logger.lessons
     var lesson: Lesson
+    var allLessons: [Lesson] = []
     var onSave: (Lesson) -> Void
     var onDone: (() -> Void)?
 
@@ -18,6 +19,39 @@ struct LessonDetailView: View {
 
     private var repository: LessonRepository {
         LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+    }
+
+    var existingSubjects: [String] {
+        Array(Set(allLessons.map { $0.subject.trimmed() }.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    var existingGroups: [String] {
+        let subject = draftSubject.trimmed()
+        guard !subject.isEmpty else { return [] }
+        return Array(Set(
+            allLessons
+                .filter { $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame }
+                .map { $0.group.trimmed() }
+                .filter { !$0.isEmpty }
+        ))
+        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    var existingSubheadings: [String] {
+        let subject = draftSubject.trimmed()
+        let group = draftGroup.trimmed()
+        guard !subject.isEmpty, !group.isEmpty else { return [] }
+        return Array(Set(
+            allLessons
+                .filter {
+                    $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame &&
+                    $0.group.trimmed().caseInsensitiveCompare(group) == .orderedSame
+                }
+                .map { $0.subheading.trimmed() }
+                .filter { !$0.isEmpty }
+        ))
+        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     @State private var isEditing = false

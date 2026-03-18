@@ -47,6 +47,24 @@ extension LessonsRootView {
         FilterOrderStore.resetCache()
     }
 
+    // MARK: - Move Group Up/Down
+
+    @MainActor
+    func moveGroupUpDown(group: String, direction: Int, in groups: [String]) {
+        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
+        guard let index = groups.firstIndex(of: group) else { return }
+
+        let target = index + direction
+        guard target >= 0, target < groups.count else { return }
+
+        var reordered = groups
+        reordered.swapAt(index, target)
+
+        reorderableGroups = reordered
+        FilterOrderStore.saveGroupOrder(reordered, for: subject)
+        FilterOrderStore.resetCache()
+    }
+
     // MARK: - Move Lessons Flat (for ungrouped individual positioning)
 
     @MainActor
@@ -116,6 +134,93 @@ extension LessonsRootView {
             try modelContext.save()
         } catch {
             logger.error("Failed to save lesson reorder: \(error)")
+        }
+    }
+
+    // MARK: - Move Single Lesson Up/Down in Group
+
+    @MainActor
+    func moveLessonInGroup(lesson: Lesson, direction: Int, group: String, ungroupedLabel: String) {
+        guard canReorderInPlanMode else { return }
+
+        let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
+        guard let index = groupLessons.firstIndex(where: { $0.id == lesson.id }) else { return }
+
+        let target = index + direction
+        guard target >= 0, target < groupLessons.count else { return }
+
+        // Swap orderInGroup between the two lessons
+        let neighbor = groupLessons[target]
+        let tempOrder = lesson.orderInGroup
+        lesson.orderInGroup = neighbor.orderInGroup
+        neighbor.orderInGroup = tempOrder
+
+        // Rebuild sortIndex across the entire subject
+        rebuildSortIndexForSubject()
+    }
+
+    /// Rebuilds `sortIndex` for all lessons in the selected subject based on group order and `orderInGroup`.
+    @MainActor
+    private func rebuildSortIndexForSubject() {
+        let ungroupedLabel = "Ungrouped"
+        let displayGroups = reorderableGroups
+
+        var allLessonsInOrder: [Lesson] = []
+        for group in displayGroups {
+            let lessonsInGroup = lessonsForSubject.filter { lesson in
+                let lessonGroupTrimmed = lesson.group.trimmed()
+                if group == ungroupedLabel {
+                    return lessonGroupTrimmed.isEmpty
+                } else {
+                    return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
+                }
+            }.sorted { lhs, rhs in
+                if lhs.orderInGroup != rhs.orderInGroup {
+                    return lhs.orderInGroup < rhs.orderInGroup
+                }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            allLessonsInOrder.append(contentsOf: lessonsInGroup)
+        }
+
+        for (idx, lesson) in allLessonsInOrder.enumerated() {
+            lesson.sortIndex = idx
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("Failed to save lesson reorder: \(error)")
+        }
+    }
+
+    // MARK: - Move Lesson to Different Group
+
+    @MainActor
+    func moveLessonToGroup(lesson: Lesson, newGroup: String) {
+        let ungroupedLabel = "Ungrouped"
+        let actualGroup = (newGroup == ungroupedLabel) ? "" : newGroup
+
+        lesson.group = actualGroup
+
+        // Set orderInGroup to end of target group
+        let targetLessons = lessonsForGroup(newGroup, ungroupedLabel: ungroupedLabel)
+        let maxOrder = targetLessons.map(\.orderInGroup).max() ?? -1
+        lesson.orderInGroup = maxOrder + 1
+
+        rebuildSortIndexForSubject()
+    }
+
+    // MARK: - Move Lesson to Different Subheading
+
+    @MainActor
+    func moveLessonToSubheading(lesson: Lesson, newSubheading: String) {
+        lesson.subheading = newSubheading
+
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("Failed to save lesson subheading change: \(error)")
         }
     }
 

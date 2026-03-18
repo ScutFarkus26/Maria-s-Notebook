@@ -310,7 +310,7 @@ final class LessonPlanningViewModel {
     private func fetchStudents(context: ModelContext) -> [Student] {
         let descriptor = FetchDescriptor<Student>(sortBy: [SortDescriptor(\Student.lastName)])
         let all = (try? context.fetch(descriptor)) ?? []
-        return TestStudentsFilter.filterVisible(all)
+        return TestStudentsFilter.filterVisible(all.filter { $0.isEnrolled })
     }
 }
 

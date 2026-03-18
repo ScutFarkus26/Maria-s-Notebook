@@ -25,7 +25,7 @@ final class ProgressionRootViewModel {
         let allPresentations = fetchPresentations(context: context)
         let allWork = fetchAllWork(context: context)
         let allStudents = fetchAllStudents(context: context)
-        let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
+        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter { $0.isEnrolled })
         let visibleStudentIDs = Set(visibleStudents.map { $0.id.uuidString })
 
         // Pre-index presentations and work by lessonID for O(1) lookups

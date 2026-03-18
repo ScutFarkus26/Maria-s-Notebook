@@ -31,10 +31,12 @@ final class DataQueryService {
 
     // MARK: - Students
 
-    /// Fetch all students, optionally filtering out test students.
-    func fetchAllStudents(excludeTest: Bool = false) -> [Student] {
+    /// Fetch all students, optionally filtering out test students and/or withdrawn students.
+    func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = false) -> [Student] {
         if let cached = studentsCache {
-            return excludeTest ? TestStudentsFilter.filterVisible(cached) : cached
+            var result = cached
+            if excludeWithdrawn { result = result.filter { $0.isEnrolled } }
+            return excludeTest ? TestStudentsFilter.filterVisible(result) : result
         }
 
         var descriptor = FetchDescriptor<Student>()
@@ -42,7 +44,9 @@ final class DataQueryService {
         let students = context.safeFetch(descriptor)
         studentsCache = students
 
-        return excludeTest ? TestStudentsFilter.filterVisible(students) : students
+        var result = students
+        if excludeWithdrawn { result = result.filter { $0.isEnrolled } }
+        return excludeTest ? TestStudentsFilter.filterVisible(result) : result
     }
 
     /// Fetch students by ID set.

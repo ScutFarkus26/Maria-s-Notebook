@@ -16,6 +16,8 @@
 	<string>We need access to your calendars to show today's events in your Today view.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera to take photos for notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We need access to speech recognition to enable voice commands and dictation in the command bar.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
 	<key>NSRemindersUsageDescription</key>
@@ -32,6 +34,8 @@
 			<string>Any</string>
 		</dict>
 	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

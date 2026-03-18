@@ -24,7 +24,7 @@ final class TransitionPlannerViewModel {
         plans = context.safeFetch(planDescriptor)
 
         let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor))
+        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter { $0.isEnrolled })
     }
 
     func student(for plan: TransitionPlan) -> Student? {

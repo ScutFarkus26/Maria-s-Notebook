@@ -201,8 +201,17 @@ final class PostPresentationFormViewModel {
 
         switch nextLessonAction {
         case .hold:
-            // Do nothing — blocking algorithm handles it naturally
-            break
+            // Ensure a draft assignment exists so the blocking algorithm can detect it
+            if existingNextAssignment == nil {
+                PlanNextLessonService.planLesson(
+                    nextLesson,
+                    forStudents: studentIDs,
+                    allStudents: allStudents,
+                    allLessons: allLessons,
+                    existingLessonAssignments: lessonAssignments,
+                    context: modelContext
+                )
+            }
 
         case .inbox:
             if let existing = existingNextAssignment {

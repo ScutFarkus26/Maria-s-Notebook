@@ -8,14 +8,11 @@ extension LessonDetailView {
         VStack(spacing: AppTheme.Spacing.compact + 2) {
             TextField("Lesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
-            HStack {
-                TextField("Subject", text: $draftSubject)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Group", text: $draftGroup)
-                    .textFieldStyle(.roundedBorder)
+            HStack(alignment: .top) {
+                ComboBoxField(title: "Subject", text: $draftSubject, options: existingSubjects)
+                ComboBoxField(title: "Group", text: $draftGroup, options: existingGroups)
             }
-            TextField("Subheading", text: $draftSubheading)
-                .textFieldStyle(.roundedBorder)
+            ComboBoxField(title: "Subheading", text: $draftSubheading, options: existingSubheadings)
 
             Picker("Source", selection: $draftSource) {
                 ForEach(LessonSource.allCases) { s in

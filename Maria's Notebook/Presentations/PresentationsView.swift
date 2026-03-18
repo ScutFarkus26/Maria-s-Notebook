@@ -453,7 +453,9 @@ struct PresentationsView: View {
         let hiddenIDs = TestStudentsFilter.hiddenIDs(
             from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw
         )
-        let visibleIDs = snap.studentIDs.filter { !hiddenIDs.contains($0) }
+        // Only keep student IDs that belong to enrolled, visible students
+        let enrolledVisibleIDs = Set(allStudents.map { $0.id })
+        let visibleIDs = snap.studentIDs.filter { enrolledVisibleIDs.contains($0) && !hiddenIDs.contains($0) }
         return LessonAssignmentSnapshot(
             id: snap.id,
             lessonID: snap.lessonID,
