@@ -83,7 +83,7 @@ enum UserDefaultsKeys {
     
     // MARK: - Todos
     static let todoTagOrder = "Todo.tagOrder"
-    static let todoHideCompletedInTags = "Todo.hideCompletedInTags"
+    static let todoHideCompleted = "Todo.hideCompleted"
 
     // MARK: - AI Models (per-area)
     static let aiModelChat = "AI.chatModel"

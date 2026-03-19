@@ -173,6 +173,8 @@ extension TodoMainView {
                 section = "Completed"
             } else if selectedFilter == .someday {
                 section = "Someday"
+            } else if todo.isCompleted {
+                section = "Completed"
             } else if let effective = todo.effectiveDate {
                 if todo.isOverdue {
                     section = "Overdue"

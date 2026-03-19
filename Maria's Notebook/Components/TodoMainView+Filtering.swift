@@ -7,7 +7,6 @@ import SwiftData
 extension TodoMainView {
     var filteredTodos: [TodoItem] {
         var todos: [TodoItem]
-        let isTagView: Bool
         if let folder = selectedFolder {
             // Show all todos that have any tag belonging to this folder
             let folderTags = Set(allUsedTags.filter {
@@ -16,17 +15,15 @@ extension TodoMainView {
             todos = allTodos.filter { todo in
                 todo.tags.contains(where: { folderTags.contains($0) })
             }
-            isTagView = true
         } else if let tag = selectedTag {
             todos = allTodos.filter { $0.tags.contains(tag) }
-            isTagView = true
         } else {
             let filter = selectedFilter ?? .inbox
             todos = allTodos.filter { filter.matches($0) }
-            isTagView = false
         }
 
-        if isTagView && hideCompletedInTags {
+        // Hide completed from all views (except the dedicated Completed filter)
+        if hideCompleted && selectedFilter != .completed {
             todos = todos.filter { !$0.isCompleted }
         }
 

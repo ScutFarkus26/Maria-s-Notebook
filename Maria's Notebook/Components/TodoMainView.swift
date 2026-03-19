@@ -22,7 +22,7 @@ struct TodoMainView: View {
     @State var selectedTag: String?
     @State var expandedTagGroups: Set<String> = [TodoTagHelper.studentTagParent]
     @State var tagOrder: [String] = UserDefaults.standard.stringArray(forKey: UserDefaultsKeys.todoTagOrder) ?? []
-    @AppStorage(UserDefaultsKeys.todoHideCompletedInTags) var hideCompletedInTags = false
+    @AppStorage(UserDefaultsKeys.todoHideCompleted) var hideCompleted = false
     @State var selectedFolder: String?
     @State var isShowingNewFolder = false
     @State var newFolderName = ""
@@ -109,12 +109,12 @@ struct TodoMainView: View {
                     Divider()
 
                     Button {
-                        hideCompletedInTags.toggle()
+                        hideCompleted.toggle()
                         refreshTagCaches()
                     } label: {
                         Label(
-                            hideCompletedInTags ? "Show Completed in Tags" : "Hide Completed in Tags",
-                            systemImage: hideCompletedInTags ? "eye" : "eye.slash"
+                            hideCompleted ? "Show Completed" : "Hide Completed",
+                            systemImage: hideCompleted ? "eye" : "eye.slash"
                         )
                     }
 
@@ -150,7 +150,7 @@ struct TodoMainView: View {
         }
         .onAppear { refreshTagCaches() }
         .onChange(of: allTodos.count) { _, _ in refreshTagCaches() }
-        .onChange(of: hideCompletedInTags) { _, _ in refreshTagCaches() }
+        .onChange(of: hideCompleted) { _, _ in refreshTagCaches() }
     }
 
     // PERF: Compute tag data and filter/tag counts in a single pass over allTodos.
@@ -172,14 +172,14 @@ struct TodoMainView: View {
             // Collect tags and count per-tag
             for tag in todo.tags {
                 tagSet.insert(tag)
-                if !hideCompletedInTags || !todo.isCompleted {
+                if !hideCompleted || !todo.isCompleted {
                     tagCounts[tag, default: 0] += 1
                 }
             }
         }
 
         // When hiding completed in tags, omit tags that have zero visible todos
-        let visibleTags = hideCompletedInTags ? tagSet.filter { (tagCounts[$0] ?? 0) > 0 } : tagSet
+        let visibleTags = hideCompleted ? tagSet.filter { (tagCounts[$0] ?? 0) > 0 } : tagSet
         cachedAllUsedTags = visibleTags.sorted {
             TodoTagHelper.tagName($0)
                 .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
