@@ -178,12 +178,20 @@ struct TodoMainView: View {
             }
         }
 
-        cachedAllUsedTags = tagSet.sorted {
+        // When hiding completed in tags, omit tags that have zero visible todos
+        let visibleTags = hideCompletedInTags ? tagSet.filter { (tagCounts[$0] ?? 0) > 0 } : tagSet
+        cachedAllUsedTags = visibleTags.sorted {
             TodoTagHelper.tagName($0)
                 .localizedCaseInsensitiveCompare(TodoTagHelper.tagName($1)) == .orderedAscending
         }
         cachedFilterCounts = filterCounts
         cachedTagCounts = tagCounts
+
+        // If the selected tag was hidden, deselect it
+        if let selected = selectedTag, !visibleTags.contains(selected) {
+            selectedTag = nil
+            selectedFilter = .inbox
+        }
     }
 
     // MARK: - Helper Functions
