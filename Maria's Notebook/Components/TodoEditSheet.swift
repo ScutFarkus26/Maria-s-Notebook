@@ -13,7 +13,11 @@ struct TodoEditSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     let todo: TodoItem

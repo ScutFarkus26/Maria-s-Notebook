@@ -11,7 +11,11 @@ struct TodoListPanel: View {
     @Environment(\.modelContext) var modelContext
 
     private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     @State var newTodoTitle = ""

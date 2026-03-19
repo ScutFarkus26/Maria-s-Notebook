@@ -40,46 +40,51 @@ extension ResourceLibraryView {
                             .onTapGesture {
                                 selectedResource = resource
                             }
-                            .contextMenu {
-                                Button {
-                                    selectedResource = resource
-                                } label: {
-                                    Label("View Details", systemImage: "eye")
-                                }
-
-                                Button {
-                                    renameText = resource.title
-                                    resourceToRename = resource
-                                } label: {
-                                    Label("Rename", systemImage: "pencil")
-                                }
-
-                                Button {
-                                    resourceToRecategorize = resource
-                                } label: {
-                                    Label("Change Category", systemImage: "folder")
-                                }
-
-                                Button {
-                                    toggleFavorite(resource)
-                                } label: {
-                                    Label(
-                                        resource.isFavorite ? "Unfavorite" : "Favorite",
-                                        systemImage: resource.isFavorite ? SFSymbol.Shape.starFill : SFSymbol.Shape.star
-                                    )
-                                }
-
-                                Divider()
-
-                                Button(role: .destructive) {
-                                    deleteResource(resource)
-                                } label: {
-                                    Label("Delete", systemImage: SFSymbol.Action.trash)
-                                }
-                            }
+                            .contextMenu { resourceRowContextMenu(for: resource) }
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Context Menu
+
+    @ViewBuilder
+    private func resourceRowContextMenu(for resource: Resource) -> some View {
+        Button {
+            selectedResource = resource
+        } label: {
+            Label("View Details", systemImage: "eye")
+        }
+
+        Button {
+            renameText = resource.title
+            resourceToRename = resource
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Button {
+            resourceToRecategorize = resource
+        } label: {
+            Label("Change Category", systemImage: "folder")
+        }
+
+        Button {
+            toggleFavorite(resource)
+        } label: {
+            Label(
+                resource.isFavorite ? "Unfavorite" : "Favorite",
+                systemImage: resource.isFavorite ? SFSymbol.Shape.starFill : SFSymbol.Shape.star
+            )
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            deleteResource(resource)
+        } label: {
+            Label("Delete", systemImage: SFSymbol.Action.trash)
         }
     }
 

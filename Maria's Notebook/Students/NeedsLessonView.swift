@@ -15,6 +15,7 @@ struct NeedsLessonView: View {
     private var lessonAssignmentsForChange: [LessonAssignment]
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    // swiftlint:disable:next line_length
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @State private var daysSinceLastLesson: [UUID: Int] = [:]

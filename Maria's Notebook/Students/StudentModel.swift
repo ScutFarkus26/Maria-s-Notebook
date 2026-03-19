@@ -20,8 +20,8 @@ final class Student: Identifiable {
     }
 
     enum EnrollmentStatus: String, Codable, CaseIterable, Sendable {
-        case enrolled = "enrolled"
-        case withdrawn = "withdrawn"
+        case enrolled
+        case withdrawn
     }
 
     var id: UUID = UUID()

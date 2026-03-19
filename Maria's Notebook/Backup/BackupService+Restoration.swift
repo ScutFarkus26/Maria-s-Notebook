@@ -8,21 +8,21 @@ import SwiftUI
 /// Named progress milestones for backup restoration, replacing inline magic numbers.
 /// Each value corresponds to the fraction-complete reported to the caller's ProgressCallback.
 private enum RestoreProgress {
-    static let deduplication:       Double = 0.35
-    static let clearing:            Double = 0.40
-    static let coreEntities:        Double = 0.65
-    static let workTracking:        Double = 0.70
-    static let lessonExtras:        Double = 0.74
-    static let templates:           Double = 0.76
-    static let tracks:              Double = 0.78
-    static let documentsSupplies:   Double = 0.80
-    static let schedules:           Double = 0.82
-    static let issues:              Double = 0.84
-    static let snapshotsTodos:      Double = 0.86
-    static let additionalEntities:  Double = 0.88
-    static let saving:              Double = 0.90
-    static let denormalizedRepair:  Double = 0.92
-    static let done:                Double = 1.00
+    static let deduplication: Double = 0.35
+    static let clearing: Double = 0.40
+    static let coreEntities: Double = 0.65
+    static let workTracking: Double = 0.70
+    static let lessonExtras: Double = 0.74
+    static let templates: Double = 0.76
+    static let tracks: Double = 0.78
+    static let documentsSupplies: Double = 0.80
+    static let schedules: Double = 0.82
+    static let issues: Double = 0.84
+    static let snapshotsTodos: Double = 0.86
+    static let additionalEntities: Double = 0.88
+    static let saving: Double = 0.90
+    static let denormalizedRepair: Double = 0.92
+    static let done: Double = 1.00
 }
 
 // MARK: - Restore Preview & Import

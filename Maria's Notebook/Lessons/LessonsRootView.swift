@@ -147,58 +147,7 @@ struct LessonsRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ViewHeader(title: "Lessons") {
-                HStack(spacing: 12) {
-                    if isJiggling {
-                        Button {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                isJiggling = false
-                            }
-                        } label: {
-                            Text("Done")
-                                .fontWeight(.semibold)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    } else {
-                        Picker("Mode", selection: Binding(
-                            get: { displayMode },
-                            set: { displayModeRaw = $0.rawValue }
-                        )) {
-                            ForEach(LessonsDisplayMode.allCases) { mode in
-                                Label(mode.rawValue, systemImage: mode.icon).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 180)
-                        .disabled(selectedSubject == nil)
-
-                        Menu {
-                            Button {
-                                showingAddLesson = true
-                            } label: {
-                                Label("New Lesson", systemImage: "plus.circle")
-                            }
-
-                            Button {
-                                showingBulkEntry = true
-                            } label: {
-                                Label("Bulk Entry…", systemImage: "square.grid.3x3")
-                            }
-
-                            Button {
-                                appRouter.requestImportLessons()
-                            } label: {
-                                Label("Import Lessons…", systemImage: "square.and.arrow.down")
-                            }
-                        } label: {
-                            Label("Add", systemImage: "plus")
-                        }
-                        #if os(macOS)
-                        .menuStyle(.borderedButton)
-                        #endif
-                    }
-                }
-            }
+            ViewHeader(title: "Lessons") { headerTrailingControls }
             Divider()
             HStack(spacing: 0) {
                 subjectsColumn

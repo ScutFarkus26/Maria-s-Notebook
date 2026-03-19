@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 // TodoMainView+Sidebar.swift
 // Sidebar navigation for the todo list
 

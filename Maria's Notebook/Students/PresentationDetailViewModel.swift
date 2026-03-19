@@ -159,47 +159,7 @@ final class PresentationDetailViewModel {
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
 
         // 2. Engagement Lifecycle (Record Presentation)
-        let nowGiven = isPresented || (givenAt != nil)
-        if nowGiven {
-            do {
-                _ = try LifecycleService.recordPresentation(
-                    from: lessonAssignment,
-                    presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
-                    modelContext: modelContext
-                )
-            } catch {
-                Self.logger.debug("LifecycleService error: \(error)")
-            }
-
-            // Update mastery state on LessonPresentation records
-            updateProficiencyState(
-                lessonID: lessonAssignment.lessonID,
-                studentIDs: lessonAssignment.studentIDs,
-                state: proficiencyState
-            )
-
-            // Auto-enroll students in track if lesson belongs to a track
-            if let lesson = lessonAssignment.lesson {
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
-                    studentIDs: lessonAssignment.studentIDs,
-                    modelContext: modelContext,
-                    saveCoordinator: saveCoordinator
-                )
-            }
-        }
-
-        // Auto-enroll when lesson is scheduled (if not already presented)
-        if !nowGiven, lessonAssignment.scheduledFor != nil {
-            if let lesson = lessonAssignment.lesson {
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
-                    studentIDs: lessonAssignment.studentIDs,
-                    modelContext: modelContext,
-                    saveCoordinator: saveCoordinator
-                )
-            }
-        }
+        let nowGiven = handleEngagementLifecycle()
 
         // 3. Auto-create next lesson if needed
         let actions = PresentationDetailActions()
@@ -228,6 +188,50 @@ final class PresentationDetailViewModel {
 
             onDone?()
         }
+    }
+
+    // Handles recording presentation, mastery updates, and track enrollment. Returns nowGiven.
+    private func handleEngagementLifecycle() -> Bool {
+        let nowGiven = isPresented || (givenAt != nil)
+        if nowGiven {
+            do {
+                _ = try LifecycleService.recordPresentation(
+                    from: lessonAssignment,
+                    presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
+                    modelContext: modelContext
+                )
+            } catch {
+                Self.logger.debug("LifecycleService error: \(error)")
+            }
+
+            updateProficiencyState(
+                lessonID: lessonAssignment.lessonID,
+                studentIDs: lessonAssignment.studentIDs,
+                state: proficiencyState
+            )
+
+            if let lesson = lessonAssignment.lesson {
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson,
+                    studentIDs: lessonAssignment.studentIDs,
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
+                )
+            }
+        }
+
+        if !nowGiven, lessonAssignment.scheduledFor != nil {
+            if let lesson = lessonAssignment.lesson {
+                GroupTrackService.autoEnrollInTrackIfNeeded(
+                    lesson: lesson,
+                    studentIDs: lessonAssignment.studentIDs,
+                    modelContext: modelContext,
+                    saveCoordinator: saveCoordinator
+                )
+            }
+        }
+
+        return nowGiven
     }
 
     /// A lightweight save for autosaving notes or minor updates

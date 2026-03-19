@@ -93,7 +93,10 @@ struct LessonsCardsGridView: View {
 
     /// Organizes lessons within a group by subheading for hierarchical display.
     /// Returns ordered subheading keys (empty string = no subheading) and a lookup of lessons per subheading.
-    private func subheadingsForGroup(_ groupLessons: [Lesson], groupName: String) -> (order: [String], bySubheading: [String: [Lesson]]) {
+    private func subheadingsForGroup(
+        _ groupLessons: [Lesson],
+        groupName: String
+    ) -> (order: [String], bySubheading: [String: [Lesson]]) {
         let bySubheading = groupLessons.grouped { $0.subheading.trimmed() }
         let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }

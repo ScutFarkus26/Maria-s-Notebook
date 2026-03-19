@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 // RootView.swift
 // App root container with top pill navigation and tab routing.
 //

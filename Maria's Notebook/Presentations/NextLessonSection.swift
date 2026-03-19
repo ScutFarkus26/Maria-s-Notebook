@@ -178,8 +178,8 @@ struct NextLessonSection: View {
             Image(systemName: "info.circle.fill")
                 .font(.system(size: 11))
 
-            if assignment.scheduledFor != nil {
-                Text("Currently scheduled for \(assignment.scheduledFor!.formatted(date: .abbreviated, time: .omitted))")
+            if let scheduledFor = assignment.scheduledFor {
+                Text("Currently scheduled for \(scheduledFor.formatted(date: .abbreviated, time: .omitted))")
             } else {
                 Text("Currently in inbox")
             }
