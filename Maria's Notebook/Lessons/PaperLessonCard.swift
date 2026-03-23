@@ -74,6 +74,15 @@ struct PaperLessonCard: View {
 
                 Spacer(minLength: 0)
 
+                if lesson.isStory {
+                    Text("Story")
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.purple.opacity(0.12)))
+                        .foregroundStyle(.purple)
+                }
+
                 if isPersonal {
                     Text(lesson.personalKind?.badgeLabel ?? "Personal")
                         .font(AppTheme.ScaledFont.captionSmallSemibold)

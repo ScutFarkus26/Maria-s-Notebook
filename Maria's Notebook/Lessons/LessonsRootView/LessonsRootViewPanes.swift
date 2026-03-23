@@ -25,8 +25,31 @@ extension LessonsRootView {
         return counts
     }
 
+    /// Count of all story-format lessons
+    private var storyLessonCount: Int {
+        lessons.filter { $0.isStory }.count
+    }
+
     var subjectsColumn: some View {
         List(selection: $listSelectedSubject) {
+            Section {
+                Label {
+                    HStack {
+                        Text("All Stories")
+                        Spacer()
+                        if storyLessonCount > 0 {
+                            Text("\(storyLessonCount)")
+                                .font(AppTheme.ScaledFont.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "book.pages")
+                        .foregroundStyle(.purple)
+                }
+                .tag(Self.storiesSentinel)
+            }
+
             ForEach(subjects, id: \.self) { subject in
                 SubjectListRow(subject: subject, lessonCount: lessonCountsBySubject[subject] ?? 0)
                     .tag(subject)
@@ -47,6 +70,7 @@ extension LessonsRootView {
                 LessonsFilterChipBar(
                     sourceFilter: $filterState.sourceFilter,
                     personalKindFilter: $filterState.personalKindFilter,
+                    formatFilter: $filterState.formatFilter,
                     hasAttachmentFilter: $filterState.hasAttachmentFilter,
                     needsAttentionFilter: $filterState.needsAttentionFilter
                 )
@@ -70,7 +94,9 @@ extension LessonsRootView {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle(selectedSubject ?? "Lessons")
+        .navigationTitle(
+            selectedSubject == Self.storiesSentinel ? "All Stories" : (selectedSubject ?? "Lessons")
+        )
         .searchable(text: $filterState.searchText, placement: .toolbar)
     }
 

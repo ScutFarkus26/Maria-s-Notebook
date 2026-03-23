@@ -67,6 +67,8 @@ struct LessonDetailView: View {
     @State var draftPurpose: String = ""
     @State var draftAgeRange: String = ""
     @State var draftTeacherNotes: String = ""
+    @State var draftLessonFormat: LessonFormat = .standard
+    @State var draftParentStoryID: UUID?
     @State private var showDeleteAlert = false
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
@@ -242,6 +244,9 @@ extension LessonDetailView {
                 if !lesson.group.isEmpty {
                     StatusPill(text: lesson.group, color: .accentColor, icon: nil)
                 }
+                if lesson.isStory {
+                    StatusPill(text: "Story", color: .purple, icon: "book.pages")
+                }
                 if lesson.source == .personal {
                     StatusPill(text: lesson.personalKind?.badgeLabel ?? "Personal", color: .primary, icon: nil)
                 }
@@ -298,6 +303,8 @@ extension LessonDetailView {
                         updated.purpose = draftPurpose.trimmed()
                         updated.ageRange = draftAgeRange.trimmed()
                         updated.teacherNotes = draftTeacherNotes
+                        updated.lessonFormat = draftLessonFormat
+                        updated.parentStoryUUID = draftLessonFormat == .story ? draftParentStoryID : nil
                         onSave(updated)
                         isEditing = false
                     }
@@ -338,6 +345,8 @@ extension LessonDetailView {
         draftPurpose = lesson.purpose
         draftAgeRange = lesson.ageRange
         draftTeacherNotes = lesson.teacherNotes
+        draftLessonFormat = lesson.lessonFormat
+        draftParentStoryID = lesson.parentStoryUUID
     }
 }
 

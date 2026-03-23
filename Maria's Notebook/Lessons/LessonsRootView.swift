@@ -112,16 +112,21 @@ struct LessonsRootView: View {
         }
     }
 
+    /// Sentinel value for the "All Stories" sidebar entry
+    static let storiesSentinel = "__stories__"
+
     var lessonsForSubject: [Lesson] {
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
+        let isStoriesView = filterState.selectedSubject == Self.storiesSentinel
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
         return helper.filteredLessons(
             modelContext: modelContext,
             sourceFilter: filterState.sourceFilter,
             personalKindFilter: filterState.personalKindFilter,
+            formatFilter: filterState.formatFilter,
             searchText: filterState.debouncedSearchText,
-            selectedSubject: hasSearchText ? nil : filterState.selectedSubject,
+            selectedSubject: (hasSearchText || isStoriesView) ? nil : filterState.selectedSubject,
             selectedGroup: nil,
             allLessons: lessons
         ).uniqueByID
@@ -257,8 +262,18 @@ struct LessonsRootView: View {
 
     private func handleListSelectionChange(_ newValue: String?) {
         Task { @MainActor in
-            if filterState.selectedSubject != newValue {
+            if newValue == LessonsRootView.storiesSentinel {
+                // "All Stories" selected: clear subject, set format to story
                 filterState.selectedSubject = newValue
+                filterState.formatFilter = .story
+            } else {
+                // Regular subject selected: clear story filter if it was active from sidebar
+                if filterState.selectedSubject == LessonsRootView.storiesSentinel {
+                    filterState.formatFilter = nil
+                }
+                if filterState.selectedSubject != newValue {
+                    filterState.selectedSubject = newValue
+                }
             }
         }
     }

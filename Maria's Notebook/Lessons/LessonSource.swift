@@ -13,6 +13,26 @@ enum LessonSource: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum LessonFormat: String, Codable, CaseIterable, Identifiable, Sendable {
+    case standard
+    case story
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .standard: return "Standard"
+        case .story: return "Story"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .standard: return "book.closed"
+        case .story: return "book.pages"
+        }
+    }
+}
+
 enum PersonalLessonKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case personal
     case observation

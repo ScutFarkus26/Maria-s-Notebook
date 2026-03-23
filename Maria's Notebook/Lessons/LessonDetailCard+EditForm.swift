@@ -29,6 +29,28 @@ extension LessonDetailCard {
                 }
             }
 
+            Picker("Format", selection: $draftLessonFormat) {
+                ForEach(LessonFormat.allCases) { f in
+                    Label(f.label, systemImage: f.icon).tag(f)
+                }
+            }
+
+            if draftLessonFormat == .story {
+                let storyRaw = LessonFormat.story.rawValue
+                let storyLessons: [Lesson] = {
+                    let descriptor = FetchDescriptor<Lesson>(
+                        predicate: #Predicate { $0.lessonFormatRaw == storyRaw }
+                    )
+                    return modelContext.safeFetch(descriptor).filter { $0.id != lesson.id }
+                }()
+                Picker("Parent Story", selection: $draftParentStoryID) {
+                    Text("None (Root Story)").tag(nil as UUID?)
+                    ForEach(storyLessons) { story in
+                        Text(story.name).tag(story.id as UUID?)
+                    }
+                }
+            }
+
             TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
                 .textFieldStyle(.roundedBorder)
 

@@ -66,6 +66,22 @@ struct LessonRepository: SavingRepository {
         return fetchLessons(predicate: predicate)
     }
 
+    /// Fetch all root story lessons (stories with no parent)
+    func fetchRootStories() -> [Lesson] {
+        let storyRaw = LessonFormat.story.rawValue
+        let predicate = #Predicate<Lesson> {
+            $0.lessonFormatRaw == storyRaw && $0.parentStoryID == nil
+        }
+        return fetchLessons(predicate: predicate)
+    }
+
+    /// Fetch child stories that branch off a given parent story
+    func fetchChildStories(parentID: UUID) -> [Lesson] {
+        let parentIDString = parentID.uuidString
+        let predicate = #Predicate<Lesson> { $0.parentStoryID == parentIDString }
+        return fetchLessons(predicate: predicate)
+    }
+
     // MARK: - Create
 
     /// Create a new Lesson
@@ -96,7 +112,9 @@ struct LessonRepository: SavingRepository {
         materials: String = "",
         purpose: String = "",
         ageRange: String = "",
-        teacherNotes: String = ""
+        teacherNotes: String = "",
+        lessonFormat: LessonFormat = .standard,
+        parentStoryID: String? = nil
     ) -> Lesson {
         let lesson = Lesson(
             name: name,
@@ -112,7 +130,9 @@ struct LessonRepository: SavingRepository {
             materials: materials,
             purpose: purpose,
             ageRange: ageRange,
-            teacherNotes: teacherNotes
+            teacherNotes: teacherNotes,
+            lessonFormatRaw: lessonFormat.rawValue,
+            parentStoryID: parentStoryID
         )
         context.insert(lesson)
         return lesson
@@ -138,7 +158,9 @@ struct LessonRepository: SavingRepository {
         ageRange: String? = nil,
         teacherNotes: String? = nil,
         prerequisiteLessonIDs: String? = nil,
-        relatedLessonIDs: String? = nil
+        relatedLessonIDs: String? = nil,
+        lessonFormat: LessonFormat? = nil,
+        parentStoryID: String?? = nil
     ) -> Bool {
         guard let lesson = fetchLesson(id: id) else { return false }
 
@@ -156,6 +178,8 @@ struct LessonRepository: SavingRepository {
         if let teacherNotes = teacherNotes { lesson.teacherNotes = teacherNotes }
         if let prerequisiteLessonIDs = prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = prerequisiteLessonIDs }
         if let relatedLessonIDs = relatedLessonIDs { lesson.relatedLessonIDs = relatedLessonIDs }
+        if let lessonFormat = lessonFormat { lesson.lessonFormat = lessonFormat }
+        if let parentStoryID = parentStoryID { lesson.parentStoryID = parentStoryID }
 
         return true
     }

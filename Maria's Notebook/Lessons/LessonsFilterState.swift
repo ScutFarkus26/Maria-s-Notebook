@@ -19,6 +19,7 @@ final class LessonsFilterState {
 
     var sourceFilter: LessonSource? // nil means All
     var personalKindFilter: PersonalLessonKind? // nil means All Types
+    var formatFilter: LessonFormat? // nil means All formats
 
     // New filter properties for chip bar
     var hasAttachmentFilter: Bool = false
@@ -57,7 +58,8 @@ final class LessonsFilterState {
         sourceRaw: String,
         personalKindRaw: String,
         hasAttachmentRaw: String = "",
-        needsAttentionRaw: String = ""
+        needsAttentionRaw: String = "",
+        formatFilterRaw: String = ""
     ) {
         self.selectedSubject = subjectRaw.trimmed().isEmpty ? nil : subjectRaw
         self.selectedGroup = groupRaw.trimmed().isEmpty ? nil : groupRaw
@@ -68,6 +70,8 @@ final class LessonsFilterState {
             ? nil : PersonalLessonKind(rawValue: personalKindRaw)
         self.hasAttachmentFilter = hasAttachmentRaw == "true"
         self.needsAttentionFilter = needsAttentionRaw == "true"
+        self.formatFilter = formatFilterRaw.trimmed().isEmpty
+            ? nil : LessonFormat(rawValue: formatFilterRaw)
     }
 
     struct PersistedFilterState {
@@ -79,6 +83,7 @@ final class LessonsFilterState {
         let personalKindRaw: String
         let hasAttachmentRaw: String
         let needsAttentionRaw: String
+        let formatFilterRaw: String
     }
 
     /// Create the raw strings suitable for persistence
@@ -91,7 +96,8 @@ final class LessonsFilterState {
             sourceRaw: sourceFilter?.rawValue ?? "",
             personalKindRaw: personalKindFilter?.rawValue ?? "",
             hasAttachmentRaw: hasAttachmentFilter ? "true" : "",
-            needsAttentionRaw: needsAttentionFilter ? "true" : ""
+            needsAttentionRaw: needsAttentionFilter ? "true" : "",
+            formatFilterRaw: formatFilter?.rawValue ?? ""
         )
     }
 }

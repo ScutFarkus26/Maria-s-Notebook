@@ -40,6 +40,8 @@ struct LessonDetailCard: View {
     @State var draftPurpose: String = ""
     @State var draftAgeRange: String = ""
     @State var draftTeacherNotes: String = ""
+    @State var draftLessonFormat: LessonFormat = .standard
+    @State var draftParentStoryID: UUID?
     @State var showingSampleWorkEditor = false
     @State var editingSampleWork: SampleWork?
 
@@ -100,6 +102,14 @@ struct LessonDetailCard: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                    }
+                    if lesson.isStory {
+                        Text("Story")
+                            .font(AppTheme.ScaledFont.bodySemibold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Color.purple.opacity(0.12)))
+                            .foregroundStyle(.purple)
                     }
                     if lesson.source == .personal {
                         Text(lesson.personalKind?.badgeLabel ?? "Personal")
@@ -168,6 +178,8 @@ struct LessonDetailCard: View {
                         updated.purpose = draftPurpose.trimmed()
                         updated.ageRange = draftAgeRange.trimmed()
                         updated.teacherNotes = draftTeacherNotes
+                        updated.lessonFormat = draftLessonFormat
+                        updated.parentStoryUUID = draftLessonFormat == .story ? draftParentStoryID : nil
                         onSave(updated)
                         isEditing = false
                     } label: {
@@ -303,6 +315,8 @@ struct LessonDetailCard: View {
         draftPurpose = lesson.purpose
         draftAgeRange = lesson.ageRange
         draftTeacherNotes = lesson.teacherNotes
+        draftLessonFormat = lesson.lessonFormat
+        draftParentStoryID = lesson.parentStoryUUID
     }
 
     func resolvePagesURL() -> URL? {

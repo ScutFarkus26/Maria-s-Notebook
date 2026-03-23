@@ -54,8 +54,15 @@ final class Lesson: Identifiable {
     /// Raw storage for optional personal kind when source is personal. Nil or empty means default .personal.
     var personalKindRaw: String?
     
+    // MARK: - Story / Format
+
+    /// Raw storage for lesson format ("standard" or "story"). Defaults to standard for backward compatibility.
+    var lessonFormatRaw: String = "standard"
+    /// UUID string of the parent story lesson. Nil for root stories and standard lessons.
+    var parentStoryID: String?
+
     // MARK: - Work Configuration
-    
+
     /// Raw storage for the preferred work type produced by this lesson (e.g., Practice or Follow-Up).
     var defaultWorkKindRaw: String?
 
@@ -100,6 +107,26 @@ final class Lesson: Identifiable {
         get { greatLessonRaw.flatMap { GreatLesson(rawValue: $0) } }
         set { greatLessonRaw = newValue?.rawValue }
     }
+
+    @Transient
+    var lessonFormat: LessonFormat {
+        get { LessonFormat(rawValue: lessonFormatRaw) ?? .standard }
+        set { lessonFormatRaw = newValue.rawValue }
+    }
+
+    @Transient
+    var parentStoryUUID: UUID? {
+        get { parentStoryID.flatMap(UUID.init(uuidString:)) }
+        set { parentStoryID = newValue?.uuidString }
+    }
+
+    /// Whether this lesson is a story (root or child).
+    @Transient
+    var isStory: Bool { lessonFormat == .story }
+
+    /// Whether this lesson is a top-level story with no parent.
+    @Transient
+    var isRootStory: Bool { isStory && parentStoryID == nil }
 
     @Transient
     var primaryAttachmentIDUUID: UUID? {
@@ -197,7 +224,9 @@ final class Lesson: Identifiable {
         teacherNotes: String = "",
         prerequisiteLessonIDs: String = "",
         relatedLessonIDs: String = "",
-        greatLessonRaw: String? = nil
+        greatLessonRaw: String? = nil,
+        lessonFormatRaw: String = "standard",
+        parentStoryID: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -221,6 +250,8 @@ final class Lesson: Identifiable {
         self.prerequisiteLessonIDs = prerequisiteLessonIDs
         self.relatedLessonIDs = relatedLessonIDs
         self.greatLessonRaw = greatLessonRaw
+        self.lessonFormatRaw = lessonFormatRaw
+        self.parentStoryID = parentStoryID
         self.notes = []
         self.lessonAssignments = []
         self.sampleWorks = []

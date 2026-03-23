@@ -27,6 +27,22 @@ extension LessonDetailView {
                 }
             }
 
+            Picker("Format", selection: $draftLessonFormat) {
+                ForEach(LessonFormat.allCases) { f in
+                    Label(f.label, systemImage: f.icon).tag(f)
+                }
+            }
+
+            if draftLessonFormat == .story {
+                let storyLessons = allLessons.filter { $0.isStory && $0.id != lesson.id }
+                Picker("Parent Story", selection: $draftParentStoryID) {
+                    Text("None (Root Story)").tag(nil as UUID?)
+                    ForEach(storyLessons) { story in
+                        Text(story.name).tag(story.id as UUID?)
+                    }
+                }
+            }
+
             TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
                 .textFieldStyle(.roundedBorder)
 

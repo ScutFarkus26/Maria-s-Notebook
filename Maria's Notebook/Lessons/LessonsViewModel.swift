@@ -66,6 +66,7 @@ struct LessonsViewModel {
     func buildLessonPredicate(
         sourceFilter: LessonSource?,
         personalKindFilter: PersonalLessonKind?,
+        formatFilter: LessonFormat? = nil,
         selectedSubject: String?,
         selectedGroup: String?,
         searchText: String
@@ -148,6 +149,7 @@ struct LessonsViewModel {
         modelContext: ModelContext,
         sourceFilter: LessonSource?,
         personalKindFilter: PersonalLessonKind?,
+        formatFilter: LessonFormat? = nil,
         searchText: String,
         selectedSubject: String?,
         selectedGroup: String?,
@@ -156,6 +158,7 @@ struct LessonsViewModel {
         let query = searchText.trimmed()
         let predicate = buildLessonPredicate(
             sourceFilter: sourceFilter, personalKindFilter: personalKindFilter,
+            formatFilter: formatFilter,
             selectedSubject: selectedSubject, selectedGroup: selectedGroup, searchText: searchText
         )
         var descriptor = FetchDescriptor<Lesson>()
@@ -168,6 +171,9 @@ struct LessonsViewModel {
         }
         if let group = selectedGroup?.trimmed(), !group.isEmpty, query.isEmpty {
             fetched = fetched.filter { $0.group.trimmed().caseInsensitiveCompare(group) == .orderedSame }
+        }
+        if let formatFilter {
+            fetched = fetched.filter { $0.lessonFormat == formatFilter }
         }
         if !query.isEmpty {
             fetched = fetched.filter { l in

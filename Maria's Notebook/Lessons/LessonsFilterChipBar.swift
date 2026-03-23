@@ -8,6 +8,7 @@ import SwiftUI
 struct LessonsFilterChipBar: View {
     @Binding var sourceFilter: LessonSource?
     @Binding var personalKindFilter: PersonalLessonKind?
+    @Binding var formatFilter: LessonFormat?
     @Binding var hasAttachmentFilter: Bool
     @Binding var needsAttentionFilter: Bool
 
@@ -85,6 +86,14 @@ struct LessonsFilterChipBar: View {
 
     @ViewBuilder
     private var additionalFilterChips: some View {
+        FilterChip(
+            label: "Stories",
+            icon: "book.pages",
+            isActive: formatFilter == .story,
+            activeColor: .purple,
+            onTap: { formatFilter = formatFilter == .story ? nil : .story }
+        )
+
         FilterChip(
             label: "Has File",
             icon: "doc.fill",
@@ -168,6 +177,7 @@ extension PersonalLessonKind {
     struct PreviewWrapper: View {
         @State private var source: LessonSource?
         @State private var kind: PersonalLessonKind?
+        @State private var format: LessonFormat?
         @State private var hasFile = false
         @State private var needsAttention = false
 
@@ -176,12 +186,14 @@ extension PersonalLessonKind {
                 LessonsFilterChipBar(
                     sourceFilter: $source,
                     personalKindFilter: $kind,
+                    formatFilter: $format,
                     hasAttachmentFilter: $hasFile,
                     needsAttentionFilter: $needsAttention
                 )
 
                 Text("Source: \(source?.rawValue ?? "nil")")
                 Text("Kind: \(kind?.rawValue ?? "nil")")
+                Text("Format: \(format?.rawValue ?? "nil")")
                 Text("Has File: \(hasFile.description)")
                 Text("Needs Attention: \(needsAttention.description)")
             }
@@ -194,6 +206,7 @@ extension PersonalLessonKind {
     struct PreviewWrapper: View {
         @State private var source: LessonSource? = .personal
         @State private var kind: PersonalLessonKind? = .observation
+        @State private var format: LessonFormat?
         @State private var hasFile = false
         @State private var needsAttention = true
 
@@ -201,6 +214,7 @@ extension PersonalLessonKind {
             LessonsFilterChipBar(
                 sourceFilter: $source,
                 personalKindFilter: $kind,
+                formatFilter: $format,
                 hasAttachmentFilter: $hasFile,
                 needsAttentionFilter: $needsAttention
             )

@@ -30,6 +30,8 @@ struct AddLessonView: View {
 
     @State private var source: LessonSource = .album
     @State private var personalKind: PersonalLessonKind = .personal
+    @State private var lessonFormat: LessonFormat = .standard
+    @State private var parentStoryID: UUID?
 
     init(defaultSubject: String? = nil, defaultGroup: String? = nil) {
         self.defaultSubject = defaultSubject?.trimmed()
@@ -66,6 +68,26 @@ struct AddLessonView: View {
                         Picker("Personal Type", selection: $personalKind) {
                             ForEach(PersonalLessonKind.allCases) { k in
                                 Text(k.label).tag(k)
+                            }
+                        }
+                    }
+                    Picker("Format", selection: $lessonFormat) {
+                        ForEach(LessonFormat.allCases) { f in
+                            Label(f.label, systemImage: f.icon).tag(f)
+                        }
+                    }
+                    if lessonFormat == .story {
+                        let storyRaw = LessonFormat.story.rawValue
+                        let storyLessons: [Lesson] = {
+                            let descriptor = FetchDescriptor<Lesson>(
+                                predicate: #Predicate { $0.lessonFormatRaw == storyRaw }
+                            )
+                            return modelContext.safeFetch(descriptor)
+                        }()
+                        Picker("Parent Story", selection: $parentStoryID) {
+                            Text("None (Root Story)").tag(nil as UUID?)
+                            ForEach(storyLessons) { story in
+                                Text(story.name).tag(story.id as UUID?)
                             }
                         }
                     }
@@ -123,7 +145,9 @@ struct AddLessonView: View {
                         materials: materials,
                         purpose: purpose.trimmed(),
                         ageRange: ageRange.trimmed(),
-                        teacherNotes: teacherNotes
+                        teacherNotes: teacherNotes,
+                        lessonFormat: lessonFormat,
+                        parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
                     )
 
                     // Automatically create/update Track object if lesson belongs to a track

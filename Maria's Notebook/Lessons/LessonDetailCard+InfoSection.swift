@@ -118,6 +118,30 @@ extension LessonDetailCard {
                     modelContext: modelContext
                 )
             }
+
+            // Parent Story
+            if let parentID = lesson.parentStoryUUID {
+                LessonRelationshipsSection(
+                    title: "Parent Story",
+                    icon: "arrow.up.circle",
+                    lessonIDs: [parentID],
+                    modelContext: modelContext
+                )
+            }
+
+            // Story Branches (child stories)
+            if lesson.isStory {
+                let repo = LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+                let children = repo.fetchChildStories(parentID: lesson.id)
+                if !children.isEmpty {
+                    LessonRelationshipsSection(
+                        title: "Story Branches",
+                        icon: "arrow.triangle.branch",
+                        lessonIDs: children.map(\.id),
+                        modelContext: modelContext
+                    )
+                }
+            }
         }
     }
 
