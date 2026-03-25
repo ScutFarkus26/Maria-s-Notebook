@@ -12,6 +12,7 @@ struct CommandBarSheet: View {
     // Callbacks to RootView for opening sheets
     var onPresentation: (UUID) -> Void
     var onWorkItem: (UUID?, Set<UUID>) -> Void
+    var onPractice: ((UUID?, Set<UUID>) -> Void)?
     var onNote: (UUID?, String) -> Void
     var onTodo: (String) -> Void
 
@@ -280,6 +281,8 @@ struct CommandBarSheet: View {
             onPresentation(draftID)
         case .openWorkItem(let lessonID, let studentIDs):
             onWorkItem(lessonID, studentIDs)
+        case .openPractice(let lessonID, let studentIDs):
+            onPractice?(lessonID, studentIDs)
         case .openNote(let studentID, let bodyText):
             onNote(studentID, bodyText)
         case .openTodo(let titleText):

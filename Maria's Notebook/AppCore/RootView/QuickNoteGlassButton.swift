@@ -9,6 +9,7 @@ struct QuickNoteGlassButton: View {
     @Binding var isShowingCommandBar: Bool
     var onNewPresentation: () -> Void
     @Binding var isShowingWorkItemSheet: Bool
+    var onRecordPractice: () -> Void
     var onNewTodo: () -> Void
     var onNewNote: () -> Void
 
@@ -58,7 +59,7 @@ struct QuickNoteGlassButton: View {
         .accessibilityLabel("Quick command")
         .accessibilityHint(
             "Double tap to open command bar, hold for presentation,"
-            + " work, todo, and note actions, or drag to reposition"
+            + " work, practice, todo, and note actions, or drag to reposition"
         )
         .accessibilityAddTraits(.isButton)
     }
@@ -279,15 +280,14 @@ struct QuickNoteGlassButton: View {
 
         let angle = normalizedDegrees(atan2(translation.height, translation.width) * 180 / .pi)
 
-        // 4 quadrants of 90° each
-        if angleInRange(angle, from: 180, to: 270) {
-            highlightedAction = .newPresentation
-        } else if angleInRange(angle, from: 270, to: 360) {
-            highlightedAction = .newWorkItem
-        } else if angleInRange(angle, from: 0, to: 90) {
-            highlightedAction = .newTodo
-        } else {
-            highlightedAction = .newNote
+        // Data-driven segment detection
+        for action in PieMenuAction.allCases {
+            let start = normalizedDegrees(action.startAngle)
+            let end = normalizedDegrees(action.endAngle)
+            if angleInRange(angle, from: start, to: end) {
+                highlightedAction = action
+                return
+            }
         }
     }
 
@@ -302,6 +302,8 @@ struct QuickNoteGlassButton: View {
             onNewPresentation()
         case .newWorkItem:
             isShowingWorkItemSheet = true
+        case .recordPractice:
+            onRecordPractice()
         case .newTodo:
             onNewTodo()
         case .newNote:

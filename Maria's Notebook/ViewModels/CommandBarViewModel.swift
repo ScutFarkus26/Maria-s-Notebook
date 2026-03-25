@@ -89,6 +89,12 @@ final class CommandBarViewModel {
                 studentIDs: Set(command.studentIDs)
             )
 
+        case .recordPractice:
+            return .openPractice(
+                lessonID: command.lessonID,
+                studentIDs: Set(command.studentIDs)
+            )
+
         case .addNote:
             return .openNote(
                 studentID: command.studentIDs.first,

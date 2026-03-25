@@ -8,7 +8,8 @@ import Foundation
 /// The intent detected from natural language input
 enum RecordIntent: String, Codable, CaseIterable, Sendable {
     case recordPresentation  // gave, presented, showed, demonstrated
-    case assignWork          // assign, work, practice
+    case assignWork          // assign, work
+    case recordPractice      // practiced, practicing, practice
     case addNote             // note, observe, noticed, saw
     case addTodo             // todo, remind, reminder, task
 
@@ -16,6 +17,7 @@ enum RecordIntent: String, Codable, CaseIterable, Sendable {
         switch self {
         case .recordPresentation: return "Presentation"
         case .assignWork: return "Work"
+        case .recordPractice: return "Practice"
         case .addNote: return "Note"
         case .addTodo: return "Todo"
         }
@@ -25,6 +27,7 @@ enum RecordIntent: String, Codable, CaseIterable, Sendable {
         switch self {
         case .recordPresentation: return "person.crop.rectangle.stack"
         case .assignWork: return "tray.and.arrow.down"
+        case .recordPractice: return "figure.run"
         case .addNote: return "square.and.pencil"
         case .addTodo: return "checklist.checked"
         }
@@ -34,6 +37,7 @@ enum RecordIntent: String, Codable, CaseIterable, Sendable {
         switch self {
         case .recordPresentation: return .newPresentation
         case .assignWork: return .newWorkItem
+        case .recordPractice: return .recordPractice
         case .addNote: return .newNote
         case .addTodo: return .newTodo
         }
@@ -70,6 +74,7 @@ enum CommandParseResult: Sendable {
 enum CommandAction {
     case openPresentation(draftID: UUID)
     case openWorkItem(lessonID: UUID?, studentIDs: Set<UUID>)
+    case openPractice(lessonID: UUID?, studentIDs: Set<UUID>)
     case openNote(studentID: UUID?, bodyText: String)
     case openTodo(titleText: String)
 }

@@ -8,6 +8,7 @@ import SwiftUI
 enum PieMenuAction: String, CaseIterable, Hashable {
     case newPresentation
     case newWorkItem
+    case recordPractice
     case newTodo
     case newNote
 
@@ -15,6 +16,7 @@ enum PieMenuAction: String, CaseIterable, Hashable {
         switch self {
         case .newPresentation: return "person.crop.rectangle.stack"
         case .newWorkItem: return "tray.and.arrow.down"
+        case .recordPractice: return "figure.run"
         case .newTodo: return "checklist.checked"
         case .newNote: return "square.and.pencil"
         }
@@ -24,6 +26,7 @@ enum PieMenuAction: String, CaseIterable, Hashable {
         switch self {
         case .newPresentation: return "Present"
         case .newWorkItem: return "Work"
+        case .recordPractice: return "Practice"
         case .newTodo: return "Todo"
         case .newNote: return "Note"
         }
@@ -33,6 +36,7 @@ enum PieMenuAction: String, CaseIterable, Hashable {
         switch self {
         case .newPresentation: return .blue
         case .newWorkItem: return .orange
+        case .recordPractice: return .pink
         case .newTodo: return .green
         case .newNote: return .purple
         }
@@ -44,6 +48,8 @@ enum PieMenuAction: String, CaseIterable, Hashable {
             return [Color.cyan, Color.blue]
         case .newWorkItem:
             return [Color.orange, Color.pink]
+        case .recordPractice:
+            return [Color.pink, Color.red]
         case .newTodo:
             return [Color.mint, Color.green]
         case .newNote:
@@ -51,17 +57,20 @@ enum PieMenuAction: String, CaseIterable, Hashable {
         }
     }
 
+    private var caseIndex: Int {
+        Self.allCases.firstIndex(of: self)!
+    }
+
+    private static var segmentSize: Double {
+        360.0 / Double(allCases.count)
+    }
+
     var startAngle: Double {
-        switch self {
-        case .newPresentation: return -180
-        case .newWorkItem: return -90
-        case .newTodo: return 0
-        case .newNote: return 90
-        }
+        -180.0 + Double(caseIndex) * Self.segmentSize
     }
 
     var endAngle: Double {
-        startAngle + 90
+        startAngle + Self.segmentSize
     }
 
     var centerAngle: Double {
@@ -69,12 +78,7 @@ enum PieMenuAction: String, CaseIterable, Hashable {
     }
 
     var animationDelay: Double {
-        switch self {
-        case .newPresentation: return 0.00
-        case .newWorkItem: return 0.03
-        case .newTodo: return 0.06
-        case .newNote: return 0.09
-        }
+        Double(caseIndex) * 0.025
     }
 }
 

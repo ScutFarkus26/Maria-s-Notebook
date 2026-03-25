@@ -26,8 +26,11 @@ actor LocalCommandParser {
     ]
 
     private static let workKeywords: Set<String> = [
-        "assign", "assigned", "work", "practice", "practicing",
-        "working"
+        "assign", "assigned", "work", "working"
+    ]
+
+    private static let practiceKeywords: Set<String> = [
+        "practice", "practiced", "practicing"
     ]
 
     private static let noteKeywords: Set<String> = [
@@ -127,6 +130,9 @@ actor LocalCommandParser {
         }
         if !words.isDisjoint(with: Self.workKeywords) {
             return (.assignWork, 0.4)
+        }
+        if !words.isDisjoint(with: Self.practiceKeywords) {
+            return (.recordPractice, 0.4)
         }
         if !words.isDisjoint(with: Self.noteKeywords) {
             return (.addNote, 0.4)
