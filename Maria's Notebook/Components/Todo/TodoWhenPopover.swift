@@ -132,7 +132,7 @@ struct TodoWhenPopover: View {
             // Month navigation
             HStack {
                 Button {
-                    _ = adaptiveWithAnimation(
+                    adaptiveWithAnimation(
                         .easeInOut(duration: UIConstants.AnimationDuration.fast)
                     ) {
                         displayedMonth = calendar.date(
@@ -154,7 +154,7 @@ struct TodoWhenPopover: View {
                 Spacer()
 
                 Button {
-                    _ = adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
+                    adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
                         displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
                     }
                 } label: {
@@ -269,7 +269,7 @@ struct TodoWhenPopover: View {
                 }
 
                 Button {
-                    _ = adaptiveWithAnimation(UIConstants.SpringAnimation.standard) {
+                    adaptiveWithAnimation(UIConstants.SpringAnimation.standard) {
                         showDeadlinePicker.toggle()
                     }
                 } label: {

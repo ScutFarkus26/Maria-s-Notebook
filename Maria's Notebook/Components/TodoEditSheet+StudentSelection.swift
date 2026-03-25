@@ -87,7 +87,7 @@ extension TodoEditSheet {
             VStack(spacing: 6) {
                 ForEach(available) { student in
                     Button {
-                        _ = adaptiveWithAnimation(Animation.spring(response: 0.25, dampingFraction: 0.85)) {
+                        adaptiveWithAnimation(Animation.spring(response: 0.25, dampingFraction: 0.85)) {
                             _ = selectedStudentIDs.insert(student.id.uuidString)
                         }
                     } label: {

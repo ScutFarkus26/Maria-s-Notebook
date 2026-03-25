@@ -31,7 +31,7 @@ struct WhatsNewBanner: View {
                         .foregroundStyle(.tint)
                     Spacer()
                     Button {
-                        _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                             dismissedVersion = currentVersion
                         }
                     } label: {

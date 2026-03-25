@@ -9,7 +9,7 @@ extension TodoMainView {
     private static let logger = Logger.todos
 
     func batchComplete() {
-        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToComplete = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todosToComplete {
                 todo.isCompleted = true
@@ -26,7 +26,7 @@ extension TodoMainView {
     }
 
     func batchSetHighPriority() {
-        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todos {
                 todo.priority = .high
@@ -42,7 +42,7 @@ extension TodoMainView {
     }
 
     func batchSetDueToday() {
-        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
             let today = Calendar.current.startOfDay(for: Date())
             for todo in todos {
@@ -59,7 +59,7 @@ extension TodoMainView {
     }
 
     func batchDelete() {
-        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToDelete = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todosToDelete {
                 modelContext.delete(todo)

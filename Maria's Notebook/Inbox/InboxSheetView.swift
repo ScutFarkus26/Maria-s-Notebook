@@ -143,7 +143,7 @@ public struct InboxSheetView: View {
           getCurrent: { orderedUnscheduledLessons },
           itemFramesProvider: { baseFrames ?? itemFrames },
           onTargetChange: { targeted in
-            _ = adaptiveWithAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
+            adaptiveWithAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
             if targeted {
               if baseFrames == nil { baseFrames = itemFrames }
             } else {
@@ -152,7 +152,7 @@ public struct InboxSheetView: View {
           },
           onInsertionIndexChange: { idx in
             if idx != insertionIndex {
-              _ = adaptiveWithAnimation(
+              adaptiveWithAnimation(
                   .interactiveSpring(response: 0.16, dampingFraction: 0.85)
               ) { insertionIndex = idx }
             }

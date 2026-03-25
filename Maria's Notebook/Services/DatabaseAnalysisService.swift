@@ -104,7 +104,7 @@ final class DatabaseAnalysisService {
     private func serializeStudents(_ students: [Student]) -> String {
         guard !students.isEmpty else { return "" }
         var lines = ["=== STUDENTS (\(students.count)) ==="]
-        for s in students.sorted { $0.firstName < $1.firstName } {
+        for s in students.sorted(by: { $0.firstName < $1.firstName }) {
             let age = Calendar.current.dateComponents([.year, .month], from: s.birthday, to: Date())
             let ageStr = "\(age.year ?? 0)y\(age.month ?? 0)m"
             let started = s.dateStarted?.formatted(date: .numeric, time: .omitted) ?? "?"

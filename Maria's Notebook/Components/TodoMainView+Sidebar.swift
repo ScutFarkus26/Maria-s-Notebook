@@ -208,7 +208,7 @@ extension TodoMainView {
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
                                         if selectedFolder == groupName {
                                             // Deselect folder
                                             selectedFolder = nil
@@ -236,7 +236,7 @@ extension TodoMainView {
                                 }
                                 .dropDestination(for: String.self) { items, _ in
                                     guard let dropped = items.first, dropped != item else { return false }
-                                    _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
                                         moveTag(from: dropped, toAfter: item)
                                     }
                                     return true
@@ -319,7 +319,7 @@ extension TodoMainView {
         )
         .dropDestination(for: String.self) { items, _ in
             guard let dropped = items.first, dropped != dragKey else { return false }
-            _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+            adaptiveWithAnimation(.snappy(duration: 0.2)) {
                 moveTag(from: dropped, toAfter: dragKey)
             }
             return true

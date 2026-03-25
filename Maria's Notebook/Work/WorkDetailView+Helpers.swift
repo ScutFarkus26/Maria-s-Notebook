@@ -83,7 +83,7 @@ extension WorkDetailView {
                             icon: kind.iconName,
                             label: kind.shortLabel
                         ) {
-                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.workKind = kind
                             }
                         }
@@ -112,7 +112,7 @@ extension WorkDetailView {
                             icon: s.iconName,
                             label: s.displayName
                         ) {
-                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.status = s
 
                                 // When marking as complete with good outcome, offer to unlock next lesson
@@ -165,7 +165,7 @@ extension WorkDetailView {
                             icon: style.iconName,
                             label: style.displayName
                         ) {
-                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.checkInStyle = style
                             }
                         }

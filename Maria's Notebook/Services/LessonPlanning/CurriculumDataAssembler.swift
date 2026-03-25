@@ -33,12 +33,12 @@ struct CurriculumDataAssembler {
         
         var subjectMaps: [CurriculumMap.SubjectMap] = []
         
-        for (subject, subjectLessons) in lessonsBySubject.sorted { $0.key < $1.key } {
+        for (subject, subjectLessons) in lessonsBySubject.sorted(by: { $0.key < $1.key }) {
             let lessonsByGroup = Dictionary(grouping: subjectLessons) { $0.group.trimmed() }
             
             var groupMaps: [CurriculumMap.GroupMap] = []
             
-            for (group, groupLessons) in lessonsByGroup.sorted { $0.key < $1.key } {
+            for (group, groupLessons) in lessonsByGroup.sorted(by: { $0.key < $1.key }) {
                 let sortedLessons = groupLessons.sorted { $0.orderInGroup < $1.orderInGroup }
                 
                 var lessonPositions: [CurriculumMap.LessonPosition] = []

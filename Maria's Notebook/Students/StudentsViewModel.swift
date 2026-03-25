@@ -132,7 +132,7 @@ final class StudentsViewModel {
         var seen = Set<Int>()
         var duplicates: [Student] = []
         // Keep first occurrence of each order and collect duplicates (e.g., newly added with default 0)
-        for s in all.sorted { $0.manualOrder < $1.manualOrder } {
+        for s in all.sorted(by: { $0.manualOrder < $1.manualOrder }) {
             if seen.contains(s.manualOrder) {
                 duplicates.append(s)
             } else {

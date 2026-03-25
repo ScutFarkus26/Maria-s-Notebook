@@ -72,7 +72,7 @@ struct TodoMainView: View {
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button {
-                    _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
                         isSelectMode.toggle()
                         if !isSelectMode { selectedTodoIDs.removeAll() }
                     }

@@ -263,7 +263,7 @@ final class StudentAnalysisService {
             note.tags.first.map { TagHelper.tagName($0) } ?? "General"
         })
         var observationsSummary = ""
-        for (tagName, notes) in notesByTag.sorted { $0.key < $1.key } {
+        for (tagName, notes) in notesByTag.sorted(by: { $0.key < $1.key }) {
             observationsSummary += "\n\(tagName) (\(notes.count) notes):\n"
             for note in notes.prefix(3) {
                 observationsSummary += "  - \(note.body.prefix(100))\n"

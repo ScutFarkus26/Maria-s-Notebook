@@ -80,7 +80,7 @@ extension WorkDetailView {
                         .buttonStyle(.plain)
 
                         Button {
-                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 addPlan()
                             }
                         } label: {

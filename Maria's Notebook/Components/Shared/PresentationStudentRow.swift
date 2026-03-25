@@ -31,7 +31,7 @@ struct PresentationStudentRow: View {
 
     private var headerRow: some View {
         Button {
-            _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                 isExpanded.toggle()
             }
         } label: {

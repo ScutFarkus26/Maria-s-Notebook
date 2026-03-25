@@ -180,7 +180,7 @@ struct AttendanceStandaloneView: View {
     // MARK: - Toast
 
     private func toast(_ message: String) {
-        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toastMessage = message
         }
         Task { @MainActor in
@@ -189,7 +189,7 @@ struct AttendanceStandaloneView: View {
             } catch {
                 Self.logger.warning("Failed to sleep for toast dismissal: \(error)")
             }
-            _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil
             }
         }

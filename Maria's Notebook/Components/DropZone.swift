@@ -151,11 +151,11 @@ struct DropZone: View {
             getCurrent: { scheduledLessonsForSlot },
             itemFramesProvider: { itemFrames },
             onTargetChange: { targeted in
-                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted }
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted }
             },
             onInsertionIndexChange: { idx in
                 if insertionIndex != idx {
-                    _ = adaptiveWithAnimation(
+                    adaptiveWithAnimation(
                         .interactiveSpring(response: 0.16, dampingFraction: 0.85)
                     ) { insertionIndex = idx }
                 }

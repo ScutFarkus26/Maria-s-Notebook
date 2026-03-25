@@ -23,7 +23,7 @@ struct ShimmerModifier: ViewModifier {
             )
             .clipped()
             .onAppear {
-                _ = adaptiveWithAnimation(
+                adaptiveWithAnimation(
                     .linear(duration: 1.5)
                     .repeatForever(autoreverses: false)
                 ) {

@@ -104,7 +104,7 @@ struct TodoRow: View {
         let shareSubs = todo.subtasks ?? []
         if !shareSubs.isEmpty {
             text += "\n\u{2705} Subtasks (\(shareSubs.filter(\.isCompleted).count)/\(shareSubs.count)):\n"
-            for subtask in shareSubs.sorted { $0.orderIndex < $1.orderIndex } {
+            for subtask in shareSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
                 let checkbox = subtask.isCompleted ? "\u{2611}\u{FE0F}" : "\u{2610}"
                 text += "  \(checkbox) \(subtask.title)\n"
             }
@@ -135,11 +135,11 @@ struct TodoRow: View {
 
             // Checkbox
             Button {
-                _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                     checkboxScale = 0.8
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                         checkboxScale = 1.0
                         onToggle()
                     }

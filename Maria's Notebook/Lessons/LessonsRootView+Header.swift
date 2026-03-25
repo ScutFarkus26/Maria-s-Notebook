@@ -11,7 +11,7 @@ extension LessonsRootView {
         HStack(spacing: 12) {
             if isJiggling {
                 Button {
-                    _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         isJiggling = false
                     }
                 } label: {

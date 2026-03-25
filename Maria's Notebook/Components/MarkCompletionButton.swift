@@ -42,12 +42,12 @@ struct MarkCompletionButton: View {
             #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             #endif
-            _ = adaptiveWithAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            adaptiveWithAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 justCompleted = true
             }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.5))
-                _ = adaptiveWithAnimation(.easeOut) { justCompleted = false }
+                adaptiveWithAnimation(.easeOut) { justCompleted = false }
             }
         } catch {
             Self.logger.error("[\(#function)] Failed to mark work completed: \(error)")

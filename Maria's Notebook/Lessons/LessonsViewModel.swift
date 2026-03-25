@@ -297,7 +297,7 @@ struct LessonsViewModel {
             }
             var seen = Set<Int>()
             var duplicates: [Lesson] = []
-            for l in arr.sorted { $0.orderInGroup < $1.orderInGroup } {
+            for l in arr.sorted(by: { $0.orderInGroup < $1.orderInGroup }) {
                 if seen.contains(l.orderInGroup) {
                     duplicates.append(l)
                 } else {

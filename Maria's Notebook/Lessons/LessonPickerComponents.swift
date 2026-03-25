@@ -54,7 +54,7 @@ struct LessonSearchField: View {
             .onChange(of: searchText) { _, newValue in
                 // Keep the popover visible while typing
                 if !newValue.trimmed().isEmpty {
-                    if !isPresented { _ = adaptiveWithAnimation(.easeInOut) { isPresented = true } }
+                    if !isPresented { adaptiveWithAnimation(.easeInOut) { isPresented = true } }
                 }
             }
             .onSubmit {
@@ -66,14 +66,14 @@ struct LessonSearchField: View {
                 if let match {
                     selectedLessonID = match.id
                     searchText = match.name
-                    _ = adaptiveWithAnimation(.easeInOut) { isPresented = false }
+                    adaptiveWithAnimation(.easeInOut) { isPresented = false }
                     isFocused = false
                 }
             }
             .onChange(of: isFocused) { _, newValue in
                 textFocused = newValue
                 if newValue {
-                    _ = adaptiveWithAnimation(.easeInOut) { isPresented = true }
+                    adaptiveWithAnimation(.easeInOut) { isPresented = true }
                 }
             }
             .onChange(of: textFocused) { _, newValue in
@@ -88,7 +88,7 @@ struct LessonSearchField: View {
             }
             .onTapGesture {
                 isFocused = true
-                _ = adaptiveWithAnimation(.easeInOut) { isPresented = true }
+                adaptiveWithAnimation(.easeInOut) { isPresented = true }
             }
             .popover(isPresented: $isPresented, arrowEdge: .bottom) {
                 LessonPickerPopover(
@@ -119,7 +119,7 @@ struct LessonPickerPopover: View {
                 Button(action: {
                     selectedLessonID = lesson.id
                     searchText = lesson.name
-                    _ = adaptiveWithAnimation(.easeInOut) { isPresented = false }
+                    adaptiveWithAnimation(.easeInOut) { isPresented = false }
                     isFocused = false
                 }, label: {
                     HStack {

@@ -158,7 +158,7 @@ struct MeetingThresholdPicker: View {
             HStack(spacing: 8) {
                 // Tappable pill showing current value
                 Button {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                         isExpanded.toggle()
                     }
                 } label: {
@@ -185,7 +185,7 @@ struct MeetingThresholdPicker: View {
 
                 // Show completed toggle
                 Button {
-                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         showCompleted.toggle()
                     }
                 } label: {
@@ -214,7 +214,7 @@ struct MeetingThresholdPicker: View {
                     HStack(spacing: 6) {
                         ForEach(presets, id: \.self) { preset in
                             Button {
-                                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                                     days = preset
                                 }
                             } label: {

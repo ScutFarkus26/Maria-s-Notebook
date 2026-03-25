@@ -83,18 +83,18 @@ struct ChatInputBar: View {
 
     private func triggerSend() {
         // Bounce + spin animation
-        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
             sendButtonScale = 0.7
             sendButtonRotation = -30
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                 sendButtonScale = 1.1
                 sendButtonRotation = 0
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            _ = adaptiveWithAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+            adaptiveWithAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                 sendButtonScale = 1.0
             }
         }

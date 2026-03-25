@@ -102,7 +102,7 @@ struct TodoListPanel: View {
                                 isSelected: selectedFilter == filter,
                                 count: todos.filter { filter.matches($0) }.count
                             ) {
-                                _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                     selectedFilter = filter
                                 }
                             }

@@ -140,7 +140,7 @@ public final class DeltaSyncService {
         var reconstructed = baseData
         
         // Apply each chunk
-        for chunk in manifest.chunks.sorted { $0.offset < $1.offset } {
+        for chunk in manifest.chunks.sorted(by: { $0.offset < $1.offset }) {
             // Verify chunk checksum
             if configuration.checksumValidation {
                 let chunkChecksum = sha256(chunk.data)

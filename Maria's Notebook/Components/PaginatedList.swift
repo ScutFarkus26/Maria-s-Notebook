@@ -42,7 +42,7 @@ final class PaginationState {
     func loadMore() {
         guard hasMore else { return }
         let newCount = min(displayedCount + pageSize, totalCount)
-        _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
             displayedCount = newCount
         }
     }

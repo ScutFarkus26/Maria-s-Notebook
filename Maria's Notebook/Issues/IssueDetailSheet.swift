@@ -93,7 +93,7 @@ struct IssueDetailSheet: View {
                             Label("Add Action", systemImage: "plus.circle.fill")
                         }
                         
-                        if let actions = issue.actions?.sorted { $0.actionDate > $1.actionDate } {
+                        if let actions = issue.actions?.sorted(by: { $0.actionDate > $1.actionDate }) {
                             if actions.isEmpty {
                                 Text("No actions recorded yet")
                                     .foregroundStyle(.secondary)

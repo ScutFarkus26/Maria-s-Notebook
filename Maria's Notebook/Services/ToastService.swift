@@ -129,7 +129,7 @@ final class ToastService {
     /// Dismiss the current toast immediately
     func dismiss() {
         dismissTask?.cancel()
-        _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
             currentToast = nil
         }
         showNextToast()
@@ -139,7 +139,7 @@ final class ToastService {
     func clearAll() {
         dismissTask?.cancel()
         toastQueue.removeAll()
-        _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
             currentToast = nil
         }
     }
@@ -149,7 +149,7 @@ final class ToastService {
     private func showToast(_ toast: ToastMessage) {
         dismissTask?.cancel()
 
-        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             currentToast = toast
         }
 

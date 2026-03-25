@@ -80,13 +80,13 @@ struct PresentationsInboxView: View {
         Button(action: {
             if let suggested = suggestedNextLesson {
                 suggestDismissTask?.cancel()
-                _ = adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+                adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
                     suggestedLessonID = suggested.id
                 }
                 suggestDismissTask = Task { @MainActor in
                     try? await Task.sleep(for: .seconds(3))
                     guard !Task.isCancelled else { return }
-                    _ = adaptiveWithAnimation(.easeOut(duration: 0.5)) {
+                    adaptiveWithAnimation(.easeOut(duration: 0.5)) {
                         suggestedLessonID = nil
                     }
                 }
@@ -119,7 +119,7 @@ struct PresentationsInboxView: View {
 
                         #if os(iOS)
                         Button {
-                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 coordinator.toggleCalendar()
                             }
                         } label: {
@@ -171,7 +171,7 @@ struct PresentationsInboxView: View {
                             Text(StudentFormatter.displayName(for: student))
                                 .font(.caption.weight(.medium))
                             Button {
-                                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                                     coordinator.clearStudentFilter()
                                 }
                             } label: {

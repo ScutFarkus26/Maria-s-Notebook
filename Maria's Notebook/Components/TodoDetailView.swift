@@ -32,7 +32,7 @@ struct TodoDetailView: View {
                 // Title + Checkbox
                 HStack(alignment: .top, spacing: 14) {
                     Button {
-                        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                        adaptiveWithAnimation(.snappy(duration: 0.2)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             try? modelContext.save()

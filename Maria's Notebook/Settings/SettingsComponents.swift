@@ -137,7 +137,7 @@ struct SettingsGroup<Content: View>: View {
             HStack {
                 if collapsible {
                     Button {
-                        _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                             isExpanded.toggle()
                         }
                     } label: {

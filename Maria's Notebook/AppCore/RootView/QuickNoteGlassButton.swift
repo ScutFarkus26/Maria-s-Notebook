@@ -219,7 +219,7 @@ struct QuickNoteGlassButton: View {
                     }
 
                     // Close pie menu
-                    _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isPieMenuExpanded = false
                         highlightedAction = nil
                     }
@@ -236,7 +236,7 @@ struct QuickNoteGlassButton: View {
                     savedOffsetX = finalOffset.width
                     savedOffsetY = finalOffset.height
 
-                    _ = adaptiveWithAnimation(.snappy(duration: 0.25, extraBounce: 0)) {
+                    adaptiveWithAnimation(.snappy(duration: 0.25, extraBounce: 0)) {
                         self.offset = finalOffset
                     }
                 }
@@ -254,7 +254,7 @@ struct QuickNoteGlassButton: View {
                 let distance = hypot(dragTranslation.width, dragTranslation.height)
                 guard distance < 10 else { return }
 
-                _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                     isPieMenuExpanded = true
                 }
 

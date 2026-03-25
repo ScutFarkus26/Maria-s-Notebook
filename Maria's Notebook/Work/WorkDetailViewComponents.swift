@@ -134,7 +134,7 @@ private struct DeleteButton: View {
     
     var body: some View {
         Button {
-            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 action()
             }
         } label: {

@@ -36,11 +36,11 @@ struct TodoRowCard: View {
 
                 // Checkbox
                 Button {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                         checkboxScale = 0.8
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             checkboxScale = 1.0

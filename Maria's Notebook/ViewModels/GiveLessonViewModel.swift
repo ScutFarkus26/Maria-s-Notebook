@@ -151,13 +151,13 @@ final class LessonPickerViewModel {
     // MARK: - Actions
     
     func toggleMode() {
-        _ = adaptiveWithAnimation(.easeInOut) {
+        adaptiveWithAnimation(.easeInOut) {
             mode = (mode == .plan ? .given : .plan)
         }
     }
     
     func toggleStudentSelection(_ studentID: UUID) {
-        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             if selectedStudentIDs.contains(studentID) {
                 selectedStudentIDs.remove(studentID)
             } else {
@@ -167,7 +167,7 @@ final class LessonPickerViewModel {
     }
     
     func removeStudent(_ studentID: UUID) {
-        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             _ = selectedStudentIDs.remove(studentID)
         }
     }

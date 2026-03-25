@@ -118,7 +118,7 @@ extension LessonsRootView {
                 lessonToSchedule = lesson
             },
             onActivateJiggle: {
-                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = true
                 }
             },
@@ -232,7 +232,7 @@ extension LessonsRootView {
                 }
             },
             onActivateJiggle: {
-                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = true
                 }
             },

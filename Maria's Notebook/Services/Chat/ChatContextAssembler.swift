@@ -53,7 +53,7 @@ final class ChatContextAssembler {
 
     private func appendRosterSection(_ lines: inout [String], students: [Student]) {
         lines.append("--- Student Roster ---")
-        for student in students.sorted { $0.firstName < $1.firstName } {
+        for student in students.sorted(by: { $0.firstName < $1.firstName }) {
             let age = ageString(for: student.birthday)
             let nick = student.nickname.map { " (\($0))" } ?? ""
             let bday = formattedDate(student.birthday)
@@ -122,7 +122,7 @@ final class ChatContextAssembler {
         lines.append("Open work items: \(openWork.count)")
         if !openWork.isEmpty {
             let workByStudent = Dictionary(grouping: openWork) { $0.studentID }
-            for (studentIDStr, works) in workByStudent.sorted { $0.value.count > $1.value.count }.prefix(8) {
+            for (studentIDStr, works) in workByStudent.sorted(by: { $0.value.count > $1.value.count }).prefix(8) {
                 if let student = studentsDict[uuidString: studentIDStr] {
                     let titles = works.prefix(3).map(\.title).joined(separator: ", ")
                     let moreCount = works.count > 3 ? " +\(works.count - 3) more" : ""

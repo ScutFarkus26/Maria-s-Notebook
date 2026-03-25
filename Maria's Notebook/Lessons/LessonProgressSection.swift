@@ -419,7 +419,7 @@ struct LessonProgressSection: View {
             }
         }
         didPlanNext = true
-        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
         Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(2))
@@ -433,13 +433,13 @@ struct LessonProgressSection: View {
     private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
         quickBannerText = text
         quickBannerColor = color
-        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             showQuickBanner = true
         }
         Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(seconds))
-                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
             } catch {
                 Self.logger.warning("Task sleep failed: \(error)")
             }

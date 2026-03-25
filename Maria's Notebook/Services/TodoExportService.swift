@@ -62,7 +62,7 @@ class TodoExportService {
                 let completedCount = (todo.subtasks ?? []).filter(\.isCompleted).count
                 let totalCount = (todo.subtasks ?? []).count
                 output += "    Subtasks (\(completedCount)/\(totalCount)):\n"
-                for subtask in (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex } {
+                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "      \(subtask.isCompleted ? "✓" : "○") \(subtask.title)\n"
                 }
             }
@@ -156,7 +156,7 @@ class TodoExportService {
             
             if !(todo.subtasks ?? []).isEmpty {
                 output += "**Subtasks:**\n\n"
-                for subtask in (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex } {
+                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "- [\(subtask.isCompleted ? "x" : " ")] \(subtask.title)\n"
                 }
                 output += "\n"

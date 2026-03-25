@@ -11,11 +11,11 @@ extension Note {
         let allNotes = notes ?? []
         if let preferredReporter {
             let preferred = allNotes.filter { $0.reportedBy == preferredReporter }
-            if let newest = preferred.sorted { $0.updatedAt > $1.updatedAt }.first {
+            if let newest = preferred.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
                 return newest
             }
         }
-        return allNotes.sorted { $0.updatedAt > $1.updatedAt }.first
+        return allNotes.sorted(by: { $0.updatedAt > $1.updatedAt }).first
     }
 
     static func latestBody(in notes: [Note]?, preferredReporter: String? = nil) -> String {
@@ -42,7 +42,7 @@ extension Note {
             return true
         }
 
-        if let note = legacyNotes.sorted { $0.updatedAt > $1.updatedAt }.first {
+        if let note = legacyNotes.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
             if note.body == trimmed {
                 return false
             }

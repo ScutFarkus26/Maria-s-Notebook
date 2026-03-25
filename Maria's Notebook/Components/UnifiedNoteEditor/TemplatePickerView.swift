@@ -40,7 +40,7 @@ struct TemplatePickerView: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             // Header with expand/collapse
             Button {
-                _ = adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.quick)) {
+                adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.quick)) {
                     isExpanded.toggle()
                 }
             } label: {

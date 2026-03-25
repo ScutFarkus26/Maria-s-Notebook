@@ -27,7 +27,7 @@ struct GroupedScheduledWorkListRow: View {
             // Main grouped row
             Button {
                 if isFlexible {
-                    _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isExpanded.toggle()
                     }
                 } else if let first = items.first {
@@ -128,7 +128,7 @@ struct GroupedFollowUpWorkListRow: View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 if isFlexible {
-                    _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isExpanded.toggle()
                     }
                 } else if let first = items.first {

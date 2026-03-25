@@ -255,7 +255,7 @@ extension TodoEditSheet {
         let detailSubs = todo.subtasks ?? []
         if !detailSubs.isEmpty {
             text += "\n✅ Subtasks (\(detailSubs.filter(\.isCompleted).count)/\(detailSubs.count)):\n"
-            for subtask in detailSubs.sorted { $0.orderIndex < $1.orderIndex } {
+            for subtask in detailSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
                 let checkbox = subtask.isCompleted ? "☑️" : "☐"
                 text += "  \(checkbox) \(subtask.title)\n"
             }

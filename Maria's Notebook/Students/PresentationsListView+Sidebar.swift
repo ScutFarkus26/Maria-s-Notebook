@@ -21,7 +21,7 @@ extension PresentationsListView {
                     color: .accentColor,
                     isSelected: filter == .all
                 ) {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsFilterRaw = "all"
                     }
                 }
@@ -32,7 +32,7 @@ extension PresentationsListView {
                     color: .green,
                     isSelected: filter == .completed
                 ) {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsFilterRaw = "completed"
                     }
                 }
@@ -43,7 +43,7 @@ extension PresentationsListView {
                     color: .orange,
                     isSelected: filter == .notCompleted
                 ) {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsFilterRaw = "notCompleted"
                     }
                 }
@@ -61,7 +61,7 @@ extension PresentationsListView {
                     color: .accentColor,
                     isSelected: selectedSubject == nil
                 ) {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         presentationsSubjectRaw = ""
                     }
                 }
@@ -73,7 +73,7 @@ extension PresentationsListView {
                         color: AppColors.color(forSubject: subject),
                         isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
                     ) {
-                        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                             presentationsSubjectRaw = subject
                         }
                     }
@@ -87,7 +87,7 @@ extension PresentationsListView {
                     color: .gray,
                     isSelected: filter == .hiddenUndated
                 ) {
-                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
+                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                         if filter == .hiddenUndated {
                             presentationsFilterRaw = previousPresentationsFilterRaw ?? "all"
                         } else {

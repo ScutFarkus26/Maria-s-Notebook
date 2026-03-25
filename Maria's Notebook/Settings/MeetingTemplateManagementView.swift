@@ -127,7 +127,7 @@ struct MeetingTemplateManagementView: View {
     // MARK: - Actions
 
     private func activateTemplate(_ template: MeetingTemplate) {
-        adaptiveWithAnimation {
+        _ = adaptiveWithAnimation {
             repository.setActiveTemplate(id: template.id)
         }
     }

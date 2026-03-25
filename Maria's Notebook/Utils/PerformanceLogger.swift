@@ -79,7 +79,7 @@ enum PerformanceLogger {
     ///   - itemCounts: Dictionary mapping query names to item counts
     static func logScreenLoad(screenName: String, itemCounts: [String: Int]) {
         var message = "[Performance] \(screenName) - Query Results:"
-        for (queryName, count) in itemCounts.sorted { $0.key < $1.key } {
+        for (queryName, count) in itemCounts.sorted(by: { $0.key < $1.key }) {
             message += "\n  • \(queryName): \(count)"
         }
 

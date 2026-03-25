@@ -165,7 +165,7 @@ extension PresentationsInboxView {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                 if coordinator.selectedStudentFilter == student.id {
                     coordinator.clearStudentFilter()
                 } else {

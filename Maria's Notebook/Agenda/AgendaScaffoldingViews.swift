@@ -45,7 +45,7 @@ struct AgendaView<Content: View, TopBar: View, Preface: View, Header: View>: Vie
 
                 // Optional top bar (e.g., day strip) with access to scrollToDay
                 topBar { day in
-                    _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                    adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                         proxy.scrollTo(dayID(day), anchor: .top)
                     }
                 }

@@ -199,11 +199,11 @@ struct PresentationsDayColumn: View {
                 getCurrentItems: { allItemsForDay },
                 itemFramesProvider: { itemFrames },
                 onTargetChange: { targeted in
-                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }
+                    adaptiveWithAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }
                 },
                 onInsertionIndexChange: { idx in
                     if insertionIndex != idx {
-                        _ = adaptiveWithAnimation(
+                        adaptiveWithAnimation(
                             .interactiveSpring(response: 0.16, dampingFraction: 0.85)
                         ) { insertionIndex = idx }
                     }

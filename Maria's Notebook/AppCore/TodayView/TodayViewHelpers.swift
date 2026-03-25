@@ -219,7 +219,7 @@ extension TodayView {
 
     /// Shows a toast message with animation
     func toast(_ message: String) {
-        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toastMessage = message
         }
         Task { @MainActor in
@@ -228,7 +228,7 @@ extension TodayView {
             } catch {
                 logger.warning("Failed to sleep for toast: \(error)")
             }
-            _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+            adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil
             }
         }
@@ -275,7 +275,7 @@ extension TodayView {
     // MARK: - Todo Actions
 
     func toggleTodoItem(_ todo: TodoItem) {
-        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        adaptiveWithAnimation(.snappy(duration: 0.2)) {
             todo.isCompleted.toggle()
             if todo.isCompleted {
                 todo.completedAt = Date()
