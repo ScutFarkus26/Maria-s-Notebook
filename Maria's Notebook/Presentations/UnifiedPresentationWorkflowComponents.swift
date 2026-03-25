@@ -131,7 +131,7 @@ struct WorkflowTextField: View {
                 .foregroundStyle(.secondary)
 
             Group {
-                if let lineLimit = lineLimit {
+                if let lineLimit {
                     TextField(placeholder, text: $text, axis: axis)
                         .lineLimit(lineLimit)
                 } else {

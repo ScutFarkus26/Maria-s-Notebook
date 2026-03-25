@@ -41,14 +41,10 @@ class TodoExportService {
             }
             
             if let scheduled = todo.scheduledDate {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                output += "    Scheduled: \(formatter.string(from: scheduled))\n"
+                output += "    Scheduled: \(DateFormatters.mediumDate.string(from: scheduled))\n"
             }
             if let dueDate = todo.dueDate {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                output += "    Deadline: \(formatter.string(from: dueDate))\n"
+                output += "    Deadline: \(DateFormatters.mediumDate.string(from: dueDate))\n"
             }
             if todo.isSomeday {
                 output += "    Status: Someday\n"
@@ -63,10 +59,10 @@ class TodoExportService {
             }
             
             if !(todo.subtasks ?? []).isEmpty {
-                let completedCount = (todo.subtasks ?? []).filter { $0.isCompleted }.count
+                let completedCount = (todo.subtasks ?? []).filter(\.isCompleted).count
                 let totalCount = (todo.subtasks ?? []).count
                 output += "    Subtasks (\(completedCount)/\(totalCount)):\n"
-                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
+                for subtask in (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex } {
                     output += "      \(subtask.isCompleted ? "✓" : "○") \(subtask.title)\n"
                 }
             }
@@ -83,9 +79,6 @@ class TodoExportService {
         var output = "Title,Status,Priority,Tags,Scheduled Date," +
             "Deadline,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .short
-        
         for todo in todos {
             let title = escapeCSV(todo.title)
             let status: String
@@ -96,12 +89,12 @@ class TodoExportService {
             }
             let priority = todo.priority.rawValue
             let tags = escapeCSV(todo.tags.map { TodoTagHelper.tagName($0) }.joined(separator: "; "))
-            let scheduledDate = todo.scheduledDate.map { dateFormatter.string(from: $0) } ?? ""
-            let deadline = todo.dueDate.map { dateFormatter.string(from: $0) } ?? ""
-            let created = dateFormatter.string(from: todo.createdAt)
+            let scheduledDate = todo.scheduledDate.map { DateFormatters.shortDate.string(from: $0) } ?? ""
+            let deadline = todo.dueDate.map { DateFormatters.shortDate.string(from: $0) } ?? ""
+            let created = DateFormatters.shortDate.string(from: todo.createdAt)
             let notes = escapeCSV(todo.notes)
             let mood = todo.mood?.rawValue ?? ""
-            let subtasksCompleted = (todo.subtasks ?? []).filter { $0.isCompleted }.count
+            let subtasksCompleted = (todo.subtasks ?? []).filter(\.isCompleted).count
             let subtasksTotal = (todo.subtasks ?? []).count
             
             output += "\(title),\(status),\(priority),\(tags)," +
@@ -137,14 +130,10 @@ class TodoExportService {
                 metadata.append("**Priority:** \(todo.priority.rawValue)")
             }
             if let scheduled = todo.scheduledDate {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                metadata.append("**Scheduled:** \(formatter.string(from: scheduled))")
+                metadata.append("**Scheduled:** \(DateFormatters.mediumDate.string(from: scheduled))")
             }
             if let dueDate = todo.dueDate {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                metadata.append("**Deadline:** \(formatter.string(from: dueDate))")
+                metadata.append("**Deadline:** \(DateFormatters.mediumDate.string(from: dueDate))")
             }
             if todo.isSomeday {
                 metadata.append("**Someday**")
@@ -167,7 +156,7 @@ class TodoExportService {
             
             if !(todo.subtasks ?? []).isEmpty {
                 output += "**Subtasks:**\n\n"
-                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
+                for subtask in (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex } {
                     output += "- [\(subtask.isCompleted ? "x" : " ")] \(subtask.title)\n"
                 }
                 output += "\n"
@@ -195,7 +184,7 @@ class TodoExportService {
                 "id": todo.id.uuidString,
                 "title": todo.title,
                 "isCompleted": todo.isCompleted,
-                "createdAt": ISO8601DateFormatter().string(from: todo.createdAt),
+                "createdAt": DateFormatters.iso8601DateTime.string(from: todo.createdAt),
                 "priority": todo.priority.rawValue,
                 "tags": todo.tags.map { TodoTagHelper.tagName($0) }
             ]
@@ -205,10 +194,10 @@ class TodoExportService {
             }
             
             if let scheduled = todo.scheduledDate {
-                dict["scheduledDate"] = ISO8601DateFormatter().string(from: scheduled)
+                dict["scheduledDate"] = DateFormatters.iso8601DateTime.string(from: scheduled)
             }
             if let dueDate = todo.dueDate {
-                dict["deadline"] = ISO8601DateFormatter().string(from: dueDate)
+                dict["deadline"] = DateFormatters.iso8601DateTime.string(from: dueDate)
             }
             if todo.isSomeday {
                 dict["isSomeday"] = true

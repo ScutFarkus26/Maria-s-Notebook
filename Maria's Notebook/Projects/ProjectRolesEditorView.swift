@@ -108,7 +108,7 @@ struct ProjectRolesEditorView: View {
 
     private func delete(_ role: ProjectRole) {
         modelContext.delete(role)
-        _ = saveCoordinator.save(modelContext, reason: "Delete project role")
+        saveCoordinator.save(modelContext, reason: "Delete project role")
     }
 
     private func deleteAtOffsets(_ offsets: IndexSet) {
@@ -195,7 +195,7 @@ private struct ProjectRoleEditorSheet: View {
             modelContext.insert(newRole)
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Save project role")
+        saveCoordinator.save(modelContext, reason: "Save project role")
         onDone()
         dismiss()
     }

@@ -108,7 +108,7 @@ struct UnifiedPostPresentationSheet: View {
     }
     
     private var suggestedWorkItems: [String] {
-        guard let lessonID = lessonID else { return [] }
+        guard let lessonID else { return [] }
         guard let lesson = lessons.first(where: { $0.id == lessonID }) else { return [] }
         return lesson.suggestedFollowUpWorkItems
     }

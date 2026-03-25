@@ -2,6 +2,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import OSLog
 
 // MARK: - Import Progress Steps
 
@@ -28,6 +29,7 @@ private enum RestoreProgress {
 // MARK: - Restore Preview & Import
 
 extension BackupService {
+    private static let logger = Logger.backup
 
     // MARK: - Restore Preview
     public func previewImport(
@@ -53,8 +55,11 @@ extension BackupService {
                 do {
                     return (try self.fetchOne(type, id: id, using: modelContext)) != nil
                 } catch {
-                    // swiftlint:disable:next line_length
-                    print("\u{26a0}\u{fe0f} [BackupService] Failed to check entity existence for type \(String(describing: type)): \(error)")
+                    let typeName = String(describing: type)
+                    let desc = error.localizedDescription
+                    Self.logger.warning(
+                        "Entity existence check failed for \(typeName, privacy: .public): \(desc, privacy: .public)"
+                    )
                     return false
                 }
             }

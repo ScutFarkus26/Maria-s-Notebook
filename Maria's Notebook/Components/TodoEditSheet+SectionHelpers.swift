@@ -1,10 +1,12 @@
 // TodoEditSheet+SectionHelpers.swift
 // Attachment helpers, subtask operations, and save/action methods for TodoEditSheet.
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 extension TodoEditSheet {
+    private static let logger = Logger.todos
 
     // MARK: - Attachment Helpers
 
@@ -33,7 +35,7 @@ extension TodoEditSheet {
         do {
             attrs = try FileManager.default.attributesOfItem(atPath: path)
         } catch {
-            print("⚠️ [\(#function)] Failed to get file attributes: \(error)")
+            Self.logger.error("[\(#function)] Failed to get file attributes: \(error)")
             return "Unknown size"
         }
         guard let size = attrs[.size] as? Int64 else {
@@ -53,7 +55,7 @@ extension TodoEditSheet {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to save todo: \(error)")
+                Self.logger.error("[\(#function)] Failed to save todo: \(error)")
             }
         }
     }
@@ -80,7 +82,7 @@ extension TodoEditSheet {
                     try FileManager.default.copyItem(at: url, to: destURL)
                     todo.attachmentPaths.append(destURL.path)
                 } catch {
-                    print("⚠️ [\(#function)] Failed to copy attachment: \(error)")
+                    Self.logger.error("[\(#function)] Failed to copy attachment: \(error)")
                 }
             }
 
@@ -88,11 +90,11 @@ extension TodoEditSheet {
                 do {
                     try context.save()
                 } catch {
-                    print("⚠️ [\(#function)] Failed to save attachments: \(error)")
+                    Self.logger.error("[\(#function)] Failed to save attachments: \(error)")
                 }
             }
         case .failure(let error):
-            print("⚠️ [\(#function)] File import failed: \(error)")
+            Self.logger.error("[\(#function)] File import failed: \(error)")
         }
     }
 
@@ -120,7 +122,7 @@ extension TodoEditSheet {
         do {
             try context.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to link work item: \(error)")
+            Self.logger.error("[\(#function)] Failed to link work item: \(error)")
         }
     }
 
@@ -137,7 +139,7 @@ extension TodoEditSheet {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to save subtask: \(error)")
+                Self.logger.error("[\(#function)] Failed to save subtask: \(error)")
             }
         }
     }
@@ -153,7 +155,7 @@ extension TodoEditSheet {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to toggle subtask: \(error)")
+                Self.logger.error("[\(#function)] Failed to toggle subtask: \(error)")
             }
         }
     }
@@ -164,7 +166,7 @@ extension TodoEditSheet {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to delete subtask: \(error)")
+                Self.logger.error("[\(#function)] Failed to delete subtask: \(error)")
             }
         }
     }
@@ -175,13 +177,13 @@ extension TodoEditSheet {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to update subtask: \(error)")
+                Self.logger.error("[\(#function)] Failed to update subtask: \(error)")
             }
         }
     }
 
     func reorderSubtasks(from source: IndexSet, to destination: Int) {
-        var sorted = (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
+        var sorted = (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex }
         sorted.move(fromOffsets: source, toOffset: destination)
         for (index, subtask) in sorted.enumerated() {
             subtask.orderIndex = index
@@ -190,16 +192,16 @@ extension TodoEditSheet {
             do {
                 try context.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to reorder subtasks: \(error)")
+                Self.logger.error("[\(#function)] Failed to reorder subtasks: \(error)")
             }
         }
     }
 
     // MARK: - Sharing & Templates
 
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    // swiftlint:disable:next cyclomatic_complexity
     func formatTodoForSharing() -> String {
-        var text = "📋 \(title.trimmingCharacters(in: .whitespacesAndNewlines))\n"
+        var text = "📋 \(title.trimmed())\n"
 
         // Priority
         if priority != .none {
@@ -209,24 +211,19 @@ extension TodoEditSheet {
 
         // Due date
         if hasDueDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            text += "📅 Due: \(formatter.string(from: dueDate))\n"
+            text += "📅 Due: \(DateFormatters.mediumDate.string(from: dueDate))\n"
         }
 
         // Assigned students
         if !selectedStudentIDs.isEmpty {
             let assignedStudents = students.filter { selectedStudentIDs.contains($0.id.uuidString) }
-            let names = assignedStudents.map { $0.firstName }.joined(separator: ", ")
+            let names = assignedStudents.map(\.firstName).joined(separator: ", ")
             text += "👥 Assigned to: \(names)\n"
         }
 
         // Reminder
         if hasReminder {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            text += "🔔 Reminder: \(formatter.string(from: reminderDate))\n"
+            text += "🔔 Reminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
         }
 
         // Time estimate
@@ -249,7 +246,7 @@ extension TodoEditSheet {
         }
 
         // Reflection
-        let trimmedReflection = reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedReflection = reflectionNotes.trimmed()
         if !trimmedReflection.isEmpty {
             text += "💭 Reflection: \(trimmedReflection)\n"
         }
@@ -257,15 +254,15 @@ extension TodoEditSheet {
         // Subtasks
         let detailSubs = todo.subtasks ?? []
         if !detailSubs.isEmpty {
-            text += "\n✅ Subtasks (\(detailSubs.filter { $0.isCompleted }.count)/\(detailSubs.count)):\n"
-            for subtask in detailSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            text += "\n✅ Subtasks (\(detailSubs.filter(\.isCompleted).count)/\(detailSubs.count)):\n"
+            for subtask in detailSubs.sorted { $0.orderIndex < $1.orderIndex } {
                 let checkbox = subtask.isCompleted ? "☑️" : "☐"
                 text += "  \(checkbox) \(subtask.title)\n"
             }
         }
 
         // Notes
-        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNotes = notes.trimmed()
         if !trimmedNotes.isEmpty {
             text += "\n📝 Notes:\n\(trimmedNotes)\n"
         }
@@ -274,13 +271,13 @@ extension TodoEditSheet {
     }
 
     func saveAsTemplate() {
-        guard !templateName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        guard !templateName.trimmed().isEmpty,
               let context = todo.modelContext else {
             templateName = ""
             return
         }
 
-        let trimmedName = templateName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = templateName.trimmed()
         let totalEstimated = estimatedHours * 60 + estimatedMinutes
         let selectedNames = students
             .filter { selectedStudentIDs.contains($0.id.uuidString) }
@@ -304,7 +301,7 @@ extension TodoEditSheet {
         do {
             try context.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save template: \(error)")
+            Self.logger.error("[\(#function)] Failed to save template: \(error)")
         }
 
         templateName = ""
@@ -314,8 +311,8 @@ extension TodoEditSheet {
 
     // swiftlint:disable:next function_body_length
     func save() {
-        todo.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        todo.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        todo.title = title.trimmed()
+        todo.notes = notes.trimmed()
         todo.studentIDs = Array(selectedStudentIDs)
         let selectedNames = students
             .filter { selectedStudentIDs.contains($0.id.uuidString) }
@@ -340,11 +337,11 @@ extension TodoEditSheet {
 
         // Save mood and reflection
         todo.mood = selectedMood
-        todo.reflectionNotes = reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        todo.reflectionNotes = reflectionNotes.trimmed()
 
         // Save location reminder
         if hasLocationReminder && !locationName.isEmpty {
-            todo.locationName = locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+            todo.locationName = locationName.trimmed()
             todo.notifyOnEntry = notifyOnEntry
             todo.notifyOnExit = notifyOnExit
             // Note: Actual coordinates would be set via location picker in full implementation
@@ -361,7 +358,7 @@ extension TodoEditSheet {
                 do {
                     try await TodoNotificationService.shared.scheduleNotification(for: todo, at: reminderDate)
                 } catch {
-                    print("Error scheduling notification: \(error)")
+                    Self.logger.error("Failed to schedule notification: \(error)")
                 }
                 isSchedulingNotification = false
             } else {
@@ -373,7 +370,7 @@ extension TodoEditSheet {
                 do {
                     try context.save()
                 } catch {
-                    print("⚠️ [\(#function)] Failed to save todo: \(error)")
+                    Self.logger.error("[\(#function)] Failed to save todo: \(error)")
                 }
             }
 

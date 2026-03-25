@@ -127,14 +127,14 @@ struct ChatView: View {
             }
             .onChange(of: viewModel.messages.count) {
                 if let last = viewModel.messages.last {
-                    adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
+                    _ = adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
                         proxy.scrollTo(last.id, anchor: .bottom)
                     }
                 }
             }
             .onChange(of: viewModel.streamingContent) {
                 if viewModel.isStreaming {
-                    adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
+                    _ = adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
                         proxy.scrollTo("streaming", anchor: .bottom)
                     }
                 }

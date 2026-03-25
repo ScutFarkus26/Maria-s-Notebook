@@ -22,7 +22,7 @@ extension PresentationsViewModel {
                 let s = norm(l.subject)
                 let g = norm(l.group)
                 return s == "parsha" || g == "parsha"
-            }.map { $0.id }
+            }.map(\.id)
             return Set(ids)
         }()
 
@@ -37,7 +37,7 @@ extension PresentationsViewModel {
         var subjects: [UUID: String] = [:]
         for s in students {
             if let last = lastDateByStudent[s.id] {
-                guard let modelContext = modelContext else { continue }
+                guard let modelContext else { continue }
                 let days = LessonAgeHelper.schoolDaysSinceCreation(
                     createdAt: last,
                     asOf: Date(),

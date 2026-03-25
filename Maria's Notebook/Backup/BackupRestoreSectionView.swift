@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import OSLog
 #if os(macOS)
 import AppKit
 #else
@@ -13,6 +14,7 @@ extension UTType {
 }
 
 struct BackupRestoreSectionView: View {
+    private static let logger = Logger.backup
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
@@ -123,9 +125,8 @@ struct BackupRestoreSectionView: View {
                             try BackupDestination.setDefaultFolder(url)
                             viewModel.loadDefaultFolderName()
                         } catch {
-                            #if DEBUG
-                            print("Error setting default folder: \(error)")
-                            #endif
+                            let desc = error.localizedDescription
+                            Self.logger.error("Error setting default folder: \(desc, privacy: .public)")
                         }
                     }
                 case .failure:

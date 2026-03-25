@@ -24,7 +24,7 @@ struct QuickNoteSheet: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -394,7 +394,7 @@ struct QuickNoteSheet: View {
                     get: { viewModel.attachedImage },
                     set: { viewModel.attachedImage = $0 }
                 )) { img in
-                    if let img = img { viewModel.processImage(img) }
+                    if let img { viewModel.processImage(img) }
                 }
                 #endif
             }

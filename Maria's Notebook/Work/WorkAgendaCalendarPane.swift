@@ -182,7 +182,7 @@ struct WorkAgendaCalendarPane: View {
     private func updateWorkDueDate(workID: UUID, to date: Date, reason: String) {
         if let work = fetchWork(id: workID) {
             work.dueAt = date
-            _ = saveCoordinator.save(modelContext, reason: reason)
+            saveCoordinator.save(modelContext, reason: reason)
         }
     }
 
@@ -200,13 +200,13 @@ struct WorkAgendaCalendarPane: View {
         )
         modelContext.insert(checkIn)
         if let noteText = noteOrNil, !noteText.trimmed().isEmpty {
-            _ = checkIn.setLegacyNoteText(noteText, in: modelContext)
+            checkIn.setLegacyNoteText(noteText, in: modelContext)
         }
         
         if let work = fetchWork(id: workID) {
             work.dueAt = normalized
         }
-        _ = saveCoordinator.save(modelContext, reason: "Create WorkCheckIn")
+        saveCoordinator.save(modelContext, reason: "Create WorkCheckIn")
     }
 
     private func rescheduleCheckIn(id: UUID, to day: Date) {
@@ -219,7 +219,7 @@ struct WorkAgendaCalendarPane: View {
         if let work = fetchWork(id: workID) {
             work.dueAt = normalized
         }
-        _ = saveCoordinator.save(modelContext, reason: "Reschedule WorkCheckIn")
+        saveCoordinator.save(modelContext, reason: "Reschedule WorkCheckIn")
     }
     
     private func rescheduleLessonAssignment(id: UUID, to day: Date) {
@@ -234,7 +234,7 @@ struct WorkAgendaCalendarPane: View {
         }
         la.modifiedAt = Date()
 
-        _ = saveCoordinator.save(modelContext, reason: "Reschedule LessonAssignment from Work view")
+        saveCoordinator.save(modelContext, reason: "Reschedule LessonAssignment from Work view")
     }
 
 }
@@ -388,7 +388,7 @@ private struct CheckInStudentRow: View {
                     saveTask = Task {
                         try? await Task.sleep(for: .milliseconds(600))
                         guard !Task.isCancelled else { return }
-                        _ = checkIn.setLegacyNoteText(newValue, in: modelContext)
+                        checkIn.setLegacyNoteText(newValue, in: modelContext)
                         do {
                             try modelContext.save()
                         } catch {

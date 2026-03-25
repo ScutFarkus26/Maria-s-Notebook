@@ -92,13 +92,9 @@ struct TodoDateChip: View {
         case .today: return "Today"
         case .tomorrow: return "Tomorrow"
         case .thisWeek(let date):
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEE"
-            return formatter.string(from: date)
+            return DateFormatters.weekdayAbbrev.string(from: date)
         case .future(let date):
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: date)
+            return DateFormatters.shortMonthDay.string(from: date)
         case .someday: return "Someday"
         case .noDate: return "When"
         }
@@ -148,8 +144,6 @@ struct TodoDateChip: View {
     private static func formatRelative(_ date: Date) -> String {
         let cal = Calendar.current
         if cal.isDateInYesterday(date) { return "Yesterday" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return DateFormatters.shortMonthDay.string(from: date)
     }
 }

@@ -135,7 +135,7 @@ enum ResourceFileStorage {
     }
 
     private static func sanitizeFilenameComponent(_ input: String?, fallback: String) -> String {
-        guard let input = input, !input.isEmpty else { return fallback }
+        guard let input, !input.isEmpty else { return fallback }
 
         let allowedCharacterSet = CharacterSet(charactersIn:
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_."

@@ -69,7 +69,7 @@ final class SchoolDayCalculationCache {
             Self.logger.warning("Failed to fetch school day overrides: \(error)")
             overrides = []
         }
-        let overrideDates = Set(overrides.map { $0.date })
+        let overrideDates = Set(overrides.map(\.date))
         
         // Build cache of non-school days
         var result: Set<Date> = []

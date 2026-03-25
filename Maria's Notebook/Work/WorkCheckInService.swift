@@ -36,7 +36,7 @@ struct WorkCheckInService {
         if work.checkIns == nil { work.checkIns = [] }
         work.checkIns = (work.checkIns ?? []) + [ci]
         if !trimmedNote.isEmpty {
-            _ = ci.setLegacyNoteText(trimmedNote, in: context)
+            ci.setLegacyNoteText(trimmedNote, in: context)
         }
         return ci
     }
@@ -47,7 +47,7 @@ struct WorkCheckInService {
     func markCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
         checkIn.markCompleted(note: nil, at: date, in: context)
         if let note {
-            _ = checkIn.setLegacyNoteText(note, in: context)
+            checkIn.setLegacyNoteText(note, in: context)
         }
     }
 
@@ -55,7 +55,7 @@ struct WorkCheckInService {
     func reschedule(_ checkIn: WorkCheckIn, to date: Date, note: String? = nil) throws {
         checkIn.reschedule(to: date, note: nil, in: context)
         if let note {
-            _ = checkIn.setLegacyNoteText(note, in: context)
+            checkIn.setLegacyNoteText(note, in: context)
         }
     }
 
@@ -63,13 +63,13 @@ struct WorkCheckInService {
     func skip(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
         checkIn.skip(note: nil, at: date, in: context)
         if let note {
-            _ = checkIn.setLegacyNoteText(note, in: context)
+            checkIn.setLegacyNoteText(note, in: context)
         }
     }
 
     /// Update the note on a check-in and persist immediately.
     func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
-        _ = checkIn.setLegacyNoteText(note, in: context)
+        checkIn.setLegacyNoteText(note, in: context)
     }
 
     /// Update core fields on a check-in and persist immediately.
@@ -77,14 +77,14 @@ struct WorkCheckInService {
         checkIn.date = date
         checkIn.status = status
         checkIn.purpose = purpose.trimmed()
-        _ = checkIn.setLegacyNoteText(note, in: context)
+        checkIn.setLegacyNoteText(note, in: context)
     }
 
     // MARK: - Deletion
 
     /// Delete a check-in from its context and persist immediately.
     func delete(_ checkIn: WorkCheckIn, from work: WorkModel? = nil) throws {
-        if let work = work {
+        if let work {
             if var list = work.checkIns {
                 list.removeAll { $0.id == checkIn.id }
                 work.checkIns = list

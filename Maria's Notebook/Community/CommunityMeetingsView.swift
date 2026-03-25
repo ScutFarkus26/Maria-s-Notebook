@@ -17,7 +17,7 @@ struct CommunityMeetingsView: View {
     @State private var searchText: String = ""
 
     private var openTopics: [CommunityTopic] { topics.filter { !$0.isResolved } }
-    private var resolvedTopics: [CommunityTopic] { topics.filter { $0.isResolved } }
+    private var resolvedTopics: [CommunityTopic] { topics.filter(\.isResolved) }
 
     private var allTags: [String] {
         let raw = topics.flatMap { $0.tags }
@@ -122,7 +122,7 @@ struct CommunityMeetingsView: View {
             AddTopicSheet { title, issue in
                 let t = CommunityTopic(title: title, issueDescription: issue)
                 modelContext.insert(t)
-                _ = saveCoordinator.save(modelContext, reason: "Add community topic")
+                saveCoordinator.save(modelContext, reason: "Add community topic")
             }
         }
         .sheet(isPresented: Binding<Bool>(
@@ -131,7 +131,7 @@ struct CommunityMeetingsView: View {
         )) {
             if let id = selectedTopicID {
                 TopicDetailView(topicID: id) { _ in
-                    _ = saveCoordinator.save(modelContext, reason: "Update community topic")
+                    saveCoordinator.save(modelContext, reason: "Update community topic")
                 }
             } else {
                 EmptyView()
@@ -149,7 +149,7 @@ struct CommunityMeetingsView: View {
             onAddTopic: { title in
                 let t = CommunityTopic(title: title, issueDescription: "")
                 modelContext.insert(t)
-                _ = saveCoordinator.save(modelContext, reason: "Quick add community topic")
+                saveCoordinator.save(modelContext, reason: "Quick add community topic")
                 // Clear the search text so the newly added appears and UI resets
                 searchText = ""
                 // Optionally open the detail editor for the new topic

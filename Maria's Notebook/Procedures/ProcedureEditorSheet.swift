@@ -19,12 +19,12 @@ struct ProcedureEditorSheet: View {
     private var isEditing: Bool { procedure != nil }
 
     private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !title.trimmed().isEmpty
     }
 
     init(procedure: Procedure?) {
         self.procedure = procedure
-        if let procedure = procedure {
+        if let procedure {
             _title = State(initialValue: procedure.title)
             _summary = State(initialValue: procedure.summary)
             _content = State(initialValue: procedure.content)
@@ -252,15 +252,15 @@ struct ProcedureEditorSheet: View {
     // MARK: - Actions
 
     private func save() {
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTitle = title.trimmed()
         guard !trimmedTitle.isEmpty else { return }
 
-        if let procedure = procedure {
+        if let procedure {
             // Update existing
             ProcedureService.updateProcedure(
                 procedure,
                 title: trimmedTitle,
-                summary: summary.trimmingCharacters(in: .whitespacesAndNewlines),
+                summary: summary.trimmed(),
                 content: content,
                 category: category,
                 icon: icon,
@@ -269,9 +269,9 @@ struct ProcedureEditorSheet: View {
             )
         } else {
             // Create new
-            _ = ProcedureService.createProcedure(
+            ProcedureService.createProcedure(
                 title: trimmedTitle,
-                summary: summary.trimmingCharacters(in: .whitespacesAndNewlines),
+                summary: summary.trimmed(),
                 content: content,
                 category: category,
                 icon: icon,

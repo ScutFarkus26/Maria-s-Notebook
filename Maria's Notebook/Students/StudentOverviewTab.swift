@@ -30,10 +30,7 @@ struct StudentOverviewTab: View {
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
     
     private func lessonName(for work: WorkModel) -> String {
-        if let id = UUID(uuidString: work.lessonID), let lesson = lessonsByID[id] {
-            return lesson.name
-        }
-        return "Lesson"
+        lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
     
     private func studentDisplay(for work: WorkModel) -> String {
@@ -169,7 +166,7 @@ struct StudentOverviewTab: View {
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
             }
         }
-        .task(id: workCache.map { $0.id }) {
+        .task(id: workCache.map(\.id)) {
             await precomputeAgeValues()
         }
     }

@@ -268,7 +268,7 @@ struct BackupCodec {
         var passwordData = Data(password.utf8)
         
         // If rotation ID provided, append it to password before derivation
-        if let rotationID = rotationID {
+        if let rotationID {
             passwordData.append(Data(rotationID.utf8))
         }
         

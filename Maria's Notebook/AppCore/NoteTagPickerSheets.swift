@@ -40,7 +40,7 @@ struct NoteTagPickerSheet: View {
 
     /// Whether the search text matches any existing tags
     private var hasSearchResults: Bool {
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = searchText.trimmed()
         guard !trimmed.isEmpty else { return true }
         return !filteredTags.isEmpty
     }
@@ -122,7 +122,7 @@ struct NoteTagPickerSheet: View {
                                 HStack {
                                     Image(systemName: "plus.circle.fill")
                                         .foregroundStyle(.blue)
-                                    Text("Create \"\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))\"")
+                                    Text("Create \"\(searchText.trimmed())\"")
                                 }
                             }
                         }
@@ -177,7 +177,7 @@ struct NoteTagPickerSheet: View {
     }
 
     private func createTagFromSearch() {
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = searchText.trimmed()
         guard !trimmed.isEmpty else { return }
         pendingNewTagName = trimmed
         showingCustomTagSheet = true

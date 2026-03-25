@@ -43,7 +43,7 @@ enum WorkCompletionBackfill {
         let record = WorkCompletionRecord(workID: workID, studentID: studentID, completedAt: completedAt)
         context.insert(record)
         if !note.trimmed().isEmpty {
-            _ = record.setLegacyNoteText(note, in: context)
+            record.setLegacyNoteText(note, in: context)
         }
         return record
     }

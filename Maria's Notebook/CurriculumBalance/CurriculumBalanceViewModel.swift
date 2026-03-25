@@ -104,7 +104,7 @@ final class CurriculumBalanceViewModel {
         let allStudents = context.safeFetch(
             FetchDescriptor<Student>(sortBy: Student.sortByName)
         )
-        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter { $0.isEnrolled })
+        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
         let recordsByStudent = Dictionary(grouping: records) { $0.studentID }
 
         studentCards = visibleStudents.compactMap { student in

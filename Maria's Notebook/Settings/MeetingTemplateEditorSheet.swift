@@ -24,7 +24,7 @@ struct MeetingTemplateEditorSheet: View {
     init(template: MeetingTemplate?, onSaved: @escaping () -> Void) {
         self.template = template
         self.onSaved = onSaved
-        if let template = template {
+        if let template {
             _nameText = State(initialValue: template.name)
             _reflectionPromptText = State(initialValue: template.reflectionPrompt)
             _focusPromptText = State(initialValue: template.focusPrompt)

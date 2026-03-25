@@ -1,9 +1,12 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 extension TodoListPanel {
+    private static let logger = Logger.todos
+
     func addTodo() {
-        let trimmed = newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newTodoTitle.trimmed()
         guard !trimmed.isEmpty else { return }
 
         let parseResult = TodoDateParser.parse(trimmed)
@@ -16,7 +19,7 @@ extension TodoListPanel {
         do {
             try modelContext.save()
         } catch {
-            print("\u{26A0}\u{FE0F} [\(#function)] Failed to save new todo: \(error)")
+            Self.logger.error("Failed to save new todo: \(error.localizedDescription, privacy: .public)")
         }
         newTodoTitle = ""
         isAddingFocused = true
@@ -26,7 +29,7 @@ extension TodoListPanel {
     func addTodoWithAI() async {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         if #available(macOS 26.0, iOS 26.0, *) {
-            let trimmed = newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = newTodoTitle.trimmed()
             guard !trimmed.isEmpty else { return }
 
             isParsingWithAI = true
@@ -48,8 +51,7 @@ extension TodoListPanel {
                 // Parse due date
                 let dueDate: Date? = {
                     guard !parsed.dueDate.isEmpty else { return nil }
-                    let formatter = ISO8601DateFormatter()
-                    return formatter.date(from: parsed.dueDate)
+                        return DateFormatters.iso8601DateTime.date(from: parsed.dueDate)
                 }()
 
                 // Parse recurrence
@@ -77,7 +79,7 @@ extension TodoListPanel {
                 do {
                     try modelContext.save()
                 } catch {
-                    print("\u{26A0}\u{FE0F} [\(#function)] Failed to save new todo: \(error)")
+                    Self.logger.error("Failed to save new todo: \(error.localizedDescription, privacy: .public)")
                 }
                 newTodoTitle = ""
                 isAddingFocused = true
@@ -149,7 +151,7 @@ extension TodoListPanel {
         do {
             try modelContext.save()
         } catch {
-            print("\u{26A0}\u{FE0F} [\(#function)] Failed to save todo completion: \(error)")
+            Self.logger.error("Failed to save todo completion: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -158,7 +160,7 @@ extension TodoListPanel {
         do {
             try modelContext.save()
         } catch {
-            print("\u{26A0}\u{FE0F} [\(#function)] Failed to delete todo: \(error)")
+            Self.logger.error("Failed to delete todo: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -174,7 +176,7 @@ extension TodoListPanel {
         do {
             try modelContext.save()
         } catch {
-            print("\u{26A0}\u{FE0F} [\(#function)] Failed to update todo order: \(error)")
+            Self.logger.error("Failed to update todo order: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

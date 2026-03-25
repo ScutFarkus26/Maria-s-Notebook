@@ -68,7 +68,7 @@ struct WorkRepository {
 
     /// Resolves the presentationID for a work item
     private func resolvePresentationID(studentID: UUID, lessonID: UUID, presentationID: UUID?) -> UUID? {
-        if let presentationID = presentationID {
+        if let presentationID {
             return presentationID
         }
 
@@ -102,7 +102,7 @@ struct WorkRepository {
         sortBy: [SortDescriptor<WorkModel>] = [SortDescriptor(\.createdAt, order: .reverse)]
     ) -> [WorkModel] {
         var descriptor = FetchDescriptor<WorkModel>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -184,11 +184,11 @@ struct WorkRepository {
         guard let work = fetchWorkModel(id: id) else { return }
         work.status = .complete
         work.completedAt = AppCalendar.startOfDay(Date())
-        if let outcome = outcome {
+        if let outcome {
             work.completionOutcome = outcome
         }
-        if let note = note, !note.isEmpty {
-            _ = work.setLegacyNoteText(note, in: context)
+        if let note, !note.isEmpty {
+            work.setLegacyNoteText(note, in: context)
         }
         try context.save()
         HapticService.shared.notification(.success)

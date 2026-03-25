@@ -61,10 +61,10 @@ struct TrackDetailView: View {
     }
     
     private func addStep(for lessonID: UUID?) {
-        guard let lessonID = lessonID else { return }
+        guard let lessonID else { return }
         
         let existingSteps = track.steps ?? []
-        let nextOrderIndex = existingSteps.isEmpty ? 0 : (existingSteps.map { $0.orderIndex }.max() ?? -1) + 1
+        let nextOrderIndex = existingSteps.isEmpty ? 0 : (existingSteps.map(\.orderIndex).max() ?? -1) + 1
         
         let newStep = TrackStep(
             track: track,
@@ -119,7 +119,7 @@ private struct StepRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 30, alignment: .trailing)
             
-            if let lesson = lesson {
+            if let lesson {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                         .font(.body)

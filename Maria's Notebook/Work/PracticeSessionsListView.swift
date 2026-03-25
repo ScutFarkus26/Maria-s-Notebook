@@ -32,9 +32,9 @@ struct PracticeSessionsListView: View {
         case .all:
             break
         case .group:
-            sessions = sessions.filter { $0.isGroupSession }
+            sessions = sessions.filter(\.isGroupSession)
         case .solo:
-            sessions = sessions.filter { $0.isSoloSession }
+            sessions = sessions.filter(\.isSoloSession)
         case .today:
             let today = AppCalendar.startOfDay(Date())
             sessions = sessions.filter { AppCalendar.startOfDay($0.date) == today }
@@ -71,7 +71,7 @@ struct PracticeSessionsListView: View {
     }
     
     private var totalDuration: TimeInterval {
-        filteredSessions.compactMap { $0.duration }.reduce(0, +)
+        filteredSessions.compactMap(\.duration).reduce(0, +)
     }
     
     var body: some View {
@@ -149,7 +149,7 @@ struct PracticeSessionsListView: View {
                 .frame(height: 40)
             
             statBox(
-                value: "\(filteredSessions.filter { $0.isGroupSession }.count)",
+                value: "\(filteredSessions.filter(\.isGroupSession).count)",
                 label: "Group",
                 icon: "person.2.fill",
                 color: .green
@@ -167,7 +167,7 @@ struct PracticeSessionsListView: View {
                 )
             } else {
                 statBox(
-                    value: "\(filteredSessions.filter { $0.isSoloSession }.count)",
+                    value: "\(filteredSessions.filter(\.isSoloSession).count)",
                     label: "Solo",
                     icon: "person.fill",
                     color: .orange
@@ -355,9 +355,7 @@ struct PracticeSessionsListView: View {
         } else if calendar.isDate(date, inSameDayAs: yesterday) {
             return "Yesterday"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            return formatter.string(from: date)
+            return DateFormatters.mediumDate.string(from: date)
         }
     }
     

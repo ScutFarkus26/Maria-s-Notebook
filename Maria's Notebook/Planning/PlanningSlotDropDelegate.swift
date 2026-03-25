@@ -91,7 +91,7 @@ struct PlanningSlotDropDelegate: DropDelegate {
         }
 
         let current = getCurrent()
-        var ids = current.map { $0.id }
+        var ids = current.map(\.id)
         let dict = buildFramesDictionary(current: current)
         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
 
@@ -140,7 +140,7 @@ struct PlanningSlotDropDelegate: DropDelegate {
             }
         }
 
-        var ids = current.map { $0.id }
+        var ids = current.map(\.id)
         if let existing = ids.firstIndex(of: id) {
             ids.remove(at: existing)
         }

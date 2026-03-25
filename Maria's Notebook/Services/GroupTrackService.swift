@@ -349,7 +349,7 @@ struct GroupTrackService {
         }
         
         // Remove steps for lessons that no longer exist
-        let existingLessonIDs = Set(matchingLessons.map { $0.id })
+        let existingLessonIDs = Set(matchingLessons.map(\.id))
         for step in existingSteps {
             if let lessonID = step.lessonTemplateID, !existingLessonIDs.contains(lessonID) {
                 modelContext.delete(step)
@@ -511,7 +511,7 @@ struct GroupTrackService {
         let trackLessonIDs = Set(trackLessons.map { $0.id.uuidString })
         let proficientLessonIDs = Set(studentPresentations
             .filter { $0.state == .proficient && trackLessonIDs.contains($0.lessonID) }
-            .map { $0.lessonID })
+            .map(\.lessonID))
 
         let allProficient = trackLessonIDs.isSubset(of: proficientLessonIDs)
 

@@ -1,8 +1,10 @@
+import OSLog
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
 struct DropZone: View {
+    private static let logger = Logger.lessons
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendar) private var calendar
 
@@ -33,7 +35,7 @@ struct DropZone: View {
             let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch non-school days: \(error)")
+            Self.logger.error("[\(#function)] Failed to fetch non-school days: \(error)")
         }
 
         // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
@@ -48,7 +50,7 @@ struct DropZone: View {
             let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
-            print("⚠️ [\(#function)] Failed to fetch school day overrides: \(error)")
+            Self.logger.error("[\(#function)] Failed to fetch school day overrides: \(error)")
         }
         return true
     }
@@ -149,11 +151,11 @@ struct DropZone: View {
             getCurrent: { scheduledLessonsForSlot },
             itemFramesProvider: { itemFrames },
             onTargetChange: { targeted in
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted }
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) { isTargeted = targeted }
             },
             onInsertionIndexChange: { idx in
                 if insertionIndex != idx {
-                    adaptiveWithAnimation(
+                    _ = adaptiveWithAnimation(
                         .interactiveSpring(response: 0.16, dampingFraction: 0.85)
                     ) { insertionIndex = idx }
                 }

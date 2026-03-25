@@ -45,7 +45,7 @@ struct TrackProgressResolver {
             // Check if this presentation matches the step
             // Either by trackStepID or by lessonTemplateID
             let matchesByTrackStepID = lp.trackStepID != nil && lp.trackStepID == step.id.uuidString
-            let matchesByLessonID = step.lessonTemplateID != nil && lp.lessonID == step.lessonTemplateID!.uuidString
+            let matchesByLessonID = step.lessonTemplateID.map { lp.lessonID == $0.uuidString } ?? false
             
             return matchesByTrackStepID || matchesByLessonID
         }

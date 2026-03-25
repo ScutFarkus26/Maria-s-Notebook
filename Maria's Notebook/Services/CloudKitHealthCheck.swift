@@ -139,7 +139,7 @@ final class CloudKitHealthCheck {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingICloudTask?.cancel()
                 self.pendingICloudTask = Task { @MainActor [weak self] in

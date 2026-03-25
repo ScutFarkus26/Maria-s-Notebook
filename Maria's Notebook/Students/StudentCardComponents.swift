@@ -14,7 +14,7 @@ struct DefaultStudentCard: View {
     }
 
     private var displayName: String {
-        StudentNameFormatter.displayName(for: student)
+        StudentFormatter.displayName(for: student)
     }
 
     private var levelBadge: some View {
@@ -76,7 +76,7 @@ struct AgeStudentCard: View {
     }
 
     private var displayName: String {
-        StudentNameFormatter.displayName(for: student)
+        StudentFormatter.displayName(for: student)
     }
 
     private var ageQuarter: (years: Int, months: Int) {

@@ -83,7 +83,7 @@ final class WorksPlanningViewModel {
             if let work = try context.fetch(descriptor).first {
                 do {
                     _ = try service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
-                    _ = saveCoordinator.save(context, reason: "Schedule check-in")
+                    saveCoordinator.save(context, reason: "Schedule check-in")
                 } catch {
                     Self.logger.warning("Failed to create check-in: \(error)")
                 }
@@ -97,7 +97,7 @@ final class WorksPlanningViewModel {
         let svc = checkInServiceFactory(context)
         do {
             try svc.markCompleted(ci)
-            _ = saveCoordinator.save(context, reason: "Mark check-in completed")
+            saveCoordinator.save(context, reason: "Mark check-in completed")
         } catch {
             errorMessage = "Failed to mark as completed. Please try again."
         }

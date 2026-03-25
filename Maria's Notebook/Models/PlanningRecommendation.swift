@@ -126,7 +126,7 @@ final class PlanningRecommendation {
         self.createdAt = Date()
         self.modifiedAt = Date()
         self.lessonID = lessonID.uuidString
-        self.studentIDs = studentIDs.map { $0.uuidString }
+        self.studentIDs = studentIDs.map(\.uuidString)
         self.reasoning = reasoning
         self.confidence = confidence
         self.priority = priority

@@ -6,8 +6,8 @@ import Foundation
 extension BackupDiffService {
 
     func compareStudents(older: [StudentDTO], newer: [StudentDTO]) -> EntityDiff {
-        let olderIDs = Set(older.map { $0.id })
-        let newerIDs = Set(newer.map { $0.id })
+        let olderIDs = Set(older.map(\.id))
+        let newerIDs = Set(newer.map(\.id))
 
         let addedIDs = newerIDs.subtracting(olderIDs)
         let added = newer
@@ -33,8 +33,8 @@ extension BackupDiffService {
     }
 
     func compareLessons(older: [LessonDTO], newer: [LessonDTO]) -> EntityDiff {
-        let olderIDs = Set(older.map { $0.id })
-        let newerIDs = Set(newer.map { $0.id })
+        let olderIDs = Set(older.map(\.id))
+        let newerIDs = Set(newer.map(\.id))
 
         let addedIDs = newerIDs.subtracting(olderIDs)
         let added = newer
@@ -50,8 +50,8 @@ extension BackupDiffService {
     }
 
     func compareNotes(older: [NoteDTO], newer: [NoteDTO]) -> EntityDiff {
-        let olderIDs = Set(older.map { $0.id })
-        let newerIDs = Set(newer.map { $0.id })
+        let olderIDs = Set(older.map(\.id))
+        let newerIDs = Set(newer.map(\.id))
 
         let addedIDs = newerIDs.subtracting(olderIDs)
         let added = newer
@@ -77,8 +77,8 @@ extension BackupDiffService {
     }
 
     func compareProjects(older: [ProjectDTO], newer: [ProjectDTO]) -> EntityDiff {
-        let olderIDs = Set(older.map { $0.id })
-        let newerIDs = Set(newer.map { $0.id })
+        let olderIDs = Set(older.map(\.id))
+        let newerIDs = Set(newer.map(\.id))
 
         let addedIDs = newerIDs.subtracting(olderIDs)
         let added = newer

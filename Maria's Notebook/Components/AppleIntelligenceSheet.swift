@@ -20,7 +20,7 @@ struct AppleIntelligenceSheet: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

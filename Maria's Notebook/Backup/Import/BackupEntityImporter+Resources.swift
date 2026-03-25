@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Resource & NoteStudentLink Import
 
@@ -58,7 +59,7 @@ extension BackupEntityImporter {
                     link.note = note
                 }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check note for link: \(error)")
+                Logger.backup.warning("Failed to check note for link: \(error.localizedDescription, privacy: .public)")
             }
             modelContext.insert(link)
         }

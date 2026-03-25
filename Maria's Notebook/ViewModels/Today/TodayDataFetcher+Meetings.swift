@@ -24,7 +24,7 @@ extension TodayDataFetcher {
             sortBy: [SortDescriptor(\ScheduledMeeting.createdAt)]
         )
         let meetings = context.safeFetch(descriptor)
-        let studentIDs = Set(meetings.compactMap { $0.studentIDUUID })
+        let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
         return ScheduledMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)
     }
 
@@ -46,7 +46,7 @@ extension TodayDataFetcher {
             sortBy: [SortDescriptor(\StudentMeeting.date)]
         )
         let meetings = context.safeFetch(descriptor)
-        let studentIDs = Set(meetings.compactMap { $0.studentIDUUID })
+        let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
         return CompletedMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)
     }
 }

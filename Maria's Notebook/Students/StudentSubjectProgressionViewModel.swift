@@ -84,7 +84,7 @@ final class StudentSubjectProgressionViewModel {
                     .filter { $0.status == .completed }
                     .max { $0.date < $1.date }
                 let nextCheckIn = workCheckIns
-                    .filter { $0.isScheduled }
+                    .filter(\.isScheduled)
                     .min { $0.date < $1.date }
 
                 // Approximate school day age (weekdays only)

@@ -29,9 +29,7 @@ struct StudentInspectorView: View {
     }
 
     private var birthdayDisplay: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: student.birthday)
+        DateFormatters.mediumDate.string(from: student.birthday)
     }
 
     var body: some View {

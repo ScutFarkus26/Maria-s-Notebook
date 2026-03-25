@@ -17,9 +17,7 @@ struct WorkPresentationStatusService {
         var displayText: String {
             switch self {
             case .scheduled(let date):
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                return "Scheduled for \(formatter.string(from: date))"
+                return "Scheduled for \(DateFormatters.mediumDate.string(from: date))"
             case .inInbox(let students):
                 if students.count == 1 {
                     return "In inbox (ready to present)"

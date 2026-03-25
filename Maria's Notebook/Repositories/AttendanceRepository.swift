@@ -41,7 +41,7 @@ struct AttendanceRepository: SavingRepository {
         sortBy: [SortDescriptor<AttendanceRecord>] = [SortDescriptor(\.date, order: .reverse)]
     ) -> [AttendanceRecord] {
         var descriptor = FetchDescriptor<AttendanceRecord>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -95,7 +95,7 @@ struct AttendanceRepository: SavingRepository {
         )
         context.insert(record)
         if let note {
-            _ = record.setLegacyNoteText(note, in: context)
+            record.setLegacyNoteText(note, in: context)
         }
         return record
     }

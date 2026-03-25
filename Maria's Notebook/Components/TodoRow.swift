@@ -20,13 +20,9 @@ struct TodoRow: View {
         } else if calendar.isDateInTomorrow(date) {
             return "Tomorrow"
         } else if calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE"
-            return formatter.string(from: date)
+            return DateFormatters.weekdayFull.string(from: date)
         } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
+            return DateFormatters.shortDate.string(from: date)
         }
     }
 
@@ -55,15 +51,11 @@ struct TodoRow: View {
     private func formatReminderBadge(_ date: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "h:mm a"
-            return formatter.string(from: date)
+            return DateFormatters.shortTime.string(from: date)
         } else if calendar.isDateInTomorrow(date) {
             return "Tomorrow"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: date)
+            return DateFormatters.shortMonthDay.string(from: date)
         }
     }
 
@@ -79,23 +71,18 @@ struct TodoRow: View {
 
         // Due date
         if let dueDate = todo.dueDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            text += "\u{1F4C5} Due: \(formatter.string(from: dueDate))\n"
+            text += "\u{1F4C5} Due: \(DateFormatters.mediumDate.string(from: dueDate))\n"
         }
 
         // Assigned students
         if !assignedStudents.isEmpty {
-            let names = assignedStudents.map { $0.firstName }.joined(separator: ", ")
+            let names = assignedStudents.map(\.firstName).joined(separator: ", ")
             text += "\u{1F465} Assigned to: \(names)\n"
         }
 
         // Reminder
         if let reminderDate = todo.reminderDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            text += "\u{1F514} Reminder: \(formatter.string(from: reminderDate))\n"
+            text += "\u{1F514} Reminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
         }
 
         // Time estimate
@@ -116,8 +103,8 @@ struct TodoRow: View {
         // Subtasks
         let shareSubs = todo.subtasks ?? []
         if !shareSubs.isEmpty {
-            text += "\n\u{2705} Subtasks (\(shareSubs.filter { $0.isCompleted }.count)/\(shareSubs.count)):\n"
-            for subtask in shareSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            text += "\n\u{2705} Subtasks (\(shareSubs.filter(\.isCompleted).count)/\(shareSubs.count)):\n"
+            for subtask in shareSubs.sorted { $0.orderIndex < $1.orderIndex } {
                 let checkbox = subtask.isCompleted ? "\u{2611}\u{FE0F}" : "\u{2610}"
                 text += "  \(checkbox) \(subtask.title)\n"
             }
@@ -148,11 +135,11 @@ struct TodoRow: View {
 
             // Checkbox
             Button {
-                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                     checkboxScale = 0.8
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                         checkboxScale = 1.0
                         onToggle()
                     }
@@ -190,7 +177,7 @@ struct TodoRow: View {
                         HStack(spacing: 3) {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 10))
-                            Text(assignedStudents.map { $0.firstName }.joined(separator: ", "))
+                            Text(assignedStudents.map(\.firstName).joined(separator: ", "))
                                 .font(AppTheme.ScaledFont.captionSemibold)
                         }
                         .foregroundStyle(.blue.opacity(0.7))

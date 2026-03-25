@@ -50,14 +50,14 @@ final class ObservationModeViewModel {
     // MARK: - Computed
 
     var canSave: Bool {
-        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !bodyText.trimmed().isEmpty
     }
 
     // MARK: - Lifecycle
 
     func loadData(context: ModelContext) {
         let descriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        allStudents = context.safeFetch(descriptor).filter { $0.isEnrolled }
+        allStudents = context.safeFetch(descriptor).filter(\.isEnrolled)
         allStudents = TestStudentsFilter.filterVisible(allStudents)
 
         if shuffledPrompts.isEmpty {

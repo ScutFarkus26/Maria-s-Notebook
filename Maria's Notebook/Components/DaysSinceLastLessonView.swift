@@ -20,7 +20,7 @@ struct DaysSinceLastLessonView: View {
             let s = norm(l.subject)
             let g = norm(l.group)
             return s == "parsha" || g == "parsha"
-        }.map { $0.id }
+        }.map(\.id)
         return Set(ids)
     }
 

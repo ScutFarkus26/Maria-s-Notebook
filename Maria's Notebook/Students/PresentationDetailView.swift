@@ -19,7 +19,7 @@ struct PresentationDetailView: View {
     @Query private var lessonAssignmentsAll: [LessonAssignment]
 
     private var lessonIDs: [UUID] {
-        lessons.map { $0.id }
+        lessons.map(\.id)
     }
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
@@ -51,7 +51,7 @@ struct PresentationDetailView: View {
 
     var body: some View {
         Group {
-            if let vm = vm {
+            if let vm {
                 // Pass non-optional VM to the content view to enable Bindings
                 PresentationDetailContentView(
                     vm: vm,

@@ -297,7 +297,7 @@ struct ObservationHeatmapView: View {
     }
     
     private func calculateDaysSince(date: Date?) -> Int {
-        guard let date = date else {
+        guard let date else {
             // No observation found - return a large number to indicate never observed
             return Int.max
         }

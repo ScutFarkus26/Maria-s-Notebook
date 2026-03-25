@@ -89,7 +89,7 @@ struct WorkCheckInRow: View {
     private var checkInNote: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let notes = checkIn.notes, !notes.isEmpty {
-                ForEach(notes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                ForEach(notes.sorted { $0.createdAt > $1.createdAt }, id: \.id) { note in
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Notes:")
                             .font(AppTheme.ScaledFont.captionSemibold)

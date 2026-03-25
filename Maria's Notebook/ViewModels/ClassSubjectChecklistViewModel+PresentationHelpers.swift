@@ -58,7 +58,7 @@ extension ClassSubjectChecklistViewModel {
         )
         let existing = context.safeFetch(descriptor).first
 
-        if let existing = existing {
+        if let existing {
             if state == .proficient && existing.state != .proficient {
                 existing.state = .proficient
                 existing.masteredAt = Date()

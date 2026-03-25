@@ -80,13 +80,13 @@ struct PresentationsInboxView: View {
         Button(action: {
             if let suggested = suggestedNextLesson {
                 suggestDismissTask?.cancel()
-                adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
                     suggestedLessonID = suggested.id
                 }
                 suggestDismissTask = Task { @MainActor in
                     try? await Task.sleep(for: .seconds(3))
                     guard !Task.isCancelled else { return }
-                    adaptiveWithAnimation(.easeOut(duration: 0.5)) {
+                    _ = adaptiveWithAnimation(.easeOut(duration: 0.5)) {
                         suggestedLessonID = nil
                     }
                 }
@@ -119,7 +119,7 @@ struct PresentationsInboxView: View {
 
                         #if os(iOS)
                         Button {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 coordinator.toggleCalendar()
                             }
                         } label: {
@@ -171,7 +171,7 @@ struct PresentationsInboxView: View {
                             Text(StudentFormatter.displayName(for: student))
                                 .font(.caption.weight(.medium))
                             Button {
-                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                                     coordinator.clearStudentFilter()
                                 }
                             } label: {
@@ -255,7 +255,7 @@ struct PresentationsInboxView: View {
 extension PresentationsInboxView {
 
     func lessonTitle(for la: LessonAssignment, using lookupCache: [UUID: Lesson]) -> String {
-        if let lessonID = UUID(uuidString: la.lessonID), let lesson = lookupCache[lessonID] {
+        if let lesson = lookupCache[uuidString: la.lessonID] {
             let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
@@ -385,7 +385,7 @@ extension PresentationsInboxView {
             .onTapGesture { coordinator.showLessonAssignmentDetail(la) }
             .onDrag {
                 let provider = NSItemProvider(object: NSString(string: la.id.uuidString))
-                provider.suggestedName = (UUID(uuidString: la.lessonID).flatMap { lessonsByID[$0] })?.name ?? "Lesson"
+                provider.suggestedName = lessonsByID[uuidString: la.lessonID]?.name ?? "Lesson"
                 return provider
             }
         }

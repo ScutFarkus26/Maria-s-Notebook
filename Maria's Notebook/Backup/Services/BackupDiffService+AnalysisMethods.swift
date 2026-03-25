@@ -3,8 +3,11 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 extension BackupDiffService {
+
+    private static let logger = Logger.backup
 
     // swiftlint:disable:next function_body_length
     func analyzeStudentDiff(
@@ -15,11 +18,11 @@ extension BackupDiffService {
         do {
             currentStudents = try modelContext.fetch(FetchDescriptor<Student>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current students: \(error)")
+            Self.logger.warning("Failed to fetch current students: \(error.localizedDescription, privacy: .public)")
             currentStudents = []
         }
-        let currentIDs = Set(currentStudents.map { $0.id })
-        let backupIDs = Set(backupStudents.map { $0.id })
+        let currentIDs = Set(currentStudents.map(\.id))
+        let backupIDs = Set(backupStudents.map(\.id))
 
         // Added (in current but not in backup)
         let addedIDs = currentIDs.subtracting(backupIDs)
@@ -91,11 +94,11 @@ extension BackupDiffService {
         do {
             currentLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current lessons: \(error)")
+            Self.logger.warning("Failed to fetch current lessons: \(error.localizedDescription, privacy: .public)")
             currentLessons = []
         }
-        let currentIDs = Set(currentLessons.map { $0.id })
-        let backupIDs = Set(backupLessons.map { $0.id })
+        let currentIDs = Set(currentLessons.map(\.id))
+        let backupIDs = Set(backupLessons.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = currentLessons
@@ -158,11 +161,11 @@ extension BackupDiffService {
         do {
             current = try modelContext.fetch(FetchDescriptor<Note>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current notes: \(error)")
+            Self.logger.warning("Failed to fetch current notes: \(error.localizedDescription, privacy: .public)")
             current = []
         }
-        let currentIDs = Set(current.map { $0.id })
-        let backupIDs = Set(backupNotes.map { $0.id })
+        let currentIDs = Set(current.map(\.id))
+        let backupIDs = Set(backupNotes.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
@@ -216,13 +219,15 @@ extension BackupDiffService {
         do {
             currentNSD = try modelContext.fetch(FetchDescriptor<NonSchoolDay>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current non-school days: \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to fetch current non-school days: \(desc, privacy: .public)")
             currentNSD = []
         }
         do {
             currentOvr = try modelContext.fetch(FetchDescriptor<SchoolDayOverride>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current school day overrides: \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to fetch current school day overrides: \(desc, privacy: .public)")
             currentOvr = []
         }
 
@@ -230,8 +235,8 @@ extension BackupDiffService {
         var removed: [EntityChange] = []
 
         // Non-school days
-        let currentNSDIDs = Set(currentNSD.map { $0.id })
-        let backupNSDIDs = Set(backupNonSchoolDays.map { $0.id })
+        let currentNSDIDs = Set(currentNSD.map(\.id))
+        let backupNSDIDs = Set(backupNonSchoolDays.map(\.id))
 
         for id in currentNSDIDs.subtracting(backupNSDIDs) {
             if let nsd = currentNSD.first(where: { $0.id == id }) {
@@ -247,8 +252,8 @@ extension BackupDiffService {
         }
 
         // School day overrides
-        let currentOvrIDs = Set(currentOvr.map { $0.id })
-        let backupOvrIDs = Set(backupOverrides.map { $0.id })
+        let currentOvrIDs = Set(currentOvr.map(\.id))
+        let backupOvrIDs = Set(backupOverrides.map(\.id))
 
         for id in currentOvrIDs.subtracting(backupOvrIDs) {
             if let ovr = currentOvr.first(where: { $0.id == id }) {
@@ -274,11 +279,12 @@ extension BackupDiffService {
         do {
             current = try modelContext.fetch(FetchDescriptor<Project>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current projects: \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to fetch current projects: \(desc, privacy: .public)")
             current = []
         }
-        let currentIDs = Set(current.map { $0.id })
-        let backupIDs = Set(backupProjects.map { $0.id })
+        let currentIDs = Set(current.map(\.id))
+        let backupIDs = Set(backupProjects.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
@@ -313,11 +319,12 @@ extension BackupDiffService {
         do {
             current = try modelContext.fetch(FetchDescriptor<AttendanceRecord>())
         } catch {
-            print("Warning [Backup:\(#function)] Failed to fetch current attendance records: \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to fetch current attendance records: \(desc, privacy: .public)")
             current = []
         }
-        let currentIDs = Set(current.map { $0.id })
-        let backupIDs = Set(backupAttendance.map { $0.id })
+        let currentIDs = Set(current.map(\.id))
+        let backupIDs = Set(backupAttendance.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current

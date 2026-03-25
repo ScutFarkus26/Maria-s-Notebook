@@ -104,7 +104,7 @@ public struct CalendarSyncSettingsView: View {
         let selectedIdentifiers = Array(selectedCalendarIdentifiers)
         let selectedNames = availableCalendars
             .filter { selectedCalendarIdentifiers.contains($0.identifier) }
-            .map { $0.name }
+            .map(\.name)
 
         syncService.syncCalendarIdentifiers = selectedIdentifiers
         syncService.syncCalendarNames = selectedNames

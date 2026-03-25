@@ -1,11 +1,14 @@
 // TodoRowCard.swift
 // Elegant todo row card inspired by Things and Bear
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 // swiftlint:disable:next type_body_length
 struct TodoRowCard: View {
+    private static let logger = Logger.todos
+
     @Bindable var todo: TodoItem
     @Environment(\.modelContext) private var modelContext
     let onSelect: () -> Void
@@ -33,18 +36,19 @@ struct TodoRowCard: View {
 
                 // Checkbox
                 Button {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                         checkboxScale = 0.8
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             checkboxScale = 1.0
                             do {
                                 try modelContext.save()
                             } catch {
-                                print("\u{26a0}\u{fe0f} [\(#function)] Failed to save todo completion state: \(error)")
+                                let desc = error.localizedDescription
+                                Self.logger.error("Failed to save todo completion state: \(desc, privacy: .public)")
                             }
                         }
                     }
@@ -236,7 +240,7 @@ struct TodoRowCard: View {
         do {
             try modelContext.save()
         } catch {
-            print("\u{26a0}\u{fe0f} [\(#function)] Failed to save priority change: \(error)")
+            Self.logger.error("Failed to save priority change: \(error.localizedDescription, privacy: .public)")
         }
     }
 

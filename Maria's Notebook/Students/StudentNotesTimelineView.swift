@@ -36,7 +36,7 @@ struct StudentNotesTimelineView: View {
 
     var body: some View {
         Group {
-            if let viewModel = viewModel {
+            if let viewModel {
                 StudentNotesTimelineList(viewModel: viewModel)
             } else {
                 ProgressView()

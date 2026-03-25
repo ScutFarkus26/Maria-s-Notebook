@@ -22,7 +22,7 @@ struct GoingOutEditorSheet: View {
     private var allStudents: [Student]
 
     private var visibleStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudents.filter { $0.isEnrolled })
+        TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
     }
 
     init(existingGoingOut: GoingOut? = nil, onSave: @escaping (GoingOut) -> Void) {
@@ -92,7 +92,7 @@ struct GoingOutEditorSheet: View {
                     Button("Save") {
                         save()
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(title.trimmed().isEmpty)
                 }
             }
             .onAppear {

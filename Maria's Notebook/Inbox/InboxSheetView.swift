@@ -31,19 +31,6 @@ public struct InboxSheetView: View {
   @State private var insertionIndex: Int?
   @State private var baseFrames: [UUID: CGRect]?
 
-  private static let mediumDateFormatter: DateFormatter = {
-    let df = DateFormatter()
-    df.dateStyle = .medium
-    df.timeStyle = .none
-    return df
-  }()
-  
-  private static let weekdayFormatter: DateFormatter = {
-    let df = DateFormatter()
-    df.setLocalizedDateFormatFromTemplate("EEE")
-    return df
-  }()
-
   init(
     lessonAssignments: [LessonAssignment],
     orderedUnscheduledLessons: [LessonAssignment],
@@ -156,7 +143,7 @@ public struct InboxSheetView: View {
           getCurrent: { orderedUnscheduledLessons },
           itemFramesProvider: { baseFrames ?? itemFrames },
           onTargetChange: { targeted in
-            adaptiveWithAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
+            _ = adaptiveWithAnimation(.easeInOut(duration: 0.1)) { isTargeted = targeted }
             if targeted {
               if baseFrames == nil { baseFrames = itemFrames }
             } else {
@@ -165,7 +152,9 @@ public struct InboxSheetView: View {
           },
           onInsertionIndexChange: { idx in
             if idx != insertionIndex {
-              adaptiveWithAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.85)) { insertionIndex = idx }
+              _ = adaptiveWithAnimation(
+                  .interactiveSpring(response: 0.16, dampingFraction: 0.85)
+              ) { insertionIndex = idx }
             }
           },
           performDropHandler: { providers, location in

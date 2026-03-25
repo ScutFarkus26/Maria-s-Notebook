@@ -131,7 +131,7 @@ struct PlanningFeedbackTracker {
         }
         
         // Teacher notes patterns
-        let notes = records.compactMap { $0.teacherNote }.filter { !$0.isEmpty }
+        let notes = records.compactMap(\.teacherNote).filter { !$0.isEmpty }
         if !notes.isEmpty {
             lines.append("Recent teacher notes: \(notes.prefix(3).joined(separator: "; "))")
         }

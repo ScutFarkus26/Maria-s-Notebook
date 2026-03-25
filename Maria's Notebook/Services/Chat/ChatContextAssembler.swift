@@ -53,7 +53,7 @@ final class ChatContextAssembler {
 
     private func appendRosterSection(_ lines: inout [String], students: [Student]) {
         lines.append("--- Student Roster ---")
-        for student in students.sorted(by: { $0.firstName < $1.firstName }) {
+        for student in students.sorted { $0.firstName < $1.firstName } {
             let age = ageString(for: student.birthday)
             let nick = student.nickname.map { " (\($0))" } ?? ""
             let bday = formattedDate(student.birthday)
@@ -64,7 +64,7 @@ final class ChatContextAssembler {
     }
 
     private func appendSubjectsSection(_ lines: inout [String], lessons: [Lesson]) {
-        let subjects = Set(lessons.map { $0.subject }).filter { !$0.isEmpty }.sorted()
+        let subjects = Set(lessons.map(\.subject)).filter { !$0.isEmpty }.sorted()
         if !subjects.isEmpty {
             lines.append("--- Subjects ---")
             lines.append(subjects.joined(separator: ", "))
@@ -122,9 +122,9 @@ final class ChatContextAssembler {
         lines.append("Open work items: \(openWork.count)")
         if !openWork.isEmpty {
             let workByStudent = Dictionary(grouping: openWork) { $0.studentID }
-            for (studentIDStr, works) in workByStudent.sorted(by: { $0.value.count > $1.value.count }).prefix(8) {
-                if let uuid = UUID(uuidString: studentIDStr), let student = studentsDict[uuid] {
-                    let titles = works.prefix(3).map { $0.title }.joined(separator: ", ")
+            for (studentIDStr, works) in workByStudent.sorted { $0.value.count > $1.value.count }.prefix(8) {
+                if let student = studentsDict[uuidString: studentIDStr] {
+                    let titles = works.prefix(3).map(\.title).joined(separator: ", ")
                     let moreCount = works.count > 3 ? " +\(works.count - 3) more" : ""
                     lines.append("  • \(student.firstName): \(titles)\(moreCount)")
                 }
@@ -140,7 +140,7 @@ final class ChatContextAssembler {
         guard !recentCompleted.isEmpty else { return }
         lines.append("--- Recently Completed Work ---")
         for work in recentCompleted.prefix(8) {
-            let studentName = UUID(uuidString: work.studentID).flatMap { studentsDict[$0]?.firstName } ?? "Unknown"
+            let studentName = studentsDict[uuidString: work.studentID]?.firstName ?? "Unknown"
             let outcome = work.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
             let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
             lines.append("  • \(studentName): \(work.title)\(outcomeStr)")
@@ -512,10 +512,7 @@ final class ChatContextAssembler {
     // MARK: - Formatting
 
     private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        DateFormatters.mediumDate.string(from: date)
     }
 
     private func ageString(for birthday: Date) -> String {

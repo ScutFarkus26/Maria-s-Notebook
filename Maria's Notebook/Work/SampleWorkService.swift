@@ -23,7 +23,7 @@ struct SampleWorkService {
         notes: String = ""
     ) -> SampleWork {
         let existing = lesson.sampleWorks ?? []
-        let nextIndex = existing.isEmpty ? 0 : (existing.map { $0.orderIndex }.max() ?? -1) + 1
+        let nextIndex = existing.isEmpty ? 0 : (existing.map(\.orderIndex).max() ?? -1) + 1
 
         let sampleWork = SampleWork(
             lesson: lesson,
@@ -70,7 +70,7 @@ struct SampleWorkService {
         instructions: String = ""
     ) -> SampleWorkStep {
         let existing = sampleWork.steps ?? []
-        let nextIndex = existing.isEmpty ? 0 : (existing.map { $0.orderIndex }.max() ?? -1) + 1
+        let nextIndex = existing.isEmpty ? 0 : (existing.map(\.orderIndex).max() ?? -1) + 1
 
         let step = SampleWorkStep(
             sampleWork: sampleWork,

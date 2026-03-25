@@ -17,7 +17,7 @@ struct TodoDetailView: View {
 
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter { $0.isEnrolled },
+            allStudentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -32,7 +32,7 @@ struct TodoDetailView: View {
                 // Title + Checkbox
                 HStack(alignment: .top, spacing: 14) {
                     Button {
-                        adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             try? modelContext.save()
@@ -145,7 +145,7 @@ struct TodoDetailView: View {
                             }
                             .padding(.bottom, 8)
 
-                            ForEach(viewSubs.sorted(by: { $0.orderIndex < $1.orderIndex })) { subtask in
+                            ForEach(viewSubs.sorted { $0.orderIndex < $1.orderIndex }) { subtask in
                                 HStack(spacing: 10) {
                                     Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                                         .font(.system(size: 16))
@@ -257,7 +257,7 @@ struct TodoDetailView: View {
                                         .foregroundStyle(mood.color)
                                 }
                             }
-                            let reflection = todo.reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let reflection = todo.reflectionNotes.trimmed()
                             if !reflection.isEmpty {
                                 Text(reflection)
                                     .font(AppTheme.ScaledFont.body)
@@ -366,10 +366,7 @@ struct TodoDetailView: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        DateFormatters.mediumDateTime.string(from: date)
     }
 
     private func formatMinutes(_ minutes: Int) -> String {

@@ -48,7 +48,7 @@ struct PlanningWeekViewiOS: View {
             DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
             syncInboxOrderWithCurrentBase()
         }
-        .onChange(of: inboxLessons.map { $0.id }) { _, _ in
+        .onChange(of: inboxLessons.map(\.id)) { _, _ in
             syncInboxOrderWithCurrentBase()
         }
     }
@@ -195,12 +195,12 @@ struct PlanningWeekViewiOS: View {
     
     @MainActor
     private func syncInboxOrderWithCurrentBase() {
-        let baseIDs = inboxLessons.map { $0.id }
+        let baseIDs = inboxLessons.map(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = inboxLessons
             .filter { !order.contains($0.id) }
             .sorted { $0.createdAt < $1.createdAt }
-            .map { $0.id }
+            .map(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }

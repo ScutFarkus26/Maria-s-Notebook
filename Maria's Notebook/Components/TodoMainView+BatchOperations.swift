@@ -1,12 +1,15 @@
 // TodoMainView+BatchOperations.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 extension TodoMainView {
+    private static let logger = Logger.todos
+
     func batchComplete() {
-        adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToComplete = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todosToComplete {
                 todo.isCompleted = true
@@ -15,7 +18,7 @@ extension TodoMainView {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to batch complete: \(error)")
+                Self.logger.error("[\(#function)] Failed to batch complete: \(error)")
             }
             selectedTodoIDs.removeAll()
             isSelectMode = false
@@ -23,7 +26,7 @@ extension TodoMainView {
     }
 
     func batchSetHighPriority() {
-        adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todos {
                 todo.priority = .high
@@ -31,7 +34,7 @@ extension TodoMainView {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to batch set priority: \(error)")
+                Self.logger.error("[\(#function)] Failed to batch set priority: \(error)")
             }
             selectedTodoIDs.removeAll()
             isSelectMode = false
@@ -39,7 +42,7 @@ extension TodoMainView {
     }
 
     func batchSetDueToday() {
-        adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
             let today = Calendar.current.startOfDay(for: Date())
             for todo in todos {
@@ -48,7 +51,7 @@ extension TodoMainView {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to batch set due date: \(error)")
+                Self.logger.error("[\(#function)] Failed to batch set due date: \(error)")
             }
             selectedTodoIDs.removeAll()
             isSelectMode = false
@@ -56,7 +59,7 @@ extension TodoMainView {
     }
 
     func batchDelete() {
-        adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todosToDelete = allTodos.filter { selectedTodoIDs.contains($0.id) }
             for todo in todosToDelete {
                 modelContext.delete(todo)
@@ -64,7 +67,7 @@ extension TodoMainView {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to batch delete: \(error)")
+                Self.logger.error("[\(#function)] Failed to batch delete: \(error)")
             }
             selectedTodoIDs.removeAll()
             isSelectMode = false

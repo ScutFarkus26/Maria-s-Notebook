@@ -6,7 +6,7 @@ struct TodoAnalyticsView: View {
     let todos: [TodoItem]
     
     private var completedTodos: [TodoItem] {
-        todos.filter { $0.isCompleted }
+        todos.filter(\.isCompleted)
     }
     
     private var completionRate: Double {

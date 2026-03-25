@@ -128,7 +128,7 @@ struct APIKeySettingsView: View {
     }
     
     private func saveAPIKey() {
-        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedKey = apiKey.trimmed()
         
         guard trimmedKey.hasPrefix("sk-ant-") else {
             saveMessage = "Invalid API key format"

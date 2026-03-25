@@ -52,8 +52,8 @@ enum WorkScheduleDateLogic {
         }
 
         // Find earliest per kind
-        let earliestCheckIn = normalized.filter { $0.kind == .checkIn }.map { $0.date }.min()
-        let earliestDue = normalized.filter { $0.kind == .due }.map { $0.date }.min()
+        let earliestCheckIn = normalized.filter { $0.kind == .checkIn }.map(\.date).min()
+        let earliestDue = normalized.filter { $0.kind == .due }.map(\.date).min()
 
         // Determine primary and secondary
         switch (earliestCheckIn, earliestDue) {
@@ -82,7 +82,7 @@ enum WorkScheduleDateLogic {
 
     /// Consistent date formatting for display in labels.
     static func formattedDate(_ date: Date) -> String {
-        return Self.dateFormatter.string(from: date)
+        return DateFormatters.mediumDate.string(from: date)
     }
 
     /// Label to display for a given schedule date kind.
@@ -93,11 +93,4 @@ enum WorkScheduleDateLogic {
         }
     }
 
-    // MARK: - Private
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
 }

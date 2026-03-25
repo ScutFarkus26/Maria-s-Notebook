@@ -66,7 +66,7 @@ extension LessonAssignmentDetailSheet {
 
     @MainActor
     func reloadNotes() {
-        guard let assignment = assignment else { return }
+        guard let assignment else { return }
 
         // Load unified Note objects from relationship
         // Refresh the assignment object to get updated relationships

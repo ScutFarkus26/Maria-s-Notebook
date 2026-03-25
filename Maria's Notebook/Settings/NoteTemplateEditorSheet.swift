@@ -23,7 +23,7 @@ struct NoteTemplateEditorSheet: View {
     init(template: NoteTemplate?, onSaved: @escaping () -> Void) {
         self.template = template
         self.onSaved = onSaved
-        if let template = template {
+        if let template {
             _titleText = State(initialValue: template.title)
             _bodyText = State(initialValue: template.body)
             _tags = State(initialValue: template.tags)

@@ -47,7 +47,7 @@ struct LessonRepository: SavingRepository {
         ]
     ) -> [Lesson] {
         var descriptor = FetchDescriptor<Lesson>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -164,22 +164,22 @@ struct LessonRepository: SavingRepository {
     ) -> Bool {
         guard let lesson = fetchLesson(id: id) else { return false }
 
-        if let name = name { lesson.name = name }
-        if let subject = subject { lesson.subject = subject }
-        if let group = group { lesson.group = group }
-        if let subheading = subheading { lesson.subheading = subheading }
-        if let writeUp = writeUp { lesson.writeUp = writeUp }
-        if let orderInGroup = orderInGroup { lesson.orderInGroup = orderInGroup }
-        if let sortIndex = sortIndex { lesson.sortIndex = sortIndex }
-        if let defaultWorkKind = defaultWorkKind { lesson.defaultWorkKind = defaultWorkKind }
-        if let materials = materials { lesson.materials = materials }
-        if let purpose = purpose { lesson.purpose = purpose }
-        if let ageRange = ageRange { lesson.ageRange = ageRange }
-        if let teacherNotes = teacherNotes { lesson.teacherNotes = teacherNotes }
-        if let prerequisiteLessonIDs = prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = prerequisiteLessonIDs }
-        if let relatedLessonIDs = relatedLessonIDs { lesson.relatedLessonIDs = relatedLessonIDs }
-        if let lessonFormat = lessonFormat { lesson.lessonFormat = lessonFormat }
-        if let parentStoryID = parentStoryID { lesson.parentStoryID = parentStoryID }
+        if let name { lesson.name = name }
+        if let subject { lesson.subject = subject }
+        if let group { lesson.group = group }
+        if let subheading { lesson.subheading = subheading }
+        if let writeUp { lesson.writeUp = writeUp }
+        if let orderInGroup { lesson.orderInGroup = orderInGroup }
+        if let sortIndex { lesson.sortIndex = sortIndex }
+        if let defaultWorkKind { lesson.defaultWorkKind = defaultWorkKind }
+        if let materials { lesson.materials = materials }
+        if let purpose { lesson.purpose = purpose }
+        if let ageRange { lesson.ageRange = ageRange }
+        if let teacherNotes { lesson.teacherNotes = teacherNotes }
+        if let prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = prerequisiteLessonIDs }
+        if let relatedLessonIDs { lesson.relatedLessonIDs = relatedLessonIDs }
+        if let lessonFormat { lesson.lessonFormat = lessonFormat }
+        if let parentStoryID { lesson.parentStoryID = parentStoryID }
 
         return true
     }

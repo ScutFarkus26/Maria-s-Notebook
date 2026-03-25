@@ -139,7 +139,7 @@ final class Lesson: Identifiable {
     var suggestedFollowUpWorkItems: [String] {
         suggestedFollowUpWork
             .components(separatedBy: "\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmed() }
             .filter { !$0.isEmpty }
     }
 
@@ -148,7 +148,7 @@ final class Lesson: Identifiable {
     var materialsItems: [String] {
         materials
             .components(separatedBy: "\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmed() }
             .filter { !$0.isEmpty }
     }
 
@@ -161,7 +161,7 @@ final class Lesson: Identifiable {
                 .compactMap { UUID(uuidString: $0.trimmingCharacters(in: .whitespaces)) }
         }
         set {
-            prerequisiteLessonIDs = newValue.map { $0.uuidString }.joined(separator: ",")
+            prerequisiteLessonIDs = newValue.map(\.uuidString).joined(separator: ",")
         }
     }
 
@@ -174,7 +174,7 @@ final class Lesson: Identifiable {
                 .compactMap { UUID(uuidString: $0.trimmingCharacters(in: .whitespaces)) }
         }
         set {
-            relatedLessonIDs = newValue.map { $0.uuidString }.joined(separator: ",")
+            relatedLessonIDs = newValue.map(\.uuidString).joined(separator: ",")
         }
     }
 

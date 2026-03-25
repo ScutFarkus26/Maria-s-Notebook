@@ -111,7 +111,7 @@ final class StudentProgressTabViewModel {
     }
 
     func trackStats(for enrollment: StudentTrackEnrollment, track: Track) -> TrackStats {
-        guard let studentID = studentID else {
+        guard let studentID else {
             return TrackStats(
                 lessonAssignments: [], workModels: [], notes: [],
                 presentationCount: 0, workCount: 0, noteCount: 0,
@@ -141,9 +141,9 @@ final class StudentProgressTabViewModel {
 
         let lastActivityDate: Date? = {
             var dates: [Date] = []
-            dates.append(contentsOf: lessonAssignments.compactMap { $0.presentedAt })
+            dates.append(contentsOf: lessonAssignments.compactMap(\.presentedAt))
             dates.append(contentsOf: workModels.compactMap { $0.completedAt ?? $0.createdAt })
-            dates.append(contentsOf: notes.map { $0.updatedAt })
+            dates.append(contentsOf: notes.map(\.updatedAt))
             return dates.max()
         }()
 
@@ -173,7 +173,7 @@ final class StudentProgressTabViewModel {
     }
 
     func trackProgress(for track: Track) -> TrackProgress {
-        guard let studentID = studentID else {
+        guard let studentID else {
             return TrackProgress(
                 trackSteps: [], completedStepIDs: [],
                 proficientCount: 0, totalSteps: 0, progressPercent: 0,
@@ -204,7 +204,7 @@ final class StudentProgressTabViewModel {
         // Count mastered lessons
         let proficientLessonIDs = Set(filteredPresentations
             .filter { $0.state == .proficient }
-            .map { $0.lessonID })
+            .map(\.lessonID))
 
         // Find which steps are completed (lesson is mastered)
         let completedStepIDs = Set(trackSteps

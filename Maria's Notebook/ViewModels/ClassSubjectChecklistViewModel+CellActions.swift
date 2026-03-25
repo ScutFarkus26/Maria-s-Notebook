@@ -56,7 +56,7 @@ extension ClassSubjectChecklistViewModel {
                 group.studentIDs.append(studentIDString)
             }
         } else {
-            _ = PresentationFactory.insertDraft(
+            PresentationFactory.insertDraft(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context
@@ -154,7 +154,7 @@ extension ClassSubjectChecklistViewModel {
                 )
             }
         } else {
-            _ = PresentationFactory.insertPresented(
+            PresentationFactory.insertPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context
@@ -214,7 +214,7 @@ extension ClassSubjectChecklistViewModel {
                 )
             }
         } else {
-            _ = PresentationFactory.insertPreviouslyPresented(
+            PresentationFactory.insertPreviouslyPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context

@@ -43,7 +43,7 @@ struct PresentationRepository: SavingRepository {
         sortBy: [SortDescriptor<LessonAssignment>] = [SortDescriptor(\.createdAt, order: .reverse)]
     ) -> [LessonAssignment] {
         var descriptor = FetchDescriptor<LessonAssignment>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -223,13 +223,13 @@ struct PresentationRepository: SavingRepository {
     ) -> Bool {
         guard let la = fetchLessonAssignment(id: id) else { return false }
 
-        if let needsPractice = needsPractice {
+        if let needsPractice {
             la.needsPractice = needsPractice
         }
-        if let needsAnotherPresentation = needsAnotherPresentation {
+        if let needsAnotherPresentation {
             la.needsAnotherPresentation = needsAnotherPresentation
         }
-        if let followUpWork = followUpWork {
+        if let followUpWork {
             la.followUpWork = followUpWork
         }
 

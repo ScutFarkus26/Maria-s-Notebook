@@ -278,6 +278,6 @@ import SwiftUI
 
     /// For choice mode: returns student IDs who have selected this work
     var selectedStudentIDs: [String] {
-        (participants ?? []).map { $0.studentID }
+        (participants ?? []).map(\.studentID)
     }
 }

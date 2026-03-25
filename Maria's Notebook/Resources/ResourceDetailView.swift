@@ -460,7 +460,7 @@ struct ResourceDetailView: View {
         resource.category = editCategory
         resource.descriptionText = editDescription.trimmingCharacters(in: .whitespaces)
         resource.tags = editTags
-        resource.linkedLessonIDs = editLessonIDs.map { $0.uuidString }.sorted().joined(separator: ",")
+        resource.linkedLessonIDs = editLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
         resource.linkedSubjects = editSubjects.sorted().joined(separator: ",")
         resource.modifiedAt = Date()
         modelContext.safeSave()

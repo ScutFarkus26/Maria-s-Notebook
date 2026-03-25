@@ -43,7 +43,7 @@ enum BlockingAlgorithmEngine {
             for assignment in lessonAssignments where assignment.state == .presented {
                 let normalizedIDs = assignment.studentIDs
                     .compactMap { UUID(uuidString: $0) }
-                    .map { $0.uuidString }
+                    .map(\.uuidString)
                     .sorted()
                     .joined(separator: ",")
                 let normalizedLessonID = UUID(uuidString: assignment.lessonID)?.uuidString
@@ -112,7 +112,7 @@ enum BlockingAlgorithmEngine {
         }
 
         // Build lookup key for lesson assignment
-        let sortedStudentIDs = la.resolvedStudentIDs.map { $0.uuidString }.sorted().joined(separator: ",")
+        let sortedStudentIDs = la.resolvedStudentIDs.map(\.uuidString).sorted().joined(separator: ",")
         let assignmentKey = "\(precedingLesson.id.uuidString)|\(sortedStudentIDs)"
 
         // Find the LessonAssignment using pre-computed lookup
@@ -226,7 +226,7 @@ enum BlockingAlgorithmEngine {
             return false
         }
         
-        let requiredStudentIDStrings = Set(requiredStudentIDs.map { $0.uuidString })
+        let requiredStudentIDStrings = Set(requiredStudentIDs.map(\.uuidString))
         let relevantParticipants = participants.filter { requiredStudentIDStrings.contains($0.studentID) }
         
         return !relevantParticipants.isEmpty && relevantParticipants.allSatisfy { $0.completedAt != nil }

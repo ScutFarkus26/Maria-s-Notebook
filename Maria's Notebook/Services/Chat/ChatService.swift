@@ -196,7 +196,7 @@ final class ChatService {
                 #endif
             }
 
-            let trimmed = localOptimized.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = localOptimized.trimmed()
             if !trimmed.isEmpty {
                 optimizedQuestion = trimmed
             }

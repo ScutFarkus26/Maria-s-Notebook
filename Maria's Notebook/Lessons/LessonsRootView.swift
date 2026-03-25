@@ -176,7 +176,7 @@ struct LessonsRootView: View {
         #if os(macOS)
         .onKeyPress(.escape) {
             if isJiggling {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = false
                 }
                 return .handled
@@ -190,7 +190,7 @@ struct LessonsRootView: View {
         .task {
             await handleInitialLoad()
         }
-        .task(id: lessonsForSubject.map { $0.id }) {
+        .task(id: lessonsForSubject.map(\.id)) {
             await fetchPresentationHistory()
         }
         .onChange(of: listSelectedSubject) { _, newValue in
@@ -306,7 +306,7 @@ struct LessonsRootView: View {
 
     @MainActor
     private func fetchPresentationHistory() async {
-        let lessonIDs = lessonsForSubject.map { $0.id }
+        let lessonIDs = lessonsForSubject.map(\.id)
         guard !lessonIDs.isEmpty else {
             statusCounts = nil
             lastPresentedDates = nil

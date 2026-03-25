@@ -270,7 +270,7 @@ extension LessonsRootView {
             students: students
         )
         modelContext.insert(newAssignment)
-        _ = saveCoordinator.save(modelContext, reason: "Plan presentation")
+        saveCoordinator.save(modelContext, reason: "Plan presentation")
 
         lessonToSchedule = nil
     }

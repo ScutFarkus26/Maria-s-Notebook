@@ -94,7 +94,7 @@ extension LessonDetailCard {
                                 lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
                                 previousManagedURL = nil
-                                _ = saveCoordinator.save(modelContext, reason: "Clear Pages link")
+                                saveCoordinator.save(modelContext, reason: "Clear Pages link")
                             }
                         }
                         Button("Import\u{2026}") {

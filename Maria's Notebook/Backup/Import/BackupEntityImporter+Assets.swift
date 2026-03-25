@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Document/Supply/Procedure Imports
 
@@ -27,7 +28,8 @@ extension BackupEntityImporter {
                         d.student = student
                     }
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check student for document: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check student for document: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(d)
@@ -86,7 +88,8 @@ extension BackupEntityImporter {
                         t.supply = supply
                     }
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check supply for transaction: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check supply for transaction: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(t)

@@ -62,17 +62,17 @@ struct PresentationsView: View {
     }
     
     private var lessonIDs: [UUID] {
-        lessonsForChangeDetection.map { $0.id }
+        lessonsForChangeDetection.map(\.id)
     }
     
     private var studentIDs: [UUID] {
-        studentsForChangeDetection.map { $0.id }
+        studentsForChangeDetection.map(\.id)
     }
     
     private var activeWorkIDs: [UUID] {
         workModelsForChangeDetection
             .filter { $0.statusRaw != "complete" }
-            .map { $0.id }
+            .map(\.id)
     }
     
     // MODERN: Unified dependency tracker for ViewModel updates
@@ -332,7 +332,7 @@ struct PresentationsView: View {
                 // Calculate earliest lesson date locally using the @Query data directly
                 // (The ViewModel might not be ready yet for this specific check)
                 let earliestDate = lessonAssignmentsForChangeDetection
-                    .compactMap { $0.scheduledFor }
+                    .compactMap(\.scheduledFor)
                     .min()
                     .map { calendar.startOfDay(for: $0) }
                 
@@ -436,12 +436,12 @@ struct PresentationsView: View {
             Self.logger.warning("Failed to fetch unscheduled lessons: \(error)")
             base = []
         }
-        let baseIDs = base.map { $0.id }
+        let baseIDs = base.map(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = base
             .filter { !order.contains($0.id) }
             .sorted { $0.createdAt < $1.createdAt }
-            .map { $0.id }
+            .map(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }
@@ -454,7 +454,7 @@ struct PresentationsView: View {
             from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw
         )
         // Only keep student IDs that belong to enrolled, visible students
-        let enrolledVisibleIDs = Set(allStudents.map { $0.id })
+        let enrolledVisibleIDs = Set(allStudents.map(\.id))
         let visibleIDs = snap.studentIDs.filter { enrolledVisibleIDs.contains($0) && !hiddenIDs.contains($0) }
         return LessonAssignmentSnapshot(
             id: snap.id,

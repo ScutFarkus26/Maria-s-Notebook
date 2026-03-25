@@ -33,7 +33,7 @@ extension PresentationsListView {
                                     ForEach(hiddenUndated, id: \.id) { sl in
                                         PresentationCard(
                                                     snapshot: sl.snapshot(),
-                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    lesson: lessonMap[uuidString: sl.lessonID],
                                                     students: students
                                                 )
                                             .onTapGesture { selectedLessonID = sl.id }
@@ -82,7 +82,7 @@ extension PresentationsListView {
                                             ForEach(up, id: \.id) { sl in
                                                 PresentationCard(
                                                     snapshot: sl.snapshot(),
-                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    lesson: lessonMap[uuidString: sl.lessonID],
                                                     students: students
                                                 )
                                                     .onTapGesture { selectedLessonID = sl.id }
@@ -110,7 +110,7 @@ extension PresentationsListView {
                                             ForEach(gv, id: \.id) { sl in
                                                 PresentationCard(
                                                     snapshot: sl.snapshot(),
-                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    lesson: lessonMap[uuidString: sl.lessonID],
                                                     students: students
                                                 )
                                                     .onTapGesture { selectedLessonID = sl.id }
@@ -147,7 +147,7 @@ extension PresentationsListView {
                             ForEach(sortedAssignments, id: \.id) { sl in
                                 PresentationCard(
                                                     snapshot: sl.snapshot(),
-                                                    lesson: UUID(uuidString: sl.lessonID).flatMap { lessonMap[$0] },
+                                                    lesson: lessonMap[uuidString: sl.lessonID],
                                                     students: students
                                                 )
                                     .onTapGesture { selectedLessonID = sl.id }

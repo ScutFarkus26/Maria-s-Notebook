@@ -218,7 +218,7 @@ public final class ConflictResolutionService {
                 Self.logger.warning("Failed to fetch student: \(error)")
                 continue
             }
-            guard let existing = existing else { continue }
+            guard let existing else { continue }
 
             conflicts.append(Conflict(
                 id: UUID(),
@@ -252,7 +252,7 @@ public final class ConflictResolutionService {
                 Self.logger.warning("Failed to fetch lesson: \(error)")
                 continue
             }
-            guard let existing = existing else { continue }
+            guard let existing else { continue }
 
             conflicts.append(Conflict(
                 id: UUID(),
@@ -286,7 +286,7 @@ public final class ConflictResolutionService {
                 Self.logger.warning("Failed to fetch note: \(error)")
                 continue
             }
-            guard let existing = existing else { continue }
+            guard let existing else { continue }
 
             let localPreview = String(existing.body.prefix(50)) + (existing.body.count > 50 ? "…" : "")
             let backupPreview = String(dto.body.prefix(50)) + (dto.body.count > 50 ? "…" : "")
@@ -323,7 +323,7 @@ public final class ConflictResolutionService {
                 Self.logger.warning("Failed to fetch project: \(error)")
                 continue
             }
-            guard let existing = existing else { continue }
+            guard let existing else { continue }
 
             conflicts.append(Conflict(
                 id: UUID(),
@@ -350,17 +350,17 @@ public final class ConflictResolutionService {
         do {
             student = try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch student: \(error)")
+            Self.logger.error("Failed to fetch student: \(error.localizedDescription, privacy: .public)")
             return
         }
-        guard let student = student else { return }
+        guard let student else { return }
 
         student.firstName = dto.firstName
         student.lastName = dto.lastName
         student.birthday = dto.birthday
         student.dateStarted = dto.dateStarted
         student.level = dto.level == .upper ? .upper : .lower
-        student.nextLessons = dto.nextLessons.map { $0.uuidString }
+        student.nextLessons = dto.nextLessons.map(\.uuidString)
         student.manualOrder = dto.manualOrder
     }
 
@@ -372,10 +372,10 @@ public final class ConflictResolutionService {
         do {
             lesson = try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch lesson: \(error)")
+            Self.logger.error("Failed to fetch lesson: \(error.localizedDescription, privacy: .public)")
             return
         }
-        guard let lesson = lesson else { return }
+        guard let lesson else { return }
 
         lesson.name = dto.name
         lesson.subject = dto.subject
@@ -396,10 +396,10 @@ public final class ConflictResolutionService {
         do {
             note = try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch note: \(error)")
+            Self.logger.error("Failed to fetch note: \(error.localizedDescription, privacy: .public)")
             return
         }
-        guard let note = note else { return }
+        guard let note else { return }
 
         note.body = dto.body
         note.updatedAt = dto.updatedAt
@@ -422,10 +422,10 @@ public final class ConflictResolutionService {
         do {
             project = try modelContext.fetch(descriptor).first
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to fetch project: \(error)")
+            Self.logger.error("Failed to fetch project: \(error.localizedDescription, privacy: .public)")
             return
         }
-        guard let project = project else { return }
+        guard let project else { return }
 
         project.title = dto.title
         project.bookTitle = dto.bookTitle

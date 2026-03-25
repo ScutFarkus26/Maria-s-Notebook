@@ -31,7 +31,7 @@ struct PresentationStudentRow: View {
 
     private var headerRow: some View {
         Button {
-            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+            _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                 isExpanded.toggle()
             }
         } label: {
@@ -234,7 +234,7 @@ struct PresentationStudentRow: View {
 
     @ViewBuilder
     private var nextLessonSection: some View {
-        if let nextLesson = nextLesson {
+        if let nextLesson {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Next Lesson")

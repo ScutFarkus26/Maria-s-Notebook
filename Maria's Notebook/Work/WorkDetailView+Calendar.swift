@@ -14,7 +14,7 @@ extension WorkDetailView {
                 // Display existing check-ins
                 if !checkIns.isEmpty {
                     VStack(spacing: 10) {
-                        ForEach(checkIns.sorted(by: { $0.date < $1.date })) { item in
+                        ForEach(checkIns.sorted { $0.date < $1.date }) { item in
                             checkInRow(item)
                         }
                     }
@@ -80,7 +80,7 @@ extension WorkDetailView {
                         .buttonStyle(.plain)
 
                         Button {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 addPlan()
                             }
                         } label: {
@@ -136,7 +136,7 @@ extension WorkDetailView {
         )
         modelContext.insert(checkIn)
         if let note {
-            _ = checkIn.setLegacyNoteText(note, in: modelContext)
+            checkIn.setLegacyNoteText(note, in: modelContext)
         }
 
         saveCoordinator.save(modelContext, reason: "Adding check-in")

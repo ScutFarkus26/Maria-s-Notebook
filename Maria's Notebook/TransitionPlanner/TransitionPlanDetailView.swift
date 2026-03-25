@@ -12,7 +12,7 @@ struct TransitionPlanDetailView: View {
     @State private var showingNoteEditor = false
 
     private var sortedItems: [TransitionChecklistItem] {
-        (plan.checklistItems ?? []).sorted(by: { $0.sortOrder < $1.sortOrder })
+        (plan.checklistItems ?? []).sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private var itemsByCategory: [(category: ChecklistCategory, items: [TransitionChecklistItem])] {
@@ -248,7 +248,7 @@ struct TransitionPlanDetailView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(linkedNotes.sorted(by: { $0.createdAt > $1.createdAt })) { note in
+                ForEach(linkedNotes.sorted { $0.createdAt > $1.createdAt }) { note in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(note.body)
                             .font(.caption)

@@ -198,7 +198,7 @@ enum PresentationFactory {
     // MARK: - Insert Helpers (for convenience)
 
     /// Creates and inserts a draft LessonAssignment.
-    @MainActor
+    @MainActor @discardableResult
     static func insertDraft(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -223,7 +223,7 @@ enum PresentationFactory {
     }
 
     /// Creates and inserts a presented LessonAssignment.
-    @MainActor
+    @MainActor @discardableResult
     static func insertPresented(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -236,7 +236,7 @@ enum PresentationFactory {
     }
 
     /// Creates and inserts a previously presented (undated) LessonAssignment.
-    @MainActor
+    @MainActor @discardableResult
     static func insertPreviouslyPresented(
         lessonID: UUID,
         studentIDs: [UUID],

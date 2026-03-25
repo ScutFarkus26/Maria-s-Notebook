@@ -92,7 +92,7 @@ final class CalendarSyncService {
                 (continuation: CheckedContinuation<Bool, Error>) in
                 // swiftlint:enable closure_parameter_position
                 self.eventStore.requestFullAccessToEvents { granted, error in
-                    if let error = error {
+                    if let error {
                         continuation.resume(throwing: error)
                     } else {
                         continuation.resume(returning: granted)
@@ -113,7 +113,7 @@ final class CalendarSyncService {
                 (continuation: CheckedContinuation<Bool, Error>) in
                 // swiftlint:enable closure_parameter_position
                 self.eventStore.requestAccess(to: .event) { granted, error in
-                    if let error = error {
+                    if let error {
                         continuation.resume(throwing: error)
                     } else {
                         continuation.resume(returning: granted)
@@ -187,7 +187,7 @@ final class CalendarSyncService {
             throw CalendarSyncError.notAuthorized
         }
 
-        guard let modelContext = modelContext else {
+        guard let modelContext else {
             throw CalendarSyncError.modelContextUnavailable
         }
 
@@ -233,7 +233,7 @@ final class CalendarSyncService {
         )
 
         // Build a set of target calendar identifiers for quick lookup
-        let targetCalendarIDs = Set(targetCalendars.map { $0.calendarIdentifier })
+        let targetCalendarIDs = Set(targetCalendars.map(\.calendarIdentifier))
 
         // Sync each event
         for data in syncData {
@@ -251,7 +251,7 @@ final class CalendarSyncService {
         }
 
         // Delete events that no longer exist in EventKit (only for selected calendars)
-        let currentEKIDs = Set(syncData.map { $0.eventIdentifier })
+        let currentEKIDs = Set(syncData.map(\.eventIdentifier))
         for existing in existingEvents {
             if let ekID = existing.eventKitEventID,
                let calendarID = existing.eventKitCalendarID,
@@ -300,7 +300,7 @@ final class CalendarSyncService {
     }
 
     private func fetchAllCalendarEvents() throws -> [CalendarEvent] {
-        guard let modelContext = modelContext else {
+        guard let modelContext else {
             return []
         }
         let descriptor = FetchDescriptor<CalendarEvent>()
@@ -344,7 +344,7 @@ final class CalendarSyncService {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingChangeTask?.cancel()
                 self.pendingChangeTask = Task { @MainActor [weak self] in

@@ -1,6 +1,7 @@
 // TagManagementViews.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
+import OSLog
 import SwiftUI
 import SwiftData
 
@@ -35,10 +36,11 @@ struct TagBadge: View {
 // MARK: - Tag Picker Component
 
 struct TagPicker: View {
+    private static let logger = Logger.todos
     @Binding var selectedTags: [String]
     @Environment(\.modelContext) private var modelContext
     @Query(sort: Student.sortByName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
+    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
     @State private var isShowingCustomTagSheet = false
     @State private var searchText = ""
@@ -185,7 +187,7 @@ struct TagPicker: View {
     }
 
     private var hasSearchResults: Bool {
-        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+        guard !searchText.trimmed().isEmpty else { return true }
         return !filteredStudentTags.isEmpty || !filteredUsedTags.isEmpty
     }
 
@@ -198,7 +200,7 @@ struct TagPicker: View {
     }
 
     private func createTagFromSearchIfNeeded() {
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = searchText.trimmed()
         guard !trimmed.isEmpty else { return }
         guard hasSearchResults == false else { return }
         editingOriginalTag = nil
@@ -227,9 +229,9 @@ struct TagPicker: View {
             do {
                 try modelContext.save()
             } catch {
-                print("⚠️ [\(#function)] Failed to save tag edit: \(error)")
+                Self.logger.error("[\(#function)] Failed to save tag edit: \(error)")
             }
-        } else if selectedTags.contains(savedTag) == false {
+        } else if !selectedTags.contains(savedTag) {
             selectedTags.append(savedTag)
         }
     }
@@ -356,7 +358,7 @@ struct CustomTagSheet: View {
                         let tag = TodoTagHelper.createTag(name: tagName, color: selectedColor)
                         if let onSave {
                             onSave(tag)
-                        } else if selectedTags.contains(tag) == false {
+                        } else if !selectedTags.contains(tag) {
                             selectedTags.append(tag)
                         }
                         dismiss()

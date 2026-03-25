@@ -58,7 +58,7 @@ final class DatabaseErrorCoordinator {
         diagnostics.append("")
         
         // Error information
-        if let error = error {
+        if let error {
             diagnostics.append("Error: \(error.localizedDescription)")
             if let nsError = error as NSError? {
                 diagnostics.append("Domain: \(nsError.domain)")

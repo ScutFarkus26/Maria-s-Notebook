@@ -1,6 +1,7 @@
 // ObservationsView+AI.swift
 // AI analysis features for ObservationsView
 
+import OSLog
 import SwiftUI
 import SwiftData
 
@@ -121,9 +122,7 @@ extension ObservationsView {
                     }
                 }
             } catch {
-                #if DEBUG
-                print("Observations summary failed: \(error)")
-                #endif
+                Logger.ai.error("[\(#function)] Observations summary failed: \(error)")
             }
             isSummarizing = false
             summaryTask = nil
@@ -131,7 +130,7 @@ extension ObservationsView {
     }
 
     func summarizeSelected(as mode: SummaryMode) {
-        let bodies = filteredItems.filter { selectedItemIDs.contains($0.id) }.map { $0.body }
+        let bodies = filteredItems.filter { selectedItemIDs.contains($0.id) }.map(\.body)
         startStreamingSummary(bodies: bodies, mode: mode)
     }
 
@@ -139,7 +138,7 @@ extension ObservationsView {
 
     /// Unique context strings from the current filtered items, for the "By Context" menu.
     var uniqueContexts: [String] {
-        let all = filteredItems.compactMap { $0.contextText }
+        let all = filteredItems.compactMap(\.contextText)
         // Deduplicate while preserving order
         var seen = Set<String>()
         return all.filter { seen.insert($0).inserted }

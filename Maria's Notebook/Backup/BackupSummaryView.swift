@@ -17,10 +17,7 @@ struct BackupSummaryView: View {
     }
 
     private var createdAtString: String {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .short
-        return df.string(from: summary.createdAt)
+        DateFormatters.mediumDateTime.string(from: summary.createdAt)
     }
 
     private var filteredCounts: [(String, Int)] {

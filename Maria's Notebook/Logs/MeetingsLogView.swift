@@ -22,7 +22,7 @@ struct MeetingsLogView: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -238,15 +238,6 @@ struct MeetingsLogView: View {
         .padding(.horizontal, 12)
     }
 
-    // MARK: - Date Formatters
-
-    private static let dayFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
-
     // MARK: - Body
 
     var body: some View {
@@ -269,7 +260,7 @@ struct MeetingsLogView: View {
                                     meetingRow(for: meeting)
                                 }
                             } header: {
-                                Text(Self.dayFormatter.string(from: entry.day))
+                                Text(DateFormatters.mediumDate.string(from: entry.day))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 12)

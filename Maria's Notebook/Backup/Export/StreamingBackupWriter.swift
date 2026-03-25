@@ -1,6 +1,7 @@
 // swiftlint:disable file_length
 import Foundation
 import SwiftData
+import OSLog
 
 /// Mutable collector for streaming export to avoid `inout` across `async` boundaries
 @MainActor
@@ -29,6 +30,7 @@ private final class StreamCollector {
 /// Writes entities in batches directly to disk for memory efficiency
 @MainActor
 public final class StreamingBackupWriter {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -375,7 +377,7 @@ public final class StreamingBackupWriter {
 
         let finalEncrypted: Data?
         let finalCompressed: Data?
-        if let password = password, !password.isEmpty {
+        if let password, !password.isEmpty {
             finalEncrypted = try codec.encrypt(compressedPayloadBytes, password: password)
             finalCompressed = nil
         } else {
@@ -428,8 +430,9 @@ public final class StreamingBackupWriter {
             do {
                 try FileManager.default.removeItem(at: url)
             } catch {
-                print("\u{26a0}\u{fe0f} [Backup:streamingExport] Failed to remove existing file" +
-                      " at \(url.lastPathComponent): \(error)")
+                let name = url.lastPathComponent
+                let desc = error.localizedDescription
+                Self.logger.warning("Failed to remove file \(name, privacy: .public): \(desc, privacy: .public)")
             }
         }
         try envBytes.write(to: url, options: .atomic)

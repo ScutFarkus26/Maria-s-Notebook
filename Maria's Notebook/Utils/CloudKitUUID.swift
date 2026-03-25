@@ -140,8 +140,11 @@ enum CloudKitStringArrayStorage {
             return try JSONDecoder().decode([String].self, from: data)
         } catch {
             let prefix = String(data.prefix(64).map { Character(UnicodeScalar($0)) })
+            let count = data.count
+            let desc = error.localizedDescription
             Logger.database.error(
-                "CloudKitStringArrayStorage: Failed to decode [String] from \(data.count) bytes (prefix: \(prefix)): \(error.localizedDescription)"
+                // swiftlint:disable:next line_length
+                "CloudKitStringArrayStorage: Failed to decode [String] from \(count) bytes (prefix: \(prefix, privacy: .public)): \(desc, privacy: .public)"
             )
             return []
         }

@@ -191,15 +191,6 @@ private struct StudentRowView: View {
     let isPotentialDuplicate: Bool
     let onRemove: (() -> Void)?
 
-    private var dateFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.calendar = Calendar(identifier: .iso8601)
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        df.dateFormat = "yyyy-MM-dd"
-        return df
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -222,7 +213,7 @@ private struct StudentRowView: View {
                             .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                     }
                     if let b = row.birthday {
-                        Text("DOB: \(dateFormatter.string(from: b))")
+                        Text("DOB: \(DateFormatters.isoDate.string(from: b))")
                             .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
@@ -230,7 +221,7 @@ private struct StudentRowView: View {
                             .background(Capsule().fill(Color.primary.opacity(0.06)))
                     }
                     if let ds = row.dateStarted {
-                        Text("Start: \(dateFormatter.string(from: ds))")
+                        Text("Start: \(DateFormatters.isoDate.string(from: ds))")
                             .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)

@@ -3,8 +3,10 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 extension SelectiveRestoreService {
+    private static let logger = Logger.backup
 
     // MARK: - Payload Extraction
 
@@ -26,7 +28,7 @@ extension SelectiveRestoreService {
         } else if let compressed = envelope.compressedPayload {
             payloadBytes = try codec.decompress(compressed)
         } else if let encrypted = envelope.encryptedPayload {
-            guard let password = password, !password.isEmpty else {
+            guard let password, !password.isEmpty else {
                 throw NSError(domain: "SelectiveRestoreService", code: 1, userInfo: [
                     NSLocalizedDescriptionKey: "Backup is encrypted. Please provide a password."
                 ])
@@ -54,9 +56,10 @@ extension SelectiveRestoreService {
     ) where T.ID == UUID {
         do {
             let entities = try context.fetch(FetchDescriptor<T>())
-            existingIDSets[key] = Set(entities.map { $0.id })
+            existingIDSets[key] = Set(entities.map(\.id))
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to cache entity IDs for \(key): \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to cache entity IDs for \(key, privacy: .public): \(desc, privacy: .public)")
             existingIDSets[key] = []
         }
     }
@@ -69,7 +72,8 @@ extension SelectiveRestoreService {
             let entities = try context.fetch(FetchDescriptor<T>())
             return entities.toDictionary(by: \.id)
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to cache dictionary for \(T.self): \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to cache dictionary for \(T.self, privacy: .public): \(desc, privacy: .public)")
             return [:]
         }
     }

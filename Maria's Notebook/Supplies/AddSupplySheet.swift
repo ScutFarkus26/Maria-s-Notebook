@@ -16,7 +16,7 @@ struct AddSupplySheet: View {
     @State private var notes: String = ""
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !name.trimmed().isEmpty
     }
 
     var body: some View {
@@ -227,14 +227,14 @@ struct AddSupplySheet: View {
 
     private func addSupply() {
         _ = SupplyService.createSupply(
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            name: name.trimmed(),
             category: category,
-            location: location.trimmingCharacters(in: .whitespacesAndNewlines),
+            location: location.trimmed(),
             currentQuantity: currentQuantity,
             minimumThreshold: minimumThreshold,
             reorderAmount: reorderAmount,
-            unit: unit.trimmingCharacters(in: .whitespacesAndNewlines),
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            unit: unit.trimmed(),
+            notes: notes.trimmed(),
             in: modelContext
         )
         dismiss()

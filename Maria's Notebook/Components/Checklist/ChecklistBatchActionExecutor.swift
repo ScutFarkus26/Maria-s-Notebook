@@ -168,7 +168,7 @@ enum ChecklistBatchActionExecutor {
                     group.studentIDs.append(studentIDString)
                 }
             } else {
-                _ = PresentationFactory.insertDraft(
+                PresentationFactory.insertDraft(
                     lessonID: lesson.id,
                     studentIDs: [student.id],
                     context: context
@@ -310,7 +310,7 @@ enum ChecklistBatchActionExecutor {
                 )
             }
         } else {
-            _ = PresentationFactory.insertPresented(
+            PresentationFactory.insertPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context
@@ -367,7 +367,7 @@ enum ChecklistBatchActionExecutor {
             lp.studentID == studentID && lp.lessonID == lessonID
         }
 
-        if let existing = existing {
+        if let existing {
             if state == .proficient && existing.state != .proficient {
                 existing.state = .proficient
                 existing.masteredAt = Date()

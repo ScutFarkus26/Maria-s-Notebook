@@ -41,7 +41,7 @@ enum CheckInMigrationService {
     /// Maps legacy check-in reason enum to WorkCheckIn purpose string.
     /// This preserves the semantic meaning during migration.
     static func mapReasonToPurpose(_ reason: CheckInReason?) -> String {
-        guard let reason = reason else { return "Other" }
+        guard let reason else { return "Other" }
         
         switch reason {
         case .progressCheck:

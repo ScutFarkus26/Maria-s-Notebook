@@ -21,7 +21,7 @@ struct StudentPickerPopover: View {
 
     var filteredStudentsForPicker: [Student] {
         let search = searchText.normalizedForComparison()
-        let enrolled = students.filter { $0.isEnrolled }
+        let enrolled = students.filter(\.isEnrolled)
 
         let searched = enrolled.filter { student in
             if search.isEmpty { return true }
@@ -124,7 +124,7 @@ struct StudentPickerPopover: View {
                 Spacer()
 
                 Button("Done") {
-                    if let onDone = onDone {
+                    if let onDone {
                         onDone()
                     } else {
                         dismiss()

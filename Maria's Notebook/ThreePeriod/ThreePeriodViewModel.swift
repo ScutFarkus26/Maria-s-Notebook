@@ -52,7 +52,7 @@ final class ThreePeriodViewModel {
         let presentations = context.safeFetch(presentationDescriptor)
 
         let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        let students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter { $0.isEnrolled })
+        let students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter(\.isEnrolled))
 
         let lessonDescriptor = FetchDescriptor<Lesson>()
         let lessons = context.safeFetch(lessonDescriptor)

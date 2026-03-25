@@ -206,7 +206,7 @@ public final class BackupSharingService {
     ) {
         let picker = NSSharingServicePicker(items: [preparedShare.url])
 
-        if let view = view {
+        if let view {
             picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
         } else if let window = NSApp.mainWindow,
                   let contentView = window.contentView {
@@ -257,7 +257,7 @@ public final class BackupSharingService {
                 Self.logger.warning("Failed to get creation date for \(file.lastPathComponent): \(error)")
                 continue
             }
-            if let creationDate = creationDate, creationDate < cutoffDate {
+            if let creationDate, creationDate < cutoffDate {
                 do {
                     try FileManager.default.removeItem(at: file)
                 } catch {

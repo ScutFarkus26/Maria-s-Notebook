@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import OSLog
 
 /// Enhanced backup service that integrates all new improvements
 /// Use this as a drop-in replacement for BackupService with better performance and reliability
@@ -12,6 +13,7 @@ import SwiftUI
 /// - EnhancedBackupService+Import.swift - Import and preview methods
 @MainActor
 public final class EnhancedBackupService {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -130,7 +132,7 @@ public final class EnhancedBackupService {
                 verificationResult = try await verifyBackupFile(at: url, password: password)
             } catch {
                 // Log but don't fail the export
-                print("EnhancedBackupService: Post-export verification failed: \(error)")
+                Self.logger.warning("Post-export verification failed: \(error.localizedDescription, privacy: .public)")
             }
         }
 
@@ -245,7 +247,7 @@ public final class EnhancedBackupService {
         if let compressed = envelope.compressedPayload {
             payloadBytes = try codec.decompress(compressed)
         } else if let encrypted = envelope.encryptedPayload {
-            guard let password = password, !password.isEmpty else {
+            guard let password, !password.isEmpty else {
                 throw NSError(
                     domain: "EnhancedBackupService",
                     code: 2,

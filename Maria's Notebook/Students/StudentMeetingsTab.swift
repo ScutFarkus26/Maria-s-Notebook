@@ -280,7 +280,7 @@ struct StudentMeetingsTab: View {
             BulletPointRow(text: workDisplayTitle(work))
             if showCompletedDate, let date = work.completedAt {
                 Text("\u{2022}").foregroundStyle(.secondary)
-                Text(Self.dateFormatter.string(from: date))
+                Text(DateFormatters.mediumDate.string(from: date))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -288,10 +288,7 @@ struct StudentMeetingsTab: View {
     }
 
     func workDisplayTitle(_ work: WorkModel) -> String {
-        if let lid = UUID(uuidString: work.lessonID), let l = lessonsByID[lid] {
-            return l.name
-        }
-        return "Lesson"
+        lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
 
     // MARK: - Helper for sheet binding
@@ -305,7 +302,7 @@ struct StudentMeetingsTab: View {
             BulletPointRow(text: lessonDisplayName(la), icon: "book.fill", iconSize: 8)
             if let presentedAt = la.presentedAt {
                 Text("\u{2022}").foregroundStyle(.secondary)
-                Text(Self.dateFormatter.string(from: presentedAt))
+                Text(DateFormatters.mediumDate.string(from: presentedAt))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else if la.isPresented {
@@ -317,13 +314,7 @@ struct StudentMeetingsTab: View {
     }
 
     private func lessonDisplayName(_ la: LessonAssignment) -> String {
-        if let lesson = la.lesson {
-            return lesson.name
-        } else if let lessonID = UUID(uuidString: la.lessonID), let lesson = lessonsByID[lessonID] {
-            return lesson.name
-        } else {
-            return "Lesson"
-        }
+        la.lesson?.name ?? lessonsByID[uuidString: la.lessonID]?.name ?? "Lesson"
     }
 
     // MARK: - Persistence (delegated to MeetingPersistenceService)
@@ -430,12 +421,6 @@ struct StudentMeetingsTab: View {
         CardContainer(content: content)
     }
 
-    static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
 }
 
 #Preview {

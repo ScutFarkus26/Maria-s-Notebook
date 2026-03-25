@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Todo
 
@@ -68,7 +69,8 @@ extension BackupEntityImporter {
                         s.todo = todo
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check todo for subtask: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check todo for subtask: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(s)

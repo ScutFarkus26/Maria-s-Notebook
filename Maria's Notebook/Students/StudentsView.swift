@@ -24,7 +24,7 @@ struct StudentsView: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
     var uniqueStudents: [Student] { students.uniqueByID }
-    var uniqueStudentIDs: [UUID] { uniqueStudents.map { $0.id } }
+    var uniqueStudentIDs: [UUID] { uniqueStudents.map(\.id) }
 
     // PERF: Use lightweight count-based change detection instead of loading full tables.
     // SwiftData @Query always materializes full objects, so we use fetchCount() instead.
@@ -336,7 +336,7 @@ struct StudentsView: View {
     // MARK: - Navigation and Lifecycle Helpers
 
     private func handleNavigationDestinationChange(_ destination: AppRouter.NavigationDestination?) {
-        guard let destination = destination else { return }
+        guard let destination else { return }
         if case .newStudent = destination {
             mode = .roster
             showingAddStudent = true

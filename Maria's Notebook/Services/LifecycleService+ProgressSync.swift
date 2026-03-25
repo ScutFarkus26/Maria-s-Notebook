@@ -116,7 +116,7 @@ extension LifecycleService {
 
         updated += try recordPresentationWithFallback(la, lesson: lesson, presentedAt: presentedAt, context: context)
 
-        if let lesson = lesson {
+        if let lesson {
             try enrollInTrackIfNeeded(
                 lesson: lesson, studentIDs: la.studentIDs, lessonID: la.lessonID, context: context
             )

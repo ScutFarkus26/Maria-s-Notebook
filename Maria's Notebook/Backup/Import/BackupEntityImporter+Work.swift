@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Work
 
@@ -89,7 +90,8 @@ extension BackupEntityImporter {
                     checkIn.work = work
                 }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check work for check-in: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check work for check-in: \(desc, privacy: .public)")
             }
             modelContext.insert(checkIn)
         }
@@ -121,7 +123,8 @@ extension BackupEntityImporter {
                         step.work = work
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check work for step: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check work for step: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(step)
@@ -146,7 +149,8 @@ extension BackupEntityImporter {
                         participant.work = work
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check work for participant: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check work for participant: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(participant)

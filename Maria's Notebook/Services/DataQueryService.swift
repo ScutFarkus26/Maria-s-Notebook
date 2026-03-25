@@ -35,7 +35,7 @@ final class DataQueryService {
     func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = false) -> [Student] {
         if let cached = studentsCache {
             var result = cached
-            if excludeWithdrawn { result = result.filter { $0.isEnrolled } }
+            if excludeWithdrawn { result = result.filter(\.isEnrolled) }
             return excludeTest ? TestStudentsFilter.filterVisible(result) : result
         }
 
@@ -45,7 +45,7 @@ final class DataQueryService {
         studentsCache = students
 
         var result = students
-        if excludeWithdrawn { result = result.filter { $0.isEnrolled } }
+        if excludeWithdrawn { result = result.filter(\.isEnrolled) }
         return excludeTest ? TestStudentsFilter.filterVisible(result) : result
     }
 
@@ -163,7 +163,7 @@ final class DataQueryService {
         var results = context.safeFetch(descriptor)
 
         // Also fetch those with presentedAt but not in presented state
-        let existingIDs = Set(results.map { $0.id })
+        let existingIDs = Set(results.map(\.id))
         let notPresentedDescriptor = FetchDescriptor<LessonAssignment>(
             predicate: #Predicate { $0.stateRaw != presentedRaw }
         )
@@ -197,7 +197,7 @@ final class DataQueryService {
 
     /// Fetch work models by status.
     func fetchWorkModels(status: WorkStatus? = nil) -> [WorkModel] {
-        if let status = status {
+        if let status {
             let statusRaw = status.rawValue
             let descriptor = FetchDescriptor<WorkModel>(
                 predicate: #Predicate { $0.statusRaw == statusRaw }

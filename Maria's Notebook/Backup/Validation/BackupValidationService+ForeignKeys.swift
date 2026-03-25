@@ -7,12 +7,12 @@ extension BackupValidationService {
 
     func validateForeignKeys(_ payload: BackupPayload) -> [ValidationError] {
         // Build ID sets for quick lookup
-        let studentIDs = Set(payload.students.map { $0.id })
-        let lessonIDs = Set(payload.lessons.map { $0.id })
-        let topicIDs = Set(payload.communityTopics.map { $0.id })
-        let projectIDs = Set(payload.projects.map { $0.id })
-        let roleIDs = Set(payload.projectRoles.map { $0.id })
-        let weekIDs = Set(payload.projectTemplateWeeks.map { $0.id })
+        let studentIDs = Set(payload.students.map(\.id))
+        let lessonIDs = Set(payload.lessons.map(\.id))
+        let topicIDs = Set(payload.communityTopics.map(\.id))
+        let projectIDs = Set(payload.projects.map(\.id))
+        let roleIDs = Set(payload.projectRoles.map(\.id))
+        let weekIDs = Set(payload.projectTemplateWeeks.map(\.id))
 
         var errors: [ValidationError] = []
         errors += validateLessonAssignmentRefs(payload, studentIDs: studentIDs, lessonIDs: lessonIDs)

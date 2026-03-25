@@ -1,8 +1,10 @@
 // swiftlint:disable file_length
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct TodoTemplatesView: View {
+    private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TodoTemplate.name) private var templates: [TodoTemplate]
@@ -91,7 +93,7 @@ struct TodoTemplatesView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save todo from template: \(error)")
+            Self.logger.error("[\(#function)] Failed to save todo from template: \(error)")
         }
         dismiss()
     }
@@ -101,7 +103,7 @@ struct TodoTemplatesView: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to delete template: \(error)")
+            Self.logger.error("[\(#function)] Failed to delete template: \(error)")
         }
     }
 }
@@ -225,10 +227,11 @@ private struct TemplateRow: View {
 // MARK: - Template Edit Sheet
 
 private struct TodoTemplateEditSheet: View {
+    private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
+    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
     
     let template: TodoTemplate?
     
@@ -257,8 +260,8 @@ private struct TodoTemplateEditSheet: View {
     }
     
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !name.trimmed().isEmpty &&
+        !title.trimmed().isEmpty
     }
     
     var body: some View {
@@ -395,9 +398,9 @@ private struct TodoTemplateEditSheet: View {
     }
     
     private func save() {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = name.trimmed()
+        let trimmedTitle = title.trimmed()
+        let trimmedNotes = notes.trimmed()
         
         let totalEstimated = estimatedHours * 60 + estimatedMinutes
         
@@ -427,7 +430,7 @@ private struct TodoTemplateEditSheet: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save template: \(error)")
+            Self.logger.error("[\(#function)] Failed to save template: \(error)")
         }
         dismiss()
     }

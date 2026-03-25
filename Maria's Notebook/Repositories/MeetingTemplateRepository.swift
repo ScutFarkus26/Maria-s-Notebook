@@ -39,7 +39,7 @@ struct MeetingTemplateRepository: SavingRepository {
         sortBy: [SortDescriptor<MeetingTemplate>] = [SortDescriptor(\.sortOrder)]
     ) -> [MeetingTemplate] {
         var descriptor = FetchDescriptor<MeetingTemplate>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -78,11 +78,11 @@ struct MeetingTemplateRepository: SavingRepository {
     ) -> MeetingTemplate {
         // Calculate sort order if not provided (after existing custom templates)
         let order: Int
-        if let sortOrder = sortOrder {
+        if let sortOrder {
             order = sortOrder
         } else {
             let customTemplates = fetchCustomTemplates()
-            order = (customTemplates.map { $0.sortOrder }.max() ?? 99) + 1
+            order = (customTemplates.map(\.sortOrder).max() ?? 99) + 1
         }
 
         let template = MeetingTemplate(
@@ -116,22 +116,22 @@ struct MeetingTemplateRepository: SavingRepository {
         // Don't allow updating built-in templates
         guard !template.isBuiltIn else { return false }
 
-        if let name = name {
+        if let name {
             template.name = name
         }
-        if let reflectionPrompt = reflectionPrompt {
+        if let reflectionPrompt {
             template.reflectionPrompt = reflectionPrompt
         }
-        if let focusPrompt = focusPrompt {
+        if let focusPrompt {
             template.focusPrompt = focusPrompt
         }
-        if let requestsPrompt = requestsPrompt {
+        if let requestsPrompt {
             template.requestsPrompt = requestsPrompt
         }
-        if let guideNotesPrompt = guideNotesPrompt {
+        if let guideNotesPrompt {
             template.guideNotesPrompt = guideNotesPrompt
         }
-        if let sortOrder = sortOrder {
+        if let sortOrder {
             template.sortOrder = sortOrder
         }
 

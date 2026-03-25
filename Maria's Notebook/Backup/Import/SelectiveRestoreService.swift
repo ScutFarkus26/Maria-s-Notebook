@@ -112,7 +112,7 @@ public final class SelectiveRestoreService {
         }
 
         if !missing.isEmpty {
-            let names = missing.map { $0.rawValue }.joined(separator: ", ")
+            let names = missing.map(\.rawValue).joined(separator: ", ")
             warnings.append(
                 "Some entities have dependencies that are not selected: \(names)"
             )

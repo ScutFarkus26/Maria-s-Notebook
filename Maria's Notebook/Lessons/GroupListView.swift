@@ -114,7 +114,7 @@ private struct GroupListRow: View {
     }
     
     private var subjectColor: Color {
-        if let subject = subject {
+        if let subject {
             return AppColors.color(forSubject: subject)
         }
         return .secondary

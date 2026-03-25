@@ -13,7 +13,7 @@ enum WorksInboxOrderStore {
     }
 
     static func serialize(_ ids: [UUID]) -> String {
-        ids.map { $0.uuidString }.joined(separator: ",")
+        ids.map(\.uuidString).joined(separator: ",")
     }
 
     /// Orders the provided unscheduled works according to a stored order. Any works
@@ -25,7 +25,7 @@ enum WorksInboxOrderStore {
         // Append any missing works by createdAt ascending (older first)
         let missing = base.map(\.id).filter { !order.contains($0) }
         let missingWorks = base.filter { missing.contains($0.id) }.sorted { $0.createdAt < $1.createdAt }
-        order.append(contentsOf: missingWorks.map { $0.id })
+        order.append(contentsOf: missingWorks.map(\.id))
 
         // Use uniquingKeysWith to handle potential duplicates
         let indexMap = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })

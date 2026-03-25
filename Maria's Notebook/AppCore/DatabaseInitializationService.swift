@@ -90,6 +90,7 @@ enum DatabaseInitializationService {
 
     /// Attempts to migrate AttendanceRecord.studentID from UUID to String.
     /// Returns true if migration was successful or not needed.
+    @discardableResult
     static func attemptAttendanceRecordMigrationIfNeeded() -> Bool {
         let storeURL = storeFileURL()
         let fm = FileManager.default

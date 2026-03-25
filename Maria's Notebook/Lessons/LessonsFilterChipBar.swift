@@ -133,7 +133,7 @@ struct FilterChip: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 4) {
-                if let icon = icon {
+                if let icon {
                     Image(systemName: icon)
                         .font(.system(size: 11, weight: .medium))
                 }

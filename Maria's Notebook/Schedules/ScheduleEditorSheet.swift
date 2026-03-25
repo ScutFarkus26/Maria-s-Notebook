@@ -23,7 +23,7 @@ struct ScheduleEditorSheet: View {
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
+    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
 
     // Form state
     @State private var name: String = ""
@@ -37,7 +37,7 @@ struct ScheduleEditorSheet: View {
     private var isEditing: Bool { schedule != nil }
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !name.trimmed().isEmpty
     }
 
     init(schedule: Schedule?) {
@@ -300,7 +300,7 @@ struct ScheduleEditorSheet: View {
     }
 
     private func availableStudents(for weekday: Weekday) -> [Student] {
-        let assignedIDs = Set((assignments[weekday] ?? []).map { $0.studentID })
+        let assignedIDs = Set((assignments[weekday] ?? []).map(\.studentID))
         return students.filter { !assignedIDs.contains($0.id.uuidString) }
     }
 
@@ -319,7 +319,7 @@ struct ScheduleEditorSheet: View {
     }
 
     private func loadExistingData() {
-        guard let schedule = schedule else { return }
+        guard let schedule else { return }
 
         name = schedule.name
         notes = schedule.notes
@@ -358,10 +358,10 @@ struct ScheduleEditorSheet: View {
     }
 
     private func save() {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = name.trimmed()
         guard !trimmedName.isEmpty else { return }
 
-        if let schedule = schedule {
+        if let schedule {
             // Update existing schedule
             schedule.name = trimmedName
             schedule.notes = notes

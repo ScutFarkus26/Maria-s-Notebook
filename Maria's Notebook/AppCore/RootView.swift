@@ -335,7 +335,7 @@ struct RootView: View {
     }
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
-        if let item = item {
+        if let item {
             let newValue = item.rawValue
             if self.selectedNavItemRaw != newValue {
                 self.selectedNavItemRaw = newValue
@@ -345,7 +345,7 @@ struct RootView: View {
     }
 
     private func handleSelectedTabChange(_ oldValue: RootView.Tab?, _ tab: RootView.Tab?) {
-        guard let tab = tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
+        guard let tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
         let newValue: String
         if tab == .planning {
             newValue = RootView.NavigationItem.planningAgenda.rawValue

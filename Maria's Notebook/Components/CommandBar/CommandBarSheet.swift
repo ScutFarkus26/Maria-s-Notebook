@@ -28,7 +28,7 @@ struct CommandBarSheet: View {
 
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudents.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw
+            allStudents.uniqueByID.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
         )
     }
 
@@ -104,7 +104,7 @@ struct CommandBarSheet: View {
             .accessibilityLabel(viewModel.speechService.isRecording ? "Stop recording" : "Start voice input")
 
             // Submit button
-            if !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if !viewModel.inputText.trimmed().isEmpty {
                 Button {
                     submitCommand()
                 } label: {
@@ -250,7 +250,7 @@ struct CommandBarSheet: View {
     // MARK: - Actions
 
     private func submitCommand() {
-        guard !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !viewModel.inputText.trimmed().isEmpty else { return }
 
         // Stop recording if active
         if viewModel.speechService.isRecording {

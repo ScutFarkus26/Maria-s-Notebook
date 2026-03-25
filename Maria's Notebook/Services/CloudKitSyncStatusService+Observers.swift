@@ -14,7 +14,7 @@ extension CloudKitSyncStatusService {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingRemoteChangeTask?.cancel()
                 self.pendingRemoteChangeTask = Task { @MainActor [weak self] in
@@ -30,7 +30,7 @@ extension CloudKitSyncStatusService {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingSaveTask?.cancel()
                 self.pendingSaveTask = Task { @MainActor [weak self] in
@@ -48,7 +48,7 @@ extension CloudKitSyncStatusService {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingStoreChangeTask?.cancel()
                 self.pendingStoreChangeTask = Task { @MainActor [weak self] in

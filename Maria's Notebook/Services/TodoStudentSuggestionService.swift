@@ -20,7 +20,7 @@ final class TodoStudentSuggestionService {
     ///   - availableStudents: List of students to help guide name recognition
     /// - Returns: Array of extracted student names
     static func extractStudentNames(from text: String, availableStudents: [Student]) async throws -> [String] {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !text.trimmed().isEmpty else {
             return []
         }
         
@@ -29,7 +29,7 @@ final class TodoStudentSuggestionService {
         }
         
         // Build a prompt with context about available students
-        let studentNames = availableStudents.map { $0.fullName }.joined(separator: ", ")
+        let studentNames = availableStudents.map(\.fullName).joined(separator: ", ")
         let prompt = """
         Extract any student names mentioned in the following todo item text.
         

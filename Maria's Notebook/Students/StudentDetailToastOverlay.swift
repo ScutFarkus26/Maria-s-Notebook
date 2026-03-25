@@ -8,7 +8,7 @@ struct StudentDetailToastOverlay: View {
     
     var body: some View {
         Group {
-            if let message = message {
+            if let message {
                 Text(message)
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .padding(.horizontal, 12)

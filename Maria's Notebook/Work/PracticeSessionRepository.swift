@@ -51,8 +51,8 @@ struct PracticeSessionRepository {
         let session = PracticeSession(
             date: date,
             duration: duration,
-            studentIDs: studentIDs.map { $0.uuidString },
-            workItemIDs: workItemIDs.map { $0.uuidString },
+            studentIDs: studentIDs.map(\.uuidString),
+            workItemIDs: workItemIDs.map(\.uuidString),
             sharedNotes: sharedNotes,
             location: location
         )
@@ -105,13 +105,13 @@ struct PracticeSessionRepository {
     /// Fetches group practice sessions (2+ students)
     func fetchGroupSessions() -> [PracticeSession] {
         let allSessions = fetchAll()
-        return allSessions.filter { $0.isGroupSession }
+        return allSessions.filter(\.isGroupSession)
     }
     
     /// Fetches solo practice sessions (1 student)
     func fetchSoloSessions() -> [PracticeSession] {
         let allSessions = fetchAll()
-        return allSessions.filter { $0.isSoloSession }
+        return allSessions.filter(\.isSoloSession)
     }
     
     /// Fetches practice partnerships for a student (who they practiced with most)
@@ -153,22 +153,22 @@ struct PracticeSessionRepository {
         sharedNotes: String? = nil,
         location: String? = nil
     ) {
-        if let date = date {
+        if let date {
             session.date = AppCalendar.startOfDay(date)
         }
-        if let duration = duration {
+        if let duration {
             session.duration = duration
         }
-        if let studentIDs = studentIDs {
-            session.studentIDs = studentIDs.map { $0.uuidString }
+        if let studentIDs {
+            session.studentIDs = studentIDs.map(\.uuidString)
         }
-        if let workItemIDs = workItemIDs {
-            session.workItemIDs = workItemIDs.map { $0.uuidString }
+        if let workItemIDs {
+            session.workItemIDs = workItemIDs.map(\.uuidString)
         }
-        if let sharedNotes = sharedNotes {
+        if let sharedNotes {
             session.sharedNotes = sharedNotes
         }
-        if let location = location {
+        if let location {
             session.location = location
         }
         safeSave()
@@ -196,13 +196,13 @@ struct PracticeSessionRepository {
     /// Returns practice session statistics for a student
     func statistics(forStudentID studentID: UUID) -> PracticeStatistics {
         let sessions = fetch(forStudentID: studentID)
-        let groupSessions = sessions.filter { $0.isGroupSession }
-        let soloSessions = sessions.filter { $0.isSoloSession }
+        let groupSessions = sessions.filter(\.isGroupSession)
+        let soloSessions = sessions.filter(\.isSoloSession)
         
-        let totalDuration = sessions.compactMap { $0.duration }.reduce(0, +)
-        let averageDuration = sessions.compactMap { $0.duration }.isEmpty
+        let totalDuration = sessions.compactMap(\.duration).reduce(0, +)
+        let averageDuration = sessions.compactMap(\.duration).isEmpty
             ? 0
-            : totalDuration / Double(sessions.compactMap { $0.duration }.count)
+            : totalDuration / Double(sessions.compactMap(\.duration).count)
         
         return PracticeStatistics(
             totalSessions: sessions.count,

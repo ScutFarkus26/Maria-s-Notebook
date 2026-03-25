@@ -101,7 +101,7 @@ final class ReminderSyncService {
                 (continuation: CheckedContinuation<Bool, Error>) in
                 // swiftlint:enable closure_parameter_position
                 self.eventStore.requestFullAccessToReminders { granted, error in
-                    if let error = error {
+                    if let error {
                         continuation.resume(throwing: error)
                     } else {
                         continuation.resume(returning: granted)
@@ -122,7 +122,7 @@ final class ReminderSyncService {
                 (continuation: CheckedContinuation<Bool, Error>) in
                 // swiftlint:enable closure_parameter_position
                 self.eventStore.requestAccess(to: .reminder) { granted, error in
-                    if let error = error {
+                    if let error {
                         continuation.resume(throwing: error)
                     } else {
                         continuation.resume(returning: granted)
@@ -190,7 +190,7 @@ final class ReminderSyncService {
         }
 
         // Check if modelContext is available
-        guard let modelContext = modelContext else {
+        guard let modelContext else {
             throw ReminderSyncError.modelContextUnavailable
         }
 
@@ -288,7 +288,7 @@ final class ReminderSyncService {
         }
 
         // Delete reminders that no longer exist in EventKit (orphan cleanup)
-        let currentEKIDs = Set(syncData.map { $0.calendarItemIdentifier })
+        let currentEKIDs = Set(syncData.map(\.calendarItemIdentifier))
         for existing in existingReminders {
             if let ekID = existing.eventKitReminderID,
                !currentEKIDs.contains(ekID),
@@ -337,7 +337,7 @@ final class ReminderSyncService {
         }
 
         let calendars = eventStore.calendars(for: .reminder)
-        return calendars.map { $0.title }
+        return calendars.map(\.title)
     }
 
     // MARK: - Private Helpers
@@ -353,7 +353,7 @@ final class ReminderSyncService {
     }
     
     private func fetchAllReminders() throws -> [Reminder] {
-        guard let modelContext = modelContext else {
+        guard let modelContext else {
             return []
         }
         let descriptor = FetchDescriptor<Reminder>()
@@ -402,7 +402,7 @@ final class ReminderSyncService {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingChangeTask?.cancel()
                 self.pendingChangeTask = Task { @MainActor [weak self] in

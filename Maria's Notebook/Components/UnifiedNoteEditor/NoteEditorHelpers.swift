@@ -1,6 +1,7 @@
 // NoteEditorHelpers.swift
 // Helper methods for UnifiedNoteEditor - extracted for maintainability
 
+import OSLog
 import SwiftUI
 import SwiftData
 import PhotosUI
@@ -14,6 +15,7 @@ import UIKit
 // MARK: - UnifiedNoteEditor Helpers Extension
 
 extension UnifiedNoteEditor {
+    private static let logger = Logger.notes
 
     // MARK: - Computed Properties
 
@@ -151,14 +153,14 @@ extension UnifiedNoteEditor {
             do {
                 try PhotoStorageService.deleteImage(filename: existingPath)
             } catch {
-                print("⚠️ [\(#function)] Failed to delete previous image: \(error)")
+                Self.logger.error("[\(#function)] Failed to delete previous image: \(error)")
             }
         }
     }
 
     func handlePhotoChange(_ newItem: PhotosPickerItem?) {
         Task {
-            if let newItem = newItem {
+            if let newItem {
                 do {
                     if let data = try await newItem.loadTransferable(type: Data.self) {
                         #if os(macOS)
@@ -171,7 +173,7 @@ extension UnifiedNoteEditor {
                             imagePath = newPath
                         } catch {
                             #if DEBUG
-                            print("Error saving image: \(error)")
+                            Self.logger.error("Failed to save image: \(error)")
                             #endif
                             selectedImage = nil
                             selectedPhoto = nil
@@ -184,7 +186,7 @@ extension UnifiedNoteEditor {
                     #endif
                     }
                 } catch {
-                    print("⚠️ [\(#function)] Failed to load photo data: \(error)")
+                    Self.logger.error("[\(#function)] Failed to load photo data: \(error)")
                 }
             } else {
                 // User cleared the image
@@ -205,7 +207,7 @@ extension UnifiedNoteEditor {
             imagePath = newPath
         } catch {
             #if DEBUG
-            print("Error saving image: \(error)")
+            Self.logger.error("Failed to save image: \(error)")
             #endif
             selectedImage = nil
         }
@@ -257,7 +259,7 @@ extension UnifiedNoteEditor {
         do {
             regex = try NSRegularExpression(pattern: pattern, options: [])
         } catch {
-            print("⚠️ [\(#function)] Failed to create regex for initials expansion: \(error)")
+            Self.logger.error("[\(#function)] Failed to create regex for initials expansion: \(error)")
             return
         }
 
@@ -266,7 +268,7 @@ extension UnifiedNoteEditor {
         var delta = 0
 
         regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
-            guard let match = match, match.numberOfRanges >= 3,
+            guard let match, match.numberOfRanges >= 3,
                   let r1 = Range(match.range(at: 1), in: text),
                   let r2 = Range(match.range(at: 2), in: text) else { return }
 

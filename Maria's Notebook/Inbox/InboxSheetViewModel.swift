@@ -107,7 +107,7 @@ final class InboxSheetViewModel {
                 deletedIDs.append(targetID)
                 modelContext.delete(target)
             } else {
-                target.studentIDs = remainingIDs.map { $0.uuidString }
+                target.studentIDs = remainingIDs.map(\.uuidString)
                 // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
                 // so we fetch all and filter in memory
                 let remainingSet = Set(remainingIDs)

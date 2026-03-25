@@ -205,17 +205,17 @@ final class OllamaClient: MCPClientProtocol {
         )
 
         // Clean up markdown code blocks if present
-        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleaned = text.trimmed()
         if cleaned.hasPrefix("```json") {
             cleaned = cleaned
                 .replacingOccurrences(of: "```json\n", with: "")
                 .replacingOccurrences(of: "```json", with: "")
                 .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmed()
         } else if cleaned.hasPrefix("```") {
             cleaned = cleaned
                 .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmed()
         }
 
         // Validate JSON

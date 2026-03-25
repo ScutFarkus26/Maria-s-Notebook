@@ -34,7 +34,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents,
+            studentsRaw.uniqueByID.filter(\.isEnrolled), show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
@@ -58,13 +58,6 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     private var studentsByID: [UUID: Student] {
         Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
-
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .short
-        return df
-    }()
 
     private func title(for la: LessonAssignment) -> String {
         let snap = (la.lessonTitleSnapshot ?? "").trimmed()
@@ -115,7 +108,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 HStack(spacing: 6) {
                                     Image(systemName: SFSymbol.Time.calendar)
                                         .foregroundStyle(.secondary)
-                                    Text(Self.dateFormatter.string(from: presentedAt))
+                                    Text(DateFormatters.mediumDateTime.string(from: presentedAt))
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -226,7 +219,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 VStack(alignment: .leading, spacing: 8) {
                                     // Show unified notes
                                     ForEach(
-                                        unifiedNotes.sorted(by: { $0.createdAt > $1.createdAt }),
+                                        unifiedNotes.sorted { $0.createdAt > $1.createdAt },
                                         id: \.id
                                     ) { note in
                                         unifiedNoteRow(note)
@@ -293,7 +286,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .presentationDragIndicator(.visible)
 #endif
         .sheet(isPresented: $showAddNoteSheet) {
-            if let assignment = assignment {
+            if let assignment {
                 UnifiedNoteEditor(
                     context: .presentation(assignment),
                     initialNote: nil,
@@ -308,7 +301,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             }
         }
         .sheet(item: $noteBeingEdited) { note in
-            if let assignment = assignment {
+            if let assignment {
                 UnifiedNoteEditor(
                     context: .presentation(assignment),
                     initialNote: note,

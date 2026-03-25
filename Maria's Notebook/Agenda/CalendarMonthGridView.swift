@@ -37,16 +37,10 @@ struct CalendarMonthGridView: View {
     }
 
     private var weekdaySymbols: [String] {
-        struct Cache {
-            static let df: DateFormatter = {
-                let d = DateFormatter()
-                return d
-            }()
-        }
         // Prefer standalone symbols; fall back as needed
-        let base = Cache.df.shortStandaloneWeekdaySymbols
-            ?? Cache.df.shortWeekdaySymbols
-            ?? Cache.df.weekdaySymbols
+        let base = DateFormatters.weekdayAbbrev.shortStandaloneWeekdaySymbols
+            ?? DateFormatters.weekdayAbbrev.shortWeekdaySymbols
+            ?? DateFormatters.weekdayAbbrev.weekdaySymbols
             ?? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
         let start = max(1, min(7, calendar.firstWeekday)) - 1

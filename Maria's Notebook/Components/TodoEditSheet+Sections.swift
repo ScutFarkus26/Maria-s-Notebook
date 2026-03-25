@@ -61,7 +61,7 @@ extension TodoEditSheet {
             HStack(spacing: 8) {
                 ForEach(TodoPriority.allCases, id: \.self) { priorityLevel in
                     Button {
-                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             priority = priorityLevel
                         }
                     } label: {
@@ -132,7 +132,7 @@ extension TodoEditSheet {
             Menu {
                 ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
                     Button {
-                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             recurrence = pattern
                         }
                     } label: {

@@ -45,7 +45,7 @@ extension WorksAgendaView {
 
     func markCompleted(_ w: WorkModel) {
         w.status = .complete
-        _ = saveCoordinator.save(modelContext, reason: "Mark work completed")
+        saveCoordinator.save(modelContext, reason: "Mark work completed")
         HapticService.shared.notification(.success)
     }
 
@@ -81,7 +81,7 @@ extension WorksAgendaView {
             modelContext.insert(item)
         }
         w.dueAt = today
-        _ = saveCoordinator.save(modelContext, reason: "Quick schedule today")
+        saveCoordinator.save(modelContext, reason: "Quick schedule today")
     }
 
     #if os(macOS)

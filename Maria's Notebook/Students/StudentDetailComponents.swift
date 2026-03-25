@@ -70,20 +70,13 @@ struct StudentEditForm: View {
 struct WithdrawnBanner: View {
     let dateWithdrawn: Date?
 
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
-
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "person.badge.minus")
             Text("Withdrawn")
                 .font(AppTheme.ScaledFont.calloutSemibold)
             if let date = dateWithdrawn {
-                Text("on \(Self.dateFormatter.string(from: date))")
+                Text("on \(DateFormatters.mediumDate.string(from: date))")
                     .font(AppTheme.ScaledFont.callout)
             }
         }
@@ -103,15 +96,8 @@ struct StudentInfoRows: View {
     let student: Student
     @Environment(\.modelContext) private var modelContext
     
-    private static let birthdayFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .long
-        df.timeStyle = .none
-        return df
-    }()
-    
     private var formattedBirthday: String {
-        Self.birthdayFormatter.string(from: student.birthday)
+        DateFormatters.longDate.string(from: student.birthday)
     }
     
     private var ageDescription: String {
@@ -129,7 +115,7 @@ struct StudentInfoRows: View {
             if let ds = student.dateStarted {
                 InfoRowView(
                     icon: "calendar.badge.clock", title: "Start Date",
-                    value: Self.birthdayFormatter.string(from: ds)
+                    value: DateFormatters.longDate.string(from: ds)
                 )
             }
             InfoRowView(icon: "gift", title: "Age", value: ageDescription)

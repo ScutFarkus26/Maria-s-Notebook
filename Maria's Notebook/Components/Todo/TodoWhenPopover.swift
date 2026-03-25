@@ -132,7 +132,7 @@ struct TodoWhenPopover: View {
             // Month navigation
             HStack {
                 Button {
-                    adaptiveWithAnimation(
+                    _ = adaptiveWithAnimation(
                         .easeInOut(duration: UIConstants.AnimationDuration.fast)
                     ) {
                         displayedMonth = calendar.date(
@@ -154,7 +154,7 @@ struct TodoWhenPopover: View {
                 Spacer()
 
                 Button {
-                    adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
+                    _ = adaptiveWithAnimation(.easeInOut(duration: UIConstants.AnimationDuration.fast)) {
                         displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
                     }
                 } label: {
@@ -269,7 +269,7 @@ struct TodoWhenPopover: View {
                 }
 
                 Button {
-                    adaptiveWithAnimation(UIConstants.SpringAnimation.standard) {
+                    _ = adaptiveWithAnimation(UIConstants.SpringAnimation.standard) {
                         showDeadlinePicker.toggle()
                     }
                 } label: {
@@ -317,23 +317,18 @@ struct TodoWhenPopover: View {
     }
 
     private func monthYearString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: date)
+        DateFormatters.monthYear.string(from: date)
     }
 
     private func deadlineDateString(_ date: Date) -> String {
         if calendar.isDateInToday(date) { return "Today" }
         if calendar.isDateInTomorrow(date) { return "Tomorrow" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return DateFormatters.shortMonthDay.string(from: date)
     }
 
     private var weekdaySymbols: [String] {
-        let formatter = DateFormatter()
-        let base = formatter.shortStandaloneWeekdaySymbols
-            ?? formatter.shortWeekdaySymbols
+        let base = DateFormatters.weekdayAbbrev.shortStandaloneWeekdaySymbols
+            ?? DateFormatters.weekdayAbbrev.shortWeekdaySymbols
             ?? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
         let start = max(1, min(7, calendar.firstWeekday)) - 1
         guard start > 0, start < base.count else { return base }
@@ -423,8 +418,6 @@ struct TodoSchedulePickerButton: View {
         let cal = Calendar.current
         if cal.isDateInToday(date) { return "Today" }
         if cal.isDateInTomorrow(date) { return "Tomorrow" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return DateFormatters.shortMonthDay.string(from: date)
     }
 }

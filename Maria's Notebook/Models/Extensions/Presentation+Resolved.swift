@@ -12,7 +12,7 @@ import Foundation
 extension Presentation: DenormalizedSchedulable {
     /// Prefer the relationship; fall back to stored IDs for compatibility.
     var resolvedStudentIDs: [UUID] {
-        if !students.isEmpty { return students.map { $0.id } }
+        if !students.isEmpty { return students.map(\.id) }
         return studentUUIDs
     }
 

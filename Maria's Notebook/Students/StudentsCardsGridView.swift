@@ -38,7 +38,7 @@ struct StudentsCardsGridView: View {
         students.removingDuplicates(by: \.id)
     }
 
-    private var idList: [UUID] { uniqueStudents.map { $0.id } }
+    private var idList: [UUID] { uniqueStudents.map(\.id) }
 
     private var gridAnimation: Animation? {
         if draggingStudentID != nil || !hasAppeared {
@@ -197,7 +197,7 @@ struct StudentsCardsGridView: View {
                 case .second(true, let drag?):
                     if draggingStudentID == nil { draggingStudentID = student.id }
                     // Compute nearest target using measured frames and the current drag translation
-                    let subsetIDs = students.map { $0.id }
+                    let subsetIDs = students.map(\.id)
                     let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                         if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                     }
@@ -226,7 +226,7 @@ struct StudentsCardsGridView: View {
                 guard let fromIndex = students.firstIndex(where: { $0.id == student.id }) else { return }
 
                 // Prefer the live hover target if still valid; otherwise compute nearest
-                let subsetIDs = students.map { $0.id }
+                let subsetIDs = students.map(\.id)
                 let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                     if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                 }

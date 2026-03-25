@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Handles importing entities from backup DTOs into the database.
 ///
@@ -15,6 +16,7 @@ import SwiftData
 /// - `BackupEntityImporter+Todo.swift` -- todo imports
 /// - `BackupEntityImporter+Misc.swift` -- misc entity imports
 enum BackupEntityImporter {
+    private static let logger = Logger.backup
 
     /// Type alias for a function that checks if an entity with a given ID exists
     typealias EntityExistsCheck<T: PersistentModel> = (UUID) throws -> T?
@@ -30,7 +32,7 @@ enum BackupEntityImporter {
         do {
             return try existingCheck(id) != nil
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to check if entity exists: \(error)")
+            logger.warning("Failed to check if entity exists: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }

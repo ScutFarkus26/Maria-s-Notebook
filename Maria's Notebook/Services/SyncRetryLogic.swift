@@ -64,7 +64,7 @@ final class SyncRetryLogic {
         retryAttempt += 1
         
         retryTask = Task { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
 
             // Wait for the backoff delay
             do {

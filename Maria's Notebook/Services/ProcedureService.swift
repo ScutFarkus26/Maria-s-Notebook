@@ -19,7 +19,7 @@ enum ProcedureService {
         var filtered = procedures
 
         // Filter by category if specified
-        if let category = category {
+        if let category {
             filtered = filtered.filter { $0.category == category }
         }
 
@@ -78,7 +78,7 @@ enum ProcedureService {
     }
 
     /// Creates a new procedure
-    @MainActor
+    @MainActor @discardableResult
     // swiftlint:disable:next function_parameter_count
     static func createProcedure(
         title: String,

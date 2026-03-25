@@ -18,27 +18,11 @@ public enum AttendanceEmailPrefs {
 
 // MARK: - Report Generator
 public struct AttendanceEmailReport {
-    // Cached date formatters to avoid repeated allocations.
-    private static let subjectDateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
-
-    private static let bodyDateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .full
-        df.timeStyle = .none
-        return df
-    }()
-
     public static func makeSubject(
         for date: Date,
         calendar: Calendar = .current
     ) -> String {
-        let df = subjectDateFormatter
-        let dayStr = df.string(from: calendar.startOfDay(for: date))
+        let dayStr = DateFormatters.mediumDate.string(from: calendar.startOfDay(for: date))
         return "Attendance \u{2022} \(dayStr)"
     }
 
@@ -49,10 +33,9 @@ public struct AttendanceEmailReport {
         date: Date,
         calendar: Calendar = .current
     ) -> String {
-        let df = bodyDateFormatter
         var lines: [String] = []
         lines.append("Attendance Report")
-        lines.append(df.string(from: calendar.startOfDay(for: date)))
+        lines.append(DateFormatters.fullDate.string(from: calendar.startOfDay(for: date)))
         lines.append("")
         func section(_ title: String, names: [String]) {
             lines.append("\(title) (\(names.count)):")
@@ -109,7 +92,7 @@ public enum AttendanceEmail {
     /// - Note: Multi-recipient support is implemented and used in
     ///   all composer/send flows.
     public static func parseRecipients(from string: String?) -> [String] {
-        guard let string = string, !string.trimmed().isEmpty else { return [] }
+        guard let string, !string.trimmed().isEmpty else { return [] }
         let separators = CharacterSet(charactersIn: ",;")
         return string
             .components(separatedBy: separators)

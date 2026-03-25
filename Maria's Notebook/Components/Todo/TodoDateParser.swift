@@ -16,7 +16,7 @@ struct TodoDateParser {
 
     /// Parse a todo title for date phrases and return a clean title + suggested date.
     static func parse(_ input: String) -> ParseResult {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = input.trimmed()
         guard !trimmed.isEmpty else {
             return ParseResult(cleanTitle: trimmed, suggestedDate: nil, matchedText: nil)
         }
@@ -30,7 +30,7 @@ struct TodoDateParser {
                 let matchedText = String(trimmed[range])
                 if let date = pattern.resolve(match, trimmed, today) {
                     let cleaned = trimmed.replacingCharacters(in: range, with: "")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                        .trimmed()
                         .replacingOccurrences(of: "  ", with: " ")
                     return ParseResult(
                         cleanTitle: cleaned.isEmpty ? trimmed : cleaned,
@@ -51,30 +51,43 @@ struct TodoDateParser {
         let resolve: (NSTextCheckingResult, String, Date) -> Date?
     }
 
-    // swiftlint:disable force_try
+    /// Builds an NSRegularExpression from a literal pattern string.
+    /// All patterns here are compile-time constants; a failure indicates a programmer error.
+    private static func makeRegex(
+        _ pattern: String,
+        options: NSRegularExpression.Options = .caseInsensitive
+    ) -> NSRegularExpression {
+        do {
+            return try NSRegularExpression(pattern: pattern, options: options)
+        } catch {
+            preconditionFailure("Invalid regex pattern '\(pattern)': \(error)")
+        }
+    }
+
     private nonisolated(unsafe) static let patterns: [DatePattern] = [
         // "today" / "tonight"
         DatePattern(
-            regex: try! NSRegularExpression(pattern: "\\b(today|tonight)\\b", options: .caseInsensitive),
+            regex: makeRegex("\\b(today|tonight)\\b"),
             resolve: { _, _, today in today }
         ),
 
         // "tomorrow" / "tmr" / "tmrw"
         DatePattern(
-            regex: try! NSRegularExpression(pattern: "\\b(tomorrow|tmr|tmrw)\\b", options: .caseInsensitive),
+            regex: makeRegex("\\b(tomorrow|tmr|tmrw)\\b"),
             resolve: { _, _, today in calendar.date(byAdding: .day, value: 1, to: today) }
         ),
 
         // "next week"
         DatePattern(
-            regex: try! NSRegularExpression(pattern: "\\bnext\\s+week\\b", options: .caseInsensitive),
+            regex: makeRegex("\\bnext\\s+week\\b"),
             resolve: { _, _, today in nextWeekday(2, after: today) } // Monday
         ),
 
         // "next monday" ... "next sunday"
         DatePattern(
-            // swiftlint:disable:next line_length
-            regex: try! NSRegularExpression(pattern: "\\bnext\\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\b", options: .caseInsensitive),
+            regex: makeRegex(
+                "\\bnext\\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\b"
+            ),
             resolve: { match, input, today in
                 guard let dayRange = Range(match.range(at: 1), in: input) else { return nil }
                 let dayStr = String(input[dayRange]).lowercased()
@@ -86,8 +99,9 @@ struct TodoDateParser {
 
         // Bare weekday: "monday" ... "sunday" (coming occurrence)
         DatePattern(
-            // swiftlint:disable:next line_length
-            regex: try! NSRegularExpression(pattern: "\\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\b", options: .caseInsensitive),
+            regex: makeRegex(
+                "\\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\b"
+            ),
             resolve: { match, input, today in
                 guard let dayRange = Range(match.range(at: 1), in: input) else { return nil }
                 let dayStr = String(input[dayRange]).lowercased()
@@ -98,7 +112,7 @@ struct TodoDateParser {
 
         // "in N days"
         DatePattern(
-            regex: try! NSRegularExpression(pattern: "\\bin\\s+(\\d+)\\s+days?\\b", options: .caseInsensitive),
+            regex: makeRegex("\\bin\\s+(\\d+)\\s+days?\\b"),
             resolve: { match, input, today in
                 guard let numRange = Range(match.range(at: 1), in: input),
                       let days = Int(input[numRange]) else { return nil }
@@ -108,7 +122,7 @@ struct TodoDateParser {
 
         // "in N weeks"
         DatePattern(
-            regex: try! NSRegularExpression(pattern: "\\bin\\s+(\\d+)\\s+weeks?\\b", options: .caseInsensitive),
+            regex: makeRegex("\\bin\\s+(\\d+)\\s+weeks?\\b"),
             resolve: { match, input, today in
                 guard let numRange = Range(match.range(at: 1), in: input),
                       let weeks = Int(input[numRange]) else { return nil }
@@ -119,7 +133,7 @@ struct TodoDateParser {
         // "jan 15", "january 15", "feb 3", etc.
         DatePattern(
             // swiftlint:disable:next line_length
-            regex: try! NSRegularExpression(pattern: "\\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+(\\d{1,2})\\b", options: .caseInsensitive),
+            regex: makeRegex("\\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+(\\d{1,2})\\b"),
             resolve: { match, input, today in
                 guard let monthRange = Range(match.range(at: 1), in: input),
                       let dayRange = Range(match.range(at: 2), in: input),
@@ -132,7 +146,7 @@ struct TodoDateParser {
 
         // "1/15", "01/15" (M/D format)
         DatePattern(
-            regex: try! NSRegularExpression(pattern: "\\b(\\d{1,2})/(\\d{1,2})\\b", options: []),
+            regex: makeRegex("\\b(\\d{1,2})/(\\d{1,2})\\b", options: []),
             resolve: { match, input, today in
                 guard let mRange = Range(match.range(at: 1), in: input),
                       let dRange = Range(match.range(at: 2), in: input),
@@ -143,7 +157,6 @@ struct TodoDateParser {
             }
         )
     ]
-    // swiftlint:enable force_try
 
     // MARK: - Helpers
 

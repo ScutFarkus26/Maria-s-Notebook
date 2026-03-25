@@ -238,8 +238,8 @@ enum WorkAgingDebug {
             checkIns: checkIns, notes: notes
         )
         let overdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns, lastTouch: last)
-        let df = DateFormatter(); df.dateStyle = .medium
-        return "[school-days] last=\(df.string(from: last)) days=\(days) bucket=\(bucket) overdue=\(overdue)"
+        let lastStr = DateFormatters.mediumDate.string(from: last)
+        return "[school-days] last=\(lastStr) days=\(days) bucket=\(bucket) overdue=\(overdue)"
     }
 }
 #endif

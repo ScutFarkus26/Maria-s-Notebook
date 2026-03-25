@@ -243,7 +243,7 @@ struct LessonDetailCard: View {
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(lesson)
-                _ = saveCoordinator.save(modelContext, reason: "Delete lesson")
+                saveCoordinator.save(modelContext, reason: "Delete lesson")
                 onClose()
             }
             Button("Cancel", role: .cancel) {}
@@ -279,7 +279,7 @@ struct LessonDetailCard: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            _ = saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
+                            saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }
@@ -391,7 +391,7 @@ struct LessonDetailCard: View {
                     lesson.pagesFileRelativePath = rel
                     resolvedPagesURL = destURL
                     previousManagedURL = destURL
-                    _ = saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
+                    saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
                 await MainActor.run { importError = error.localizedDescription }
@@ -437,7 +437,7 @@ struct LessonDetailCard: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            _ = saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
+                            saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }

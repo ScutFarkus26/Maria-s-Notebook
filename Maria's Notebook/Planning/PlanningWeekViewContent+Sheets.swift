@@ -77,7 +77,7 @@ extension PlanningWeekViewContent {
             ProgressView("Loading…")
                 .frame(minWidth: 320, minHeight: 240)
                 .task {
-                    do { try await Task.sleep(for: .milliseconds(100)) } catch {}
+                    try? await Task.sleep(for: .milliseconds(100))
                     activeSheet = nil
                 }
         }
@@ -101,7 +101,7 @@ extension PlanningWeekViewContent {
             ProgressView("Preparing…")
                 .frame(minWidth: 320, minHeight: 240)
                 .task {
-                    do { try await Task.sleep(for: .milliseconds(100)) } catch {}
+                    try? await Task.sleep(for: .milliseconds(100))
                     if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
                         activeSheet = nil
                     }

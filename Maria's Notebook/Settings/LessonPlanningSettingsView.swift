@@ -57,7 +57,7 @@ struct LessonPlanningSettingsView: View {
     private var promptSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
-                adaptiveWithAnimation(.easeInOut(duration: 0.2)) {
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.2)) {
                     isPromptExpanded.toggle()
                 }
             } label: {

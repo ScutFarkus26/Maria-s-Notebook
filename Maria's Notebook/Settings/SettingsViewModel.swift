@@ -50,15 +50,8 @@ final class SettingsViewModel {
     }
 
     // MARK: - Helpers
-    private static let backupFilenameFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        return formatter
-    }()
-
     func defaultBackupFilename() -> String {
-        let formatter = Self.backupFilenameFormatter
-        return "MariasNotebook_DataBackup_\(formatter.string(from: Date()))"
+        "MariasNotebook_DataBackup_\(DateFormatters.backupFilename.string(from: Date()))"
     }
 
     func loadDefaultFolderName() {

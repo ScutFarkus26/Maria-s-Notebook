@@ -187,7 +187,7 @@ struct FollowUpWorkService {
         }
         
         let existingWork = presentation.fetchRelatedWork(from: context)
-        let existingKinds = Set(existingWork.compactMap { $0.kind })
+        let existingKinds = Set(existingWork.compactMap(\.kind))
         
         // Suggest practice work if needed and not already created
         if presentation.needsPractice && !existingKinds.contains(.practiceLesson) {

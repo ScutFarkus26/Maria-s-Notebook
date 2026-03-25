@@ -82,7 +82,7 @@ final class StudentsViewModel {
                 }
             }
             if !testFilter(student) { return false }
-            if let query = query {
+            if let query {
                 let fn = student.firstName.lowercased()
                 let ln = student.lastName.lowercased()
                 let full = student.fullName.lowercased()
@@ -132,7 +132,7 @@ final class StudentsViewModel {
         var seen = Set<Int>()
         var duplicates: [Student] = []
         // Keep first occurrence of each order and collect duplicates (e.g., newly added with default 0)
-        for s in all.sorted(by: { $0.manualOrder < $1.manualOrder }) {
+        for s in all.sorted { $0.manualOrder < $1.manualOrder } {
             if seen.contains(s.manualOrder) {
                 duplicates.append(s)
             } else {
@@ -158,7 +158,7 @@ final class StudentsViewModel {
         let allOrdered = allStudents.sorted { $0.manualOrder < $1.manualOrder }
 
         // IDs of the currently visible (filtered) subset
-        let subsetIDs = current.map { $0.id }
+        let subsetIDs = current.map(\.id)
         var subset = subsetIDs
         // Reorder within the subset
         if let sFrom = subset.firstIndex(of: movingID) {
@@ -237,7 +237,7 @@ final class StudentsViewModel {
                     fullName.contains(testName)
                 })
             }
-            .map { $0.id })
+            .map(\.id))
     }
     
     // MARK: - Helpers
@@ -314,7 +314,7 @@ extension StudentsViewModel {
                 let s = norm(l.subject)
                 let g = norm(l.group)
                 return s == "parsha" || g == "parsha"
-            }.map { $0.id }
+            }.map(\.id)
             self.excludedLessonIDs = Set(ids)
         }
 

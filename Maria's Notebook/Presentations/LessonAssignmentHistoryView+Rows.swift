@@ -64,7 +64,7 @@ extension LessonAssignmentHistoryView {
                     }
             }
         } header: {
-            Text(Self.dayFormatter.string(from: entry.day))
+            Text(DateFormatters.mediumDate.string(from: entry.day))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
@@ -82,7 +82,7 @@ extension LessonAssignmentHistoryView {
                         .font(AppTheme.ScaledFont.bodySemibold)
                     HStack(spacing: 6) {
                         if let presentedAt = la.presentedAt {
-                            Text(Self.timeFormatter.string(from: presentedAt))
+                            Text(DateFormatters.shortTime.string(from: presentedAt))
                         }
                         Text("\u{2022}")
                         Text(studentNamesOrCount(for: la))
@@ -101,7 +101,7 @@ extension LessonAssignmentHistoryView {
             // Display notes inline if present
             if let notes = la.unifiedNotes, !notes.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(notes.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { note in
+                    ForEach(notes.sorted { $0.createdAt > $1.createdAt }, id: \.id) { note in
                         noteRow(note)
                     }
                 }

@@ -33,7 +33,7 @@ struct PaperLessonCard: View {
     }
 
     private var writeUpExcerpt: String? {
-        let trimmed = lesson.writeUp.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = lesson.writeUp.trimmed()
         guard !trimmed.isEmpty else { return nil }
         // Get first two lines or first 120 characters
         let lines = trimmed.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: true)

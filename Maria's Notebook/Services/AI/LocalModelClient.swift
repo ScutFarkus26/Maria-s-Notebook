@@ -108,7 +108,7 @@ final class LocalModelClient: MCPClientProtocol {
             )
 
             // Validate JSON
-            let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = response.content.trimmed()
             _ = try JSONSerialization.jsonObject(with: Data(text.utf8))
             return text
         } catch let error as LocalModelError {

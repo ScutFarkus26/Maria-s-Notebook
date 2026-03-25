@@ -111,7 +111,7 @@ struct PracticeSectionHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if let icon = icon, let color = color {
+            if let icon, let color = color {
                 Image(systemName: icon)
                     .foregroundStyle(color)
                     .font(.system(size: 16))
@@ -305,7 +305,7 @@ struct LessonContextCard: View {
                 )
 
                 // Presentation info if available
-                if let presentation = presentation {
+                if let presentation {
                     HStack(spacing: 8) {
                         Image(systemName: presentation.isPresented ? "calendar.badge.checkmark" : "calendar")
                             .font(.system(size: 14))

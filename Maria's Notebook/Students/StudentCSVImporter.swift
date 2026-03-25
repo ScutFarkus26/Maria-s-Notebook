@@ -307,14 +307,6 @@ enum StudentCSVImporter {
     }
 
     // MARK: - Helpers
-    private static let isoDayFormatter: DateFormatter = {
-        let fmt = DateFormatter()
-        fmt.calendar = Calendar(identifier: .iso8601)
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        fmt.timeZone = TimeZone(secondsFromGMT: 0)
-        fmt.dateFormat = "yyyy-MM-dd"
-        return fmt
-    }()
 
     static func duplicateKey(for student: Student) -> String {
         duplicateKey(first: student.firstName, last: student.lastName, birthday: student.birthday)
@@ -323,7 +315,7 @@ enum StudentCSVImporter {
     static func duplicateKey(first: String, last: String, birthday: Date?) -> String {
         let nameKey = "\(first) \(last)".normalizedNameKey()
         if let b = birthday {
-            let d = isoDayFormatter.string(from: b)
+            let d = DateFormatters.isoDate.string(from: b)
             return nameKey + "|" + d
         }
         return nameKey

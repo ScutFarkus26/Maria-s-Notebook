@@ -162,7 +162,7 @@ public final class SelectiveExportService {
         let finalEncrypted: Data?
         let finalCompressed: Data?
 
-        if let password = password, !password.isEmpty {
+        if let password, !password.isEmpty {
             progress(0.6, "Encrypting data…")
             finalEncrypted = try codec.encrypt(compressedPayloadBytes, password: password)
             finalCompressed = nil

@@ -20,7 +20,7 @@ struct ProjectSessionDetailView: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -58,10 +58,7 @@ struct ProjectSessionDetailView: View {
     }
 
     func studentName(for sid: String) -> String {
-        if let uuid = UUID(uuidString: sid), let s = studentsByID[uuid] {
-            return StudentFormatter.displayName(for: s)
-        }
-        return "Student"
+        studentsByID[uuidString: sid].map(StudentFormatter.displayName(for:)) ?? "Student"
     }
 
     /// Works grouped by student (for uniform mode or assigned works in choice mode)
@@ -108,7 +105,7 @@ struct ProjectSessionDetailView: View {
 
     /// Offered works (no participants yet) for choice mode
     var offeredWorks: [WorkModel] {
-        sessionWorkModels.filter { $0.isOffered }
+        sessionWorkModels.filter(\.isOffered)
     }
 
     /// Project member IDs for showing selection status
@@ -164,7 +161,8 @@ struct ProjectSessionDetailView: View {
                             do {
                                 try modelContext.save()
                             } catch {
-                                print("⚠️ [\(#function)] Failed to save after adding agenda item: \(error)")
+                                let desc = error.localizedDescription
+                                Self.logger.error("Failed to save after adding agenda item: \(desc, privacy: .public)")
                             }
                         } label: {
                             Label("Add Item", systemImage: "plus.circle.fill")
@@ -205,7 +203,7 @@ struct ProjectSessionDetailView: View {
                 }
             }
         }
-        .navigationTitle(Self.df.string(from: session.meetingDate))
+        .navigationTitle(DateFormatters.mediumDate.string(from: session.meetingDate))
         .sheet(item: Binding(
             get: { showSelectionSheetForStudent.map { StudentIDWrapper(id: $0) } },
             set: { showSelectionSheetForStudent = $0?.id }
@@ -249,7 +247,4 @@ struct ProjectSessionDetailView: View {
         let id: String
     }
 
-    static let df: DateFormatter = {
-        let df = DateFormatter(); df.dateStyle = .medium; return df
-    }()
 }

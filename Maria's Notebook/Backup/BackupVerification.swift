@@ -1,9 +1,11 @@
 import Foundation
 import SwiftData
+import OSLog
 
 /// Utility to verify backup file integrity and provide status information
 @MainActor
 public struct BackupVerification {
+    private static let logger = Logger.backup
     
     // Verifies a backup file by attempting to read and decode its envelope
     // Returns information about the backup if valid, or an error if invalid
@@ -99,7 +101,7 @@ public struct BackupVerification {
                 options: [.skipsHiddenFiles]
             )
         } catch {
-            print("⚠️ [Backup:findMostRecentBackup] Failed to list directory contents: \(error)")
+            logger.warning("Failed to list directory contents: \(error.localizedDescription, privacy: .public)")
             return nil
         }
         
@@ -117,8 +119,9 @@ public struct BackupVerification {
                     forKeys: [.contentModificationDateKey]
                 ).contentModificationDate ?? Date.distantPast
             } catch {
-                // swiftlint:disable:next line_length
-                print("⚠️ [Backup:findMostRecentBackup] Failed to get modification date for \(url1.lastPathComponent): \(error)")
+                let name = url1.lastPathComponent
+                let desc = error.localizedDescription
+                logger.warning("Failed to get mod date for \(name, privacy: .public): \(desc, privacy: .public)")
                 date1 = Date.distantPast
             }
             
@@ -128,8 +131,9 @@ public struct BackupVerification {
                     forKeys: [.contentModificationDateKey]
                 ).contentModificationDate ?? Date.distantPast
             } catch {
-                // swiftlint:disable:next line_length
-                print("⚠️ [Backup:findMostRecentBackup] Failed to get modification date for \(url2.lastPathComponent): \(error)")
+                let name = url2.lastPathComponent
+                let desc = error.localizedDescription
+                logger.warning("Failed to get mod date for \(name, privacy: .public): \(desc, privacy: .public)")
                 date2 = Date.distantPast
             }
             

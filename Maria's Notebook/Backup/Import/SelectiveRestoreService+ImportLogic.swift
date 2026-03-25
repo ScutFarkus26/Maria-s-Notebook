@@ -3,8 +3,11 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 extension SelectiveRestoreService {
+    private static let logger = Logger.backup
+
     struct ImportResult {
         let imported: Int
         let skipped: Int
@@ -84,7 +87,7 @@ extension SelectiveRestoreService {
             let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
             lessonsByID = allLessons.toDictionary(by: \.id)
         } catch {
-            print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to refresh lesson cache: \(error)")
+            Self.logger.warning("Failed to refresh lesson cache: \(error.localizedDescription, privacy: .public)")
         }
         return ImportResult(
             imported: newLessons.count,
@@ -161,7 +164,7 @@ extension SelectiveRestoreService {
             let allTopics = try modelContext.fetch(FetchDescriptor<CommunityTopic>())
             topicsByID = allTopics.toDictionary(by: \.id)
         } catch {
-            print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to refresh topic cache: \(error)")
+            Self.logger.warning("Failed to refresh topic cache: \(error.localizedDescription, privacy: .public)")
         }
 
         BackupEntityImporter.importProposedSolutions(
@@ -248,7 +251,8 @@ extension SelectiveRestoreService {
             let allWeeks = try modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())
             templateWeeksByID = allWeeks.toDictionary(by: \.id)
         } catch {
-            print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to refresh template weeks cache: \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to refresh template weeks cache: \(desc, privacy: .public)")
         }
 
         try importProjectDetailEntities(from: payload, into: modelContext)

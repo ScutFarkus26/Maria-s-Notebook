@@ -74,7 +74,7 @@ struct GoingOutChecklistSection: View {
     }
 
     private func addItem() {
-        let trimmed = newItemTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newItemTitle.trimmed()
         guard !trimmed.isEmpty else { return }
 
         let nextOrder = (goingOut.checklistItems?.count ?? 0)

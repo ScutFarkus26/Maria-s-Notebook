@@ -165,7 +165,7 @@ final class MockWorkCheckInService: WorkCheckInServiceProtocol {
         let trimmedNote = note.trimmed()
         let checkIn = WorkCheckIn(workID: work.id, date: date, status: status, purpose: purpose, work: work)
         if !trimmedNote.isEmpty {
-            _ = checkIn.setLegacyNoteText(trimmedNote, in: context)
+            checkIn.setLegacyNoteText(trimmedNote, in: context)
         }
         createdCheckIns.append(checkIn)
         return checkIn
@@ -185,14 +185,14 @@ final class MockWorkCheckInService: WorkCheckInServiceProtocol {
     }
     
     func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
-        _ = checkIn.setLegacyNoteText(note, in: context)
+        checkIn.setLegacyNoteText(note, in: context)
     }
-    
+
     func update(_ checkIn: WorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
         checkIn.date = date
         checkIn.status = status
         checkIn.purpose = purpose
-        _ = checkIn.setLegacyNoteText(note, in: context)
+        checkIn.setLegacyNoteText(note, in: context)
     }
     
     func delete(_ checkIn: WorkCheckIn, from work: WorkModel? = nil) throws {

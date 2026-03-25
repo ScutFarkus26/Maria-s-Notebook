@@ -102,11 +102,11 @@ struct StudentReadinessAssessor {
     private static func computePracticeMetrics(
         sessions: [PracticeSession]
     ) -> (practiceQualityAvg: Double?, independenceAvg: Double?) {
-        let practiceQualities = sessions.compactMap { $0.practiceQuality }
+        let practiceQualities = sessions.compactMap(\.practiceQuality)
         let practiceQualityAvg = practiceQualities.isEmpty
             ? nil
             : Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
-        let independenceLevels = sessions.compactMap { $0.independenceLevel }
+        let independenceLevels = sessions.compactMap(\.independenceLevel)
         let independenceAvg = independenceLevels.isEmpty
             ? nil
             : Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)

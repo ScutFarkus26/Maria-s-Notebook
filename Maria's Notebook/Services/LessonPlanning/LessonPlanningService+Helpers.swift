@@ -14,12 +14,9 @@ extension LessonPlanningService {
         weekStart: Date,
         summary: String
     ) -> WeekPlan {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-
         let weekDays = (0..<5).compactMap { offset -> (String, Date)? in
             guard let date = Calendar.current.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
-            return (formatter.string(from: date), date)
+            return (DateFormatters.weekdayAndDate.string(from: date), date)
         }
 
         var days = weekDays.map { WeekPlan.DayPlanEntry(dayName: $0.0, date: $0.1) }

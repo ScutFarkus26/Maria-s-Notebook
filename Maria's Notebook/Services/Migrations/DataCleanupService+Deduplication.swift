@@ -24,12 +24,12 @@ extension DataCleanupService {
         var changed = false
         for (_, group) in groups {
             guard group.count > 1 else { continue }
-            guard let canonical = group.sorted(by: { lhs, rhs in
+            guard let canonical = group.sorted { lhs, rhs in
                 if lhs.createdAt != rhs.createdAt {
                     return lhs.createdAt < rhs.createdAt
                 }
                 return lhs.id.uuidString < rhs.id.uuidString
-            }).first else { continue }
+            }.first else { continue }
             let duplicates = group.filter { $0.id != canonical.id }
 
             if duplicates.contains(where: { $0.needsPractice }) {
@@ -120,7 +120,7 @@ extension DataCleanupService {
     ) where T.ID == UUID {
         guard let sourceItems = source, !sourceItems.isEmpty else { return }
         if destination == nil { destination = [] }
-        var existingIDs = Set((destination ?? []).map { $0.id })
+        var existingIDs = Set((destination ?? []).map(\.id))
         for item in sourceItems {
             setter(item)
             if existingIDs.insert(item.id).inserted {

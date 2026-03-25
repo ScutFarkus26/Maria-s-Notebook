@@ -13,14 +13,14 @@ extension ClassSubjectChecklistViewModel {
 
     var duplicateFirstNameKeys: Set<String> {
         // OPTIMIZATION: Cache duplicate name computation based on student list hash
-        let currentHash = students.map { $0.id }.hashValue
+        let currentHash = students.map(\.id).hashValue
         if lastStudentHashForDuplicates != currentHash {
             var counts: [String: Int] = [:]
             for s in students {
                 let key = normalizedFirstName(s.firstName)
                 counts[key, default: 0] += 1
             }
-            cachedDuplicateFirstNameKeys = Set(counts.filter { $0.value >= 2 }.map { $0.key })
+            cachedDuplicateFirstNameKeys = Set(counts.filter { $0.value >= 2 }.map(\.key))
             lastStudentHashForDuplicates = currentHash
         }
         return cachedDuplicateFirstNameKeys

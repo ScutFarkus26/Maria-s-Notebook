@@ -76,7 +76,7 @@ extension ChecklistBatchActionExecutor {
                 )
             }
         } else {
-            _ = PresentationFactory.insertPreviouslyPresented(
+            PresentationFactory.insertPreviouslyPresented(
                 lessonID: lesson.id,
                 studentIDs: [student.id],
                 context: context

@@ -123,7 +123,7 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
         )
         
         UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
+            if let error {
                 Self.logger.error("Failed to send location notification: \(error, privacy: .public)")
             }
         }

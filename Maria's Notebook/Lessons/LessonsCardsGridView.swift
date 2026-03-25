@@ -69,7 +69,7 @@ struct LessonsCardsGridView: View {
         CardGridLayout.columns(for: sizeClass)
     }
 
-    private var idList: [UUID] { lessons.map { $0.id } }
+    private var idList: [UUID] { lessons.map(\.id) }
 
     /// Groups lessons by group and prepends introduction cards where available.
     private var groupedItems: [(key: String, value: [LessonsGridItem])] {
@@ -137,9 +137,9 @@ struct LessonsCardsGridView: View {
             return nil
         }()
 
-        let keys = dict.keys.map { $0 }
+        let keys = Array(dict.keys)
 
-        if let subjectKey = subjectKey {
+        if let subjectKey {
             let existingNamed = keys.map { $0.trimmed() }.filter { !$0.isEmpty }
             let orderedNamed = FilterOrderStore.loadGroupOrder(for: subjectKey, existing: existingNamed)
             var index: [String: Int] = [:]
@@ -284,8 +284,8 @@ struct LessonsCardsGridView: View {
     /// Renders items within a group, inserting subheading divider rows when the group has subheadings.
     @ViewBuilder
     private func groupItemsWithSubheadings(entry: (key: String, value: [LessonsGridItem])) -> some View {
-        let groupLessons = entry.value.compactMap { $0.asLesson }
-        let introItems = entry.value.filter { $0.isIntroduction }
+        let groupLessons = entry.value.compactMap(\.asLesson)
+        let introItems = entry.value.filter(\.isIntroduction)
 
         if groupHasSubheadings(groupLessons) {
             let (order, bySubheading) = subheadingsForGroup(groupLessons, groupName: entry.key)
@@ -429,7 +429,7 @@ struct LessonsCardsGridView: View {
                     draggingLessonID = lesson.id
                 case .second(true, let drag?):
                     if draggingLessonID == nil { draggingLessonID = lesson.id }
-                    let subsetIDs = lessons.map { $0.id }
+                    let subsetIDs = lessons.map(\.id)
                     let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                         if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                     }
@@ -454,7 +454,7 @@ struct LessonsCardsGridView: View {
                 guard isManualMode else { return }
                 guard let fromIndex = lessons.firstIndex(where: { $0.id == lesson.id }) else { return }
 
-                let subsetIDs = lessons.map { $0.id }
+                let subsetIDs = lessons.map(\.id)
                 let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                     if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                 }

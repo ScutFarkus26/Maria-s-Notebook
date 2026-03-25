@@ -73,7 +73,7 @@ struct GroupTrackDetailView: View {
 
     /// Progress state for each lesson for the given student
     private var progressByLessonID: [String: LessonPresentationState] {
-        guard let student = student else { return [:] }
+        guard let student else { return [:] }
         let studentIDString = student.id.uuidString
 
         var result: [String: LessonPresentationState] = [:]

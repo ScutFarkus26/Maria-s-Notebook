@@ -20,7 +20,7 @@ enum LessonsPresentationHistoryProvider {
         guard !lessonIDs.isEmpty else { return [:] }
 
         var result: [UUID: Date] = [:]
-        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+        let lessonIDStrings = Set(lessonIDs.map(\.uuidString))
 
         // Query all presented LessonAssignments
         let presentedState = LessonAssignmentState.presented.rawValue
@@ -63,7 +63,7 @@ enum LessonsPresentationHistoryProvider {
         guard !lessonIDs.isEmpty else { return [:] }
 
         var result: [UUID: Int] = [:]
-        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+        let lessonIDStrings = Set(lessonIDs.map(\.uuidString))
 
         // Query all presented LessonAssignments
         let presentedState = LessonAssignmentState.presented.rawValue
@@ -102,7 +102,7 @@ enum LessonsPresentationHistoryProvider {
 
         var lastPresented: [UUID: Date] = [:]
         var counts: [UUID: Int] = [:]
-        let lessonIDStrings = Set(lessonIDs.map { $0.uuidString })
+        let lessonIDStrings = Set(lessonIDs.map(\.uuidString))
 
         // Query all presented LessonAssignments, sorted by date desc
         let presentedState = LessonAssignmentState.presented.rawValue

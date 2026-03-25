@@ -12,11 +12,11 @@ struct LastLessonStudentCard: View {
     @State private var bob = false
 
     private var displayName: String {
-        StudentNameFormatter.displayName(for: student)
+        StudentFormatter.displayName(for: student)
     }
 
     private var firstNameOnly: String {
-        StudentNameFormatter.firstName(for: student)
+        StudentFormatter.firstName(for: student)
     }
 
     // Warm, inviting gradient - like a cozy classroom

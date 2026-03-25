@@ -43,7 +43,7 @@ struct NoteTemplateRepository: SavingRepository {
         sortBy: [SortDescriptor<NoteTemplate>] = [SortDescriptor(\.sortOrder)]
     ) -> [NoteTemplate] {
         var descriptor = FetchDescriptor<NoteTemplate>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -80,11 +80,11 @@ struct NoteTemplateRepository: SavingRepository {
     ) -> NoteTemplate {
         // Calculate sort order if not provided (after existing custom templates)
         let order: Int
-        if let sortOrder = sortOrder {
+        if let sortOrder {
             order = sortOrder
         } else {
             let customTemplates = fetchCustomTemplates()
-            order = (customTemplates.map { $0.sortOrder }.max() ?? 99) + 1
+            order = (customTemplates.map(\.sortOrder).max() ?? 99) + 1
         }
 
         let template = NoteTemplate(
@@ -120,16 +120,16 @@ struct NoteTemplateRepository: SavingRepository {
         // Don't allow updating built-in templates
         guard !template.isBuiltIn else { return false }
 
-        if let title = title {
+        if let title {
             template.title = title
         }
-        if let body = body {
+        if let body {
             template.body = body
         }
-        if let tags = tags {
+        if let tags {
             template.tags = tags
         }
-        if let sortOrder = sortOrder {
+        if let sortOrder {
             template.sortOrder = sortOrder
         }
 

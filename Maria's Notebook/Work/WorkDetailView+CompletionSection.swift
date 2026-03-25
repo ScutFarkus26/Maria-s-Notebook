@@ -24,7 +24,7 @@ extension WorkDetailView {
                             icon: outcome.iconName,
                             label: outcome.displayName
                         ) {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.completionOutcome = outcome
                             }
                         }

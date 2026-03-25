@@ -39,7 +39,7 @@ struct PresentationCard: View {
         var chips: [StudentChip] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(id: id, label: displayName(for: s), isMissing: false))
+                chips.append(StudentChip(id: id, label: StudentFormatter.displayName(for: s), isMissing: false))
             } else {
                 chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true))
             }
@@ -47,26 +47,15 @@ struct PresentationCard: View {
         return chips
     }
 
-    private func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-
     private var statusText: String {
         if snapshot.isPresented {
             if let given = snapshot.presentedAt {
-                let fmt = DateFormatter()
-                fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
-                return "Presented on " + fmt.string(from: given)
+                return "Presented on " + DateFormatters.weekdayAndDate.string(from: given)
             } else {
                 return "Presented"
             }
         } else if let scheduled = snapshot.scheduledFor {
-            let fmt = DateFormatter()
-            fmt.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
-            return "Scheduled for " + fmt.string(from: scheduled)
+            return "Scheduled for " + DateFormatters.weekdayAndDate.string(from: scheduled)
         } else {
             return "Not Scheduled"
         }

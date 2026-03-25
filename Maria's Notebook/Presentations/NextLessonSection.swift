@@ -11,7 +11,7 @@ struct NextLessonSection: View {
                 title: "Next Lesson",
                 isExpanded: viewModel.isNextLessonSectionExpanded,
                 action: {
-                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         viewModel.isNextLessonSectionExpanded.toggle()
                     }
                 }
@@ -88,7 +88,7 @@ struct NextLessonSection: View {
                 let isDisabled = action == .hold && !viewModel.isHoldEnabled
                 Button {
                     guard !isDisabled else { return }
-                    adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         viewModel.nextLessonAction = action
                     }
                 } label: {

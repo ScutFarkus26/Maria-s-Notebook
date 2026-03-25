@@ -59,7 +59,7 @@ final class NetworkMonitoring {
         networkMonitor = NWPathMonitor()
         networkMonitor?.pathUpdateHandler = { @Sendable [weak self] path in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingNetworkTask?.cancel()
                 self.pendingNetworkTask = Task { @MainActor [weak self] in

@@ -25,7 +25,7 @@ extension StudentMeetingsTab {
                             VStack(alignment: .leading, spacing: 0) {
                                 // Header (always visible)
                                 HStack(spacing: 8) {
-                                    Text(Self.dateFormatter.string(from: item.date))
+                                    Text(DateFormatters.mediumDate.string(from: item.date))
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     if item.completed {

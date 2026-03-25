@@ -169,7 +169,7 @@ public final class SyncedPreferencesStore {
             object: kvStore,
             queue: .main
         ) { [weak self] notification in
-            guard let self = self else { return }
+            guard let self else { return }
             
             if let userInfo = notification.userInfo,
                let reason = userInfo[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int {
@@ -233,7 +233,7 @@ public final class SyncedPreferencesStore {
     public func set(_ value: Any?, forKey key: String) -> Bool {
         if isSynced(key: key) {
             // Store in KVS immediately (local storage)
-            if let value = value {
+            if let value {
                 kvStore.set(value, forKey: key)
             } else {
                 kvStore.removeObject(forKey: key)
@@ -248,7 +248,7 @@ public final class SyncedPreferencesStore {
             return true
         } else {
             // Not a synced key, use UserDefaults
-            if let value = value {
+            if let value {
                 userDefaults.set(value, forKey: key)
             } else {
                 userDefaults.removeObject(forKey: key)

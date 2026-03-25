@@ -62,7 +62,7 @@ struct StudentFilesTab: View {
     }
 
     private var uniqueCategories: [String] {
-        let categories = Set(allDocuments.map { $0.category })
+        let categories = Set(allDocuments.map(\.category))
         return Array(categories).sorted()
     }
 

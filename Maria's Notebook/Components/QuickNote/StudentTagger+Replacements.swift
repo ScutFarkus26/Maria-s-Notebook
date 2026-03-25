@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - Replacement Generation
 
@@ -49,7 +50,7 @@ extension StudentTagger {
                     withTemplate: searchTerm.replacement
                 )
             } catch {
-                print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex for term '\(searchTerm.term)': \(error)")
+                Logger.notes.error("[\(#function)] Failed to create regex for term '\(searchTerm.term)': \(error)")
             }
         }
 
@@ -164,7 +165,7 @@ extension StudentTagger {
                     return true
                 }
             } catch {
-                print("[\(#function)] Failed to create regex for '\(expectedPattern)': \(error)")
+                Logger.notes.error("[\(#function)] Failed to create regex for '\(expectedPattern)': \(error)")
             }
         }
 
@@ -193,7 +194,7 @@ extension StudentTagger {
                 }
             }
         } catch {
-            print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex for pattern: \(error)")
+            Logger.notes.error("[\(#function)] Failed to create regex for pattern: \(error)")
         }
     }
 
@@ -254,7 +255,7 @@ extension StudentTagger {
                 seenReplacements.insert(replacementKey)
             }
         } catch {
-            print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex for first+last initial: \(error)")
+            Logger.notes.error("[\(#function)] Failed to create regex for first+last initial: \(error)")
         }
     }
 
@@ -287,7 +288,7 @@ extension StudentTagger {
                 }
             }
         } catch {
-            print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex for compact initials: \(error)")
+            Logger.notes.error("[\(#function)] Failed to create regex for compact initials: \(error)")
         }
 
         // Separated initials: "O.P.", "O P", "O P."

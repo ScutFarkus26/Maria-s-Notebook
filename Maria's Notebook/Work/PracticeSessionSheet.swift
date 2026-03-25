@@ -13,7 +13,7 @@ struct PracticeSessionSheet: View {
     @Environment(\.modelContext) private var modelContext
     
     @Query private var allStudentsRaw: [Student]
-    private var allStudents: [Student] { allStudentsRaw.filter { $0.isEnrolled } }
+    private var allStudents: [Student] { allStudentsRaw.filter(\.isEnrolled) }
     @Query private var allWork: [WorkModel]
     @Query private var allLessonAssignments: [LessonAssignment]
     @Query private var allPracticeSessions: [PracticeSession]
@@ -284,7 +284,7 @@ struct PracticeSessionSheet: View {
             let understandingLevel = individualUnderstandingLevels[studentID]
 
             // Only create note if there's text or understanding level
-            guard !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || understandingLevel != nil else {
+            guard !noteText.trimmed().isEmpty || understandingLevel != nil else {
                 continue
             }
 

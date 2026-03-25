@@ -88,7 +88,7 @@ extension StudentsView {
     #if DEBUG
     // Temporary helper to check for duplicate IDs (debug only)
     func checkForDuplicateIDs(in students: [Student]) {
-        let uniqueIDs = Set(students.map { $0.id })
+        let uniqueIDs = Set(students.map(\.id))
         if uniqueIDs.count != students.count {
             Logger.students.warning(
                 "Found \(students.count - uniqueIDs.count, privacy: .public) duplicate student ID(s)"

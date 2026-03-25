@@ -26,7 +26,7 @@ extension WorkPrintView {
             let studentID = UUID(uuidString: studentIDString)
             let student = studentID.flatMap { id in students.first(where: { $0.id == id }) }
             let title: String
-            if let student = student {
+            if let student {
                 title = student.fullName
             } else if studentIDString.trimmed().isEmpty {
                 title = "Unassigned Student"

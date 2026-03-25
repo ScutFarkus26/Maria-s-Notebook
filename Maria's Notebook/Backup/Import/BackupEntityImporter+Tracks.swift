@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Track/Group Imports
 
@@ -46,7 +47,8 @@ extension BackupEntityImporter {
                         step.track = track
                     }
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check track for step: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check track for step: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(step)

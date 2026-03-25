@@ -28,7 +28,7 @@ final class CommandBarViewModel {
     // MARK: - Public Methods
 
     func submit(students: [StudentData], lessons: [LessonData], mcpClient: MCPClientProtocol?) async {
-        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = inputText.trimmed()
         guard !trimmed.isEmpty else { return }
 
         isProcessing = true

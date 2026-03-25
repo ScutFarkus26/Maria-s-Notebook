@@ -53,7 +53,7 @@ struct PracticeSessionMigration {
         }
         
         // Filter to completed check-ins
-        let checkIns = allCheckIns.filter { $0.isCompleted }
+        let checkIns = allCheckIns.filter(\.isCompleted)
         
         // Group check-ins by date and work item to identify potential group sessions
         var checkInsByDateAndWork: [String: [WorkCheckIn]] = [:]

@@ -44,7 +44,7 @@ enum WorkCompletionService {
             predicate: #Predicate { $0.workID == workIDString && $0.studentID == studentIDString }
         )
         descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).isEmpty == false
+        return try !context.fetch(descriptor).isEmpty
     }
 
     // MARK: - Mutations
@@ -64,7 +64,7 @@ enum WorkCompletionService {
         )
         context.insert(record)
         if !note.trimmed().isEmpty {
-            _ = record.setLegacyNoteText(note, in: context)
+            record.setLegacyNoteText(note, in: context)
         }
         try context.save()
         return record

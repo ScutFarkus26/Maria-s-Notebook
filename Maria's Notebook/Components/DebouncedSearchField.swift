@@ -69,7 +69,7 @@ public struct DebouncedSearchField: View {
     private func scheduleDebounce(with value: String) {
         task?.cancel()
         task = Task { @MainActor in
-            do { try await Task.sleep(for: debounceInterval) } catch { return }
+            try? await Task.sleep(for: debounceInterval)
             onDebouncedChange(value)
         }
     }

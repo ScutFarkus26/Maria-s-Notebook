@@ -83,7 +83,7 @@ enum SettingsExportService {
 
         // Metadata
         settings["exportVersion"] = 1
-        settings["exportDate"] = ISO8601DateFormatter().string(from: Date())
+        settings["exportDate"] = DateFormatters.iso8601DateTime.string(from: Date())
         settings["appVersion"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
 
         let syncStore = SyncedPreferencesStore.shared

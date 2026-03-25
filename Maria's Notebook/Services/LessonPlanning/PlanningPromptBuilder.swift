@@ -84,13 +84,10 @@ struct PlanningPromptBuilder {
         students: [String],
         weekStart: Date
     ) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        
         let weekDays = (0..<5).compactMap { offset in
             Calendar.current.date(byAdding: .day, value: offset, to: weekStart)
         }
-        let dayLabels = weekDays.map { formatter.string(from: $0) }
+        let dayLabels = weekDays.map { DateFormatters.weekdayAndDate.string(from: $0) }
         
         return """
         Given these lesson recommendations:

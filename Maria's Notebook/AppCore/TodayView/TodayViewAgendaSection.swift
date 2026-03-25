@@ -13,7 +13,7 @@ extension TodayView {
 
     var presentedLessonsListSection: some View {
         Section {
-            let presented = viewModel.todaysLessons.filter { $0.isPresented }
+            let presented = viewModel.todaysLessons.filter(\.isPresented)
             if presented.isEmpty {
                 emptyStateText("No lessons presented yet")
             } else {
@@ -52,7 +52,7 @@ extension TodayView {
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
-            let count = viewModel.todaysLessons.filter { $0.isPresented }.count
+            let count = viewModel.todaysLessons.filter(\.isPresented).count
             if count > 0 {
                 Text("\(count)")
                     .font(AppTheme.ScaledFont.captionSmallSemibold)

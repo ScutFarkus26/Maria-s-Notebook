@@ -67,7 +67,7 @@ extension TodayView {
 
     var attendanceStrip: some View {
         Button {
-            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                 isAttendanceExpanded.toggle()
             }
         } label: {

@@ -289,12 +289,12 @@ public final class BackupTelemetryService {
             event.eventType == .restoreCompleted || event.eventType == .restoreFailed
         }
         
-        let successfulBackups = backups.filter { $0.success }
-        let successfulRestores = restores.filter { $0.success }
+        let successfulBackups = backups.filter(\.success)
+        let successfulRestores = restores.filter(\.success)
         
-        let avgBackupDuration = successfulBackups.compactMap { $0.duration }.average()
-        let avgRestoreDuration = successfulRestores.compactMap { $0.duration }.average()
-        let avgFileSize = successfulBackups.compactMap { $0.fileSize }.average()
+        let avgBackupDuration = successfulBackups.compactMap(\.duration).average()
+        let avgRestoreDuration = successfulRestores.compactMap(\.duration).average()
+        let avgFileSize = successfulBackups.compactMap(\.fileSize).average()
         
         // Calculate compression ratio from backups with both fileSize and uncompressedSize
         let compressionRatios = successfulBackups.compactMap { event -> Double? in
@@ -341,15 +341,15 @@ public final class BackupTelemetryService {
             $0.eventType == .restoreCompleted || $0.eventType == .restoreFailed
         }
         
-        let successfulBackups = backups.filter { $0.success }.count
+        let successfulBackups = backups.filter(\.success).count
         let failedBackups = backups.count - successfulBackups
-        let successfulRestores = restores.filter { $0.success }.count
+        let successfulRestores = restores.filter(\.success).count
         let failedRestores = restores.count - successfulRestores
         
         // Calculate metrics for this period
-        let avgBackupDuration = backups.compactMap { $0.duration }.average()
-        let avgRestoreDuration = restores.compactMap { $0.duration }.average()
-        let avgFileSize = backups.compactMap { $0.fileSize }.average()
+        let avgBackupDuration = backups.compactMap(\.duration).average()
+        let avgRestoreDuration = restores.compactMap(\.duration).average()
+        let avgFileSize = backups.compactMap(\.fileSize).average()
         
         // Calculate compression ratio for this period
         let compressionRatios = backups.compactMap { event -> Double? in

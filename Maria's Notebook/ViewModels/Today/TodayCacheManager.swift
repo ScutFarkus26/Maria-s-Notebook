@@ -26,7 +26,7 @@ final class TodayCacheManager {
         let firsts = studentsByID.values.map { $0.firstName.trimmed().lowercased() }
         var counts: [String: Int] = [:]
         for f in firsts { counts[f, default: 0] += 1 }
-        let duplicates = Set(counts.filter { $0.value > 1 }.map { $0.key })
+        let duplicates = Set(counts.filter { $0.value > 1 }.map(\.key))
         cachedDuplicateFirstNames = duplicates
         return duplicates
     }
@@ -101,7 +101,7 @@ final class TodayCacheManager {
         // SwiftData #Predicate doesn't support capturing local Set variables
         var descriptor = FetchDescriptor<Student>()
         descriptor.fetchLimit = 500 // Safety limit for student roster
-        let allStudents = context.safeFetch(descriptor).filter { $0.isEnrolled }
+        let allStudents = context.safeFetch(descriptor).filter(\.isEnrolled)
 
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)

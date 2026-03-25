@@ -361,7 +361,7 @@ struct LessonProgressSection: View {
     }
 
     private func scheduleRePresent(on date: Date) {
-        guard let lesson = lesson else { return }
+        guard let lesson else { return }
         
         let startOfDay = calendar.startOfDay(for: date)
         let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
@@ -385,13 +385,11 @@ struct LessonProgressSection: View {
         // Auto-enroll students in track if lesson belongs to a track
         GroupTrackService.autoEnrollInTrackIfNeeded(
             lesson: lesson,
-            studentIDs: Array(selectedStudentIDs).map { $0.uuidString },
+            studentIDs: Array(selectedStudentIDs).map(\.uuidString),
             modelContext: modelContext
         )
 
-        let fmt = DateFormatter()
-        fmt.dateStyle = .medium
-        showBanner(text: "Re-present scheduled for \(fmt.string(from: scheduled))", color: .blue)
+        showBanner(text: "Re-present scheduled for \(DateFormatters.mediumDate.string(from: scheduled))", color: .blue)
     }
 
     private func defaultRePresentDate() -> Date {
@@ -421,7 +419,7 @@ struct LessonProgressSection: View {
             }
         }
         didPlanNext = true
-        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
+        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showPlannedBanner = true }
         Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(2))
@@ -435,13 +433,13 @@ struct LessonProgressSection: View {
     private func showBanner(text: String, color: Color = .green, autoHideAfter seconds: Double = 2.0) {
         quickBannerText = text
         quickBannerColor = color
-        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             showQuickBanner = true
         }
         Task { @MainActor in
             do {
                 try await Task.sleep(for: .seconds(seconds))
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) { showQuickBanner = false }
             } catch {
                 Self.logger.warning("Task sleep failed: \(error)")
             }

@@ -29,9 +29,7 @@ struct ReminderListRow: View {
             label = "Completed: \(label)"
         }
         if let dueDate = reminder.dueDate {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            label += ", due at \(formatter.string(from: dueDate))"
+            label += ", due at \(DateFormatters.shortTime.string(from: dueDate))"
         }
         return label
     }
@@ -160,9 +158,7 @@ struct ScheduledWorkListRow: View {
     private var accessibilityLabelText: String {
         let reasonLabel = item.checkIn.purpose
         var label = "\(reasonLabel) for \(studentName), \(lessonName)"
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        label += ", scheduled for \(formatter.string(from: item.checkIn.date))"
+        label += ", scheduled for \(DateFormatters.mediumDate.string(from: item.checkIn.date))"
         if !item.checkIn.latestUnifiedNoteText.isEmpty {
             label += ", note: \(item.checkIn.latestUnifiedNoteText)"
         }

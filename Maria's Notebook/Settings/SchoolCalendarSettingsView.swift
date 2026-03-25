@@ -154,9 +154,7 @@ struct SchoolCalendarSettingsView: View {
     }
 
     private func monthTitle(_ date: Date) -> String {
-        let df = DateFormatter()
-        df.setLocalizedDateFormatFromTemplate("LLLL yyyy")
-        return df.string(from: date)
+        DateFormatters.localizedMonthYear.string(from: date)
     }
 
     private func clearMonth() {

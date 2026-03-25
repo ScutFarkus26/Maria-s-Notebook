@@ -39,7 +39,7 @@ struct ProjectRepository: SavingRepository {
         sortBy: [SortDescriptor<Project>] = [SortDescriptor(\.createdAt, order: .reverse)]
     ) -> [Project] {
         var descriptor = FetchDescriptor<Project>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -65,7 +65,7 @@ struct ProjectRepository: SavingRepository {
         let project = Project(
             title: title,
             bookTitle: bookTitle,
-            memberStudentIDs: memberStudentIDs.map { $0.uuidString },
+            memberStudentIDs: memberStudentIDs.map(\.uuidString),
             isActive: isActive
         )
         context.insert(project)
@@ -85,16 +85,16 @@ struct ProjectRepository: SavingRepository {
     ) -> Bool {
         guard let project = fetchProject(id: id) else { return false }
 
-        if let title = title {
+        if let title {
             project.title = title
         }
-        if let bookTitle = bookTitle {
+        if let bookTitle {
             project.bookTitle = bookTitle.isEmpty ? nil : bookTitle
         }
-        if let memberStudentIDs = memberStudentIDs {
-            project.memberStudentIDs = memberStudentIDs.map { $0.uuidString }
+        if let memberStudentIDs {
+            project.memberStudentIDs = memberStudentIDs.map(\.uuidString)
         }
-        if let isActive = isActive {
+        if let isActive {
             project.isActive = isActive
         }
 
@@ -153,7 +153,7 @@ struct ProjectRepository: SavingRepository {
         session.agendaItems = agendaItems
         context.insert(session)
         if let notes {
-            _ = session.setLegacyNoteText(notes, in: context)
+            session.setLegacyNoteText(notes, in: context)
         }
         return session
     }
@@ -171,16 +171,16 @@ struct ProjectRepository: SavingRepository {
     ) -> Bool {
         guard let session = fetchSession(id: id) else { return false }
 
-        if let meetingDate = meetingDate {
+        if let meetingDate {
             session.meetingDate = meetingDate
         }
-        if let chapterOrPages = chapterOrPages {
+        if let chapterOrPages {
             session.chapterOrPages = chapterOrPages.isEmpty ? nil : chapterOrPages
         }
         if let notes {
-            _ = session.setLegacyNoteText(notes, in: context)
+            session.setLegacyNoteText(notes, in: context)
         }
-        if let agendaItems = agendaItems {
+        if let agendaItems {
             session.agendaItems = agendaItems
         }
 

@@ -45,7 +45,7 @@ enum ResponseQualityValidator {
     ///   - request: The original user question/prompt.
     /// - Returns: A validation result indicating adequacy.
     static func validate(_ response: String, forRequest request: String) -> ValidationResult {
-        let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = response.trimmed()
 
         // Empty response
         if trimmed.isEmpty {

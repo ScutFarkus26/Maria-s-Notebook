@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Lessons
 
@@ -68,7 +69,8 @@ extension BackupEntityImporter {
                         sw.lesson = lesson
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check lesson for sample work: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check lesson for sample work: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(sw)
@@ -99,7 +101,8 @@ extension BackupEntityImporter {
                         step.sampleWork = sw
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check sample work for step: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check sample work for step: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(step)
@@ -125,7 +128,8 @@ extension BackupEntityImporter {
             do {
                 if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check existing lesson assignment: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check existing lesson assignment: \(desc, privacy: .public)")
                 continue
             }
 
@@ -172,7 +176,8 @@ extension BackupEntityImporter {
                     assignment.lesson = lesson
                 }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check lesson for assignment: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check lesson for assignment: \(desc, privacy: .public)")
             }
 
             modelContext.insert(assignment)
@@ -204,7 +209,8 @@ extension BackupEntityImporter {
                         attachment.lesson = lesson
                     }
                 } catch {
-                    print("⚠️ [Backup:\(#function)] Failed to check lesson for attachment: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check lesson for attachment: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(attachment)

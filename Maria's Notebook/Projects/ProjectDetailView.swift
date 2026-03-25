@@ -18,7 +18,7 @@ struct ProjectDetailView: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -97,7 +97,7 @@ struct ProjectDetailView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: AppTheme.Spacing.small) {
                                     ForEach(club.memberStudentIDs, id: \.self) { sid in
-                                        if let uuid = UUID(uuidString: sid), let s = studentsByID[uuid] {
+                                        if let s = studentsByID[uuidString: sid] {
                                             Chip(text: StudentFormatter.displayName(for: s))
                                         } else {
                                             Chip(text: "Unknown")
@@ -108,7 +108,7 @@ struct ProjectDetailView: View {
                         }
 
                         // Shared Assignments (only show if present)
-                        let shared = (club.sharedTemplates ?? []).filter { $0.isShared }
+                        let shared = (club.sharedTemplates ?? []).filter(\.isShared)
                         if !shared.isEmpty {
                             Divider().opacity(UIConstants.OpacityConstants.faint + 0.12)
                             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
@@ -189,7 +189,7 @@ struct ProjectDetailView: View {
                         } else {
                             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                                 let sorted = (club.sessions ?? [])
-                                    .sorted(by: { $0.meetingDate > $1.meetingDate })
+                                    .sorted { $0.meetingDate > $1.meetingDate }
                                 ForEach(sorted) { session in
                                     NavigationLink(destination: ProjectSessionDetailView(session: session)) {
                                         // Use subview to correctly query work count
@@ -236,7 +236,7 @@ private struct SessionRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(df.string(from: session.meetingDate))
+                Text(DateFormatters.mediumDate.string(from: session.meetingDate))
                     .font(.headline)
                 if let ch = session.chapterOrPages, !ch.isEmpty {
                     Text(ch).font(.subheadline).foregroundStyle(.secondary)
@@ -248,10 +248,6 @@ private struct SessionRow: View {
                 .foregroundStyle(.secondary)
         }
     }
-    
-    private let df: DateFormatter = {
-        let df = DateFormatter(); df.dateStyle = .medium; return df
-    }()
 }
 
 private struct SectionCard<Content: View>: View {

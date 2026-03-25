@@ -58,9 +58,6 @@ enum WorkPDFRenderer {
             return nil
         }
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .short
-
         // Start first page
         context.beginPDFPage(nil)
         var yPosition = pageHeight - margin
@@ -73,7 +70,7 @@ enum WorkPDFRenderer {
         )
 
         // Metadata
-        var metaText = "\(dateFormatter.string(from: Date())) • \(sortMode.rawValue) • \(items.count) items"
+        var metaText = "\(DateFormatters.shortDate.string(from: Date())) • \(sortMode.rawValue) • \(items.count) items"
         if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
             metaText += " • Filter: \(searchText)"
         }
@@ -124,7 +121,7 @@ enum WorkPDFRenderer {
                 }
 
                 let itemText = buildItemText(item, sortMode: sortMode)
-                let detailsText = buildDetailsText(item, dateFormatter: dateFormatter)
+                let detailsText = buildDetailsText(item, dateFormatter: DateFormatters.shortDate)
 
                 drawSingleLine(
                     itemText, at: CGPoint(x: margin + 6, y: yPosition - 9),

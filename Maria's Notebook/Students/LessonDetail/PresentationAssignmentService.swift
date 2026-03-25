@@ -80,7 +80,7 @@ enum PresentationAssignmentService {
             // Update notes if provided (unified notes)
             if !trimmed.isEmpty {
                 Task { @MainActor in
-                    _ = work.setLegacyNoteText(trimmed, in: modelContext)
+                    work.setLegacyNoteText(trimmed, in: modelContext)
                 }
             }
 

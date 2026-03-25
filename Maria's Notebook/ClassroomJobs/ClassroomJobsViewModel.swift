@@ -41,7 +41,7 @@ final class ClassroomJobsViewModel {
         jobs = context.safeFetch(jobDescriptor)
 
         let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter { $0.isEnrolled })
+        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter(\.isEnrolled))
 
         loadCurrentAssignments(context: context)
     }
@@ -115,7 +115,7 @@ final class ClassroomJobsViewModel {
     // MARK: - Rotation
 
     func rotateJobs(context: ModelContext) {
-        let activeJobs = jobs.filter(\.isActive).sorted(by: { $0.sortOrder < $1.sortOrder })
+        let activeJobs = jobs.filter(\.isActive).sorted { $0.sortOrder < $1.sortOrder }
         guard !activeJobs.isEmpty, !students.isEmpty else { return }
 
         let weekStart = currentWeekStart

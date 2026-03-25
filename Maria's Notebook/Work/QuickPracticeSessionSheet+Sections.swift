@@ -270,7 +270,7 @@ extension QuickPracticeSessionSheet {
     func saveSession() {
         // Build student IDs list
         var studentIDs = [workItem.studentID]
-        studentIDs.append(contentsOf: selectedPartnerIDs.map { $0.uuidString })
+        studentIDs.append(contentsOf: selectedPartnerIDs.map(\.uuidString))
 
         // Create practice session
         let session = repository.create(

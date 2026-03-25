@@ -30,7 +30,7 @@ extension ModelContext {
 extension WorkModel {
     /// Fetches the presentation that spawned this work item
     func fetchPresentation(from context: ModelContext) -> Presentation? {
-        guard let presentationID = presentationID,
+        guard let presentationID,
               let uuid = UUID(uuidString: presentationID) else { return nil }
 
         let descriptor = FetchDescriptor<LessonAssignment>(
@@ -256,7 +256,7 @@ extension Lesson {
             completedWorkItems: completedWork,
             activeWorkItems: work.filter { $0.status == .active }.count,
             totalPracticeSessions: practiceSessions.count,
-            lastPresentedDate: presentations.compactMap { $0.presentedAt }.max()
+            lastPresentedDate: presentations.compactMap(\.presentedAt).max()
         )
     }
 }
@@ -318,7 +318,7 @@ extension PracticeSession {
         let workItems = fetchWorkItems(from: context)
         guard !workItems.isEmpty else { return nil }
 
-        let lessonIDs = Set(workItems.map { $0.lessonID })
+        let lessonIDs = Set(workItems.map(\.lessonID))
         guard lessonIDs.count == 1,
               let lessonID = lessonIDs.first,
               let uuid = UUID(uuidString: lessonID) else { return nil }

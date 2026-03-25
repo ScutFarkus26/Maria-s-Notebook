@@ -22,7 +22,7 @@ struct WorkStepService {
                     instructions: String = "",
                     notes: String = "") throws -> WorkStep {
         let existingSteps = work.steps ?? []
-        let nextIndex = existingSteps.isEmpty ? 0 : (existingSteps.map { $0.orderIndex }.max() ?? -1) + 1
+        let nextIndex = existingSteps.isEmpty ? 0 : (existingSteps.map(\.orderIndex).max() ?? -1) + 1
 
         let step = WorkStep(
             work: work,
@@ -80,7 +80,7 @@ struct WorkStepService {
 
     /// Delete a step from its context.
     func delete(_ step: WorkStep, from work: WorkModel? = nil) throws {
-        if let work = work {
+        if let work {
             if var list = work.steps {
                 list.removeAll { $0.id == step.id }
                 work.steps = list

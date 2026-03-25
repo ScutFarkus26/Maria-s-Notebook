@@ -94,7 +94,7 @@ struct PresentationsListView: View {
         let subjectLessons = lessons.filter { lesson in
             lesson.subject.caseInsensitiveCompare(subject) == .orderedSame
         }
-        let ids = Set(subjectLessons.map { $0.id })
+        let ids = Set(subjectLessons.map(\.id))
         return ids.isEmpty ? nil : ids
     }
 
@@ -151,7 +151,7 @@ struct PresentationsListView: View {
                 case (_?, nil): return true
                 }
             }
-            let presented = filteredAssignments.filter { $0.isPresented }.sorted { lhs, rhs in
+            let presented = filteredAssignments.filter(\.isPresented).sorted { lhs, rhs in
                 let l = lhs.presentedAt ?? .distantPast
                 let r = rhs.presentedAt ?? .distantPast
                 return l > r

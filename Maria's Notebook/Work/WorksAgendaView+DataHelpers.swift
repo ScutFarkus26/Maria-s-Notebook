@@ -97,7 +97,7 @@ extension WorksAgendaView {
             works = works.filter { w in
                 var hay: [String] = []
                 hay.append(lessonTitle(forLessonID: w.lessonID))
-                if let sid = UUID(uuidString: w.studentID), let s = studentsByID[sid] {
+                if let s = studentsByID[uuidString: w.studentID] {
                     hay.append(s.firstName)
                     hay.append(s.lastName)
                     hay.append(s.fullName)
@@ -110,11 +110,8 @@ extension WorksAgendaView {
     }
 
     func lessonTitle(forLessonID lessonID: String) -> String {
-        if let lid = UUID(uuidString: lessonID), let lesson = lessonsByID[lid] {
-            let name = lesson.name.trimmed()
-            if !name.isEmpty { return name }
-        }
-        return "Lesson \(String(lessonID.prefix(6)))"
+        let name = lessonsByID[uuidString: lessonID]?.name ?? ""
+        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
     }
 
     #if os(macOS)
@@ -123,7 +120,7 @@ extension WorksAgendaView {
             let title = lessonTitle(forLessonID: w.lessonID)
             let student = (UUID(uuidString: w.studentID))
                 .flatMap { studentsByID[$0] }
-                .map(studentPrintName(for:)) ?? "Student"
+                .map(StudentFormatter.displayName(for:)) ?? "Student"
             return WorkPDFRenderer.PrintItem(
                 id: w.id,
                 lessonTitle: title,
@@ -136,13 +133,6 @@ extension WorksAgendaView {
         }
     }
     #endif
-
-    func studentPrintName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
 
     func statusLabel(for w: WorkModel) -> String {
         switch w.status {

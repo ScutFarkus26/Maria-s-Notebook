@@ -86,7 +86,7 @@ final class Student: Identifiable {
         self.levelRaw = level.rawValue
         self.dateStarted = dateStarted
         // Convert UUIDs to strings for CloudKit compatibility
-        self.nextLessons = nextLessons.map { $0.uuidString }
+        self.nextLessons = nextLessons.map(\.uuidString)
         self.manualOrder = manualOrder
         self.enrollmentStatusRaw = enrollmentStatus.rawValue
         self.dateWithdrawn = dateWithdrawn
@@ -95,7 +95,7 @@ final class Student: Identifiable {
     /// Convenience computed property to get nextLessons as UUIDs
     var nextLessonUUIDs: [UUID] {
         get { nextLessons.compactMap { UUID(uuidString: $0) } }
-        set { nextLessons = newValue.map { $0.uuidString } }
+        set { nextLessons = newValue.map(\.uuidString) }
     }
 }
 

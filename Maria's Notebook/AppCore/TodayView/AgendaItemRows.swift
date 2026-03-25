@@ -19,10 +19,7 @@ struct TodoTodayRow: View {
             label += ", overdue"
         }
         if let dueDate = todo.dueDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            label += ", due \(formatter.string(from: dueDate))"
+            label += ", due \(DateFormatters.mediumDateTime.string(from: dueDate))"
         }
         if todo.priority != .none {
             label += ", \(todo.priority.rawValue) priority"
@@ -36,15 +33,11 @@ struct TodoTodayRow: View {
     private var dueDateText: String? {
         guard let dueDate = todo.dueDate else { return nil }
         if Calendar.current.isDateInToday(dueDate) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: dueDate)
+            return DateFormatters.shortTime.string(from: dueDate)
         } else if Calendar.current.isDateInYesterday(dueDate) {
             return "Yesterday"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: dueDate)
+            return DateFormatters.shortDate.string(from: dueDate)
         }
     }
 
@@ -164,10 +157,7 @@ struct CalendarEventListRow: View {
         if event.isAllDay {
             return "All day"
         } else {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            formatter.dateStyle = .none
-            return formatter.string(from: event.startDate)
+            return DateFormatters.shortTime.string(from: event.startDate)
         }
     }
 

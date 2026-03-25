@@ -68,13 +68,12 @@ struct ResourceLibraryView: View {
         case .all:
             result = Array(allResources)
         case .favorites:
-            result = allResources.filter { $0.isFavorite }
+            result = allResources.filter(\.isFavorite)
         case .recents:
-            result = allResources
+            result = Array(allResources
                 .filter { $0.lastViewedAt != nil }
                 .sorted { ($0.lastViewedAt ?? .distantPast) > ($1.lastViewedAt ?? .distantPast) }
-                .prefix(20)
-                .map { $0 }
+                .prefix(20))
         }
 
         // Apply category filter
@@ -121,7 +120,7 @@ struct ResourceLibraryView: View {
     }
 
     var favoritesCount: Int {
-        allResources.filter { $0.isFavorite }.count
+        allResources.filter(\.isFavorite).count
     }
 
     var recentsCount: Int {

@@ -113,18 +113,18 @@ final class AnthropicAPIClient: MCPClientProtocol {
         )
         
         // Clean up response if it contains markdown code blocks
-        var cleanedResponse = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanedResponse = response.trimmed()
         
         if cleanedResponse.hasPrefix("```json") {
             cleanedResponse = cleanedResponse
                 .replacingOccurrences(of: "```json\n", with: "")
                 .replacingOccurrences(of: "```json", with: "")
                 .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmed()
         } else if cleanedResponse.hasPrefix("```") {
             cleanedResponse = cleanedResponse
                 .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmed()
         }
         
         // Validate it's proper JSON
@@ -160,13 +160,13 @@ final class AnthropicAPIClient: MCPClientProtocol {
         )
         
         // Parse JSON array
-        var cleanedResponse = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanedResponse = response.trimmed()
         if cleanedResponse.hasPrefix("```") {
             cleanedResponse = cleanedResponse
                 .replacingOccurrences(of: "```json\n", with: "")
                 .replacingOccurrences(of: "```json", with: "")
                 .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmed()
         }
         
         let data = Data(cleanedResponse.utf8)

@@ -39,7 +39,7 @@ struct MeetingRepository: SavingRepository {
         sortBy: [SortDescriptor<StudentMeeting>] = [SortDescriptor(\.date, order: .reverse)]
     ) -> [StudentMeeting] {
         var descriptor = FetchDescriptor<StudentMeeting>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -108,22 +108,22 @@ struct MeetingRepository: SavingRepository {
     ) -> Bool {
         guard let meeting = fetchMeeting(id: id) else { return false }
 
-        if let date = date {
+        if let date {
             meeting.date = date
         }
-        if let completed = completed {
+        if let completed {
             meeting.completed = completed
         }
-        if let reflection = reflection {
+        if let reflection {
             meeting.reflection = reflection
         }
-        if let focus = focus {
+        if let focus {
             meeting.focus = focus
         }
-        if let requests = requests {
+        if let requests {
             meeting.requests = requests
         }
-        if let guideNotes = guideNotes {
+        if let guideNotes {
             meeting.guideNotes = guideNotes
         }
 

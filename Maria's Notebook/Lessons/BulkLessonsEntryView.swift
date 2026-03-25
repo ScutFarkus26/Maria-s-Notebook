@@ -76,7 +76,7 @@ public struct BulkLessonsEntryView: View {
 
     private func toggleSelectAll(_ select: Bool) {
         if select {
-            selectedRowIDs = Set(rows.map { $0.id })
+            selectedRowIDs = Set(rows.map(\.id))
         } else {
             selectedRowIDs.removeAll()
         }

@@ -17,7 +17,7 @@ private struct HoverableRowModifier: ViewModifier {
                     .fill(isHovered ? Color.primary.opacity(0.04) : Color.clear)
             )
             .onHover { hovering in
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                     isHovered = hovering
                 }
             }

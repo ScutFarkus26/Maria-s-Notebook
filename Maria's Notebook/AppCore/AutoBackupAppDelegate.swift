@@ -17,7 +17,7 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         // Perform automatic backup before app quits
-        guard let modelContainer = modelContainer,
+        guard let modelContainer,
               let autoBackupManager = autoBackupManager else { return }
         
         let modelContext = modelContainer.mainContext

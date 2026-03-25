@@ -49,7 +49,7 @@ enum TodayDataFetcher {
             let presentedLessons = try context.fetch(presentedDescriptor)
 
             // Deduplicate against already-fetched scheduled lessons
-            let scheduledIDs = Set(dayLessons.map { $0.id })
+            let scheduledIDs = Set(dayLessons.map(\.id))
             let additionalPresented = presentedLessons.filter { !scheduledIDs.contains($0.id) }
             dayLessons.append(contentsOf: additionalPresented)
 

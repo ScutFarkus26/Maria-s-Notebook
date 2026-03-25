@@ -84,7 +84,7 @@ final class WorkDetailViewModel {
     }
     
     func practiceSessions(allSessions: [PracticeSession]) -> [PracticeSession] {
-        guard let work = work else { return [] }
+        guard let work else { return [] }
         return allSessions
             .filter { $0.workItemIDs.contains(work.id.uuidString) }
             .sorted { $0.date > $1.date }
@@ -102,7 +102,7 @@ final class WorkDetailViewModel {
         )
         
         let fetchedWork = safeFetch(descriptor, context: modelContext).first
-        guard let fetchedWork = fetchedWork else {
+        guard let fetchedWork else {
             return
         }
         
@@ -122,7 +122,7 @@ final class WorkDetailViewModel {
     }
     
     private func loadRelatedData(for workModel: WorkModel?, modelContext: ModelContext) {
-        guard let workModel = workModel else { return }
+        guard let workModel else { return }
         
         // Load student
         if let studentID = UUID(uuidString: workModel.studentID) {
@@ -169,12 +169,12 @@ final class WorkDetailViewModel {
     }
     
     private func loadWorkNotes(for workModel: WorkModel?) {
-        guard let workModel = workModel else { return }
+        guard let workModel else { return }
         workModelNotes = workModel.unifiedNotes?.sorted { $0.createdAt > $1.createdAt } ?? []
     }
     
     private func resolvePresentationID(for workModel: WorkModel?, modelContext: ModelContext) {
-        guard let workModel = workModel else { return }
+        guard let workModel else { return }
         
         if let presentationIDString = workModel.presentationID,
            let uuid = UUID(uuidString: presentationIDString) {
@@ -223,7 +223,7 @@ final class WorkDetailViewModel {
     }
     
     func addPlan(modelContext: ModelContext) {
-        guard let work = work else { return }
+        guard let work else { return }
         
         let checkIn = WorkCheckIn(
             id: UUID(),
@@ -236,13 +236,13 @@ final class WorkDetailViewModel {
         modelContext.insert(checkIn)
         let trimmedNote = newPlanNote.trimmed()
         if !trimmedNote.isEmpty {
-            _ = checkIn.setLegacyNoteText(trimmedNote, in: modelContext)
+            checkIn.setLegacyNoteText(trimmedNote, in: modelContext)
         }
         showPlannedBanner = true
     }
     
     func save(modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
-        guard let work = work else { return }
+        guard let work else { return }
         
         work.status = status
         work.kind = workKind
@@ -254,7 +254,7 @@ final class WorkDetailViewModel {
     }
     
     func deleteWork(modelContext: ModelContext, saveCoordinator: SaveCoordinator, onDeleted: @escaping () -> Void) {
-        guard let work = work else { return }
+        guard let work else { return }
         
         modelContext.delete(work)
         saveCoordinator.save(modelContext)

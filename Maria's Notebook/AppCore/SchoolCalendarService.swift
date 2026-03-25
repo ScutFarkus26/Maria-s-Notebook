@@ -81,8 +81,8 @@ public final class SchoolCalendarService {
             ovs = []
         }
         
-        let nonSchoolDates = ns.map { $0.date }
-        let overrideDates = ovs.map { $0.date }
+        let nonSchoolDates = ns.map(\.date)
+        let overrideDates = ovs.map(\.date)
 
         var result = Set<Date>(nonSchoolDates.map { cal.startOfDay(for: $0) })
 

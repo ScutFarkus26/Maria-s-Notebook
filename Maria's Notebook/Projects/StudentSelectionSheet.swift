@@ -23,7 +23,7 @@ struct StudentSelectionSheet: View {
         // Initialize with current selections
         let currentSelections = offeredWorks.filter { work in
             (work.participants ?? []).contains { $0.studentID == studentID }
-        }.map { $0.id }
+        }.map(\.id)
         _selectedWorkIDs = State(initialValue: Set(currentSelections))
     }
 
@@ -176,7 +176,7 @@ struct StudentSelectionSheet: View {
         // Determine what changed
         let currentSelections = Set(offeredWorks.filter { work in
             (work.participants ?? []).contains { $0.studentID == studentID }
-        }.map { $0.id })
+        }.map(\.id))
 
         let toAdd = selectedWorkIDs.subtracting(currentSelections)
         let toRemove = currentSelections.subtracting(selectedWorkIDs)
@@ -195,7 +195,7 @@ struct StudentSelectionSheet: View {
             }
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Update Student Selections")
+        saveCoordinator.save(modelContext, reason: "Update Student Selections")
         dismiss()
     }
 }

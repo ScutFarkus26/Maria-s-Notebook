@@ -49,7 +49,7 @@ extension PracticeSessionSheet {
     }
 
     var studentSelectionList: some View {
-        ForEach(Array(groupedStudents.keys.sorted(by: { $0.rawValue < $1.rawValue })), id: \.rawValue) { category in
+        ForEach(Array(groupedStudents.keys.sorted { $0.rawValue < $1.rawValue }), id: \.rawValue) { category in
             if let students = groupedStudents[category] {
                 StudentCategorySection(
                     category: category,

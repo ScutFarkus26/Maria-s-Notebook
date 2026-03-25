@@ -62,7 +62,7 @@ final class StudentDetailViewModel {
         let allLAs = safeFetch(laDescriptor, context: modelContext)
         let filteredLAs = allLAs.filter { $0.resolvedStudentIDs.contains(student.id) }
 
-        let neededLessonIDs = Set(filteredLAs.map { $0.resolvedLessonID })
+        let neededLessonIDs = Set(filteredLAs.map(\.resolvedLessonID))
         let fetchedLessons: [Lesson]
         if !neededLessonIDs.isEmpty {
             var descriptor = FetchDescriptor<Lesson>()
@@ -126,9 +126,9 @@ final class StudentDetailViewModel {
         presentedLessonIDs = Set(
             lessonAssignments
                 .filter { $0.isPresented && $0.resolvedStudentIDs.contains(student.id) }
-                .map { $0.resolvedLessonID }
+                .map(\.resolvedLessonID)
         )
-        plannedLessonIDs = Set(nextLessonsForStudent.map { $0.lessonID })
+        plannedLessonIDs = Set(nextLessonsForStudent.map(\.lessonID))
     }
 
     func updateWorkModels(_ workModels: [WorkModel]) {
@@ -254,7 +254,7 @@ final class StudentDetailViewModel {
         let lessonIDString = lesson.id.uuidString
         let presented = lessonAssignmentsByID.values
             .filter { $0.lessonID == lessonIDString && $0.studentIDs.contains(studentIDString) && $0.isPresented }
-            .sorted(by: { ($0.presentedAt ?? $0.createdAt) > ($1.presentedAt ?? $1.createdAt) })
+            .sorted { ($0.presentedAt ?? $0.createdAt) > ($1.presentedAt ?? $1.createdAt) }
         if let la = presented.first {
             selectedLessonAssignmentForDetail = la
         } else {

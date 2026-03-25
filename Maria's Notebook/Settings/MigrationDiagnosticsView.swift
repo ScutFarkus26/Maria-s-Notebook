@@ -19,7 +19,7 @@ struct MigrationDiagnosticsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Status indicator
-            if let report = report {
+            if let report {
                 statusBanner(report)
             }
 
@@ -58,12 +58,12 @@ struct MigrationDiagnosticsView: View {
             }
 
             // Fix result
-            if let fixResult = fixResult {
+            if let fixResult {
                 fixResultBanner(fixResult)
             }
 
             // Quick stats
-            if let report = report {
+            if let report {
                 quickStats(report)
             }
         }

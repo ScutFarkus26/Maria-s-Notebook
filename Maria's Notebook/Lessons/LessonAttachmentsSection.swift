@@ -393,7 +393,7 @@ struct LessonAttachmentsSection: View {
         // Load the file URL asynchronously - don't block!
         let logger = Self.logger
         provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
-            if let error = error {
+            if let error {
                 logger.error("Drop error: \(error)")
                 return
             }

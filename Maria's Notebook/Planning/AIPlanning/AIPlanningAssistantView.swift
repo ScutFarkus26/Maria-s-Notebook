@@ -288,7 +288,7 @@ struct AIPlanningAssistantView: View {
                     .font(.title2)
                     .foregroundStyle(inputText.isEmpty ? Color.secondary : Color.accentColor)
             }
-            .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.isLoading)
+            .disabled(inputText.trimmed().isEmpty || vm.isLoading)
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 20)
@@ -339,7 +339,7 @@ struct AIPlanningAssistantView: View {
     // MARK: - Actions
     
     private func sendMessage() {
-        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = inputText.trimmed()
         guard !text.isEmpty else { return }
         inputText = ""
         vm.sendMessage(text)

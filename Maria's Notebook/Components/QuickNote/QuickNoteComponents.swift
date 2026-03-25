@@ -145,7 +145,7 @@ struct QuickNoteAIMenuButton: View {
         Menu {
             Section("Writing Tools") {
                 #if ENABLE_FOUNDATION_MODELS
-                if let onFixGrammar = onFixGrammar {
+                if let onFixGrammar {
                     Button(action: onFixGrammar) {
                         Label {
                             Text("Fix Grammar")
@@ -154,7 +154,7 @@ struct QuickNoteAIMenuButton: View {
                         }
                     }
                 }
-                if let onProfessionalTone = onProfessionalTone {
+                if let onProfessionalTone {
                     Button(action: onProfessionalTone) {
                         Label {
                             Text("Professional Tone")
@@ -163,7 +163,7 @@ struct QuickNoteAIMenuButton: View {
                         }
                     }
                 }
-                if let onExpandNote = onExpandNote {
+                if let onExpandNote {
                     Button(action: onExpandNote) {
                         Label {
                             Text("Expand Note")

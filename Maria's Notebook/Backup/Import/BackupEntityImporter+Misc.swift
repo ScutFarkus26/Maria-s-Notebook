@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Miscellaneous Entities
 
@@ -24,7 +25,7 @@ extension BackupEntityImporter {
             do {
                 if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check existing note: \(error)")
+                Logger.backup.warning("Failed to check existing note: \(error.localizedDescription, privacy: .public)")
                 continue
             }
 
@@ -52,7 +53,8 @@ extension BackupEntityImporter {
                     let scope = try JSONDecoder().decode(NoteScope.self, from: data)
                     note.scope = scope
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to decode note scope: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to decode note scope: \(desc, privacy: .public)")
                 }
             }
 
@@ -62,7 +64,8 @@ extension BackupEntityImporter {
                         note.lesson = lesson
                     }
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check lesson for note: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check lesson for note: \(desc, privacy: .public)")
                 }
             }
 
@@ -147,7 +150,8 @@ extension BackupEntityImporter {
             do {
                 if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check existing proposed solution: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check existing proposed solution: \(desc, privacy: .public)")
                 continue
             }
 
@@ -167,8 +171,8 @@ extension BackupEntityImporter {
                         solution.topic = topic
                     }
                 } catch {
-                        // swiftlint:disable:next line_length
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check topic for proposed solution: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check topic for proposed solution: \(desc, privacy: .public)")
                 }
             }
 
@@ -195,7 +199,8 @@ extension BackupEntityImporter {
             do {
                 if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check existing community attachment: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check existing community attachment: \(desc, privacy: .public)")
                 continue
             }
 
@@ -214,8 +219,8 @@ extension BackupEntityImporter {
                         attachment.topic = topic
                     }
                 } catch {
-                        // swiftlint:disable:next line_length
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check topic for community attachment: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check topic for community attachment: \(desc, privacy: .public)")
                 }
             }
 
@@ -285,7 +290,8 @@ extension BackupEntityImporter {
                         a.issue = issue
                     }
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check issue for action: \(error)")
+                    let desc = error.localizedDescription
+                    Logger.backup.warning("Failed to check issue for action: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(a)

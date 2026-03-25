@@ -24,7 +24,7 @@ struct LessonProgressListView: View {
         var lessons = allLessons
         
         // Filter by subject
-        if let selectedSubject = selectedSubject {
+        if let selectedSubject {
             lessons = lessons.filter { $0.subject.trimmed() == selectedSubject }
         }
         

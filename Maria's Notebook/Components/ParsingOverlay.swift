@@ -13,7 +13,7 @@ public struct ParsingOverlay: View {
                 VStack(spacing: 16) {
                     ProgressView("Parsing…")
                     
-                    if let onCancel = onCancel {
+                    if let onCancel {
                         Button("Cancel", action: onCancel)
                     }
                 }

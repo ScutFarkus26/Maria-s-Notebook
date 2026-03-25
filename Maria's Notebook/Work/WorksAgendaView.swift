@@ -177,7 +177,7 @@ struct WorksAgendaView: View {
                 HStack(spacing: 12) {
                     #if os(iOS)
                     Button {
-                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             isCalendarMinimized.toggle()
                         }
                     } label: {

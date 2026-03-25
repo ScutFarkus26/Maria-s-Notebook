@@ -264,7 +264,7 @@ final class ObservationPatternsViewModel {
         )
         let observationNotes = context.safeFetch(descriptor).filter { note in
             note.createdAt >= range.start && note.createdAt <= range.end
-            && note.tags.contains { TagHelper.tagName($0) != "" }
+            && note.tags.contains { !TagHelper.tagName($0).isEmpty }
             && note.tags.contains { tag in
                 let name = TagHelper.tagName(tag)
                 return allObservationTags.contains { TagHelper.tagName($0) == name }
@@ -275,7 +275,7 @@ final class ObservationPatternsViewModel {
         tagCounts = computeTagCounts(from: observationNotes, allTags: allObservationTags)
 
         let students = TestStudentsFilter.filterVisible(
-            context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName)).filter { $0.isEnrolled }
+            context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName)).filter(\.isEnrolled)
         )
         let observationMap = buildStudentObservationMap(from: observationNotes)
         let summaries = buildStudentSummaries(

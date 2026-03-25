@@ -231,7 +231,7 @@ public enum LessonFileStorage {
         // Determine base filename
         let baseName: String
         let sourceStem = sourceURL.deletingPathExtension().lastPathComponent
-        if let customName = customName {
+        if let customName {
             baseName = sanitizeFilenameComponent(customName, fallback: sourceStem)
         } else {
             baseName = sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
@@ -419,7 +419,7 @@ public enum LessonFileStorage {
     /// Leading/trailing dots and spaces are trimmed.
     /// Ensures the result is not empty; if so returns fallback.
     private static func sanitizeFilenameComponent(_ input: String?, fallback: String) -> String {
-        guard let input = input, !input.isEmpty else {
+        guard let input, !input.isEmpty else {
             return fallback
         }
 

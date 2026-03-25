@@ -258,24 +258,24 @@ final class TodoItem {
     /// Convenience computed property to get student IDs as UUIDs
     var studentUUIDs: [UUID] {
         get { studentIDs.compactMap { UUID(uuidString: $0) } }
-        set { studentIDs = newValue.map { $0.uuidString } }
+        set { studentIDs = newValue.map(\.uuidString) }
     }
     
     /// Check if todo is overdue
     var isOverdue: Bool {
-        guard let dueDate = dueDate, !isCompleted else { return false }
+        guard let dueDate, !isCompleted else { return false }
         return dueDate < AppCalendar.startOfDay(Date())
     }
     
     /// Check if todo is due today
     var isDueToday: Bool {
-        guard let dueDate = dueDate, !isCompleted else { return false }
+        guard let dueDate, !isCompleted else { return false }
         return Calendar.current.isDateInToday(dueDate)
     }
 
     /// Check if todo is due this week
     var isDueThisWeek: Bool {
-        guard let dueDate = dueDate, !isCompleted else { return false }
+        guard let dueDate, !isCompleted else { return false }
         let now = Date()
         guard let weekEnd = Calendar.current.date(
             byAdding: .day,
@@ -289,7 +289,7 @@ final class TodoItem {
     var subtasksProgressText: String? {
         let items = subtasks ?? []
         guard !items.isEmpty else { return nil }
-        let completed = items.filter { $0.isCompleted }.count
+        let completed = items.filter(\.isCompleted).count
         return "\(completed)/\(items.count)"
     }
 
@@ -312,7 +312,7 @@ final class TodoItem {
     
     /// Check if todo has mood or reflection notes
     var hasMoodOrReflection: Bool {
-        mood != nil || !reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        mood != nil || !reflectionNotes.trimmed().isEmpty
     }
     
     /// Check if todo has location-based reminder

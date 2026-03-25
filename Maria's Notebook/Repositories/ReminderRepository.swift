@@ -39,7 +39,7 @@ struct ReminderRepository: SavingRepository {
         sortBy: [SortDescriptor<Reminder>] = [SortDescriptor(\.dueDate)]
     ) -> [Reminder] {
         var descriptor = FetchDescriptor<Reminder>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -89,7 +89,7 @@ struct ReminderRepository: SavingRepository {
         )
         context.insert(reminder)
         if eventKitReminderID == nil {
-            _ = reminder.setLegacyNoteText(notes, in: context)
+            reminder.setLegacyNoteText(notes, in: context)
         }
         return reminder
     }
@@ -106,7 +106,7 @@ struct ReminderRepository: SavingRepository {
     ) -> Bool {
         guard let reminder = fetchReminder(id: id) else { return false }
 
-        if let title = title {
+        if let title {
             reminder.title = title
         }
         if let notes {
@@ -114,10 +114,10 @@ struct ReminderRepository: SavingRepository {
                 reminder.notes = notes.isEmpty ? nil : notes
             } else {
                 reminder.notes = nil
-                _ = reminder.setLegacyNoteText(notes, in: context)
+                reminder.setLegacyNoteText(notes, in: context)
             }
         }
-        if let dueDate = dueDate {
+        if let dueDate {
             reminder.dueDate = dueDate
         }
         reminder.updatedAt = Date()

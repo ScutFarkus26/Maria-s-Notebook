@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Projects
 
@@ -118,7 +119,8 @@ extension BackupEntityImporter {
             do {
                 if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check existing project week role assignment: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check existing week role assignment: \(desc, privacy: .public)")
                 continue
             }
 
@@ -136,7 +138,8 @@ extension BackupEntityImporter {
                     assignment.week = week
                 }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check week for project week role assignment: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check week for week role assignment: \(desc, privacy: .public)")
             }
 
             modelContext.insert(assignment)

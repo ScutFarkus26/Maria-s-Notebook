@@ -33,7 +33,7 @@ struct PillButtonGroup<Item: Identifiable & CaseIterable, Selection: Equatable>:
                 icon: icon(item),
                 label: label(item)
             ) {
-                adaptiveWithAnimation(.workflowSelection) {
+                _ = adaptiveWithAnimation(.workflowSelection) {
                     onSelect(item)
                 }
             }

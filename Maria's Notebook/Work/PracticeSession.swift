@@ -157,7 +157,7 @@ final class PracticeSession: Identifiable {
     
     /// Formatted duration string (e.g., "30 min", "1.5 hrs")
     var durationFormatted: String? {
-        guard let duration = duration else { return nil }
+        guard let duration else { return nil }
         let minutes = Int(duration / 60)
         if minutes < 60 {
             return "\(minutes) min"

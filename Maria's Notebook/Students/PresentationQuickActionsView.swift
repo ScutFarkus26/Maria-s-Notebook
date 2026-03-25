@@ -189,7 +189,7 @@ struct PresentationQuickActionsView: View {
                     Button("Add") {
                         let trimmed = followUpDraft.trimmed()
                         if !trimmed.isEmpty {
-                            let sidStrings = lessonAssignment.resolvedStudentIDs.map { $0.uuidString }
+                            let sidStrings = lessonAssignment.resolvedStudentIDs.map(\.uuidString)
                             // CloudKit compatibility: lessonID is already String
                             let lidString = lessonAssignment.lessonID
                             for sid in sidStrings {
@@ -340,7 +340,7 @@ struct PresentationQuickActionsView: View {
 
     private func addPracticeIfNeeded() {
         // Create practice contracts if none exist for these students/lesson
-        let sidStrings = lessonAssignment.resolvedStudentIDs.map { $0.uuidString }
+        let sidStrings = lessonAssignment.resolvedStudentIDs.map(\.uuidString)
         // CloudKit compatibility: lessonID is already String
         let lidString = lessonAssignment.lessonID
         var createdAny = false

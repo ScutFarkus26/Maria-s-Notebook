@@ -124,7 +124,7 @@ final class Schedule: Identifiable {
 
     /// Get all weekdays that have slots
     var activeWeekdays: [Weekday] {
-        let days = Set(safeSlots.map { $0.weekday })
+        let days = Set(safeSlots.map(\.weekday))
         return Weekday.allCases.filter { days.contains($0) }
     }
 

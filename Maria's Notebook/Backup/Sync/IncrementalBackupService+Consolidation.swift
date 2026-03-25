@@ -167,7 +167,7 @@ extension IncrementalBackupService {
         let finalEncrypted: Data?
         let finalCompressed: Data?
 
-        if let password = password, !password.isEmpty {
+        if let password, !password.isEmpty {
             progress(0.9, "Encrypting...")
             finalEncrypted = try codec.encrypt(compressedBytes, password: password)
             finalCompressed = nil

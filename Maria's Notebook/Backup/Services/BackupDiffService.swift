@@ -81,7 +81,7 @@ public final class BackupDiffService {
             calendarDiff,
             projectDiff,
             attendanceDiff
-        ].filter { $0.hasChanges }
+        ].filter(\.hasChanges)
 
         return BackupDiff(
             sourceDescription: backupURL.lastPathComponent,
@@ -141,7 +141,7 @@ public final class BackupDiffService {
         return BackupDiff(
             sourceDescription: olderBackupURL.lastPathComponent,
             targetDescription: newerBackupURL.lastPathComponent,
-            entityDiffs: entityDiffs.filter { $0.hasChanges },
+            entityDiffs: entityDiffs.filter(\.hasChanges),
             createdAt: Date()
         )
     }
@@ -165,7 +165,7 @@ public final class BackupDiffService {
         } else if let compressed = envelope.compressedPayload {
             payloadBytes = try codec.decompress(compressed)
         } else if let encrypted = envelope.encryptedPayload {
-            guard let password = password, !password.isEmpty else {
+            guard let password, !password.isEmpty else {
                 throw NSError(domain: "BackupDiffService", code: 1, userInfo: [
                     NSLocalizedDescriptionKey: "Backup is encrypted. Please provide a password."
                 ])

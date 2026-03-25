@@ -1,5 +1,6 @@
 import Foundation
 import NaturalLanguage
+import OSLog
 
 // MARK: - Student Data Structures
 
@@ -155,7 +156,7 @@ actor StudentTagger {
                 }
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to create regex for separated initials: \(error)")
+            Logger.notes.error("[\(#function)] Failed to create regex for separated initials: \(error)")
         }
 
         // 2. Compact Initials (e.g. "JD", "MA") - Case Sensitive (Strict)
@@ -181,7 +182,7 @@ actor StudentTagger {
                 }
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to create regex for compact initials: \(error)")
+            Logger.notes.error("[\(#function)] Failed to create regex for compact initials: \(error)")
         }
     }
 

@@ -11,11 +11,11 @@ extension Note {
         let allNotes = notes ?? []
         if let preferredReporter {
             let preferred = allNotes.filter { $0.reportedBy == preferredReporter }
-            if let newest = preferred.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
+            if let newest = preferred.sorted { $0.updatedAt > $1.updatedAt }.first {
                 return newest
             }
         }
-        return allNotes.sorted(by: { $0.updatedAt > $1.updatedAt }).first
+        return allNotes.sorted { $0.updatedAt > $1.updatedAt }.first
     }
 
     static func latestBody(in notes: [Note]?, preferredReporter: String? = nil) -> String {
@@ -42,7 +42,7 @@ extension Note {
             return true
         }
 
-        if let note = legacyNotes.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
+        if let note = legacyNotes.sorted { $0.updatedAt > $1.updatedAt }.first {
             if note.body == trimmed {
                 return false
             }
@@ -111,7 +111,7 @@ extension WorkCheckIn {
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: ModelContext) -> Bool {
         let scope: NoteScope
-        if let work = work {
+        if let work {
             let studentUUIDs = (work.participants ?? []).compactMap { UUID(uuidString: $0.studentID) }
             if studentUUIDs.count == 1, let only = studentUUIDs.first {
                 scope = .student(only)

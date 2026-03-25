@@ -103,7 +103,7 @@ final class AutoBackupManager {
 
         scheduledBackupTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self = self else { break }
+                guard let self else { break }
 
                 // Calculate time until next backup
                 let intervalSeconds = TimeInterval(self.intervalHours * 3600)
@@ -145,7 +145,7 @@ final class AutoBackupManager {
 
     /// Performs a scheduled backup
     private func performScheduledBackup() async {
-        guard let modelContext = modelContext else { return }
+        guard let modelContext else { return }
         _ = await performBackup(modelContext: modelContext, trigger: .scheduled, prefix: "ScheduledBackup")
     }
 

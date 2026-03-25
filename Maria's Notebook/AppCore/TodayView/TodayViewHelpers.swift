@@ -109,7 +109,7 @@ extension TodayView {
 
     /// Resolves display name from a WorkModel — prefers the work's own title, falls back to lesson name
     func resolveLessonName(for work: WorkModel) -> String {
-        let title = work.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = work.title.trimmed()
         if !title.isEmpty { return title }
         guard let uuid = UUID(uuidString: work.lessonID) else { return "Lesson" }
         return nameForLesson(uuid)
@@ -219,7 +219,7 @@ extension TodayView {
 
     /// Shows a toast message with animation
     func toast(_ message: String) {
-        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toastMessage = message
         }
         Task { @MainActor in
@@ -228,7 +228,7 @@ extension TodayView {
             } catch {
                 logger.warning("Failed to sleep for toast: \(error)")
             }
-            adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+            _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                 toastMessage = nil
             }
         }
@@ -249,7 +249,7 @@ extension TodayView {
                 sortBy: [SortDescriptor(\LessonAssignment.id)]
             )
             let lessons = try modelContext.fetch(lessonDescriptor)
-            filteredPresentationIDs = lessons.map { $0.id }
+            filteredPresentationIDs = lessons.map(\.id)
         } catch {
             filteredPresentationIDs = []
         }
@@ -266,7 +266,7 @@ extension TodayView {
                 sortBy: [SortDescriptor(\WorkCheckIn.id)]
             )
             let checkIns = try modelContext.fetch(checkInDescriptor)
-            filteredPlanItemIDs = checkIns.map { $0.id }
+            filteredPlanItemIDs = checkIns.map(\.id)
         } catch {
             filteredPlanItemIDs = []
         }
@@ -275,7 +275,7 @@ extension TodayView {
     // MARK: - Todo Actions
 
     func toggleTodoItem(_ todo: TodoItem) {
-        adaptiveWithAnimation(.snappy(duration: 0.2)) {
+        _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
             todo.isCompleted.toggle()
             if todo.isCompleted {
                 todo.completedAt = Date()

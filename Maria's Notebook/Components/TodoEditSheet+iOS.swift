@@ -127,11 +127,7 @@ extension TodoEditSheet {
                 }
             }
             .task {
-                do {
-                    try await Task.sleep(for: .milliseconds(300))
-                } catch {
-                    print("\u{26A0}\u{FE0F} [\(#function)] Failed to sleep: \(error)")
-                }
+                try? await Task.sleep(for: .milliseconds(300))
                 isTitleFocused = true
             }
         }

@@ -116,9 +116,7 @@ struct ObservationsView: View {
             switch self {
             case .today: return "Today's Observations"
             case .specificDay(let date):
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                return formatter.string(from: date)
+                return DateFormatters.mediumDate.string(from: date)
             case .context(let ctx): return ctx
             case .selectedNotes: return "Selected Notes"
             }
@@ -130,7 +128,7 @@ struct ObservationsView: View {
         mainContentView
             .searchable(text: $searchText)
             .onAppear { loadFirstPageIfNeeded() }
-            .onChange(of: loadedItems.map { $0.id }) { _, _ in
+            .onChange(of: loadedItems.map(\.id)) { _, _ in
                 loadStudentsIfNeeded(for: filteredItems)
             }
             .onChange(of: selectedFilterTags) { _, _ in

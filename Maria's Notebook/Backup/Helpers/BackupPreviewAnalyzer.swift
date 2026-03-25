@@ -145,12 +145,12 @@ enum BackupPreviewAnalyzer {
         // Build lesson lookup sets for presentation/assignment analysis
         let lessonsInStore: Set<UUID>
         do {
-            lessonsInStore = Set(try modelContext.fetch(FetchDescriptor<Lesson>()).map { $0.id })
+            lessonsInStore = Set(try modelContext.fetch(FetchDescriptor<Lesson>()).map(\.id))
         } catch {
             logger.warning("Failed to fetch lessons: \(error)")
             lessonsInStore = Set()
         }
-        let lessonsInPayload = Set(payload.lessons.map { $0.id })
+        let lessonsInPayload = Set(payload.lessons.map(\.id))
 
         analyzeLessonAssignmentMerge(
             payload: payload, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,

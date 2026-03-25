@@ -179,7 +179,7 @@ struct TrackFilteredListView: View, Identifiable {
                 Spacer()
 
                 if let presentedAt = assignment.presentedAt {
-                    Text(Self.dateFormatter.string(from: presentedAt))
+                    Text(DateFormatters.mediumDate.string(from: presentedAt))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -225,7 +225,7 @@ struct TrackFilteredListView: View, Identifiable {
                 
                 Spacer()
                 
-                Text(Self.dateFormatter.string(from: work.completedAt ?? work.createdAt))
+                Text(DateFormatters.mediumDate.string(from: work.completedAt ?? work.createdAt))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -271,7 +271,7 @@ struct TrackFilteredListView: View, Identifiable {
                 
                 Spacer()
                 
-                Text(Self.dateFormatter.string(from: note.updatedAt))
+                Text(DateFormatters.mediumDate.string(from: note.updatedAt))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -292,10 +292,4 @@ struct TrackFilteredListView: View, Identifiable {
         )
     }
     
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
 }

@@ -137,7 +137,7 @@ extension AppBootstrapping {
 
             // Attempt migration before opening store (if needed)
             let migrationCheckStart = Date()
-            _ = AppBootstrapping.attemptAttendanceRecordMigrationIfNeeded()
+            AppBootstrapping.attemptAttendanceRecordMigrationIfNeeded()
             let migCheckElapsed = String(format: "%.3f", Date().timeIntervalSince(migrationCheckStart))
             logger.info("createModelContainer: Migration check completed in \(migCheckElapsed)s")
 

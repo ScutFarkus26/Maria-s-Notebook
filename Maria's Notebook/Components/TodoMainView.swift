@@ -1,11 +1,13 @@
 // TodoMainView.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 /// Main todo view with elegant layout inspired by Things and Bear
 struct TodoMainView: View {
+    private static let logger = Logger.todos
     @Environment(\.modelContext) var modelContext
     @Query(sort: \TodoItem.createdAt, order: .reverse) var allTodos: [TodoItem]
 
@@ -41,7 +43,7 @@ struct TodoMainView: View {
 
             Divider()
 
-            if let selectedTodo = selectedTodo {
+            if let selectedTodo {
                 VStack(spacing: 0) {
                     HStack {
                         Text("Edit Todo")
@@ -70,7 +72,7 @@ struct TodoMainView: View {
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 Button {
-                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                    _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
                         isSelectMode.toggle()
                         if !isSelectMode { selectedTodoIDs.removeAll() }
                     }
@@ -204,7 +206,7 @@ struct TodoMainView: View {
         do {
             try modelContext.save()
         } catch {
-            print("\u{26a0}\u{fe0f} [\(#function)] Failed to delete completed todos: \(error)")
+            Self.logger.error("[\(#function)] Failed to delete completed todos: \(error)")
         }
     }
 
@@ -214,7 +216,7 @@ struct TodoMainView: View {
             do {
                 try modelContext.save()
             } catch {
-                print("\u{26a0}\u{fe0f} [\(#function)] Failed to delete todo: \(error)")
+                Self.logger.error("[\(#function)] Failed to delete todo: \(error)")
             }
         }
     }

@@ -83,7 +83,7 @@ extension WorkDetailView {
                             icon: kind.iconName,
                             label: kind.shortLabel
                         ) {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.workKind = kind
                             }
                         }
@@ -112,7 +112,7 @@ extension WorkDetailView {
                             icon: s.iconName,
                             label: s.displayName
                         ) {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.status = s
 
                                 // When marking as complete with good outcome, offer to unlock next lesson
@@ -165,7 +165,7 @@ extension WorkDetailView {
                             icon: style.iconName,
                             label: style.displayName
                         ) {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 viewModel.checkInStyle = style
                             }
                         }
@@ -207,7 +207,7 @@ extension WorkDetailView {
                     VStack(spacing: 10) {
                         ForEach(
                         viewModel.workModelNotes
-                            .sorted(by: { $0.createdAt > $1.createdAt }),
+                            .sorted { $0.createdAt > $1.createdAt },
                         id: \.id
                     ) { note in
                             noteRow(note)

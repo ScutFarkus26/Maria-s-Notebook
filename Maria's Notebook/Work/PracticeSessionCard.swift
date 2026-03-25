@@ -46,17 +46,11 @@ struct PracticeSessionCard: View {
     }
     
     func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        DateFormatters.shortDate.string(from: date)
     }
-    
+
     func formatDateLong(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        DateFormatters.longDate.string(from: date)
     }
 }
 

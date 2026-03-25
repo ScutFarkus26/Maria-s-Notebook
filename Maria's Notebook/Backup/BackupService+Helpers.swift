@@ -1,9 +1,11 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Utility & Helper Methods
 
 extension BackupService {
+    private static let logger = Logger.backup
 
     // MARK: - Security-Scoped Resource Access
 
@@ -65,7 +67,8 @@ extension BackupService {
             do {
                 try modelContext.delete(model: type)
             } catch {
-                print("\u{26a0}\u{fe0f} [Backup:deleteAll] Failed to delete \(type): \(error)")
+                let desc = error.localizedDescription
+                Self.logger.warning("Failed to delete \(type, privacy: .public): \(desc, privacy: .public)")
             }
         }
         try modelContext.save()

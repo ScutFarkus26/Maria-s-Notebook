@@ -4,11 +4,13 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 /// Shared helper utilities for backup operations
 @MainActor
 // swiftlint:disable:next type_body_length
 enum BackupServiceHelpers {
+    private static let logger = Logger.backup
 
     // MARK: - DTO Conversion
 
@@ -57,7 +59,7 @@ enum BackupServiceHelpers {
                 let data = try JSONEncoder().encode(n.scope)
                 scopeString = String(data: data, encoding: .utf8) ?? "{}"
             } catch {
-                print("⚠️ [Backup:toDTOs] Failed to encode note scope: \(error)")
+                logger.warning("Failed to encode note scope: \(error.localizedDescription, privacy: .public)")
                 scopeString = "{}"
             }
             return NoteDTO(
@@ -236,7 +238,9 @@ enum BackupServiceHelpers {
             do {
                 try FileManager.default.removeItem(at: url)
             } catch {
-                print("⚠️ [Backup:writeBackupFile] Failed to remove existing file at \(url.lastPathComponent): \(error)")
+                let name = url.lastPathComponent
+                let desc = error.localizedDescription
+                logger.warning("Failed to remove existing file at \(name, privacy: .public): \(desc, privacy: .public)")
             }
         }
         try envBytes.write(to: url, options: .atomic)
@@ -246,7 +250,7 @@ enum BackupServiceHelpers {
 
     /// Filters entities by student IDs
     static func filterByStudents<T>(_ entities: [T], studentIDs: Set<UUID>?, studentIDExtractor: (T) -> UUID?) -> [T] {
-        guard let studentIDs = studentIDs else { return entities }
+        guard let studentIDs else { return entities }
         return entities.filter { entity in
             guard let sid = studentIDExtractor(entity) else { return false }
             return studentIDs.contains(sid)
@@ -268,7 +272,7 @@ enum BackupServiceHelpers {
 
     /// Filters entities by project IDs
     static func filterByProjects<T>(_ entities: [T], projectIDs: Set<UUID>?, projectIDExtractor: (T) -> UUID?) -> [T] {
-        guard let projectIDs = projectIDs else { return entities }
+        guard let projectIDs else { return entities }
         return entities.filter { entity in
             guard let pid = projectIDExtractor(entity) else { return false }
             return projectIDs.contains(pid)

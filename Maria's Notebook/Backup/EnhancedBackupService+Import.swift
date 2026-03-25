@@ -57,7 +57,7 @@ extension EnhancedBackupService {
             failedEntities: [:],
             validationResult: validationResult,
             errors: [],
-            warnings: validationResult.warnings.map { $0.message },
+            warnings: validationResult.warnings.map(\.message),
             duration: Date().timeIntervalSince(startTime),
             restorePointURL: nil
         )

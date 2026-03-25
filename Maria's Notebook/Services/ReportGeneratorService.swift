@@ -176,7 +176,7 @@ struct ReportGeneratorService {
 
             for (categoryName, categoryNotes) in groupedNotes {
                 // Category header
-                if style.groupsByCategory && categoryNotes.count > 0 {
+                if style.groupsByCategory && !categoryNotes.isEmpty {
                     let categoryAttrs: [NSAttributedString.Key: Any] = [
                         .font: PlatformFont.boldSystemFont(ofSize: 14),
                         .foregroundColor: PlatformColor.label
@@ -277,10 +277,8 @@ extension ReportGeneratorService {
         y += 28
 
         // Date range
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        let startStr = dateFormatter.string(from: dateRange.lowerBound)
-        let endStr = dateFormatter.string(from: dateRange.upperBound)
+        let startStr = DateFormatters.mediumDate.string(from: dateRange.lowerBound)
+        let endStr = DateFormatters.mediumDate.string(from: dateRange.upperBound)
         let dateRangeText = "\(startStr) - \(endStr)"
         let dateAttrs: [NSAttributedString.Key: Any] = [
             .font: PlatformFont.systemFont(ofSize: 12),
@@ -311,10 +309,7 @@ extension ReportGeneratorService {
         var y = currentY
 
         // Date
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .short
-        dateFormatter.timeStyle = .short
-        let dateText = dateFormatter.string(from: note.createdAt)
+        let dateText = DateFormatters.shortDateTime.string(from: note.createdAt)
         let dateAttrs: [NSAttributedString.Key: Any] = [
             .font: PlatformFont.systemFont(ofSize: 10),
             .foregroundColor: PlatformColor.secondaryLabel
@@ -386,10 +381,8 @@ extension ReportGeneratorService {
         let titleAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 18), .foregroundColor: NSColor.labelColor]
         result.append(NSAttributedString(string: "\(student.firstName) - \(style.rawValue)\n\n", attributes: titleAttrs))
         // swiftlint:enable line_length
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        let rangeStart = dateFormatter.string(from: dateRange.lowerBound)
-        let rangeEnd = dateFormatter.string(from: dateRange.upperBound)
+        let rangeStart = DateFormatters.mediumDate.string(from: dateRange.lowerBound)
+        let rangeEnd = DateFormatters.mediumDate.string(from: dateRange.upperBound)
         // swiftlint:disable:next line_length
         let dateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.secondaryLabelColor]
         result.append(NSAttributedString(string: "\(rangeStart) - \(rangeEnd)\n\n", attributes: dateAttrs))
@@ -410,12 +403,9 @@ extension ReportGeneratorService {
                 result.append(NSAttributedString(string: "\(categoryName)\n", attributes: categoryAttrs))
             }
             for note in categoryNotes {
-                let noteDateFormatter = DateFormatter()
-                noteDateFormatter.dateStyle = .short
-                noteDateFormatter.timeStyle = .short
                 // swiftlint:disable line_length
                 let noteDateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor]
-                result.append(NSAttributedString(string: "\(noteDateFormatter.string(from: note.createdAt))\n", attributes: noteDateAttrs))
+                result.append(NSAttributedString(string: "\(DateFormatters.shortDateTime.string(from: note.createdAt))\n", attributes: noteDateAttrs))
                 let bodyAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
                 result.append(NSAttributedString(string: "\(note.body)\n", attributes: bodyAttrs))
                 let tagAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.systemBlue]

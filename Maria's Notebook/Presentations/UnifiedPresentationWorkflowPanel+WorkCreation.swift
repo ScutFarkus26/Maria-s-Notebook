@@ -89,7 +89,7 @@ extension UnifiedPresentationWorkflowPanel {
                                 icon: style.iconName,
                                 label: style.displayName
                             ) {
-                                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     bulkCheckInStyle = style
                                 }
                             }
@@ -139,7 +139,7 @@ extension UnifiedPresentationWorkflowPanel {
         }
 
         // Show confirmation toast
-        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+        _ = adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
             bulkAppliedMessage = "Applied \"\(trimmed)\" to \(students.count) student\(students.count == 1 ? "" : "s")"
             showBulkAppliedToast = true
         }
@@ -149,7 +149,7 @@ extension UnifiedPresentationWorkflowPanel {
             } catch {
                 // Sleep interrupted, dismiss toast anyway
             }
-            adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+            _ = adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
                 showBulkAppliedToast = false
             }
         }
@@ -334,7 +334,7 @@ extension UnifiedPresentationWorkflowPanel {
                 title: "Completion Details",
                 isExpanded: draft.showMoreDetails,
                 action: {
-                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         updateWorkDraft(studentID: studentID, draftID: draft.id) {
                             $0.showMoreDetails.toggle()
                         }

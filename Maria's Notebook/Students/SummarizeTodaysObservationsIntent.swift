@@ -11,11 +11,11 @@ struct SummarySnippetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let title = title {
+            if let title {
                 Text(title)
                     .font(.headline)
             }
-            if let bodyText = bodyText {
+            if let bodyText {
                 Text(bodyText)
                     .font(.body)
             }

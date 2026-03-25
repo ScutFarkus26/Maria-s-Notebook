@@ -74,7 +74,7 @@ extension LessonDetailView {
                     lesson.pagesFileRelativePath = rel
                     resolvedPagesURL = destURL
                     previousManagedURL = destURL
-                    _ = saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
+                    saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
                 await MainActor.run { importError = error.localizedDescription }

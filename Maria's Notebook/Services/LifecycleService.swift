@@ -89,7 +89,7 @@ struct LifecycleService {
         limitedDescriptor.fetchLimit = 1
         let existing = try context.fetch(limitedDescriptor).first
 
-        if let existing = existing {
+        if let existing {
             // Update lastObservedAt to track when this presentation was last seen
             existing.lastObservedAt = presentedAt
         } else {
@@ -124,7 +124,7 @@ struct LifecycleService {
         limitedDescriptor.fetchLimit = 1
         let existing = try context.fetch(limitedDescriptor).first
 
-        if let existing = existing {
+        if let existing {
             // Update lastObservedAt and presentedAt if the new date is earlier (preserve first presentation date)
             if presentedAt < existing.presentedAt {
                 existing.presentedAt = presentedAt

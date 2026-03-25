@@ -45,7 +45,7 @@ enum BlockingCacheBuilder {
         }
 
         // Also build cache for presented assignments (for Inbox)
-        let presented = lessonAssignments.filter { $0.isGiven }
+        let presented = lessonAssignments.filter(\.isGiven)
 
         for la in presented {
             if let blocking = buildBlockingForPresented(
@@ -83,7 +83,7 @@ enum BlockingCacheBuilder {
         }
 
         // Find the LessonAssignment for the preceding lesson with the same student group
-        let studentIDs = Set(la.resolvedStudentIDs.map { $0.uuidString })
+        let studentIDs = Set(la.resolvedStudentIDs.map(\.uuidString))
 
         let precedingLessonAssignment = lessonAssignments.first { assignment in
             guard assignment.lessonID == precedingLesson.id.uuidString,

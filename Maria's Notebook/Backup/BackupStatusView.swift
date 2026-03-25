@@ -128,7 +128,7 @@ struct BackupStatusView: View {
                                 Text("Entity Counts")
                                     .font(.headline)
                                 ForEach(
-                                    Array(info.entityCounts.sorted(by: { $0.key < $1.key })),
+                                    Array(info.entityCounts.sorted { $0.key < $1.key }),
                                     id: \.key
                                 ) { key, count in
                                     HStack {

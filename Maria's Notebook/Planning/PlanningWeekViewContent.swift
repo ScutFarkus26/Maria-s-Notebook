@@ -23,7 +23,7 @@ struct PlanningWeekViewContent: View {
     let students: [Student]
     
     private var inboxLessonIDs: [UUID] {
-        inboxLessons.map { $0.id }
+        inboxLessons.map(\.id)
     }
     
     @Binding var inboxOrderRaw: String
@@ -210,7 +210,9 @@ struct PlanningWeekViewContent: View {
     // MARK: - Helpers
     private var weekRangeString: String {
         guard let first = days.first, let last = days.last else { return "" }
-        return "\(Formatters.weekRange.string(from: first)) - \(Formatters.weekRange.string(from: last))"
+        let start = DateFormatters.shortMonthDay.string(from: first)
+        let end = DateFormatters.shortMonthDay.string(from: last)
+        return "\(start) - \(end)"
     }
 
     /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
@@ -291,12 +293,12 @@ struct PlanningWeekViewContent: View {
 
     @MainActor
     private func syncInboxOrderWithCurrentBase() {
-        let baseIDs = inboxLessons.map { $0.id }
+        let baseIDs = inboxLessons.map(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = inboxLessons
             .filter { !order.contains($0.id) }
             .sorted { $0.createdAt < $1.createdAt }
-            .map { $0.id }
+            .map(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }
@@ -304,19 +306,19 @@ struct PlanningWeekViewContent: View {
     // MARK: - Action Handlers
     
     private func handlePrevWeek() {
-        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             moveStart(bySchoolDays: -7)
         }
     }
     
     private func handleNextWeek() {
-        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             moveStart(bySchoolDays: 7)
         }
     }
     
     private func handleToday() {
-        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             computeInitialStartDate()
         }
     }

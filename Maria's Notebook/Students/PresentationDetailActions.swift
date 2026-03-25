@@ -28,7 +28,7 @@ final class PresentationDetailActions {
         lessonAssignment.lessonID = editingLessonID.uuidString
         lessonAssignment.notes = notes
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
-        lessonAssignment.studentIDs = selectedStudentIDs.map { $0.uuidString }
+        lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)
         lessonAssignment.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
         lessonAssignment.lesson = lessons.first(where: { $0.id == editingLessonID })
 

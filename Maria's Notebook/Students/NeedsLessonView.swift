@@ -27,7 +27,7 @@ struct NeedsLessonView: View {
 
     private var visibleStudents: [Student] {
         let visible = TestStudentsFilter.filterVisible(
-            students.filter { $0.isEnrolled },
+            students.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

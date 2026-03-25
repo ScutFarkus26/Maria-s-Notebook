@@ -19,7 +19,7 @@ struct DayColumn: View {
     // Filter out test students when setting is disabled
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter { $0.isEnrolled },
+            allStudentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -145,8 +145,8 @@ struct DayColumn: View {
         .padding(.bottom, 12)
     }
 
-    private var dayName: String { Formatters.dayName.string(from: day) }
-    private var dayNumber: String { Formatters.dayNumber.string(from: day) }
+    private var dayName: String { DateFormatters.weekdayAbbrev.string(from: day) }
+    private var dayNumber: String { DateFormatters.dayNumber.string(from: day) }
 
     private var normalizedDay: Date { AppCalendar.startOfDay(day) }
 

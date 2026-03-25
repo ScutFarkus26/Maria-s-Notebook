@@ -155,12 +155,12 @@ public final class BackupIntegrityMonitor {
         let verificationResults = await verifyBackupsInDirectory(autoBackupDir)
 
         let totalBackups = verificationResults.count
-        let healthyBackups = verificationResults.filter { $0.isValid }.count
+        let healthyBackups = verificationResults.filter(\.isValid).count
         let corruptedBackups = verificationResults.filter { !$0.isValid }.count
 
         // Calculate dates
         let sortedByDate = verificationResults
-            .compactMap { $0.createdAt }
+            .compactMap(\.createdAt)
             .sorted(by: >)
         let lastBackupDate = sortedByDate.first
         let oldestBackupDate = sortedByDate.last
@@ -238,7 +238,9 @@ public final class BackupIntegrityMonitor {
             let attributes = try fm.attributesOfItem(atPath: url.path)
             fileSize = attributes[.size] as? Int64 ?? 0
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to get file size for \(url.lastPathComponent): \(error)")
+            let name = url.lastPathComponent
+            let desc = error.localizedDescription
+            Logger.backup.warning("Failed to get file size for \(name, privacy: .public): \(desc, privacy: .public)")
             fileSize = 0
         }
 
@@ -293,7 +295,9 @@ public final class BackupIntegrityMonitor {
                 options: [.skipsHiddenFiles]
             )
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to list directory \(directory.lastPathComponent): \(error)")
+            let dirName = directory.lastPathComponent
+            let desc = error.localizedDescription
+            Logger.backup.warning("Failed to list directory \(dirName, privacy: .public): \(desc, privacy: .public)")
             return []
         }
 
@@ -343,7 +347,7 @@ public final class BackupIntegrityMonitor {
         
         scheduledVerificationTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self = self else { break }
+                guard let self else { break }
                 
                 // Calculate time until next scan
                 let intervalSeconds = TimeInterval(self.verificationIntervalHours * 3600)
@@ -365,7 +369,7 @@ public final class BackupIntegrityMonitor {
                     do {
                         try await Task.sleep(for: .seconds(waitTime))
                     } catch {
-                        print("⚠️ [Backup:\(#function)] Task sleep interrupted: \(error)")
+                        Logger.backup.warning("Task sleep interrupted: \(error.localizedDescription, privacy: .public)")
                     }
                 }
                 
@@ -449,7 +453,7 @@ public final class BackupIntegrityMonitor {
         do {
             data = try Data(contentsOf: url)
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to read backup file: \(error)")
+            Logger.backup.warning("Failed to read backup file: \(error.localizedDescription, privacy: .public)")
             return nil
         }
 
@@ -460,7 +464,7 @@ public final class BackupIntegrityMonitor {
         do {
             envelope = try decoder.decode(BackupEnvelope.self, from: data)
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to decode backup envelope: \(error)")
+            Logger.backup.warning("Failed to decode backup envelope: \(error.localizedDescription, privacy: .public)")
             return nil
         }
 
@@ -472,7 +476,8 @@ public final class BackupIntegrityMonitor {
             do {
                 payloadBytes = try BackupPayloadExtractor.extractPayloadBytes(from: data)
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to extract payload bytes: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to extract payload bytes: \(desc, privacy: .public)")
                 return nil
             }
         } else if let compressed = envelope.compressedPayload {
@@ -480,7 +485,8 @@ public final class BackupIntegrityMonitor {
             do {
                 payloadBytes = try codec.decompress(compressed)
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to decompress payload: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to decompress payload: \(desc, privacy: .public)")
                 return nil
             }
         } else if envelope.encryptedPayload != nil {
@@ -523,7 +529,8 @@ extension BackupIntegrityMonitor {
                 }
             }
         } catch {
-            print("⚠️ [Backup:\(#function)] Failed to get backup modification date: \(error)")
+            let desc = error.localizedDescription
+            Logger.backup.warning("Failed to get backup modification date: \(desc, privacy: .public)")
         }
 
         return .healthy

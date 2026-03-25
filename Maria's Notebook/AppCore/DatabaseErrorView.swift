@@ -62,7 +62,7 @@ struct DatabaseErrorView: View {
                         .controlSize(.small)
                 }
                 
-                if let resetError = resetError {
+                if let resetError {
                     Text(resetError)
                         .font(.caption)
                         .foregroundStyle(AppColors.destructive)

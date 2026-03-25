@@ -32,7 +32,7 @@ extension PresentationDetailViewModel {
 
         // Sync to model immediately so the view updates
         let remainingUUIDs = Set(lessonAssignment.resolvedStudentIDs).subtracting(studentsToMove)
-        lessonAssignment.studentIDs = remainingUUIDs.map { $0.uuidString }
+        lessonAssignment.studentIDs = remainingUUIDs.map(\.uuidString)
         lessonAssignment.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
         saveCoordinator.save(modelContext, reason: "Moving students to inbox")
 

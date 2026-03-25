@@ -85,7 +85,7 @@ public final class BackupValidationService {
 
         // Check for empty required fields in critical entities
         for student in payload.students {
-            if student.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if student.firstName.trimmed().isEmpty {
                 errors.append(ValidationError(
                     entityType: "Student",
                     entityID: student.id,
@@ -106,7 +106,7 @@ public final class BackupValidationService {
             }
         }
 
-        for lesson in payload.lessons where lesson.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        for lesson in payload.lessons where lesson.name.trimmed().isEmpty {
             errors.append(ValidationError(
                 entityType: "Lesson",
                 entityID: lesson.id,
@@ -158,7 +158,7 @@ public final class BackupValidationService {
         var errors: [ValidationError] = []
 
         // Validate circular references in student next lessons
-        let lessonIDs = Set(payload.lessons.map { $0.id })
+        let lessonIDs = Set(payload.lessons.map(\.id))
         for student in payload.students {
             for nextLessonID in student.nextLessons where !lessonIDs.contains(nextLessonID) {
                 errors.append(ValidationError(
@@ -172,7 +172,7 @@ public final class BackupValidationService {
         }
 
         // Validate project sessions reference valid weeks
-        let weekIDs = Set(payload.projectTemplateWeeks.map { $0.id })
+        let weekIDs = Set(payload.projectTemplateWeeks.map(\.id))
         for session in payload.projectSessions {
             if let weekID = session.templateWeekID, !weekIDs.contains(weekID) {
                 errors.append(ValidationError(
@@ -194,18 +194,18 @@ public final class BackupValidationService {
         var allIDs: [UUID] = []
         var duplicates: [UUID] = []
 
-        allIDs.append(contentsOf: payload.students.map { $0.id })
-        allIDs.append(contentsOf: payload.lessons.map { $0.id })
-        allIDs.append(contentsOf: payload.lessonAssignments.map { $0.id })
-        allIDs.append(contentsOf: payload.notes.map { $0.id })
-        allIDs.append(contentsOf: payload.nonSchoolDays.map { $0.id })
-        allIDs.append(contentsOf: payload.schoolDayOverrides.map { $0.id })
-        allIDs.append(contentsOf: payload.studentMeetings.map { $0.id })
-        allIDs.append(contentsOf: payload.communityTopics.map { $0.id })
-        allIDs.append(contentsOf: payload.proposedSolutions.map { $0.id })
-        allIDs.append(contentsOf: payload.communityAttachments.map { $0.id })
-        allIDs.append(contentsOf: payload.attendance.map { $0.id })
-        allIDs.append(contentsOf: payload.workCompletions.map { $0.id })
+        allIDs.append(contentsOf: payload.students.map(\.id))
+        allIDs.append(contentsOf: payload.lessons.map(\.id))
+        allIDs.append(contentsOf: payload.lessonAssignments.map(\.id))
+        allIDs.append(contentsOf: payload.notes.map(\.id))
+        allIDs.append(contentsOf: payload.nonSchoolDays.map(\.id))
+        allIDs.append(contentsOf: payload.schoolDayOverrides.map(\.id))
+        allIDs.append(contentsOf: payload.studentMeetings.map(\.id))
+        allIDs.append(contentsOf: payload.communityTopics.map(\.id))
+        allIDs.append(contentsOf: payload.proposedSolutions.map(\.id))
+        allIDs.append(contentsOf: payload.communityAttachments.map(\.id))
+        allIDs.append(contentsOf: payload.attendance.map(\.id))
+        allIDs.append(contentsOf: payload.workCompletions.map(\.id))
 
         var seen = Set<UUID>()
         for id in allIDs {

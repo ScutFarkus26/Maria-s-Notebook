@@ -68,7 +68,7 @@ struct OptionalStateFromDefaults<T>: DynamicProperty {
         get { value }
         nonmutating set {
             value = newValue
-            if let newValue = newValue {
+            if let newValue {
                 UserDefaults.standard.set(newValue, forKey: key)
             } else {
                 UserDefaults.standard.removeObject(forKey: key)

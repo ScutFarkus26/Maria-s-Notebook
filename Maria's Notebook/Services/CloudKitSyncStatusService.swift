@@ -102,7 +102,7 @@ final class CloudKitSyncStatusService {
 
         // Setup network monitoring using AsyncStream
         Task { @MainActor [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             for await isAvailable in self.networkMonitor.observeNetworkChanges() {
                 self.handleNetworkChange(isAvailable: isAvailable)
             }
@@ -110,7 +110,7 @@ final class CloudKitSyncStatusService {
 
         // Setup iCloud account monitoring using AsyncStream
         Task { @MainActor [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             for await isAvailable in self.healthCheck.observeICloudChanges() {
                 self.handleICloudAccountChange(isAvailable: isAvailable)
             }
@@ -152,7 +152,7 @@ final class CloudKitSyncStatusService {
                 return
             }
             await MainActor.run { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 self.startObserving()
                 self.healthCheck.startICloudAccountMonitoring()
                 self.updateSyncHealth()
@@ -249,16 +249,16 @@ final class CloudKitSyncStatusService {
     func scheduleRetry() {
         retryLogic.scheduleRetry(
             canRetry: { [weak self] in
-                guard let self = self else { return false }
+                guard let self else { return false }
                 return self.isNetworkAvailable
             },
             syncAction: { [weak self] in
-                guard let self = self else { return false }
+                guard let self else { return false }
                 return await self.syncNow()
             },
             onMaxRetriesReached: { [weak self] in
                 Task { @MainActor [weak self] in
-                    guard let self = self else { return }
+                    guard let self else { return }
                     self.lastSyncError = "Sync failed after 5 attempts. Please try again later."
                     UserDefaults.standard.set(self.lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
                     SyncEventLogger.shared.log(
@@ -275,11 +275,11 @@ final class CloudKitSyncStatusService {
     func retryPendingSync() {
         retryLogic.retryPendingSync(
             canRetry: { [weak self] in
-                guard let self = self else { return false }
+                guard let self else { return false }
                 return self.isNetworkAvailable
             },
             hasPendingWork: { [weak self] in
-                guard let self = self else { return false }
+                guard let self else { return false }
                 return self.lastSyncError != nil || self.pendingSyncCount > 0
             },
             syncAction: { [weak self] in

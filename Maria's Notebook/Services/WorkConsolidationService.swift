@@ -79,7 +79,7 @@ struct WorkConsolidationService {
         }
         guard !allParticipantIDs.isEmpty else { return }
 
-        let existingParticipantIDs = Set((canonical.participants ?? []).map { $0.studentID })
+        let existingParticipantIDs = Set((canonical.participants ?? []).map(\.studentID))
 
         for participantID in allParticipantIDs {
             if !existingParticipantIDs.contains(participantID) {

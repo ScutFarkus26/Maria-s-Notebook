@@ -1,7 +1,9 @@
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct TodoExportView: View {
+    private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     let todos: [TodoItem]
     
@@ -172,7 +174,7 @@ struct TodoExportView: View {
                 do {
                     try FileManager.default.copyItem(at: url, to: destinationURL)
                 } catch {
-                    print("⚠️ [\(#function)] Failed to save export file: \(error)")
+                    Self.logger.error("[\(#function)] Failed to save export file: \(error)")
                 }
             }
         }

@@ -27,7 +27,7 @@ extension LessonsRootView {
 
     /// Count of all story-format lessons
     private var storyLessonCount: Int {
-        lessons.filter { $0.isStory }.count
+        lessons.filter(\.isStory).count
     }
 
     var subjectsColumn: some View {
@@ -118,7 +118,7 @@ extension LessonsRootView {
                 lessonToSchedule = lesson
             },
             onActivateJiggle: {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = true
                 }
             },
@@ -232,7 +232,7 @@ extension LessonsRootView {
                 }
             },
             onActivateJiggle: {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = true
                 }
             },
@@ -293,7 +293,7 @@ extension LessonsRootView {
             lesson: lesson,
             allLessons: lessons,
             onSave: { _ in
-                _ = saveCoordinator.save(modelContext, reason: "Update lesson")
+                saveCoordinator.save(modelContext, reason: "Update lesson")
             },
             onDone: {
                 selectedLessonDetail = nil

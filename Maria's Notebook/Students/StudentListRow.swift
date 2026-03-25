@@ -22,13 +22,7 @@ struct StudentListRow: View {
     #endif
 
     @Environment(\.calendar) private var calendar
-    
-    private static let birthdayFormatter: DateFormatter = {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return fmt
-    }()
-    
+
     private var levelColor: Color {
         AppColors.color(forLevel: student.level)
     }
@@ -56,7 +50,7 @@ struct StudentListRow: View {
     }
     
     private var birthdayDateString: String {
-        Self.birthdayFormatter.string(from: nextBirthdayDate)
+        DateFormatters.shortMonthDay.string(from: nextBirthdayDate)
     }
     
     // MARK: - Age Computations

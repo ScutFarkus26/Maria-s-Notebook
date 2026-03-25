@@ -47,7 +47,7 @@ extension BackupService {
             progress(0.15, "Decompressing data\u{2026}")
             return try codec.decompress(compressed)
         } else if let enc = envelope.encryptedPayload {
-            guard let password = password, !password.isEmpty else {
+            guard let password, !password.isEmpty else {
                 throw NSError(domain: "BackupService", code: 1103, userInfo: [
                     NSLocalizedDescriptionKey: "This backup is encrypted. Please provide a password."
                 ])

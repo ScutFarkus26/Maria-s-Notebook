@@ -86,7 +86,7 @@ extension PresentationDetailContentView {
     }
 
     func resolveBookmarkURL(_ bookmark: Data?) -> URL? {
-        guard let bookmark = bookmark else { return nil }
+        guard let bookmark else { return nil }
         var stale = false
         do {
 #if os(macOS)

@@ -15,12 +15,12 @@ struct IssuesListView: View {
     var filteredIssues: [Issue] {
         allIssues.filter { issue in
             // Filter by status
-            if let filterStatus = filterStatus, issue.status != filterStatus {
+            if let filterStatus, issue.status != filterStatus {
                 return false
             }
             
             // Filter by category
-            if let filterCategory = filterCategory, issue.category != filterCategory {
+            if let filterCategory, issue.category != filterCategory {
                 return false
             }
             

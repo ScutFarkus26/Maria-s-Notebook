@@ -18,7 +18,7 @@ struct ProjectEditorSheet: View {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -43,7 +43,7 @@ struct ProjectEditorSheet: View {
         _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDs ?? []))
         if let club {
             let drafts = (club.sharedTemplates ?? [])
-                .filter { $0.isShared }
+                .filter(\.isShared)
                 .map { t in
                     TemplateDraft(
                         title: t.title,
@@ -195,7 +195,7 @@ struct ProjectEditorSheet: View {
             modelContext.insert(newClub)
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Save Project")
+        saveCoordinator.save(modelContext, reason: "Save Project")
         dismiss()
     }
 }

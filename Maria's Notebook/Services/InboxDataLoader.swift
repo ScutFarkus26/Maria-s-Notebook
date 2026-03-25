@@ -23,7 +23,7 @@ final class InboxDataLoader {
         let workModels = loadActiveWorkModels()
 
         // Load check-ins and notes only for the work models we need
-        let workIDs = Set(workModels.map { $0.id })
+        let workIDs = Set(workModels.map(\.id))
         let checkIns = loadCheckIns(for: workIDs)
         let notes = loadNotes(for: workIDs)
 
@@ -89,7 +89,7 @@ final class InboxDataLoader {
     func loadCheckIns(for workIDs: Set<UUID>) -> [WorkCheckIn] {
         guard !workIDs.isEmpty else { return [] }
 
-        let workIDStrings = Set(workIDs.map { $0.uuidString })
+        let workIDStrings = Set(workIDs.map(\.uuidString))
         let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
         var descriptor = FetchDescriptor<WorkCheckIn>(
             predicate: #Predicate { $0.statusRaw == scheduledStatus }

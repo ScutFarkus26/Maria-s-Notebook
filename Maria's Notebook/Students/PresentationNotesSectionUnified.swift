@@ -73,7 +73,7 @@ struct PresentationNotesSectionUnified: View {
         }
         
         // Sort by createdAt descending
-        return merged.sorted(by: { $0.createdAt > $1.createdAt })
+        return merged.sorted { $0.createdAt > $1.createdAt }
     }
     
     // Legacy computed property for backwards compatibility (now just uses allUnifiedNotes)

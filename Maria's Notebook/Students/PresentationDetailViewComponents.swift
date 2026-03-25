@@ -331,7 +331,7 @@ struct WorkflowHeaderBar: View {
                 Spacer()
                 
                 #if os(macOS)
-                if let onPopOut = onPopOut {
+                if let onPopOut {
                     Button(action: onPopOut) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.up.forward.square")

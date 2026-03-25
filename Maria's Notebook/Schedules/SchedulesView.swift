@@ -8,7 +8,7 @@ struct SchedulesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Schedule.name) private var schedules: [Schedule]
     @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
+    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
 
     @State private var showingAddSheet = false
     @State private var selectedSchedule: Schedule?
@@ -225,7 +225,7 @@ struct ScheduleCard: View {
 
 extension Color {
     init?(hex: String) {
-        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        var hexSanitized = hex.trimmed()
         hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
 
         var rgb: UInt64 = 0

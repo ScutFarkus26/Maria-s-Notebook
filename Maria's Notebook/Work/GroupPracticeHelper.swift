@@ -64,7 +64,7 @@ struct QuickGroupPracticeButton: View {
                     .font(.system(size: 12, weight: .medium))
                 Text("Group")
                     .font(AppTheme.ScaledFont.captionSemibold)
-                if availablePartners.count > 0 {
+                if !availablePartners.isEmpty {
                     Text("(\(availablePartners.count))")
                         .font(AppTheme.ScaledFont.captionSemibold)
                 }

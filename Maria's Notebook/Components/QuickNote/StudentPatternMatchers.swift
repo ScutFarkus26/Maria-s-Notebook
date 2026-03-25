@@ -1,14 +1,17 @@
 import Foundation
+import OSLog
 
 // MARK: - Pattern Matching Helpers
 
 enum PatternMatchHelpers {
+    private static let logger = Logger.notes
+
     nonisolated static func containsWithBoundary(source: String, pattern: String) -> Bool {
         do {
             let regex = try NSRegularExpression(pattern: pattern)
             return regex.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) != nil
         } catch {
-            print("\u{26a0}\u{fe0f} [\(#function)] Failed to create regex with pattern '\(pattern)': \(error)")
+            logger.error("[\(#function)] Failed to create regex with pattern '\(pattern)': \(error)")
             return false
         }
     }

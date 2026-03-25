@@ -43,7 +43,7 @@ struct NoteRepository: SavingRepository {
         sortBy: [SortDescriptor<Note>] = [SortDescriptor(\.createdAt, order: .reverse)]
     ) -> [Note] {
         var descriptor = FetchDescriptor<Note>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -66,7 +66,7 @@ struct NoteRepository: SavingRepository {
         let allLinks = context.safeFetch(FetchDescriptor<NoteStudentLink>())
         let linkedNotes = allLinks
             .filter { $0.studentID == studentIDString }
-            .compactMap { $0.note }
+            .compactMap(\.note)
 
         if !linkedNotes.isEmpty {
             notes.append(contentsOf: linkedNotes)
@@ -158,23 +158,23 @@ struct NoteRepository: SavingRepository {
     ) -> Bool {
         guard let note = fetchNote(id: id) else { return false }
 
-        if let body = body {
+        if let body {
             note.body = body
         }
-        if let tags = tags {
+        if let tags {
             note.tags = tags
         }
-        if let scope = scope {
+        if let scope {
             note.scope = scope
             note.syncStudentLinks(in: context)
         }
-        if let isPinned = isPinned {
+        if let isPinned {
             note.isPinned = isPinned
         }
-        if let includeInReport = includeInReport {
+        if let includeInReport {
             note.includeInReport = includeInReport
         }
-        if let needsFollowUp = needsFollowUp {
+        if let needsFollowUp {
             note.needsFollowUp = needsFollowUp
         }
 

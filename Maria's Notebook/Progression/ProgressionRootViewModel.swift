@@ -25,7 +25,7 @@ final class ProgressionRootViewModel {
         let allPresentations = fetchPresentations(context: context)
         let allWork = fetchAllWork(context: context)
         let allStudents = fetchAllStudents(context: context)
-        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter { $0.isEnrolled })
+        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
         let visibleStudentIDs = Set(visibleStudents.map { $0.id.uuidString })
 
         // Pre-index presentations and work by lessonID for O(1) lookups
@@ -120,7 +120,7 @@ final class ProgressionRootViewModel {
             }
 
             // Find furthest lesson name across all students
-            let allPresentedLessonIDs = Set(groupPresentations.map { $0.lessonID })
+            let allPresentedLessonIDs = Set(groupPresentations.map(\.lessonID))
             let furthestLesson = sorted.last { allPresentedLessonIDs.contains($0.id.uuidString) }
 
             summaries.append(GroupSummary(

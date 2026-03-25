@@ -123,8 +123,8 @@ struct StudentTrackDetailView: View {
             lp.studentID == studentID && lessonIDStrings.contains(lp.lessonID)
         }
 
-        presentedLessonIDs = Set(studentPresentations.map { $0.lessonID })
-        proficientLessonIDs = Set(studentPresentations.filter { $0.state == .proficient }.map { $0.lessonID })
+        presentedLessonIDs = Set(studentPresentations.map(\.lessonID))
+        proficientLessonIDs = Set(studentPresentations.filter { $0.state == .proficient }.map(\.lessonID))
 
         // Load timeline via progression VM
         if let foundStudent = student {
@@ -170,7 +170,7 @@ struct StudentTrackDetailView: View {
                     .foregroundStyle(.primary)
 
                 if let startedAt = enrollment.startedAt {
-                    Text("Started \(Self.dateFormatter.string(from: startedAt))")
+                    Text("Started \(DateFormatters.mediumDate.string(from: startedAt))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -341,12 +341,6 @@ struct StudentTrackDetailView: View {
         }
     }
 
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
 }
 
 #Preview {

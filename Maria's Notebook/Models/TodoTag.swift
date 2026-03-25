@@ -113,12 +113,12 @@ struct TagHelper {
         var mutableExistingNames = existingNames
 
         for studentName in studentNames {
-            let trimmed = studentName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = studentName.trimmed()
             guard !trimmed.isEmpty else { continue }
 
             let studentTag = createStudentTag(name: trimmed, color: color)
             let normalized = tagName(studentTag).lowercased()
-            guard mutableExistingNames.contains(normalized) == false else { continue }
+            guard !mutableExistingNames.contains(normalized) else { continue }
             synced.append(studentTag)
             mutableExistingNames.insert(normalized)
         }

@@ -180,7 +180,7 @@ extension UnifiedPresentationWorkflowPanel {
         return VStack(spacing: 0) {
             // Header row
             Button {
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                     if isExpanded {
                         presentationViewModel.expandedStudentIDs.remove(student.id)
                     } else {
@@ -251,7 +251,7 @@ extension UnifiedPresentationWorkflowPanel {
         }
 
         // Show toast notification
-        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+        _ = adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
             bulkAppliedMessage = "Applied \(UnderstandingLevel.label(for: level))"
                 + " to \(count) student\(count == 1 ? "" : "s")"
             showBulkAppliedToast = true
@@ -264,7 +264,7 @@ extension UnifiedPresentationWorkflowPanel {
             } catch {
                 Self.logger.debug("Toast auto-hide interrupted: \(error)")
             }
-            adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+            _ = adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
                 showBulkAppliedToast = false
             }
         }

@@ -39,8 +39,8 @@ extension UnifiedNoteEditor {
     private func determineScope() -> NoteScope {
         if selectedStudentIDs.isEmpty {
             return .all
-        } else if selectedStudentIDs.count == 1 {
-            return .student(selectedStudentIDs.first!)
+        } else if selectedStudentIDs.count == 1, let first = selectedStudentIDs.first {
+            return .student(first)
         } else {
             return .students(Array(selectedStudentIDs))
         }

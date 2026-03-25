@@ -43,13 +43,6 @@ struct ProjectsRootView: View {
         return clubs.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
     }
 
-    static let df: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
-
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
@@ -165,7 +158,7 @@ struct ProjectsRootView: View {
     // MARK: - Helpers
 
     private func lastSessionDate(for club: Project) -> Date? {
-        (club.sessions ?? []).map { $0.meetingDate }.max()
+        (club.sessions ?? []).map(\.meetingDate).max()
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -265,7 +258,7 @@ struct ProjectsRootView: View {
             selectedClubIDString = ""
         }
         
-        _ = saveCoordinator.save(modelContext, reason: "Delete Project")
+        saveCoordinator.save(modelContext, reason: "Delete Project")
     }
 }
 

@@ -227,7 +227,7 @@ struct ResourceImportSheet: View {
             let thumbnail = ResourceThumbnailGenerator.generateThumbnail(from: destURL)
 
             // Build linked IDs
-            let lessonIDsString = selectedLessonIDs.map { $0.uuidString }.sorted().joined(separator: ",")
+            let lessonIDsString = selectedLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
             let subjectsString = selectedSubjects.sorted().joined(separator: ",")
 
             // Create resource

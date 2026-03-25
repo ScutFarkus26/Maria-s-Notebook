@@ -54,11 +54,11 @@ actor LocalCommandParser {
     // MARK: - Public API
 
     func parse(input: String, students: [StudentData], lessons: [LessonData]) async -> CommandParseResult {
-        guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !input.trimmed().isEmpty else {
             return .failed(reason: "Empty input")
         }
 
-        let normalized = input.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = input.lowercased().trimmed()
 
         // Step 1: Detect intent
         let (detectedIntent, intentConfidence) = detectIntent(in: normalized)
@@ -167,7 +167,7 @@ actor LocalCommandParser {
             // Exact substring match (best)
             if text.localizedCaseInsensitiveContains(lesson.name) {
                 let score = lesson.name.count * 3 // prefer longer exact matches
-                if bestMatch == nil || score > bestMatch!.score {
+                if bestMatch.map({ score > $0.score }) ?? true {
                     bestMatch = LessonMatchCandidate(id: lesson.id, name: lesson.name, score: score)
                 }
                 continue
@@ -188,7 +188,7 @@ actor LocalCommandParser {
                 // Accept if edit distance is less than 30% of name length
                 if maxLen > 0 && Double(distance) / Double(maxLen) < 0.3 {
                     let score = lessonNameLower.count * 2
-                    if bestMatch == nil || score > bestMatch!.score {
+                    if bestMatch.map({ score > $0.score }) ?? true {
                         bestMatch = LessonMatchCandidate(id: lesson.id, name: lesson.name, score: score)
                     }
                 }
@@ -237,7 +237,7 @@ actor LocalCommandParser {
         let filtered = words.filter { !fillers.contains($0) }
 
         return filtered.joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmed()
     }
 
     // MARK: - Levenshtein Distance

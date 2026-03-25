@@ -144,8 +144,8 @@ struct WorkAgendaDayColumn: View {
         // Emit grouped items
         for key in order {
             guard let items = buckets[key], !items.isEmpty else { continue }
-            let checkIns = items.map { $0.checkIn }
-            let studentNames = items.map { $0.studentName }.filter { !$0.isEmpty }
+            let checkIns = items.map(\.checkIn)
+            let studentNames = items.map(\.studentName).filter { !$0.isEmpty }
             result.append(CheckInGroup(
                 id: items[0].checkIn.id,
                 checkIns: checkIns,

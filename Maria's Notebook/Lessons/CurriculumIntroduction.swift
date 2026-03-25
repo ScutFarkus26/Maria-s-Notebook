@@ -51,7 +51,7 @@ struct CurriculumIntroduction: Codable, Identifiable, Equatable {
 
     /// Display title for the introduction
     var displayTitle: String {
-        if let group = group, !group.isEmpty {
+        if let group, !group.isEmpty {
             return group
         }
         return "\(subject) Album"

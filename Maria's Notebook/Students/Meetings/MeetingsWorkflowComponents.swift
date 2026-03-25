@@ -138,10 +138,7 @@ struct MeetingsQueueSidebar: View {
         } else if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) {
             return "(Tomorrow)"
         } else {
-            let fmt = DateFormatter()
-            fmt.dateStyle = .medium
-            fmt.timeStyle = .none
-            return "(\(fmt.string(from: date)))"
+            return "(\(DateFormatters.mediumDate.string(from: date)))"
         }
     }
 }
@@ -161,7 +158,7 @@ struct MeetingThresholdPicker: View {
             HStack(spacing: 8) {
                 // Tappable pill showing current value
                 Button {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    _ = adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                         isExpanded.toggle()
                     }
                 } label: {
@@ -188,7 +185,7 @@ struct MeetingThresholdPicker: View {
 
                 // Show completed toggle
                 Button {
-                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         showCompleted.toggle()
                     }
                 } label: {
@@ -217,7 +214,7 @@ struct MeetingThresholdPicker: View {
                     HStack(spacing: 6) {
                         ForEach(presets, id: \.self) { preset in
                             Button {
-                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                                     days = preset
                                 }
                             } label: {
@@ -285,7 +282,7 @@ struct StudentQueueRow: View {
     @Environment(\.modelContext) private var modelContext
 
     private var daysSinceLastMeeting: Int? {
-        guard let lastMeeting = lastMeeting else { return nil }
+        guard let lastMeeting else { return nil }
         return Calendar.current.dateComponents([.day], from: lastMeeting.date, to: Date()).day
     }
 
@@ -341,9 +338,7 @@ struct StudentQueueRow: View {
         } else if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) {
             return "Tomorrow"
         } else {
-            let fmt = DateFormatter()
-            fmt.setLocalizedDateFormatFromTemplate("MMMd")
-            return fmt.string(from: date)
+            return DateFormatters.shortMonthDay.string(from: date)
         }
     }
 }

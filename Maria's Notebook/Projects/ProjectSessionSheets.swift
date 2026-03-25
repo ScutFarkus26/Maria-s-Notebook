@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
@@ -68,6 +69,8 @@ struct ProjectLessonPickerSheet: View {
 struct AddWorkOfferSheet: View {
     let session: ProjectSession
 
+    private static let logger = Logger.projects
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -127,9 +130,9 @@ struct AddWorkOfferSheet: View {
                 instructions: instructions,
                 dueDate: dueDate
             )
-            _ = saveCoordinator.save(modelContext, reason: "Add work offer to session")
+            saveCoordinator.save(modelContext, reason: "Add work offer to session")
         } catch {
-            print("⚠️ [\(#function)] Failed to add work offer: \(error)")
+            Self.logger.error("Failed to add work offer: \(error.localizedDescription, privacy: .public)")
         }
         dismiss()
     }

@@ -1,10 +1,12 @@
 // TodoLocationPickerView.swift
 // Map-based location picker for todo location reminders
 
+import OSLog
 import SwiftUI
 import MapKit
 
 struct TodoLocationPickerView: View {
+    private static let logger = Logger.todos
     @Binding var locationName: String
     @Binding var latitude: Double?
     @Binding var longitude: Double?
@@ -212,7 +214,7 @@ struct TodoLocationPickerView: View {
     // MARK: - Search
     
     private func performSearch() {
-        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !searchText.trimmed().isEmpty else { return }
         isSearching = true
         
         let request = MKLocalSearch.Request()
@@ -223,7 +225,7 @@ struct TodoLocationPickerView: View {
             isSearching = false
             guard let response else {
                 if let error {
-                    print("⚠️ [\(#function)] Search failed: \(error)")
+                    Self.logger.error("[\(#function)] Search failed: \(error)")
                 }
                 return
             }

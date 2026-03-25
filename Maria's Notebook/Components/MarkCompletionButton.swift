@@ -1,7 +1,9 @@
+import OSLog
 import SwiftUI
 import SwiftData
 
 struct MarkCompletionButton: View {
+    private static let logger = Logger.work
     let workID: UUID
     let studentID: UUID
     var label: String = "Mark Completed"
@@ -40,19 +42,15 @@ struct MarkCompletionButton: View {
             #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             #endif
-            adaptiveWithAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            _ = adaptiveWithAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 justCompleted = true
             }
             Task { @MainActor in
-                do {
-                    try await Task.sleep(for: .seconds(1.5))
-                } catch {
-                    print("⚠️ [\(#function)] Failed to sleep: \(error)")
-                }
-                adaptiveWithAnimation(.easeOut) { justCompleted = false }
+                try? await Task.sleep(for: .seconds(1.5))
+                _ = adaptiveWithAnimation(.easeOut) { justCompleted = false }
             }
         } catch {
-            print("⚠️ [\(#function)] Failed to mark work completed: \(error)")
+            Self.logger.error("[\(#function)] Failed to mark work completed: \(error)")
             #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             #endif

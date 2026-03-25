@@ -57,7 +57,7 @@ struct StatCard: View {
                 .multilineTextAlignment(.center)
             Text(subtitle ?? " ")
                 .font(.subheadline)
-                .foregroundStyle(subtitle != nil && !subtitle!.isEmpty ? Color.secondary : Color.clear)
+                .foregroundStyle(subtitle?.isEmpty == false ? Color.secondary : Color.clear)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -137,7 +137,7 @@ struct SettingsGroup<Content: View>: View {
             HStack {
                 if collapsible {
                     Button {
-                        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                        _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                             isExpanded.toggle()
                         }
                     } label: {

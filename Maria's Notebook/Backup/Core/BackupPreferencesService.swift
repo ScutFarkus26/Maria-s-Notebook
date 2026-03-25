@@ -42,7 +42,7 @@ enum BackupPreferencesService {
                 obj = defaults.object(forKey: key)
             }
 
-            if let obj = obj {
+            if let obj {
                 switch obj {
                 case let b as Bool:
                     map[key] = .bool(b)

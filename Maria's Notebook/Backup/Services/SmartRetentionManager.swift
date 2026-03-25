@@ -149,7 +149,7 @@ public final class SmartRetentionManager {
         // Classify each backup
         let classifications = classifyBackups(backups)
         
-        let toKeep = classifications.filter { $0.shouldKeep }
+        let toKeep = classifications.filter(\.shouldKeep)
         let toDelete = classifications.filter { !$0.shouldKeep }
         let spaceToReclaim = toDelete.reduce(0) { $0 + $1.fileSize }
         
@@ -176,7 +176,7 @@ public final class SmartRetentionManager {
         let toDelete = report.classifications.filter { !$0.shouldKeep }
         
         guard !dryRun else {
-            return toDelete.map { $0.url }
+            return toDelete.map(\.url)
         }
         
         var deleted: [URL] = []
@@ -185,7 +185,9 @@ public final class SmartRetentionManager {
                 try FileManager.default.removeItem(at: classification.url)
                 deleted.append(classification.url)
             } catch {
-                print("SmartRetentionManager: Failed to delete \(classification.fileName): \(error)")
+                let fileName = classification.fileName
+                let desc = error.localizedDescription
+                Self.logger.error("Failed to delete \(fileName, privacy: .public): \(desc, privacy: .public)")
             }
         }
         
@@ -346,7 +348,7 @@ public final class SmartRetentionManager {
         let report = try await analyzeBackups(in: directory)
         
         let totalSize = report.classifications.reduce(0) { $0 + $1.fileSize }
-        let keptSize = report.classifications.filter { $0.shouldKeep }.reduce(0) { $0 + $1.fileSize }
+        let keptSize = report.classifications.filter(\.shouldKeep).reduce(0) { $0 + $1.fileSize }
         let reclaimedSize = report.spaceToReclaim
         
         return StorageEstimate(
@@ -399,9 +401,10 @@ extension AutoBackupManager {
         
         do {
             let deleted = try await retentionManager.applyRetentionPolicy(in: autoBackupDir, dryRun: false)
-            print("SmartRetention: Deleted \(deleted.count) expired backups")
+            Logger.backup.info("SmartRetention: Deleted \(deleted.count, privacy: .public) expired backups")
         } catch {
-            print("SmartRetention: Failed to apply policy: \(error)")
+            let desc = error.localizedDescription
+            Logger.backup.error("SmartRetention: Failed to apply policy: \(desc, privacy: .public)")
         }
     }
 }

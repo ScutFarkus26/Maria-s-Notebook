@@ -173,7 +173,7 @@ public final class BackupTransactionManager {
 
             // Success - clean up checkpoint
             progress(0.95, "Cleaning up…")
-            if let checkpointURL = checkpointURL {
+            if let checkpointURL {
                 cleanupCheckpoint(at: checkpointURL)
             }
             activeCheckpointURL = nil
@@ -183,7 +183,7 @@ public final class BackupTransactionManager {
 
         } catch {
             // Import failed - attempt rollback if we have a checkpoint
-            if let checkpointURL = checkpointURL {
+            if let checkpointURL {
                 progress(0.96, "Import failed. Attempting rollback…")
 
                 do {

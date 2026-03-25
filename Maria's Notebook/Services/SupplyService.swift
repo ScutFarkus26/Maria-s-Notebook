@@ -19,7 +19,7 @@ enum SupplyService {
         var filtered = supplies
 
         // Filter by category if specified
-        if let category = category {
+        if let category {
             filtered = filtered.filter { $0.category == category }
         }
 
@@ -44,7 +44,7 @@ enum SupplyService {
         )
 
         let supplies = context.safeFetch(descriptor)
-        return supplies.filter { $0.needsReorder }
+        return supplies.filter(\.needsReorder)
     }
 
     /// Fetches supplies grouped by category
@@ -76,8 +76,8 @@ enum SupplyService {
         let total = supplies.count
         let lowStock = supplies.filter { $0.status == .low || $0.status == .critical }.count
         let outOfStock = supplies.filter { $0.status == .outOfStock }.count
-        let needsReorder = supplies.filter { $0.needsReorder }.count
-        let onOrder = supplies.filter { $0.isOnOrder }.count
+        let needsReorder = supplies.filter(\.needsReorder).count
+        let onOrder = supplies.filter(\.isOnOrder).count
 
         return SupplyStats(
             totalSupplies: total,

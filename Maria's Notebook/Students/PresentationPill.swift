@@ -60,13 +60,6 @@ struct PresentationPill: View {
     @State private var cachedRecentlyPresentedIDs: Set<UUID> = []
     @State private var lastCacheDay: Date?
 
-    private static let timeOnlyFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .none
-        df.timeStyle = .short
-        return df
-    }()
-
     private var scheduledDate: Date? { snapshot.scheduledFor }
 
     private var lessonObject: Lesson? { lessons.first(where: { $0.id == snapshot.lessonID }) }
@@ -90,7 +83,7 @@ struct PresentationPill: View {
     }
 
     private var isAllSelected: Bool {
-        let allIDs = Set(students.map { $0.id })
+        let allIDs = Set(students.map(\.id))
         let groupIDs = Set(snapshot.studentIDs)
         return !allIDs.isEmpty && groupIDs == allIDs
     }
@@ -103,7 +96,7 @@ struct PresentationPill: View {
 
     private var studentLine: String {
         let names = snapshot.studentIDs.compactMap { id -> String? in
-            students.first(where: { $0.id == id }).map { displayName(for: $0) } ?? "(Removed)"
+            students.first(where: { $0.id == id }).map { StudentFormatter.displayName(for: $0) } ?? "(Removed)"
         }
         guard !names.isEmpty else {
             let count = snapshot.studentIDs.count
@@ -134,7 +127,7 @@ struct PresentationPill: View {
         var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
         descriptor.fetchLimit = 1
         do {
-            return try modelContext.fetch(descriptor).isEmpty == false
+            return try !modelContext.fetch(descriptor).isEmpty
         } catch {
             logger.warning("Failed to fetch non-school day: \(error)")
             return false
@@ -146,7 +139,7 @@ struct PresentationPill: View {
         var descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
         descriptor.fetchLimit = 1
         do {
-            return try modelContext.fetch(descriptor).isEmpty == false
+            return try !modelContext.fetch(descriptor).isEmpty
         } catch {
             logger.warning("Failed to fetch school day override: \(error)")
             return false
@@ -192,7 +185,7 @@ struct PresentationPill: View {
             let g = normalized(l.group)
             return s == "parsha" || g == "parsha"
         }
-        return Set(parshaLessons.map { $0.id })
+        return Set(parshaLessons.map(\.id))
     }
 
     /// Helper to fetch presented LessonAssignments within a date range.
@@ -244,7 +237,7 @@ struct PresentationPill: View {
             if let s = students.first(where: { $0.id == id }) {
                 chips.append(StudentChip(
                     id: id,
-                    label: displayName(for: s),
+                    label: StudentFormatter.displayName(for: s),
                     isMissing: false,
                     status: statusesByStudent[id],
                     hasHad: recentlyPresentedStudentIDs.contains(id),
@@ -258,13 +251,6 @@ struct PresentationPill: View {
             }
         }
         return chips
-    }
-
-    private func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
     private var ageSchoolDays: Int {
@@ -358,7 +344,7 @@ struct PresentationPill: View {
                     ) {
                         showTimeEditor = true
                     } content: {
-                        Text(Self.timeOnlyFormatter.string(from: scheduled))
+                        Text(DateFormatters.shortTime.string(from: scheduled))
                     }
                     #if os(macOS)
                     .popover(isPresented: $showTimeEditor, arrowEdge: .top) {

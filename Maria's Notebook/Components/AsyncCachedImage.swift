@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 
 #if os(macOS)
@@ -37,6 +38,7 @@ final class ImageCache {
 
 /// Disk cache for downsampled images to persist across app launches
 private enum ImageDiskCache {
+    private static let logger = Logger.photos
     /// Returns the disk cache directory URL, creating it if needed
     nonisolated static var cacheDirectory: URL? {
         guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
@@ -49,7 +51,7 @@ private enum ImageDiskCache {
             do {
                 try FileManager.default.createDirectory(at: imageCacheDir, withIntermediateDirectories: true)
             } catch {
-                print("⚠️ [\(#function)] Failed to create cache directory: \(error)")
+                Self.logger.error("[\(#function)] Failed to create cache directory: \(error)")
                 return nil
             }
         }
@@ -76,7 +78,7 @@ private enum ImageDiskCache {
         do {
             data = try Data(contentsOf: fileURL)
         } catch {
-            print("⚠️ [\(#function)] Failed to load image data from cache: \(error)")
+            Self.logger.error("[\(#function)] Failed to load image data from cache: \(error)")
             return nil
         }
 
@@ -106,7 +108,7 @@ private enum ImageDiskCache {
         do {
             try jpegData.write(to: fileURL)
         } catch {
-            print("⚠️ [\(#function)] Failed to save image to disk cache: \(error)")
+            Self.logger.error("[\(#function)] Failed to save image to disk cache: \(error)")
         }
     }
 }

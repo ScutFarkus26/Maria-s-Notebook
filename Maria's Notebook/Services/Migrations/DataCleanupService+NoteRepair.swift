@@ -54,12 +54,12 @@ extension DataCleanupService {
 
             // Get all files in the Note Photos directory
             let files = try fm.contentsOfDirectory(at: photosDir, includingPropertiesForKeys: nil)
-            let imageFilenames = Set(files.map { $0.lastPathComponent })
+            let imageFilenames = Set(files.map(\.lastPathComponent))
 
             // Get all image paths referenced by notes
             let notesFetch = FetchDescriptor<Note>()
             let notes = context.safeFetch(notesFetch)
-            let referencedPaths = Set(notes.compactMap { $0.imagePath })
+            let referencedPaths = Set(notes.compactMap(\.imagePath))
 
             // Find orphaned files
             let orphanedFiles = imageFilenames.subtracting(referencedPaths)

@@ -288,7 +288,10 @@ public final class BackupNotificationService {
                             fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
                         } catch {
                             let name = url.lastPathComponent
-                            print("Warning [Backup:observeBackupEvents] Failed to get file size for \(name): \(error)")
+                            let desc = error.localizedDescription
+                            Logger.backup.warning(
+                                "Failed to get file size for \(name, privacy: .public): \(desc, privacy: .public)"
+                            )
                             fileSize = nil
                         }
                         self.notifyBackupComplete(type: event.trigger, url: url, fileSize: fileSize)
@@ -302,7 +305,7 @@ public final class BackupNotificationService {
                 do {
                     try await Task.sleep(for: .seconds(0.5))
                 } catch {
-                    print("⚠️ [Backup:observeBackupEvents] Task sleep interrupted: \(error)")
+                    Logger.backup.warning("Task sleep interrupted: \(error.localizedDescription, privacy: .public)")
                     break
                 }
             }
@@ -338,7 +341,7 @@ public final class BackupNotificationService {
         )
 
         UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
+            if let error {
                 Logger.backup.error("Failed to send notification: \(error)")
             }
         }

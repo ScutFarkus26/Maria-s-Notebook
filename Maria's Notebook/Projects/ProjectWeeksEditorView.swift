@@ -77,11 +77,11 @@ struct ProjectWeeksEditorView: View {
     }
 
     private func addWeek() {
-        let nextIndex = (weeks.map { $0.weekIndex }.max() ?? 0) + 1
+        let nextIndex = (weeks.map(\.weekIndex).max() ?? 0) + 1
         let w = ProjectTemplateWeek(projectID: club.id, weekIndex: nextIndex)
         if w.agendaItems.isEmpty { w.agendaItems = ["Go over work from last week"] }
         modelContext.insert(w)
-        _ = saveCoordinator.save(modelContext, reason: "Add project template week")
+        saveCoordinator.save(modelContext, reason: "Add project template week")
         editingWeek = w
     }
 
@@ -89,7 +89,7 @@ struct ProjectWeeksEditorView: View {
         // Use the week's relationship to get its role assignments
         for a in week.roleAssignments ?? [] { modelContext.delete(a) }
         modelContext.delete(week)
-        _ = saveCoordinator.save(modelContext, reason: "Delete project template week")
+        saveCoordinator.save(modelContext, reason: "Delete project template week")
     }
 }
 
@@ -115,7 +115,7 @@ struct ProjectWeekEditorView: View, Identifiable {
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -327,7 +327,7 @@ struct ProjectWeekEditorView: View, Identifiable {
         }
         .sheet(item: $viewingLesson) { lesson in
             LessonDetailView(lesson: lesson, onSave: { _ in
-                _ = saveCoordinator.save(modelContext, reason: "Update lesson details from book club editor")
+                saveCoordinator.save(modelContext, reason: "Update lesson details from book club editor")
             }, onDone: {
                 viewingLesson = nil
             })
@@ -490,7 +490,7 @@ struct ProjectWeekEditorView: View, Identifiable {
         week.minSelections = assignmentMode == .choice ? minSelections : 0
         week.maxSelections = assignmentMode == .choice ? maxSelections : 0
         week.offeredWorks = assignmentMode == .choice ? offeredWorks : []
-        _ = saveCoordinator.save(modelContext, reason: "Save book club template week")
+        saveCoordinator.save(modelContext, reason: "Save book club template week")
         onDone(); dismiss()
     }
 }

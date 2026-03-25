@@ -88,7 +88,7 @@ public enum CSVParser {
             })
         } else {
             // Synthesize headers
-            let maxColumns = rows.map { $0.count }.max() ?? 0
+            let maxColumns = rows.map(\.count).max() ?? 0
             let headers = (1...maxColumns).map { "Column \($0)" }
             return CSVData(headers: headers, rows: rows.map { row in
                 row + Array(repeating: "", count: max(0, maxColumns - row.count))

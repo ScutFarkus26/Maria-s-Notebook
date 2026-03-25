@@ -184,7 +184,7 @@ struct FollowUpInboxEngine {
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         return safeFetch(descriptor, modelContext: modelContext, context: "computeItems")
-            .filter { $0.isOpen }
+            .filter(\.isOpen)
     }
 
     private static func fetchSchoolDaySets(
@@ -348,12 +348,8 @@ struct FollowUpInboxEngine {
             let threshold = ctx.constants.lessonFollowUpOverdueDays
             guard let bucket = computeBucket(days: days, threshold: threshold) else { continue }
 
-            let lessonTitle: String = {
-                if let lessonUUID = UUID(uuidString: la.lessonID), let l = ctx.lessonsByID[lessonUUID] {
-                    return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
-                }
-                return "Lesson"
-            }()
+            let lessonTitle = ctx.lessonsByID[uuidString: la.lessonID]
+                .map { LessonFormatter.titleOrFallback($0.name, fallback: "Lesson") } ?? "Lesson"
             let (cid, cname) = childDisplayName(for: la.resolvedStudentIDs, studentsByID: ctx.studentsByID)
             let status = formatStatusText(
                 bucket: bucket, days: days, threshold: threshold, suffix: "since presented"

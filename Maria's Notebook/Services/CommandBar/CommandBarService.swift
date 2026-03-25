@@ -143,7 +143,7 @@ final class CommandBarService {
         mcpClient: MCPClientProtocol?,
         localFallback: ParsedCommand?
     ) async {
-        guard let mcpClient = mcpClient else {
+        guard let mcpClient else {
             if let fallback = localFallback {
                 parseState = .result(fallback)
             } else {

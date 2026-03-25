@@ -37,7 +37,7 @@ struct LessonAttachmentImporter {
         return scoredLessons
             .filter { $0.score > 0 }
             .sorted { $0.score > $1.score }
-            .map { $0.lesson }
+            .map(\.lesson)
     }
     
     /// Extracts meaningful search terms from a filename
@@ -51,7 +51,7 @@ struct LessonAttachmentImporter {
         // Split into words and filter out very short words
         let words = cleaned
             .components(separatedBy: " ")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .map { $0.trimmed().lowercased() }
             .filter { $0.count > 2 }
         
         return words

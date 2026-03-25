@@ -84,7 +84,7 @@ enum StudentsCSVImportHandler {
         onError: @MainActor @Sendable @escaping (ImportAlert) -> Void,
         onFinally: @MainActor @Sendable @escaping () -> Void
     ) -> Task<Void, Never>? {
-        guard let fileURL = fileURL else { return nil }
+        guard let fileURL else { return nil }
 
         existingTask?.cancel()
 

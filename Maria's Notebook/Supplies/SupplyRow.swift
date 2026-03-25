@@ -39,7 +39,7 @@ struct SupplyRow: View {
 
             // Quantity and status
             HStack(spacing: 8) {
-                if let onQuickAdjust = onQuickAdjust {
+                if let onQuickAdjust {
                     // Quick adjust buttons
                     Button {
                         onQuickAdjust(-1)
@@ -64,7 +64,7 @@ struct SupplyRow: View {
                 }
                 .frame(minWidth: 50, alignment: .trailing)
 
-                if let onQuickAdjust = onQuickAdjust {
+                if let onQuickAdjust {
                     Button {
                         onQuickAdjust(1)
                     } label: {

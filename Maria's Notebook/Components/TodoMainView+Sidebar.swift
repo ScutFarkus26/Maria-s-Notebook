@@ -208,7 +208,7 @@ extension TodoMainView {
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                                    _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
                                         if selectedFolder == groupName {
                                             // Deselect folder
                                             selectedFolder = nil
@@ -236,7 +236,7 @@ extension TodoMainView {
                                 }
                                 .dropDestination(for: String.self) { items, _ in
                                     guard let dropped = items.first, dropped != item else { return false }
-                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                                    _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
                                         moveTag(from: dropped, toAfter: item)
                                     }
                                     return true
@@ -319,7 +319,7 @@ extension TodoMainView {
         )
         .dropDestination(for: String.self) { items, _ in
             guard let dropped = items.first, dropped != dragKey else { return false }
-            adaptiveWithAnimation(.snappy(duration: 0.2)) {
+            _ = adaptiveWithAnimation(.snappy(duration: 0.2)) {
                 moveTag(from: dropped, toAfter: dragKey)
             }
             return true
@@ -347,7 +347,7 @@ extension TodoMainView {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
-                        let trimmed = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmed = newFolderName.trimmed()
                         guard !trimmed.isEmpty else { return }
                         let folderKey = "folder:" + trimmed
                         if !tagOrder.contains(folderKey) {
@@ -360,7 +360,7 @@ extension TodoMainView {
                         expandedTagGroups.insert(trimmed)
                         isShowingNewFolder = false
                     }
-                    .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(newFolderName.trimmed().isEmpty)
                 }
             }
         }
@@ -371,7 +371,7 @@ extension TodoMainView {
     var hasUnusedTags: Bool {
         let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tags })
         let allTags = Set(allTodos.flatMap { $0.tags })
-        return allTags.subtracting(activeTags).isEmpty == false
+        return !allTags.subtracting(activeTags).isEmpty
     }
 
     func removeUnusedTags() {

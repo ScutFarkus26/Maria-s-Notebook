@@ -71,7 +71,7 @@ struct UnifiedNoteEditor: View {
     // MARK: - Query
     @Query(sort: Student.sortByName)
     var studentsRaw: [Student]
-    var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
+    var students: [Student] { studentsRaw.filter(\.isEnrolled) }
 
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []
@@ -163,7 +163,7 @@ struct UnifiedNoteEditor: View {
         #if os(iOS)
         .sheet(isPresented: $showingCamera) {
             CameraView(image: $selectedImage) { img in
-                if let img = img {
+                if let img {
                     handleCameraImage(img)
                 }
             }
@@ -227,11 +227,7 @@ struct UnifiedNoteEditor: View {
         if shouldShowStudentSelection {
             nameDetectionTask?.cancel()
             nameDetectionTask = Task { @MainActor in
-                do {
-                    try await Task.sleep(for: .milliseconds(250))
-                } catch {
-                    print("⚠️ [\(#function)] Failed to sleep: \(error)")
-                }
+                try? await Task.sleep(for: .milliseconds(250))
                 if Task.isCancelled { return }
                 await analyzeTextForNames(newText)
             }

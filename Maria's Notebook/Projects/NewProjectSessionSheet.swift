@@ -299,14 +299,14 @@ struct NewProjectSessionSheet: View {
             createUniformWorks(session: session, scheduledDay: scheduledDay)
         }
 
-        _ = saveCoordinator.save(modelContext, reason: "Create Project Session")
+        saveCoordinator.save(modelContext, reason: "Create Project Session")
         dismiss()
     }
 
     /// Creates uniform works using existing template/generic logic
     private func createUniformWorks(session: ProjectSession, scheduledDay: Date) {
         let lessonUUID = resolveGenericProjectLessonID(context: modelContext)
-        let sharedTemplates = (club.sharedTemplates ?? []).filter { $0.isShared }
+        let sharedTemplates = (club.sharedTemplates ?? []).filter(\.isShared)
         let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil)
             ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! })
             : nil
@@ -384,7 +384,7 @@ struct NewProjectSessionSheet: View {
             // Store session context in notes (WorkModel doesn't have sourceContextType/ID)
             if !instructions.isEmpty {
                 Task { @MainActor in
-                    _ = workModel.setLegacyNoteText(instructions, in: modelContext)
+                    workModel.setLegacyNoteText(instructions, in: modelContext)
                 }
             }
             

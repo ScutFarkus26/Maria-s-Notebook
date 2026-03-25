@@ -168,21 +168,6 @@ struct LessonAssignmentHistoryView: View {
         return days.map { ($0, dict[$0] ?? []) }
     }
 
-    // Date formatters
-    static let dayFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
-
-    static let timeFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .none
-        df.timeStyle = .short
-        return df
-    }()
-
     // Resolve title: prefer snapshot else lookup lesson by ID
     func title(for la: LessonAssignment) -> String {
         if let snap = la.lessonTitleSnapshot?.trimmed(), !snap.isEmpty {

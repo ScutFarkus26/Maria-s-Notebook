@@ -213,7 +213,7 @@ struct StudentHistoryTab: View {
                     if let startedAt = enrollment.startedAt {
                         Text("•")
                             .foregroundStyle(.tertiary)
-                        Text(Self.dateFormatter.string(from: startedAt))
+                        Text(DateFormatters.mediumDate.string(from: startedAt))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -243,10 +243,4 @@ struct StudentHistoryTab: View {
         )
     }
 
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }()
 }

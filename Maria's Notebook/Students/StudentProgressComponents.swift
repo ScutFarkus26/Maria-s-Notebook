@@ -268,7 +268,7 @@ struct NextItemBanner: View {
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.primary)
 
-                if let subtitle = subtitle, !subtitle.isEmpty {
+                if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)

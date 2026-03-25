@@ -74,7 +74,7 @@ final class PostPresentationFormViewModel {
         )
         
         // Auto-expand all students by default
-        self.expandedStudentIDs = Set(students.map { $0.id })
+        self.expandedStudentIDs = Set(students.map(\.id))
     }
 
     // MARK: - Actions

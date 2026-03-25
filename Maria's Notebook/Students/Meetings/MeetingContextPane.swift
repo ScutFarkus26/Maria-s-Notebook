@@ -173,10 +173,7 @@ struct MeetingContextPane: View {
     }
 
     private func workDisplayTitle(_ work: WorkModel) -> String {
-        if let lid = UUID(uuidString: work.lessonID), let lesson = lessonsByID[lid] {
-            return lesson.name
-        }
-        return "Lesson"
+        lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
 
     // MARK: - Lessons Since Section
@@ -216,7 +213,7 @@ struct MeetingContextPane: View {
                 Text(lesson.name)
                     .font(.footnote)
                     .foregroundStyle(.primary)
-            } else if let lessonID = UUID(uuidString: la.lessonID), let lesson = lessonsByID[lessonID] {
+            } else if let lesson = lessonsByID[uuidString: la.lessonID] {
                 Text(lesson.name)
                     .font(.footnote)
                     .foregroundStyle(.primary)

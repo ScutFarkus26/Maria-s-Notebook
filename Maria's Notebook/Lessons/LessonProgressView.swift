@@ -111,7 +111,7 @@ struct LessonProgressView: View {
         HStack(spacing: 0) {
             ForEach(ProgressTab.allCases, id: \.self) { tab in
                 Button {
-                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                         selectedTab = tab
                     }
                 } label: {

@@ -181,7 +181,9 @@ final class Note: Identifiable {
     func assertStudentLinksSynced(context: String = #function) {
         #if DEBUG
         if _studentLinksNeedSync {
-            Self.logger.error("Student links not synced before save in \(context). Call syncStudentLinksIfNeeded(in:) after setting scope.")
+            // swiftlint:disable:next line_length
+            Self.logger.error("Student links not synced before save in \(context, privacy: .public). Call syncStudentLinksIfNeeded(in:) after setting scope.")
+            // swiftlint:disable:next line_length
             assertionFailure("Note.studentLinks not synced after scope change — call syncStudentLinksIfNeeded(in:) before saving. Triggered in \(context)")
         }
         #endif
@@ -329,7 +331,7 @@ final class Note: Identifiable {
     /// Deletes the associated image file from disk if one exists.
     /// Call this before deleting the Note to prevent orphaned images.
     func deleteAssociatedImage() {
-        guard let imagePath = imagePath, !imagePath.isEmpty else { return }
+        guard let imagePath, !imagePath.isEmpty else { return }
         do {
             try PhotoStorageService.deleteImage(filename: imagePath)
         } catch {

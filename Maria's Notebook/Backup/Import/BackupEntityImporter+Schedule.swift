@@ -1,9 +1,11 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Calendar/Schedule Imports
 
 extension BackupEntityImporter {
+    private static let logger = Logger.backup
 
     // MARK: - Non-School Days
 
@@ -94,7 +96,8 @@ extension BackupEntityImporter {
                         slot.schedule = schedule
                     }
                 } catch {
-                    print("\u{26a0}\u{fe0f} [Backup:\(#function)] Failed to check schedule for slot: \(error)")
+                    let desc = error.localizedDescription
+                    Self.logger.warning("Failed to check schedule for slot: \(desc, privacy: .public)")
                 }
             }
             modelContext.insert(slot)

@@ -12,6 +12,7 @@ import OSLog
 @Observable
 @MainActor
 public final class CloudBackupService {
+    private static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -74,7 +75,8 @@ public final class CloudBackupService {
                     let config = try JSONDecoder().decode(ScheduleConfiguration.self, from: data)
                     return config
                 } catch {
-                    print("Warning [Backup:\(#function)] Failed to decode schedule configuration: \(error)")
+                    let desc = error.localizedDescription
+                    Self.logger.warning("Failed to decode schedule configuration: \(desc, privacy: .public)")
                 }
             }
             return .default
@@ -84,7 +86,8 @@ public final class CloudBackupService {
                 let data = try JSONEncoder().encode(newValue)
                 UserDefaults.standard.set(data, forKey: "CloudBackup.scheduleConfig")
             } catch {
-                print("Warning [Backup:\(#function)] Failed to encode schedule configuration: \(error)")
+                let desc = error.localizedDescription
+                Self.logger.warning("Failed to encode schedule configuration: \(desc, privacy: .public)")
             }
             updateScheduledBackups()
         }
@@ -209,7 +212,7 @@ public final class CloudBackupService {
             includingPropertiesForKeys: Array(resourceKeys),
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         )
-        guard let enumerator = enumerator else {
+        guard let enumerator else {
             return []
         }
 
@@ -225,8 +228,9 @@ public final class CloudBackupService {
             do {
                 resourceValues = try fileURL.resourceValues(forKeys: resourceKeys)
             } catch {
-                // swiftlint:disable:next line_length
-                print("Warning [Backup:\(#function)] Failed to get resource values for \(fileURL.lastPathComponent): \(error)")
+                let name = fileURL.lastPathComponent
+                let desc = error.localizedDescription
+                Self.logger.warning("Resource values failed for \(name, privacy: .public): \(desc, privacy: .public)")
                 continue
             }
 
@@ -403,7 +407,8 @@ public final class CloudBackupService {
                 do {
                     try deleteCloudBackup(backup)
                 } catch {
-                    print("Warning [Backup:\(#function)] Failed to delete backup during retention: \(error)")
+                    let desc = error.localizedDescription
+                    Self.logger.warning("Failed to delete backup during retention: \(desc, privacy: .public)")
                 }
             }
         }

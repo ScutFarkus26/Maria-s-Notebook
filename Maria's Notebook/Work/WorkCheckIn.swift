@@ -99,8 +99,8 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
         self.status = .completed
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
-        if let note = note {
-            _ = self.setLegacyNoteText(note, in: context)
+        if let note {
+            setLegacyNoteText(note, in: context)
         }
     }
 
@@ -108,8 +108,8 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
         self.status = .scheduled
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
-        if let note = note {
-            _ = self.setLegacyNoteText(note, in: context)
+        if let note {
+            setLegacyNoteText(note, in: context)
         }
     }
 
@@ -117,8 +117,8 @@ enum WorkCheckInStatus: String, Codable, CaseIterable, Sendable {
         self.status = .skipped
         let cal = AppCalendar.shared
         self.date = cal.startOfDay(for: date)
-        if let note = note {
-            _ = self.setLegacyNoteText(note, in: context)
+        if let note {
+            setLegacyNoteText(note, in: context)
         }
     }
 }
@@ -137,7 +137,7 @@ extension WorkModel {
         if self.checkIns == nil { self.checkIns = [] }
         self.checkIns = (self.checkIns ?? []) + [ci]
         if !note.trimmed().isEmpty {
-            _ = ci.setLegacyNoteText(note, in: context)
+            ci.setLegacyNoteText(note, in: context)
         }
     }
 
@@ -154,7 +154,7 @@ extension WorkModel {
         if self.checkIns == nil { self.checkIns = [] }
         self.checkIns = (self.checkIns ?? []) + [ci]
         if !note.trimmed().isEmpty {
-            _ = ci.setLegacyNoteText(note, in: context)
+            ci.setLegacyNoteText(note, in: context)
         }
         return ci
     }

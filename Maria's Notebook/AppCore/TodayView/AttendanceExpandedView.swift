@@ -21,8 +21,8 @@ struct AttendanceExpandedView: View {
     @Query(sort: Student.sortByLastName)
     private var allStudentsRaw: [Student]
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [Student] { allStudentsRaw.uniqueByID.filter { $0.isEnrolled } }
-    private var allStudentIDs: [UUID] { allStudents.map { $0.id } }
+    private var allStudents: [Student] { allStudentsRaw.uniqueByID.filter(\.isEnrolled) }
+    private var allStudentIDs: [UUID] { allStudents.map(\.id) }
 
     @State var viewModel = AttendanceViewModel()
 
@@ -36,21 +36,11 @@ struct AttendanceExpandedView: View {
 
     // Persistence for locking
     private static let lockKeyPrefix = "Attendance.locked."
-    private static let lockDateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.calendar = .current
-        df.locale = .current
-        df.timeZone = .current
-        df.dateFormat = "yyyy-MM-dd"
-        return df
-    }()
-
     private let syncedStore = SyncedPreferencesStore.shared
 
     private func lockKey(for date: Date) -> String {
         let day = AppCalendar.startOfDay(date)
-        let s = AttendanceExpandedView.lockDateFormatter.string(from: day)
-        return AttendanceExpandedView.lockKeyPrefix + s
+        return AttendanceExpandedView.lockKeyPrefix + DateFormatters.isoDateLocal.string(from: day)
     }
 
     private func isLocked(for date: Date) -> Bool {

@@ -22,7 +22,7 @@ final class RestoreCoordinator {
             } onChange: {
                 // When changes occur, update our state and re-observe
                 Task { @MainActor [weak self] in
-                    guard let self = self else { return }
+                    guard let self else { return }
                     if self.appRouter.appDataWillBeReplaced {
                         self.isRestoring = true
                     }

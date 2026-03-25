@@ -46,7 +46,7 @@ struct StudentRepository: SavingRepository {
         ]
     ) -> [Student] {
         var descriptor = FetchDescriptor<Student>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -111,28 +111,28 @@ struct StudentRepository: SavingRepository {
     ) -> Bool {
         guard let student = fetchStudent(id: id) else { return false }
 
-        if let firstName = firstName {
+        if let firstName {
             student.firstName = firstName
         }
-        if let lastName = lastName {
+        if let lastName {
             student.lastName = lastName
         }
-        if let birthday = birthday {
+        if let birthday {
             student.birthday = birthday
         }
-        if let nickname = nickname {
+        if let nickname {
             student.nickname = nickname.isEmpty ? nil : nickname
         }
-        if let level = level {
+        if let level {
             student.level = level
         }
-        if let dateStarted = dateStarted {
+        if let dateStarted {
             student.dateStarted = dateStarted
         }
-        if let enrollmentStatus = enrollmentStatus {
+        if let enrollmentStatus {
             student.enrollmentStatus = enrollmentStatus
         }
-        if let dateWithdrawn = dateWithdrawn {
+        if let dateWithdrawn {
             student.dateWithdrawn = dateWithdrawn
         }
 

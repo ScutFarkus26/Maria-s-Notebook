@@ -92,7 +92,7 @@ extension LessonDetailView {
                                 lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
                                 previousManagedURL = nil
-                                _ = saveCoordinator.save(modelContext, reason: "Remove lesson Pages file")
+                                saveCoordinator.save(modelContext, reason: "Remove lesson Pages file")
                             }
                         }
                         Button("Import\u{2026}") { showingPagesImporter = true }

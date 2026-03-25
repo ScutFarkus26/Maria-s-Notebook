@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Payload Collection
 
@@ -29,6 +30,7 @@ extension IncrementalBackupService {
 }
 
 extension IncrementalBackupService {
+    private static let logger = Logger.backup
 
     func collectPayload(
         modelContext: ModelContext,
@@ -91,12 +93,13 @@ extension IncrementalBackupService {
         do {
             all = try modelContext.fetch(descriptor)
         } catch {
-            print("\u{26a0}\u{fe0f} [Backup:collectChangedEntities] Failed to fetch \(T.self): \(error)")
+            let desc = error.localizedDescription
+            Self.logger.warning("Failed to fetch \(T.self, privacy: .public): \(desc, privacy: .public)")
             all = []
         }
         totalCounts[String(describing: type)] = all.count
 
-        guard let sinceDate = sinceDate, let kp = keyPath else {
+        guard let sinceDate, let kp = keyPath else {
             changedCounts[String(describing: type)] = all.count
             return all
         }
@@ -120,12 +123,12 @@ extension IncrementalBackupService {
         do {
             allNotes = try modelContext.fetch(FetchDescriptor<Note>())
         } catch {
-            print("\u{26a0}\u{fe0f} [Backup:collectChangedEntities] Failed to fetch Note: \(error)")
+            Self.logger.warning("Failed to fetch Note: \(error.localizedDescription, privacy: .public)")
             allNotes = []
         }
         totalCounts["Note"] = allNotes.count
         let notes: [Note]
-        if let sinceDate = sinceDate {
+        if let sinceDate {
             notes = allNotes.filter { $0.updatedAt >= sinceDate }
         } else {
             notes = allNotes

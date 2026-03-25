@@ -4,10 +4,13 @@ import SwiftData
 import SwiftUI
 import CryptoKit
 import Compression
+import OSLog
 
 // MARK: - Data Collection & Export Pipeline
 
 extension BackupService {
+
+    private static let logger = Logger.backup
 
     func performExport(
         modelContext: ModelContext,
@@ -230,7 +233,7 @@ extension BackupService {
 
         let finalEncrypted: Data?
         let finalCompressed: Data?
-        if let password = password, !password.isEmpty {
+        if let password, !password.isEmpty {
             progress(BackupProgress.progress(for: .encrypting), "Encrypting data\u{2026}")
             finalEncrypted = try codec.encrypt(compressedPayloadBytes, password: password)
             finalCompressed = nil
@@ -284,7 +287,7 @@ extension BackupService {
                 .posixPermissions: NSNumber(value: 0o600)
             ], ofItemAtPath: url.path)
         } catch {
-            print("\u{26a0}\u{fe0f} [Backup:exportBackup] Failed to set file permissions: \(error)")
+            Self.logger.warning("Failed to set file permissions: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -373,8 +376,11 @@ extension BackupService {
                 do {
                     return try context.fetch(descriptor)
                 } catch {
-                    // swiftlint:disable:next line_length
-                    print("\u{26a0}\u{fe0f} [Backup:safeFetchInBatches] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
+                    let typeName = String(describing: T.self)
+                    let desc = error.localizedDescription
+                    Self.logger.warning(
+                        "Batch fetch failed \(typeName, privacy: .public): \(desc, privacy: .public)"
+                    )
                     return nil
                 }
             }
@@ -412,8 +418,11 @@ extension BackupService {
                 do {
                     batch = try context.fetch(descriptor)
                 } catch {
-                    // swiftlint:disable:next line_length
-                    print("\u{26a0}\u{fe0f} [Backup:collectBatch] Failed to fetch batch of \(T.self) at offset \(offset): \(error)")
+                    let typeName = String(describing: T.self)
+                    let desc = error.localizedDescription
+                    Self.logger.warning(
+                        "Batch fetch failed \(typeName, privacy: .public): \(desc, privacy: .public)"
+                    )
                     return nil
                 }
 

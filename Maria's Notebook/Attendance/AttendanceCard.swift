@@ -324,7 +324,7 @@ struct AttendanceCard: View {
             }
         }
         .sheet(isPresented: $showingNoteEditor) {
-            if let record = record {
+            if let record {
                 UnifiedNoteEditor(
                     context: .attendance(record),
                     initialNote: noteToEdit,

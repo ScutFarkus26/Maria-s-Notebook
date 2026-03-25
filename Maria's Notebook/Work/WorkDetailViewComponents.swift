@@ -19,17 +19,17 @@ struct PracticeStatsCalculator {
         
         stats.totalSessions = sessions.count
         stats.totalDuration = formatDuration(from: sessions)
-        stats.avgQuality = calculateAverage(values: sessions.compactMap { $0.practiceQuality })
-        stats.avgIndependence = calculateAverage(values: sessions.compactMap { $0.independenceLevel })
+        stats.avgQuality = calculateAverage(values: sessions.compactMap(\.practiceQuality))
+        stats.avgIndependence = calculateAverage(values: sessions.compactMap(\.independenceLevel))
         stats.topBehaviors = extractTopBehaviors(from: sessions, limit: 3)
-        stats.needsReteaching = sessions.filter { $0.needsReteaching }.count
+        stats.needsReteaching = sessions.filter(\.needsReteaching).count
         stats.upcomingCheckIns = sessions.filter { $0.checkInScheduledFor != nil }.count
         
         return stats
     }
     
     private static func formatDuration(from sessions: [PracticeSession]) -> String? {
-        let totalSeconds = sessions.compactMap { $0.duration }.reduce(0, +)
+        let totalSeconds = sessions.compactMap(\.duration).reduce(0, +)
         guard totalSeconds > 0 else { return nil }
         
         let minutes = Int(totalSeconds / 60)
@@ -57,7 +57,7 @@ struct PracticeStatsCalculator {
         return behaviorCounts
             .sorted { $0.value > $1.value }
             .prefix(limit)
-            .map { $0.key }
+            .map(\.key)
     }
 }
 
@@ -134,7 +134,7 @@ private struct DeleteButton: View {
     
     var body: some View {
         Button {
-            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 action()
             }
         } label: {
@@ -365,7 +365,7 @@ struct DetailSectionCard<Content: View, Trailing: View>: View {
 
                 Spacer()
 
-                if let trailing = trailing {
+                if let trailing {
                     trailing()
                 }
             }

@@ -21,7 +21,7 @@ struct UnplannedStudentsStrip: View {
             let key = s.firstName.normalizedForComparison()
             counts[key, default: 0] += 1
         }
-        return Set(counts.filter { $0.value > 1 }.map { $0.key })
+        return Set(counts.filter { $0.value > 1 }.map(\.key))
     }
 
     private func chipLabel(for student: Student) -> String {
@@ -57,7 +57,7 @@ struct UnplannedStudentsStrip: View {
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
             }
 
             if expanded {

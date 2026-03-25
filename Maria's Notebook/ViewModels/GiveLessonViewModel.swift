@@ -151,13 +151,13 @@ final class LessonPickerViewModel {
     // MARK: - Actions
     
     func toggleMode() {
-        adaptiveWithAnimation(.easeInOut) {
+        _ = adaptiveWithAnimation(.easeInOut) {
             mode = (mode == .plan ? .given : .plan)
         }
     }
     
     func toggleStudentSelection(_ studentID: UUID) {
-        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             if selectedStudentIDs.contains(studentID) {
                 selectedStudentIDs.remove(studentID)
             } else {
@@ -167,7 +167,7 @@ final class LessonPickerViewModel {
     }
     
     func removeStudent(_ studentID: UUID) {
-        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+        _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             _ = selectedStudentIDs.remove(studentID)
         }
     }
@@ -247,7 +247,7 @@ final class LessonPickerViewModel {
 
         // Apply current state
         la.lessonID = targetLessonIDString
-        la.studentIDs = selectedIDs.map { $0.uuidString }
+        la.studentIDs = selectedIDs.map(\.uuidString)
         la.needsPractice = needsPractice
         la.needsAnotherPresentation = needsAnotherPresentation
         la.followUpWork = followUpWork
@@ -291,7 +291,7 @@ final class LessonPickerViewModel {
         if mode == .given || (mode == .plan && scheduledFor != nil) {
             GroupTrackService.autoEnrollInTrackIfNeeded(
                 lesson: finalLesson,
-                studentIDs: selectedIDs.map { $0.uuidString },
+                studentIDs: selectedIDs.map(\.uuidString),
                 modelContext: context
             )
         }
@@ -337,7 +337,7 @@ final class LessonPickerViewModel {
         // Create follow-up work if specified (both plan and given)
         let trimmedFollowUp = followUpWork.trimmed()
         if !trimmedFollowUp.isEmpty {
-            let sidStrings = selectedIDs.map { $0.uuidString }
+            let sidStrings = selectedIDs.map(\.uuidString)
             let lidString = finalLesson.id.uuidString
             for sid in sidStrings {
                 let activeRaw = WorkStatus.active.rawValue
@@ -416,10 +416,7 @@ final class LessonPickerViewModel {
     
     // MARK: - Formatting Helpers
     func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
+        StudentFormatter.displayName(for: student)
     }
 
     func lessonDisplayTitle(for lesson: Lesson) -> String {

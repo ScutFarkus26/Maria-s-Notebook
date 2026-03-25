@@ -39,7 +39,7 @@ struct DocumentRepository: SavingRepository {
         sortBy: [SortDescriptor<Document>] = [SortDescriptor(\.uploadDate, order: .reverse)]
     ) -> [Document] {
         var descriptor = FetchDescriptor<Document>()
-        if let predicate = predicate {
+        if let predicate {
             descriptor.predicate = predicate
         }
         descriptor.sortBy = sortBy
@@ -102,13 +102,13 @@ struct DocumentRepository: SavingRepository {
     ) -> Bool {
         guard let document = fetchDocument(id: id) else { return false }
 
-        if let title = title {
+        if let title {
             document.title = title
         }
-        if let category = category {
+        if let category {
             document.category = category
         }
-        if let pdfData = pdfData {
+        if let pdfData {
             document.pdfData = pdfData
         }
 

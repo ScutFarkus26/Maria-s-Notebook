@@ -131,9 +131,9 @@ final class StudentNotesViewModel {
             }
         )
         let links: [NoteStudentLink] = safeFetch(linkFetch)
-        let linkedNotes = links.compactMap { $0.note }
+        let linkedNotes = links.compactMap(\.note)
 
-        var seenIDs = Set(primaryNotes.map { $0.id })
+        var seenIDs = Set(primaryNotes.map(\.id))
         var visibleNotes = primaryNotes
         for note in linkedNotes where !seenIDs.contains(note.id) {
             seenIDs.insert(note.id)
@@ -174,7 +174,7 @@ final class StudentNotesViewModel {
             predicate: #Predicate<WorkModel> { $0.studentID == studentIDString }
         )
         let workModels: [WorkModel] = safeFetch(workFetch)
-        let workIDs = Set(workModels.map { $0.id })
+        let workIDs = Set(workModels.map(\.id))
         guard !workIDs.isEmpty else { return [] }
 
         let workNoteFetch = FetchDescriptor<Note>(
@@ -368,7 +368,7 @@ final class StudentNotesViewModel {
 
         var map: [String: String] = [:]
         for work in workModels {
-            if let lid = UUID(uuidString: work.lessonID), let lesson = byID[lid] {
+            if let lesson = byID[uuidString: work.lessonID] {
                 let name = lesson.name.trimmed()
                 map[work.id.uuidString] = name.isEmpty ? "Work" : name
             } else {

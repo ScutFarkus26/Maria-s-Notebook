@@ -28,7 +28,7 @@ extension CloudBackupService {
 
         scheduledBackupTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self = self else { break }
+                guard let self else { break }
 
                 // Calculate time until next backup
                 let intervalSeconds = TimeInterval(self.scheduleConfiguration.intervalHours * 3600)
@@ -50,7 +50,7 @@ extension CloudBackupService {
                     do {
                         try await Task.sleep(for: .seconds(waitTime))
                     } catch {
-                        print("Warning [Backup:\(#function)] Task sleep interrupted: \(error)")
+                        Logger.backup.warning("Task sleep interrupted: \(error.localizedDescription, privacy: .public)")
                     }
                 }
 

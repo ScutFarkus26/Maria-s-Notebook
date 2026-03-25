@@ -270,8 +270,8 @@ struct SampleWorkEditorSheet: View {
             service.update(existing, title: title.trimmed(), workKind: workKind, notes: notes)
 
             // Reconcile steps: delete removed, update existing, add new
-            let existingStepIDs = Set(existing.orderedSteps.map { $0.id })
-            let draftStepIDs = Set(draftSteps.map { $0.id })
+            let existingStepIDs = Set(existing.orderedSteps.map(\.id))
+            let draftStepIDs = Set(draftSteps.map(\.id))
 
             // Delete steps that were removed
             for step in existing.orderedSteps where !draftStepIDs.contains(step.id) {

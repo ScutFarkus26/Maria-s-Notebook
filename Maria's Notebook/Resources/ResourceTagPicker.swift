@@ -95,7 +95,7 @@ struct ResourceTagPicker: View {
             // Create new tag
             Section {
                 Button {
-                    pendingTagName = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    pendingTagName = searchText.trimmed()
                     pendingTagColor = .blue
                     isShowingNewTag = true
                 } label: {

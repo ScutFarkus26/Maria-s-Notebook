@@ -14,7 +14,7 @@ struct QuickPracticeSessionSheet: View {
     @Environment(\.modelContext) var modelContext
 
     @Query private var allStudentsRaw: [Student]
-    private var allStudents: [Student] { allStudentsRaw.filter { $0.isEnrolled } }
+    private var allStudents: [Student] { allStudentsRaw.filter(\.isEnrolled) }
     @Query private var allWork: [WorkModel]
     @Query private var allLessonAssignments: [LessonAssignment]
 

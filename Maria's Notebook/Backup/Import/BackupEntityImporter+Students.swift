@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OSLog
 
 // MARK: - Students
 
@@ -16,7 +17,8 @@ extension BackupEntityImporter {
             do {
                 if try existingCheck(dto.id) != nil { continue }
             } catch {
-                print("⚠️ [Backup:\(#function)] Failed to check existing student: \(error)")
+                let desc = error.localizedDescription
+                Logger.backup.warning("Failed to check existing student: \(desc, privacy: .public)")
                 continue
             }
             let student = Student(

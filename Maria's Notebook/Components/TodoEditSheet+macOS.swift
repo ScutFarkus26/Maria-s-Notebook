@@ -141,11 +141,7 @@ extension TodoEditSheet {
         }
         .frame(minWidth: 500, minHeight: 550)
         .task {
-            do {
-                try await Task.sleep(for: .milliseconds(200))
-            } catch {
-                print("\u{26A0}\u{FE0F} [\(#function)] Failed to sleep: \(error)")
-            }
+            try? await Task.sleep(for: .milliseconds(200))
             isTitleFocused = true
         }
         .alert("Save as Template", isPresented: $showingSaveAsTemplate) {

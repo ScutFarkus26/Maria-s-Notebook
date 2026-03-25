@@ -277,7 +277,7 @@ struct OllamaSettingsView: View {
     private var customModelPullSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             Button {
-                adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                     showCustomModelField.toggle()
                 }
             } label: {

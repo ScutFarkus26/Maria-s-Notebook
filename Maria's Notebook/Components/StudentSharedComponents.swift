@@ -177,25 +177,6 @@ struct LevelBadge: View {
     }
 }
 
-// MARK: - Student Display Names
-
-/// Utility for generating consistent student name displays
-enum StudentNameFormatter {
-    /// Returns "FirstName L." format
-    static func displayName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-
-    /// Returns just the first name
-    static func firstName(for student: Student) -> String {
-        let parts = student.fullName.split(separator: " ")
-        return parts.first.map(String.init) ?? student.fullName
-    }
-}
-
 // MARK: - Bobbing Animation Modifier
 
 /// A reusable view modifier for bobbing animation that respects scene phase
@@ -260,7 +241,7 @@ struct SectionHeaderView: View {
 
     var body: some View {
         HStack(spacing: icon != nil ? 6 : 0) {
-            if let icon = icon {
+            if let icon {
                 Image(systemName: icon)
                     .font(.subheadline)
                     .foregroundStyle(iconColor ?? .secondary)
@@ -303,7 +284,7 @@ struct StudentFilterChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                if let icon = icon {
+                if let icon {
                     Image(systemName: icon)
                         .font(.caption)
                 }

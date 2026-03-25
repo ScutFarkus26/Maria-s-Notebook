@@ -10,12 +10,6 @@ struct BirthdayStudentCard: View {
     @Environment(\.calendar) private var calendar
     @State private var bob = false
 
-    private static let dateFormatter: DateFormatter = {
-        let fmt = DateFormatter()
-        fmt.setLocalizedDateFormatFromTemplate("MMM d")
-        return fmt
-    }()
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Keep celebratory background
@@ -109,11 +103,11 @@ struct BirthdayStudentCard: View {
 
     // MARK: - Derived
     private var displayName: String {
-        StudentNameFormatter.displayName(for: student)
+        StudentFormatter.displayName(for: student)
     }
 
     private var firstNameOnly: String {
-        StudentNameFormatter.firstName(for: student)
+        StudentFormatter.firstName(for: student)
     }
 
     private var balloon: some View {
@@ -132,7 +126,7 @@ struct BirthdayStudentCard: View {
     }
 
     private var dateLabel: String {
-        BirthdayStudentCard.dateFormatter.string(from: nextBirthdayDate)
+        DateFormatters.shortMonthDay.string(from: nextBirthdayDate)
     }
 
     private var daysUntil: Int {

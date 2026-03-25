@@ -12,7 +12,7 @@ struct TodoListPanel: View {
 
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -102,7 +102,7 @@ struct TodoListPanel: View {
                                 isSelected: selectedFilter == filter,
                                 count: todos.filter { filter.matches($0) }.count
                             ) {
-                                adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                     selectedFilter = filter
                                 }
                             }
@@ -187,7 +187,7 @@ struct TodoListPanel: View {
                             addTodo()
                         }
 
-                    if !newTodoTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if !newTodoTitle.trimmed().isEmpty {
                         Button {
                             Task { await addTodoWithAI() }
                         } label: {

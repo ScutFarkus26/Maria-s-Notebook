@@ -59,7 +59,7 @@ extension DenormalizedSchedulable {
     /// Call after any change to the student set to keep the denormalized key in sync.
     func updateDenormalizedKeys() {
         let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        studentGroupKeyPersisted = ids.map { $0.uuidString }.joined(separator: ",")
+        studentGroupKeyPersisted = ids.map(\.uuidString).joined(separator: ",")
     }
 
     /// Copies relationship data into string-based snapshot fields for CloudKit compatibility.
@@ -82,6 +82,6 @@ extension DenormalizedSchedulable {
     var studentGroupKey: String {
         if !studentGroupKeyPersisted.isEmpty { return studentGroupKeyPersisted }
         let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        return ids.map { $0.uuidString }.joined(separator: ",")
+        return ids.map(\.uuidString).joined(separator: ",")
     }
 }

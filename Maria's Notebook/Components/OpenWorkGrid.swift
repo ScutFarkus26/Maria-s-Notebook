@@ -56,7 +56,7 @@ struct OpenWorkGrid: View {
         .task {
             await precomputeAgeValues()
         }
-        .onChange(of: works.map { $0.id }) { _, _ in
+        .onChange(of: works.map(\.id)) { _, _ in
             Task {
                 await precomputeAgeValues()
             }
@@ -198,15 +198,12 @@ struct OpenWorkGrid: View {
 
     // MARK: - Helpers
     private func lessonTitle(forLessonID lessonID: String) -> String {
-        if let lid = UUID(uuidString: lessonID), let lesson = lessonsByID[lid] {
-            let name = lesson.name.trimmed()
-            if !name.isEmpty { return name }
-        }
-        return "Lesson \(String(lessonID.prefix(6)))"
+        let name = lessonsByID[uuidString: lessonID]?.name ?? ""
+        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
     }
 
     private func studentName(for w: WorkModel) -> String {
-        if let sid = UUID(uuidString: w.studentID), let s = studentsByID[sid] {
+        if let s = studentsByID[uuidString: w.studentID] {
             return StudentFormatter.displayName(for: s)
         }
         return "Student"

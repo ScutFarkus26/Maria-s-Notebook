@@ -325,7 +325,7 @@ public struct PasswordStrengthValidator {
                 return "Excellent password!"
             }
         } else {
-            return "Missing: " + unmetRequirements.map { $0.description }.joined(separator: ", ")
+            return "Missing: " + unmetRequirements.map(\.description).joined(separator: ", ")
         }
     }
 }

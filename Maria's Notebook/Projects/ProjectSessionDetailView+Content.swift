@@ -170,7 +170,7 @@ extension ProjectSessionDetailView {
 
             // Linked Lesson display
             HStack(spacing: 8) {
-                if let uuid = UUID(uuidString: work.lessonID), let l = lessonsByID[uuid] {
+                if let l = lessonsByID[uuidString: work.lessonID] {
                     Text("Linked: \(l.name)")
                         .font(.caption)
                         .foregroundStyle(.secondary)

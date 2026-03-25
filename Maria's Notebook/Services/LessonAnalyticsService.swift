@@ -48,7 +48,7 @@ enum LessonAnalyticsService {
 
         // PERF: Fetch only lessons referenced by the filtered assignments.
         // Previously loaded ALL lessons for join.
-        let neededLessonIDs = Set(presented.map { $0.lessonID })
+        let neededLessonIDs = Set(presented.map(\.lessonID))
         let allLessons: [Lesson]
         if neededLessonIDs.isEmpty {
             allLessons = []
@@ -100,27 +100,12 @@ enum LessonAnalyticsService {
         AppCalendar.shared.date(byAdding: .weekOfYear, value: offset, to: Date()) ?? Date()
     }
 
-    // PERF: Static cached DateFormatters to avoid allocating per call.
-    private static let weekStartFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.setLocalizedDateFormatFromTemplate("MMMd")
-        return f
-    }()
-
-    private static let weekEndFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.setLocalizedDateFormatFromTemplate("MMMdyyyy")
-        return f
-    }()
-
     /// Formats a school week range as "Mar 9 – Mar 13, 2026" (Mon–Fri).
     static func weekLabel(for date: Date) -> String {
         let (monday, _) = schoolWeekRange(for: date)
         let friday = AppCalendar.shared.date(byAdding: .day, value: 4, to: monday)!
-        let startStr = weekStartFormatter.string(from: monday)
-        let endStr = weekEndFormatter.string(from: friday)
+        let startStr = DateFormatters.shortMonthDay.string(from: monday)
+        let endStr = DateFormatters.shortMonthDayYear.string(from: friday)
         return "\(startStr) – \(endStr)"
     }
 }

@@ -181,11 +181,11 @@ final class StudentAnalysisService {
         let workCompletions = try modelContext.fetch(completionDescriptor)
         
         // Calculate metrics
-        let practiceQualities = practiceSessions.compactMap { $0.practiceQuality }
+        let practiceQualities = practiceSessions.compactMap(\.practiceQuality)
         let avgQuality: Double? = practiceQualities.isEmpty ? nil :
             Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
 
-        let independenceLevels = practiceSessions.compactMap { $0.independenceLevel }
+        let independenceLevels = practiceSessions.compactMap(\.independenceLevel)
         let avgIndependence: Double? = independenceLevels.isEmpty ? nil :
             Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
         
@@ -263,7 +263,7 @@ final class StudentAnalysisService {
             note.tags.first.map { TagHelper.tagName($0) } ?? "General"
         })
         var observationsSummary = ""
-        for (tagName, notes) in notesByTag.sorted(by: { $0.key < $1.key }) {
+        for (tagName, notes) in notesByTag.sorted { $0.key < $1.key } {
             observationsSummary += "\n\(tagName) (\(notes.count) notes):\n"
             for note in notes.prefix(3) {
                 observationsSummary += "  - \(note.body.prefix(100))\n"
@@ -273,10 +273,10 @@ final class StudentAnalysisService {
         // Summarize practice patterns
         var practiceSummary = ""
         if !studentData.practiceSessions.isEmpty {
-            let sessionsWithBreakthrough = studentData.practiceSessions.filter { $0.madeBreakthrough }.count
-            let sessionsNeedingHelp = studentData.practiceSessions.filter { $0.askedForHelp }.count
-            let sessionsHelpingPeers = studentData.practiceSessions.filter { $0.helpedPeer }.count
-            let sessionsStruggling = studentData.practiceSessions.filter { $0.struggledWithConcept }.count
+            let sessionsWithBreakthrough = studentData.practiceSessions.filter(\.madeBreakthrough).count
+            let sessionsNeedingHelp = studentData.practiceSessions.filter(\.askedForHelp).count
+            let sessionsHelpingPeers = studentData.practiceSessions.filter(\.helpedPeer).count
+            let sessionsStruggling = studentData.practiceSessions.filter(\.struggledWithConcept).count
             
             practiceSummary = """
             - Breakthrough moments: \(sessionsWithBreakthrough)
@@ -288,9 +288,9 @@ final class StudentAnalysisService {
         
         // Behavioral flags
         var behavioralFlags: [String] = []
-        let readyForCheckIn = studentData.practiceSessions.filter { $0.readyForCheckIn }.count
-        let readyForAssessment = studentData.practiceSessions.filter { $0.readyForAssessment }.count
-        let needsReteaching = studentData.practiceSessions.filter { $0.needsReteaching }.count
+        let readyForCheckIn = studentData.practiceSessions.filter(\.readyForCheckIn).count
+        let readyForAssessment = studentData.practiceSessions.filter(\.readyForAssessment).count
+        let needsReteaching = studentData.practiceSessions.filter(\.needsReteaching).count
         
         if readyForCheckIn > 0 {
             behavioralFlags.append("Ready for check-in: \(readyForCheckIn) times")

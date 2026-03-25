@@ -14,7 +14,7 @@ struct TodoEditSheet: View {
 
     var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter { $0.isEnrolled },
+            studentsRaw.uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -106,7 +106,7 @@ struct TodoEditSheet: View {
     }
 
     var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !title.trimmed().isEmpty
     }
 
     var body: some View {
@@ -194,18 +194,14 @@ struct SubtaskRow: View {
         .cornerRadius(8)
         .task {
             if subtask.title.isEmpty {
-                do {
-                    try await Task.sleep(for: .milliseconds(100))
-                } catch {
-                    print("\u{26A0}\u{FE0F} [\(#function)] Failed to sleep: \(error)")
-                }
+                try? await Task.sleep(for: .milliseconds(100))
                 isFocused = true
             }
         }
     }
 
     private func saveTitle() {
-        let trimmed = editingTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = editingTitle.trimmed()
         if !trimmed.isEmpty && trimmed != subtask.title {
             onUpdate(trimmed)
         } else if trimmed.isEmpty {

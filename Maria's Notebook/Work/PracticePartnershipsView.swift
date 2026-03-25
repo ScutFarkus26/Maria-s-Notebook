@@ -29,9 +29,9 @@ struct PracticePartnershipsView: View {
         case .all:
             return sessions.sorted { $0.date > $1.date }
         case .group:
-            return sessions.filter { $0.isGroupSession }.sorted { $0.date > $1.date }
+            return sessions.filter(\.isGroupSession).sorted { $0.date > $1.date }
         case .solo:
-            return sessions.filter { $0.isSoloSession }.sorted { $0.date > $1.date }
+            return sessions.filter(\.isSoloSession).sorted { $0.date > $1.date }
         }
     }
     
@@ -282,11 +282,10 @@ struct PracticePartnershipsSummaryCard: View {
     }
     
     private var recentSessions: [PracticeSession] {
-        allSessions
+        Array(allSessions
             .filter { $0.includes(studentID: studentID) }
             .sorted { $0.date > $1.date }
-            .prefix(3)
-            .map { $0 }
+            .prefix(3))
     }
     
     private var statistics: PracticeStatistics {
@@ -295,10 +294,10 @@ struct PracticePartnershipsSummaryCard: View {
     
     private var topPartners: [(partner: Student, sessionCount: Int)] {
         let partnerData = repository.fetchPartnerships(forStudentID: studentID)
-        return partnerData.compactMap { (partnerID, count) in
+        return Array(partnerData.compactMap { (partnerID, count) in
             guard let partner = allStudents.first(where: { $0.id == partnerID }) else { return nil }
             return (partner, count)
-        }.prefix(3).map { $0 }
+        }.prefix(3))
     }
     
     var body: some View {

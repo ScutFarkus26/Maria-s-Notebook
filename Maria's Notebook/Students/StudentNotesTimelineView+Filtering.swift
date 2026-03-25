@@ -22,9 +22,9 @@ extension StudentNotesTimelineList {
 
         // Apply report filter
         if selectedFilter == .reportItems {
-            items = items.filter { $0.includeInReport }
+            items = items.filter(\.includeInReport)
         } else if selectedFilter == .followUp {
-            items = items.filter { $0.needsFollowUp }
+            items = items.filter(\.needsFollowUp)
         }
 
         // Apply tag filter
@@ -61,7 +61,7 @@ extension StudentNotesTimelineList {
 
     // Separate pinned and unpinned items
     var pinnedItems: [UnifiedNoteItem] {
-        filteredItems.filter { $0.isPinned }
+        filteredItems.filter(\.isPinned)
     }
 
     var unpinnedItems: [UnifiedNoteItem] {

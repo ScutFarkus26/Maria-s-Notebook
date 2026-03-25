@@ -235,7 +235,7 @@ final class DevelopmentSnapshot: Identifiable {
     // MARK: - Private Encoding/Decoding
     
     private func decodeStringArray(from data: Data?) -> [String] {
-        guard let data = data else { return [] }
+        guard let data else { return [] }
         do {
             return try JSONDecoder().decode([String].self, from: data)
         } catch {

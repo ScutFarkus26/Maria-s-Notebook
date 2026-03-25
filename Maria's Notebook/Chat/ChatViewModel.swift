@@ -45,7 +45,7 @@ final class ChatViewModel {
     }
 
     var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+        !inputText.trimmed().isEmpty && !isLoading
     }
 
     /// The currently configured AI model for the chat feature area.
@@ -126,7 +126,7 @@ final class ChatViewModel {
     /// Sends the current input text as a user message with streaming.
     /// After receiving a local response, validates quality and offers cloud escalation if needed.
     func sendMessage() {
-        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = inputText.trimmed()
         guard !text.isEmpty, var currentSession = session, let service = chatService else { return }
 
         // Capture the model before sending so we know which model was used

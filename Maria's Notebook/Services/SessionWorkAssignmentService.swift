@@ -134,7 +134,7 @@ struct SessionWorkAssignmentService {
 
     /// Gets offered (unselected) works for a session
     func offeredWorksForSession(_ session: ProjectSession) -> [WorkModel] {
-        worksForSession(session).filter { $0.isOffered }
+        worksForSession(session).filter(\.isOffered)
     }
 
     /// Gets works selected by a specific student in a session

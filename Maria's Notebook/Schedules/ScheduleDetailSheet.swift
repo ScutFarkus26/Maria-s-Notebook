@@ -10,7 +10,7 @@ struct ScheduleDetailSheet: View {
     let onEdit: (Schedule) -> Void
 
     @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter { $0.isEnrolled } }
+    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
 
     private var studentLookup: [String: Student] {
         Dictionary(uniqueKeysWithValues: students.map { ($0.id.uuidString.lowercased(), $0) })

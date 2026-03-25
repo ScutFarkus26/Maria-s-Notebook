@@ -199,11 +199,11 @@ struct PresentationsDayColumn: View {
                 getCurrentItems: { allItemsForDay },
                 itemFramesProvider: { itemFrames },
                 onTargetChange: { targeted in
-                    adaptiveWithAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }
+                    _ = adaptiveWithAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }
                 },
                 onInsertionIndexChange: { idx in
                     if insertionIndex != idx {
-                        adaptiveWithAnimation(
+                        _ = adaptiveWithAnimation(
                             .interactiveSpring(response: 0.16, dampingFraction: 0.85)
                         ) { insertionIndex = idx }
                     }
@@ -323,7 +323,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
             }
         }
         
-        var ids = current.map { $0.id }
+        var ids = current.map(\.id)
         if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
         let frames = itemFramesProvider()
         let dict: [UUID: CGRect] = Dictionary(

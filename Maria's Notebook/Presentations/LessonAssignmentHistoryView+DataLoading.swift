@@ -22,12 +22,12 @@ extension LessonAssignmentHistoryView {
                 SortDescriptor(\LessonAssignment.createdAt, order: .reverse)
             ]
         )
-        if let limit = limit {
+        if let limit {
             descriptor.fetchLimit = limit
         }
         loadedAssignments = modelContext.safeFetch(descriptor)
         // If we requested a limit and got fewer results, we've loaded all available
-        if let limit = limit {
+        if let limit {
             hasLoadedMore = loadedAssignments.count < limit
         } else {
             hasLoadedMore = false // No limit means we loaded everything
@@ -61,11 +61,11 @@ extension LessonAssignmentHistoryView {
         // Extract primitive/Sendable values on main thread before background processing
         // This avoids passing SwiftData model objects across actor boundaries
         let assignmentIDs: [String] = recentNotes.compactMap { $0.lessonAssignment?.id.uuidString }
-        let studentIDs = safeStudents.map { $0.id }
-        let studentFirstNames = safeStudents.map { $0.firstName }
-        let studentLastNames = safeStudents.map { $0.lastName }
-        let lessonIDs = lessons.map { $0.id }
-        let lessonNames = lessons.map { $0.name }
+        let studentIDs = safeStudents.map(\.id)
+        let studentFirstNames = safeStudents.map(\.firstName)
+        let studentLastNames = safeStudents.map(\.lastName)
+        let lessonIDs = lessons.map(\.id)
+        let lessonNames = lessons.map(\.name)
 
         // Build caches on background thread using only Sendable data
         let (counts, sNames, lTitles) = await Task.detached(priority: .userInitiated) {

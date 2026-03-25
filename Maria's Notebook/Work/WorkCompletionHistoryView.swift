@@ -138,7 +138,7 @@ struct WorkCompletionHistoryView: View {
         }
         do {
             try modelContext.save()
-            let idsToRemove = Set(recordsToDelete.map { $0.id })
+            let idsToRemove = Set(recordsToDelete.map(\.id))
             records.removeAll { idsToRemove.contains($0.id) }
         } catch {
             Task { await reload() }
@@ -182,7 +182,7 @@ struct WorkCompletionHistoryView: View {
                         let noteTexts = ["First try", "Assisted", "Independent"]
                         for (record, text) in zip(items, noteTexts) {
                             modelContext.insert(record)
-                            _ = record.setLegacyNoteText(text, in: modelContext)
+                            record.setLegacyNoteText(text, in: modelContext)
                         }
                         do {
                             try modelContext.save()

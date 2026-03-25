@@ -293,7 +293,7 @@ struct MeetingsWorkflowView: View {
     }
 
     private func saveCustomOrder() {
-        let strings = orderedStudentIDs.map { $0.uuidString }
+        let strings = orderedStudentIDs.map(\.uuidString)
         UserDefaults.standard.set(strings, forKey: Self.customOrderKey)
     }
 

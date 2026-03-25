@@ -107,7 +107,7 @@ struct LessonsViewModel {
         let personalRawValue = "personal"
         let personalKindPersonalRaw = "personal"
         
-        guard let sourceFilter = sourceFilter else {
+        guard let sourceFilter else {
             if let personalKindFilterRaw = personalKindFilter?.rawValue {
                 return #Predicate<Lesson> {
                     $0.sourceRaw == personalRawValue &&
@@ -144,7 +144,7 @@ struct LessonsViewModel {
 
     // MARK: - Sorting Pipelines
 
-    // swiftlint:disable:next function_parameter_count
+    // swiftlint:disable:next function_parameter_count function_body_length
     func filteredLessons(
         modelContext: ModelContext,
         sourceFilter: LessonSource?,
@@ -297,7 +297,7 @@ struct LessonsViewModel {
             }
             var seen = Set<Int>()
             var duplicates: [Lesson] = []
-            for l in arr.sorted(by: { $0.orderInGroup < $1.orderInGroup }) {
+            for l in arr.sorted { $0.orderInGroup < $1.orderInGroup } {
                 if seen.contains(l.orderInGroup) {
                     duplicates.append(l)
                 } else {
@@ -343,7 +343,7 @@ extension LessonsViewModel {
         let lessonIDString = lesson.id.uuidString
         let lasForLesson = lessonAssignments.filter { $0.lessonID == lessonIDString }
         let isPresented = lasForLesson.contains { $0.isPresented }
-        let laIDs = Set(lasForLesson.map { $0.id })
+        let laIDs = Set(lasForLesson.map(\.id))
         let workForLesson = workModels.filter { work in
             work.lessonID == lessonIDString || laIDs.contains(work.studentLessonID ?? UUID())
         }
@@ -366,7 +366,7 @@ extension LessonsViewModel {
         }
 
         let resolvedCache: SchoolDayLookupCache
-        if let schoolDayCache = schoolDayCache {
+        if let schoolDayCache {
             resolvedCache = schoolDayCache
         } else {
             resolvedCache = SchoolDayLookupCache()
@@ -414,7 +414,7 @@ extension LessonsViewModel {
     }
 
     private static func formatAgeString(from date: Date?, schoolDayCache: SchoolDayLookupCache) -> String {
-        guard let date = date else { return "" }
+        guard let date else { return "" }
         let today = AppCalendar.startOfDay(Date())
         let startDate = AppCalendar.startOfDay(date)
         guard startDate < today else { return "" }

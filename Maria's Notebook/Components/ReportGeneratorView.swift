@@ -101,7 +101,7 @@ struct ReportGeneratorView: View {
                     }
                     .disabled(isGenerating || noteCount == 0)
 
-                    if let errorMessage = errorMessage {
+                    if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(AppColors.destructive)
                             .font(.caption)

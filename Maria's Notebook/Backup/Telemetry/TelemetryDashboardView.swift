@@ -55,7 +55,7 @@ struct TelemetryDashboardView: View {
                     .frame(width: 300)
                 }
                 
-                if let report = report {
+                if let report {
                     // Success Rate Cards
                     HStack(spacing: 16) {
                         MetricCard(

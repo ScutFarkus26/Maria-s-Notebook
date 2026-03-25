@@ -10,7 +10,7 @@ struct ScheduledCheckInsListSection: View {
     @State private var selectedCheckInForNote: WorkCheckIn?
     
     private var sortedCheckIns: [WorkCheckIn] {
-        checkIns.sorted(by: { $0.date < $1.date })
+        checkIns.sorted { $0.date < $1.date }
     }
     
     var body: some View {

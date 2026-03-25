@@ -99,7 +99,7 @@ final class LessonPlanningService {
         session.messages.append(PlanningMessage(
             role: .assistant,
             content: summary,
-            recommendationIDs: recommendations.map { $0.id }
+            recommendationIDs: recommendations.map(\.id)
         ))
 
         return (recommendations, session)
@@ -147,7 +147,7 @@ final class LessonPlanningService {
         let candidateJSON = encodeRecommendationsForPrompt(candidates)
         let synthesisPrompt = PlanningPromptBuilder.buildPlanSynthesisPrompt(
             candidateJSON: candidateJSON,
-            students: students.map { $0.fullName },
+            students: students.map(\.fullName),
             weekStart: weekStart
         )
 
@@ -201,7 +201,7 @@ final class LessonPlanningService {
         session.messages.append(PlanningMessage(
             role: .assistant,
             content: summary,
-            recommendationIDs: scheduledRecs.map { $0.id }
+            recommendationIDs: scheduledRecs.map(\.id)
         ))
 
         return (weekPlan, session)
@@ -250,7 +250,7 @@ final class LessonPlanningService {
         session.messages.append(PlanningMessage(
             role: .assistant,
             content: responseSummary,
-            recommendationIDs: newRecs.map { $0.id }
+            recommendationIDs: newRecs.map(\.id)
         ))
 
         return newRecs

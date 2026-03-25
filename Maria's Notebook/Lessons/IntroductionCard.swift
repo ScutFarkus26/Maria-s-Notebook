@@ -15,7 +15,7 @@ struct IntroductionCard: View {
     }
 
     private var contentExcerpt: String {
-        let content = introduction.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let content = introduction.content.trimmed()
         guard !content.isEmpty else { return "Tap to view introduction" }
 
         // Strip markdown headers and get plain text preview

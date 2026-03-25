@@ -76,7 +76,7 @@ final class CosmicMapViewModel {
 
         // Fetch students for coverage
         let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        let students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter { $0.isEnrolled })
+        let students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter(\.isEnrolled))
         totalStudentCount = students.count
 
         // Fetch presented assignments

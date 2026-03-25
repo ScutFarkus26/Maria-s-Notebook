@@ -85,7 +85,7 @@ struct IssueDetailSheet: View {
                 }
                 
                 // Actions history (only when editing)
-                if let issue = issue {
+                if let issue {
                     Section {
                         Button {
                             showingNewActionSheet = true
@@ -93,7 +93,7 @@ struct IssueDetailSheet: View {
                             Label("Add Action", systemImage: "plus.circle.fill")
                         }
                         
-                        if let actions = issue.actions?.sorted(by: { $0.actionDate > $1.actionDate }) {
+                        if let actions = issue.actions?.sorted { $0.actionDate > $1.actionDate } {
                             if actions.isEmpty {
                                 Text("No actions recorded yet")
                                     .foregroundStyle(.secondary)
@@ -134,7 +134,7 @@ struct IssueDetailSheet: View {
                 }
             }
             .sheet(isPresented: $showingNewActionSheet) {
-                if let issue = issue {
+                if let issue {
                     IssueActionSheet(issue: issue, action: nil)
                 }
             }
@@ -148,7 +148,7 @@ struct IssueDetailSheet: View {
     }
     
     private func loadIssueData() {
-        guard let issue = issue else { return }
+        guard let issue else { return }
         title = issue.title
         description = issue.issueDescription
         category = issue.category
@@ -168,7 +168,7 @@ struct IssueDetailSheet: View {
     }
     
     private func saveIssue() {
-        if let issue = issue {
+        if let issue {
             // Update existing issue
             issue.title = title
             issue.issueDescription = description
@@ -221,7 +221,7 @@ struct IssueActionRowView: View {
     
     var participantNames: String {
         let students = allStudents.filter { action.participantStudentIDs.contains($0.id.uuidString) }
-        return students.map { $0.firstName }.joined(separator: ", ")
+        return students.map(\.firstName).joined(separator: ", ")
     }
     
     var body: some View {
@@ -367,7 +367,7 @@ struct IssueActionSheet: View {
     }
     
     private func loadActionData() {
-        guard let action = action else { return }
+        guard let action else { return }
         actionType = action.actionType
         description = action.actionDescription
         actionDate = action.actionDate
@@ -387,7 +387,7 @@ struct IssueActionSheet: View {
     }
     
     private func saveAction() {
-        if let action = action {
+        if let action {
             // Update existing action
             action.actionType = actionType
             action.actionDescription = description

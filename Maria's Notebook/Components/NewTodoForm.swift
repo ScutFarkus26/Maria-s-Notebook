@@ -1,12 +1,14 @@
 // NewTodoForm.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
+import OSLog
 import SwiftUI
 import SwiftData
 
 // MARK: - New Todo Form
 
 struct NewTodoForm: View {
+    private static let logger = Logger.todos
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
@@ -16,7 +18,7 @@ struct NewTodoForm: View {
 
     private var allStudents: [Student] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter { $0.isEnrolled }, show: showTestStudents, namesRaw: testStudentNamesRaw
+            allStudentsRaw.uniqueByID.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
         )
     }
 
@@ -194,13 +196,13 @@ struct NewTodoForm: View {
                         Spacer()
                     }
                 }
-                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreatingTodo)
+                .disabled(title.trimmed().isEmpty || isCreatingTodo)
             }
         }
     }
 
     private func addSubtask() {
-        let trimmed = newSubtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newSubtaskTitle.trimmed()
         guard !trimmed.isEmpty else { return }
         subtaskTitles.append(trimmed)
         newSubtaskTitle = ""
@@ -220,8 +222,8 @@ struct NewTodoForm: View {
         )
 
         let todo = TodoItem(
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            title: title.trimmed(),
+            notes: notes.trimmed(),
             studentIDs: resolvedStudentIDs.map(\.uuidString),
             dueDate: dueDate,
             scheduledDate: scheduledDate,
@@ -253,7 +255,7 @@ struct NewTodoForm: View {
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to create todo: \(error)")
+            Self.logger.error("[\(#function)] Failed to create todo: \(error)")
         }
         dismiss()
     }

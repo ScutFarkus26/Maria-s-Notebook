@@ -9,7 +9,7 @@ extension LessonProgressView {
 
     @ViewBuilder
     var overviewContent: some View {
-        if let stats = stats {
+        if let stats {
             VStack(spacing: AppTheme.Spacing.large) {
                 // Stats cards
                 statsCards(stats: stats)

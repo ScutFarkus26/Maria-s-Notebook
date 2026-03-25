@@ -200,7 +200,7 @@ struct LessonDetailView: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            _ = saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
+                            saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }

@@ -92,7 +92,7 @@ extension CloudKitSyncStatusService {
                 return
             }
             await MainActor.run { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 self.updateSyncHealth()
             }
         }
@@ -150,7 +150,7 @@ extension CloudKitSyncStatusService {
                 return
             }
             await MainActor.run { [weak self] in
-                guard let self = self, self.isSyncing else { return }
+                guard let self, self.isSyncing else { return }
 
                 // Check if we're online - if not, don't mark as successful
                 if !self.isNetworkAvailable {

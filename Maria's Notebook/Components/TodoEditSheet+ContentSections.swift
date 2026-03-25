@@ -1,6 +1,7 @@
 // TodoEditSheet+ContentSections.swift
 // Content-related sections: subtasks, work integration, attachments, time, reminders, mood, location.
 
+import OSLog
 import SwiftUI
 import SwiftData
 
@@ -41,7 +42,7 @@ extension TodoEditSheet {
                     .font(.subheadline)
                     .padding(.vertical, 8)
             } else {
-                let sortedSubtasks = (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
+                let sortedSubtasks = (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex }
                 VStack(spacing: 6) {
                     ForEach(sortedSubtasks) { subtask in
                         SubtaskRow(
@@ -92,7 +93,7 @@ extension TodoEditSheet {
                             do {
                                 try context.save()
                             } catch {
-                                print("⚠️ [\(#function)] Failed to save todo: \(error)")
+                                Logger.todos.error("[\(#function)] Failed to save todo: \(error)")
                             }
                         }
                     } label: {
@@ -271,20 +272,17 @@ extension TodoEditSheet {
     }
 
     func formatReminderDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
         let calendar = Calendar.current
-
+        let timeStr = DateFormatters.shortTime.string(from: date)
         if calendar.isDateInToday(date) {
-            formatter.dateFormat = "'Today at' h:mm a"
+            return "Today at \(timeStr)"
         } else if calendar.isDateInTomorrow(date) {
-            formatter.dateFormat = "'Tomorrow at' h:mm a"
+            return "Tomorrow at \(timeStr)"
         } else if calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) {
-            formatter.dateFormat = "EEEE 'at' h:mm a"
+            return "\(DateFormatters.weekdayFull.string(from: date)) at \(timeStr)"
         } else {
-            formatter.dateFormat = "MMM d 'at' h:mm a"
+            return "\(DateFormatters.shortMonthDay.string(from: date)) at \(timeStr)"
         }
-
-        return formatter.string(from: date)
     }
 
 }

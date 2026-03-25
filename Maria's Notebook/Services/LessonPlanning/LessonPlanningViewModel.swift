@@ -112,11 +112,11 @@ final class LessonPlanningViewModel {
     
     /// Sends a follow-up message in the conversation.
     func sendMessage(_ text: String) {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        guard !text.trimmed().isEmpty,
               var session = currentSession,
               let service = planningService else { return }
         
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = text.trimmed()
         messages.append(PlanningMessage(role: .teacher, content: trimmed))
         
         isLoading = true
@@ -303,14 +303,14 @@ final class LessonPlanningViewModel {
         self.recommendations = allRecs
         
         let summary = "Found \(allRecs.count) suggestions for \(filtered.count) students."
-        messages.append(PlanningMessage(role: .assistant, content: summary, recommendationIDs: allRecs.map { $0.id }))
+        messages.append(PlanningMessage(role: .assistant, content: summary, recommendationIDs: allRecs.map(\.id)))
         self.currentStep = .presentingPlan
     }
     
     private func fetchStudents(context: ModelContext) -> [Student] {
         let descriptor = FetchDescriptor<Student>(sortBy: [SortDescriptor(\Student.lastName)])
         let all = (try? context.fetch(descriptor)) ?? []
-        return TestStudentsFilter.filterVisible(all.filter { $0.isEnrolled })
+        return TestStudentsFilter.filterVisible(all.filter(\.isEnrolled))
     }
 }
 

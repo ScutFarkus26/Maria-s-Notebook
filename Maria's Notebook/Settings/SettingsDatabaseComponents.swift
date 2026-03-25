@@ -17,7 +17,7 @@ struct DatabaseStatsSubsection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                _ = adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
                     isExpanded.toggle()
                 }
             } label: {

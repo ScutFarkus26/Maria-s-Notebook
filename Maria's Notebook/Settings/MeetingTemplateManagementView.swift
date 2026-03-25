@@ -20,7 +20,7 @@ struct MeetingTemplateManagementView: View {
     }
 
     private var builtInTemplates: [MeetingTemplate] {
-        templates.filter { $0.isBuiltIn }
+        templates.filter(\.isBuiltIn)
     }
 
     private var customTemplates: [MeetingTemplate] {
@@ -127,7 +127,7 @@ struct MeetingTemplateManagementView: View {
     // MARK: - Actions
 
     private func activateTemplate(_ template: MeetingTemplate) {
-        _ = adaptiveWithAnimation {
+        adaptiveWithAnimation {
             repository.setActiveTemplate(id: template.id)
         }
     }
@@ -145,7 +145,7 @@ struct MeetingTemplateManagementView: View {
     private func reorderTemplates(from source: IndexSet, to destination: Int) {
         var reordered = customTemplates
         reordered.move(fromOffsets: source, toOffset: destination)
-        repository.reorderTemplates(ids: reordered.map { $0.id })
+        repository.reorderTemplates(ids: reordered.map(\.id))
     }
 }
 

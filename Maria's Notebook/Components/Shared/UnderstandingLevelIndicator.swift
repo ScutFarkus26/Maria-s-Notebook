@@ -14,7 +14,7 @@ struct UnderstandingLevelIndicator: View {
     }
     
     var body: some View {
-        if let level = level {
+        if let level {
             if showLabel {
                 HStack(spacing: 6) {
                     circle
