@@ -73,8 +73,6 @@ struct RootDetailContent: View {
                 ObservationModeView()
             case .goingOut:
                 GoingOutRootView()
-            case .threePeriod:
-                ThreePeriodRootView()
             case .classroomJobs:
                 ClassroomJobsRootView()
             case .transitionPlanner:
@@ -179,11 +177,6 @@ struct RootAdaptiveTabs: View {
                 RootDetailContent(selectedNavItem: .goingOut)
             } label: {
                 Label("Going Out", systemImage: "figure.walk")
-            }
-            Tab(value: RootView.NavigationItem.threePeriod) {
-                RootDetailContent(selectedNavItem: .threePeriod)
-            } label: {
-                Label("Three-Period", systemImage: "3.circle")
             }
         } header: {
             Text("Students")
@@ -351,7 +344,6 @@ struct MoreMenuView: View {
                     moreMenuButton(.lessonFrequency)
                     moreMenuButton(.curriculumBalance)
                     moreMenuButton(.cosmicMap)
-                    moreMenuButton(.threePeriod)
                     moreMenuButton(.transitionPlanner)
                     moreMenuButton(.needsLesson)
                 }

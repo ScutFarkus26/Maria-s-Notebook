@@ -64,9 +64,6 @@ extension RootSidebar {
                     Label("Going Out", systemImage: "figure.walk")
                 }
 
-                NavigationLink(value: RootView.NavigationItem.threePeriod) {
-                    Label("Three-Period", systemImage: "3.circle")
-                }
             }
 
             Section("Classroom") {
@@ -237,11 +234,6 @@ extension RootSidebar {
                 .buttonStyle(.plain)
                 .accessibilityHint("Plan and track student going-out excursions")
 
-                Button { selection = .threePeriod } label: {
-                    Label("Three-Period", systemImage: "3.circle")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track student progress through the three-period lesson cycle")
             }
 
             Section("Classroom") {
