@@ -111,20 +111,6 @@ final class AppBootstrapper {
         let start = Date()
         logger.info("Post-launch migrations started")
 
-        // 3.1. Schema & Data Normalization (potentially heavy)
-        let normalizeStart = Date()
-        await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: backgroundContext)
-        let normElapsed = formatSeconds(Date().timeIntervalSince(normalizeStart))
-        logger.info("Post-launch: normalizeGivenAt completed in \(normElapsed)")
-
-        // 3.7. Legacy Backfill Migrations (one-time migrations)
-        let backfillStart = Date()
-        await DataMigrations.backfillRelationshipsIfNeeded(using: backgroundContext)
-        await DataMigrations.backfillIsPresentedIfNeeded(using: backgroundContext)
-        await DataMigrations.backfillScheduledForDayIfNeeded(using: backgroundContext)
-        let bfElapsed = formatSeconds(Date().timeIntervalSince(backfillStart))
-        logger.info("Post-launch: backfills completed in \(bfElapsed)")
-
         // 3.7.5. Repair incorrectly scoped notes
         let scopeRepairStart = Date()
         await DataMigrations.repairScopeForContextualNotes(using: backgroundContext)
@@ -145,13 +131,6 @@ final class AppBootstrapper {
             let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
             logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
         }
-
-        // 3.10. LessonAssignment Migration (legacy model consolidation)
-        let lessonAssignmentStart = Date()
-        await DataMigrations.migrateLessonAssignmentsIfNeeded(using: backgroundContext)
-        await DataMigrations.migrateLessonAssignmentsV2IfNeeded(using: backgroundContext)
-        let laElapsed = formatSeconds(Date().timeIntervalSince(lessonAssignmentStart))
-        logger.info("Post-launch: lesson assignment migration in \(laElapsed)")
 
         await MigrationRunner.runIfNeeded(context: backgroundContext)
 

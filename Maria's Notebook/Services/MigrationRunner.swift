@@ -22,6 +22,9 @@ enum MigrationRunner {
         // Create NoteStudentLink records for efficient multi-student scope queries
         DataMigrations.createNoteStudentLinksForExistingNotes(using: context)
 
+        // TODO: Remove after a few releases — backfills search index so scope getter no longer self-heals
+        DataMigrations.backfillNoteSearchIndex(using: context)
+
         // Backfill WorkCompletionRecord from WorkParticipantEntity.completedAt
         // This preserves all historical completion data in the new system
         DataMigrations.backfillWorkCompletionRecords(using: context)

@@ -77,12 +77,14 @@ enum SupplyService {
         let lowStock = supplies.filter { $0.status == .low || $0.status == .critical }.count
         let outOfStock = supplies.filter { $0.status == .outOfStock }.count
         let needsReorder = supplies.filter { $0.needsReorder }.count
+        let onOrder = supplies.filter { $0.isOnOrder }.count
 
         return SupplyStats(
             totalSupplies: total,
             lowStock: lowStock,
             outOfStock: outOfStock,
-            needsReorder: needsReorder
+            needsReorder: needsReorder,
+            onOrder: onOrder
         )
     }
 
@@ -166,6 +168,43 @@ enum SupplyService {
         context.safeSave()
     }
 
+    /// Marks a supply as ordered
+    @MainActor
+    static func markAsOrdered(
+        _ supply: Supply,
+        quantity: Int,
+        in context: ModelContext
+    ) {
+        supply.isOnOrder = true
+        supply.orderedQuantity = quantity
+        supply.orderDate = Date()
+        supply.modifiedAt = Date()
+
+        let transaction = SupplyTransaction(
+            supplyID: supply.id.uuidString,
+            quantityChange: 0,
+            reason: "Ordered \(quantity) \(supply.unit)",
+            supply: supply
+        )
+        context.insert(transaction)
+        context.safeSave()
+    }
+
+    /// Marks a supply order as received and adds stock
+    @MainActor
+    static func markAsReceived(
+        _ supply: Supply,
+        receivedQuantity: Int,
+        in context: ModelContext
+    ) {
+        supply.adjustQuantity(by: receivedQuantity, reason: "Order received", in: context)
+        supply.isOnOrder = false
+        supply.orderedQuantity = 0
+        supply.orderDate = nil
+        supply.modifiedAt = Date()
+        context.safeSave()
+    }
+
     /// Deletes a supply and all its transactions
     @MainActor
     static func deleteSupply(_ supply: Supply, in context: ModelContext) {
@@ -180,10 +219,11 @@ enum SupplyService {
         limit: Int = 20
     ) -> [SupplyTransaction] {
         let transactions = supply.transactions ?? []
-        return transactions
-            .sorted { $0.date > $1.date }
-            .prefix(limit)
-            .map { $0 }
+        return Array(
+            transactions
+                .sorted { $0.date > $1.date }
+                .prefix(limit)
+        )
     }
 }
 
@@ -193,4 +233,5 @@ struct SupplyStats {
     let lowStock: Int
     let outOfStock: Int
     let needsReorder: Int
+    let onOrder: Int
 }

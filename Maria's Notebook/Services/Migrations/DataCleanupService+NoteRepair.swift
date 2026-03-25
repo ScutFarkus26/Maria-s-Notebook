@@ -107,6 +107,49 @@ extension DataCleanupService {
         }
     }
 
+    // MARK: - Note Search Index Backfill
+
+    // TODO: Remove this migration after a few releases — all notes will have been backfilled by then.
+    /// Backfills scopeIsAll and searchIndexStudentID for notes that predate the search index.
+    /// After this runs, the scope getter no longer needs to self-heal these fields on read.
+    /// Guarded by MigrationFlag so it only runs once.
+    static func backfillNoteSearchIndex(using context: ModelContext) {
+        let flagKey = "Backfill.noteSearchIndex.v1"
+        MigrationFlag.runIfNeeded(key: flagKey) {
+            let notes = context.safeFetch(FetchDescriptor<Note>())
+            var repaired = 0
+
+            for note in notes {
+                let decoded = note.decodeScope() ?? .all
+                let expectedIsAll: Bool
+                let expectedStudentID: UUID?
+
+                switch decoded {
+                case .all:
+                    expectedIsAll = true
+                    expectedStudentID = nil
+                case .student(let id):
+                    expectedIsAll = false
+                    expectedStudentID = id
+                case .students:
+                    expectedIsAll = false
+                    expectedStudentID = nil
+                }
+
+                if note.scopeIsAll != expectedIsAll || note.searchIndexStudentID != expectedStudentID {
+                    note.scopeIsAll = expectedIsAll
+                    note.searchIndexStudentID = expectedStudentID
+                    repaired += 1
+                }
+            }
+
+            if repaired > 0 {
+                context.safeSave()
+                logger.info("Backfilled search index for \(repaired) notes")
+            }
+        }
+    }
+
     // MARK: - Denormalized Field Repair
 
     /// Repairs denormalized scheduledForDay fields to match scheduledFor.

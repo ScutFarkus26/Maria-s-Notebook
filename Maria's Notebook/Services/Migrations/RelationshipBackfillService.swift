@@ -10,32 +10,6 @@ import OSLog
 enum RelationshipBackfillService {
     private static let logger = Logger.migration
 
-    // MARK: - Legacy Backfills (no-ops)
-
-    /// Legacy model removed — backfill complete. Marks flag if not already set.
-    static func backfillRelationshipsIfNeeded(using context: ModelContext) async {
-        let flagKey = "Backfill.relationships.v1"
-        if !MigrationFlag.isComplete(key: flagKey) {
-            MigrationFlag.markComplete(key: flagKey)
-        }
-    }
-
-    /// Legacy model removed — backfill complete. Marks flag if not already set.
-    static func backfillIsPresentedIfNeeded(using context: ModelContext) async {
-        let flagKey = "Backfill.isPresentedFromGivenAt.v1"
-        if !MigrationFlag.isComplete(key: flagKey) {
-            MigrationFlag.markComplete(key: flagKey)
-        }
-    }
-
-    /// Legacy model removed — backfill complete. Marks flag if not already set.
-    static func backfillScheduledForDayIfNeeded(using context: ModelContext) async {
-        let flagKey = "Backfill.scheduledForDay.v1"
-        if !MigrationFlag.isComplete(key: flagKey) {
-            MigrationFlag.markComplete(key: flagKey)
-        }
-    }
-
     // MARK: - WorkCompletionRecord Backfill
 
     /// Backfill WorkCompletionRecord entries from WorkParticipantEntity.completedAt data.
@@ -111,13 +85,4 @@ enum RelationshipBackfillService {
         }
     }
 
-    // MARK: - Run All Relationship Backfills
-
-    /// Runs all relationship backfill migrations in sequence.
-    /// Safe to call repeatedly - each migration is idempotent.
-    static func runAllRelationshipBackfills(using context: ModelContext) async {
-        await backfillRelationshipsIfNeeded(using: context)
-        await backfillIsPresentedIfNeeded(using: context)
-        await backfillScheduledForDayIfNeeded(using: context)
-    }
 }

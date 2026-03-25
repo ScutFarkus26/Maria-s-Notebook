@@ -13,24 +13,49 @@ struct SuppliesListView: View {
     @State private var selectedSupply: Supply?
     @State private var showingQuickAdjustSheet = false
     @State private var quickAdjustSupply: Supply?
+    @State private var orderSupply: Supply?
+    @State private var receiveSupply: Supply?
 
     private var stats: SupplyStats {
-        SupplyService.getSupplyStats(in: modelContext)
+        let lowStock = supplies.filter { $0.status == .low || $0.status == .critical }.count
+        let outOfStock = supplies.filter { $0.status == .outOfStock }.count
+        let needsReorder = supplies.filter { $0.needsReorder }.count
+        let onOrder = supplies.filter { $0.isOnOrder }.count
+        return SupplyStats(
+            totalSupplies: supplies.count,
+            lowStock: lowStock,
+            outOfStock: outOfStock,
+            needsReorder: needsReorder,
+            onOrder: onOrder
+        )
     }
 
     private var filteredSupplies: [Supply] {
-        SupplyService.fetchSupplies(
-            in: modelContext,
-            category: selectedCategory,
-            searchText: searchText
-        )
+        var result = Array(supplies)
+
+        if let category = selectedCategory {
+            result = result.filter { $0.category == category }
+        }
+
+        if !searchText.isEmpty {
+            let searchLower = searchText.lowercased()
+            result = result.filter {
+                $0.name.lowercased().contains(searchLower) ||
+                $0.location.lowercased().contains(searchLower) ||
+                $0.notes.lowercased().contains(searchLower)
+            }
+        }
+
+        return result
     }
 
     private var groupedSupplies: [(category: SupplyCategory, supplies: [Supply])] {
-        SupplyService.fetchSuppliesGroupedByCategory(
-            in: modelContext,
-            searchText: searchText
-        )
+        let searchFiltered = filteredSupplies
+        let grouped = Dictionary(grouping: searchFiltered) { $0.category }
+        return SupplyCategory.allCases.compactMap { category in
+            guard let items = grouped[category], !items.isEmpty else { return nil }
+            return (category: category, supplies: items)
+        }
     }
 
     var body: some View {
@@ -108,12 +133,19 @@ struct SuppliesListView: View {
         .sheet(item: $quickAdjustSupply) { supply in
             QuickAdjustSheet(supply: supply)
         }
+        .sheet(item: $orderSupply) { supply in
+            MarkAsOrderedSheet(supply: supply)
+        }
+        .sheet(item: $receiveSupply) { supply in
+            MarkAsReceivedSheet(supply: supply)
+        }
     }
 
     // MARK: - Stats Section
 
     private var statsSection: some View {
         LazyVGrid(columns: [
+            GridItem(.flexible()),
             GridItem(.flexible()),
             GridItem(.flexible()),
             GridItem(.flexible()),
@@ -145,6 +177,13 @@ struct SuppliesListView: View {
                 value: "\(stats.needsReorder)",
                 subtitle: nil,
                 systemImage: "arrow.triangle.2.circlepath"
+            )
+
+            StatCard(
+                title: "On Order",
+                value: "\(stats.onOrder)",
+                subtitle: stats.onOrder > 0 ? "Awaiting delivery" : nil,
+                systemImage: "shippingbox.and.arrow.backward.fill"
             )
         }
     }
@@ -231,6 +270,22 @@ struct SuppliesListView: View {
                         quickAdjustSupply = supply
                     } label: {
                         Label("Adjust Stock", systemImage: "plus.forwardslash.minus")
+                    }
+
+                    Divider()
+
+                    if supply.isOnOrder {
+                        Button {
+                            receiveSupply = supply
+                        } label: {
+                            Label("Mark as Received", systemImage: "checkmark.circle")
+                        }
+                    } else {
+                        Button {
+                            orderSupply = supply
+                        } label: {
+                            Label("Mark as Ordered", systemImage: "shippingbox")
+                        }
                     }
 
                     Divider()

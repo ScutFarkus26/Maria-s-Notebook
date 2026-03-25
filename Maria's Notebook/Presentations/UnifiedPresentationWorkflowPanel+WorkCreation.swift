@@ -474,8 +474,10 @@ extension UnifiedPresentationWorkflowPanel {
     }
 
     func updateWorkDraft(studentID: UUID, draftID: UUID, update: (inout WorkItemDraft) -> Void) {
-        guard let index = workDrafts[studentID]?.firstIndex(where: { $0.id == draftID }) else { return }
-        update(&workDrafts[studentID]![index])
+        guard var drafts = workDrafts[studentID],
+              let index = drafts.firstIndex(where: { $0.id == draftID }) else { return }
+        update(&drafts[index])
+        workDrafts[studentID] = drafts
     }
 
     func syncAssignmentToWorkDraft(studentID: UUID, assignment: String) {

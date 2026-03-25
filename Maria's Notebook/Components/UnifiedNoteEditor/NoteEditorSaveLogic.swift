@@ -24,10 +24,11 @@ extension UnifiedNoteEditor {
             note = createNewNote(body: trimmedBody, scope: scope)
         }
 
+        note.assertStudentLinksSynced()
         do {
             try modelContext.save()
         } catch {
-            print("⚠️ [\(#function)] Failed to save note: \(error)")
+            Self.logger.error("Failed to save note: \(error.localizedDescription)")
         }
         onSave(note)
         dismiss()
@@ -53,7 +54,7 @@ extension UnifiedNoteEditor {
             do {
                 try PhotoStorageService.deleteImage(filename: oldPath)
             } catch {
-                print("⚠️ [\(#function)] Failed to delete old image: \(error)")
+                Self.logger.error("Failed to delete old image: \(error.localizedDescription)")
             }
         }
 

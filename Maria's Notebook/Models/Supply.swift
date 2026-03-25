@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import SwiftData
 
 /// Categories for classroom supplies
@@ -51,6 +52,14 @@ enum SupplyStatus: String, Codable, Sendable {
         case .outOfStock: return "xmark.circle.fill"
         }
     }
+
+    var color: Color {
+        switch self {
+        case .healthy: return .primary
+        case .low: return .orange
+        case .critical, .outOfStock: return .red
+        }
+    }
 }
 
 /// A supply item tracked in the classroom inventory
@@ -88,6 +97,15 @@ final class Supply: Identifiable {
 
     /// When this supply was last modified
     var modifiedAt: Date = Date()
+
+    /// Whether this supply currently has an outstanding order
+    var isOnOrder: Bool = false
+
+    /// Quantity ordered (meaningful only when isOnOrder is true)
+    var orderedQuantity: Int = 0
+
+    /// When the order was placed
+    var orderDate: Date?
 
     /// Transaction history for this supply
     @Relationship(deleteRule: .cascade, inverse: \SupplyTransaction.supply)
@@ -143,9 +161,9 @@ final class Supply: Identifiable {
         self.modifiedAt = modifiedAt
     }
 
-    /// Adjusts the quantity and records a transaction
+    /// Adjusts the quantity and records a transaction. Clamps to zero to prevent negative stock.
     func adjustQuantity(by amount: Int, reason: String, in context: ModelContext) {
-        currentQuantity += amount
+        currentQuantity = max(0, currentQuantity + amount)
         modifiedAt = Date()
 
         let transaction = SupplyTransaction(

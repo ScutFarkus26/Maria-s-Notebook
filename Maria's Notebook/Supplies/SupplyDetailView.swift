@@ -19,6 +19,8 @@ struct SupplyDetailView: View {
     @State private var editUnit: String = ""
     @State private var editNotes: String = ""
     @State private var showingDeleteConfirmation = false
+    @State private var showingOrderSheet = false
+    @State private var showingReceiveSheet = false
 
     private var transactions: [SupplyTransaction] {
         SupplyService.fetchRecentTransactions(for: supply, limit: 20)
@@ -80,6 +82,22 @@ struct SupplyDetailView: View {
 
                             Divider()
 
+                            if supply.isOnOrder {
+                                Button {
+                                    showingReceiveSheet = true
+                                } label: {
+                                    Label("Mark as Received", systemImage: "checkmark.circle")
+                                }
+                            } else {
+                                Button {
+                                    showingOrderSheet = true
+                                } label: {
+                                    Label("Mark as Ordered", systemImage: "shippingbox")
+                                }
+                            }
+
+                            Divider()
+
                             Button(role: .destructive) {
                                 showingDeleteConfirmation = true
                             } label: {
@@ -104,6 +122,12 @@ struct SupplyDetailView: View {
                 Text("Are you sure you want to delete \"\(supply.name)\"? This action cannot be undone.")
             }
         }
+        .sheet(isPresented: $showingOrderSheet) {
+            MarkAsOrderedSheet(supply: supply)
+        }
+        .sheet(isPresented: $showingReceiveSheet) {
+            MarkAsReceivedSheet(supply: supply)
+        }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 600)
         #endif
@@ -116,12 +140,12 @@ struct SupplyDetailView: View {
             // Category icon
             ZStack {
                 Circle()
-                    .fill(colorForStatus(supply.status).opacity(0.15))
+                    .fill(supply.status.color.opacity(0.15))
                     .frame(width: 60, height: 60)
 
                 Image(systemName: supply.category.icon)
                     .font(.title)
-                    .foregroundStyle(colorForStatus(supply.status))
+                    .foregroundStyle(supply.status.color)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -134,12 +158,30 @@ struct SupplyDetailView: View {
                     Text(supply.status.rawValue)
                         .font(.headline)
                 }
-                .foregroundStyle(colorForStatus(supply.status))
+                .foregroundStyle(supply.status.color)
             }
 
             Spacer()
 
-            if supply.needsReorder {
+            if supply.isOnOrder {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Label("On Order", systemImage: "shippingbox.fill")
+                        .font(.caption.weight(.medium))
+                    Text("\(supply.orderedQuantity) \(supply.unit)")
+                        .font(.caption2)
+                    if let orderDate = supply.orderDate {
+                        Text(orderDate, style: .date)
+                            .font(.caption2)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.blue.opacity(0.15))
+                )
+                .foregroundStyle(.blue)
+            } else if supply.needsReorder {
                 Label("Reorder", systemImage: "arrow.triangle.2.circlepath")
                     .font(.caption.weight(.medium))
                     .padding(.horizontal, 10)
@@ -151,7 +193,7 @@ struct SupplyDetailView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(colorForStatus(supply.status).opacity(0.08))
+                .fill(supply.status.color.opacity(0.08))
         )
     }
 
@@ -169,7 +211,7 @@ struct SupplyDetailView: View {
                 VStack(spacing: 4) {
                     Text("\(supply.currentQuantity)")
                         .font(AppTheme.ScaledFont.titleXLarge)
-                        .foregroundStyle(colorForStatus(supply.status))
+                        .foregroundStyle(supply.status.color)
                     Text(supply.unit)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -201,7 +243,7 @@ struct SupplyDetailView: View {
                         .fill(Color.primary.opacity(0.1))
 
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(colorForStatus(supply.status))
+                        .fill(supply.status.color)
                         .frame(width: stockPercentage * geometry.size.width)
                 }
             }
@@ -432,12 +474,153 @@ struct SupplyDetailView: View {
         modelContext.safeSave()
     }
 
-    private func colorForStatus(_ status: SupplyStatus) -> Color {
-        switch status {
-        case .healthy: return .green
-        case .low: return .orange
-        case .critical, .outOfStock: return .red
+}
+
+// MARK: - Mark as Ordered Sheet
+
+struct MarkAsOrderedSheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let supply: Supply
+
+    @State private var quantity: Int = 0
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Text("Supply")
+                        Spacer()
+                        Text(supply.name)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Current Stock")
+                        Spacer()
+                        Text("\(supply.currentQuantity) \(supply.unit)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Order Quantity") {
+                    HStack {
+                        TextField("0", value: $quantity, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        Stepper("", value: $quantity, in: 1...9999)
+                            .labelsHidden()
+                        Text(supply.unit)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Mark as Ordered")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Mark as Ordered") {
+                        SupplyService.markAsOrdered(supply, quantity: quantity, in: modelContext)
+                        dismiss()
+                    }
+                    .disabled(quantity <= 0)
+                }
+            }
         }
+        .onAppear {
+            quantity = supply.reorderAmount > 0 ? supply.reorderAmount : 1
+        }
+        #if os(macOS)
+        .frame(minWidth: 400, minHeight: 250)
+        #endif
+    }
+}
+
+// MARK: - Mark as Received Sheet
+
+struct MarkAsReceivedSheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let supply: Supply
+
+    @State private var receivedQuantity: Int = 0
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Text("Supply")
+                        Spacer()
+                        Text(supply.name)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Current Stock")
+                        Spacer()
+                        Text("\(supply.currentQuantity) \(supply.unit)")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Ordered")
+                        Spacer()
+                        Text("\(supply.orderedQuantity) \(supply.unit)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Received Quantity") {
+                    HStack {
+                        TextField("0", value: $receivedQuantity, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        Stepper("", value: $receivedQuantity, in: 0...9999)
+                            .labelsHidden()
+                        Text(supply.unit)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("New Total")
+                        Spacer()
+                        Text("\(supply.currentQuantity + receivedQuantity) \(supply.unit)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Mark as Received")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Mark as Received") {
+                        SupplyService.markAsReceived(supply, receivedQuantity: receivedQuantity, in: modelContext)
+                        dismiss()
+                    }
+                    .disabled(receivedQuantity <= 0)
+                }
+            }
+        }
+        .onAppear {
+            receivedQuantity = supply.orderedQuantity
+        }
+        #if os(macOS)
+        .frame(minWidth: 400, minHeight: 300)
+        #endif
     }
 }
 

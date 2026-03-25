@@ -34,6 +34,7 @@ struct RootView: View {
     @State private var isShowingCommandBar = false
     @State private var newPresentationDraftID: UUID?
     @State private var isShowingNewWorkItem = false
+    @State private var isShowingRecordPractice = false
     @State private var isShowingNewTodo = false
     @State private var workDetailIDToOpen: UUID?
 
@@ -106,11 +107,14 @@ struct RootView: View {
                     do {
                         try modelContext.save()
                     } catch {
-                        Self.logger.warning("Failed to save new presentation draft: \(error)")
+                        Self.logger.error("Failed to save new presentation draft: \(error)")
                     }
                     newPresentationDraftID = draft.id
                 },
                 isShowingWorkItemSheet: $isShowingNewWorkItem,
+                onRecordPractice: {
+                    isShowingRecordPractice = true
+                },
                 onNewTodo: {
                     isShowingNewTodo = true
                 },
@@ -188,6 +192,16 @@ struct RootView: View {
         }
         .sheet(item: $workDetailIDToOpen) { workID in
             WorkDetailView(workID: workID, onDone: { workDetailIDToOpen = nil })
+            #if os(macOS)
+                .frame(minWidth: UIConstants.SheetSize.large.width, minHeight: UIConstants.SheetSize.large.height)
+                .presentationSizingFitted()
+            #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            #endif
+        }
+        .sheet(isPresented: $isShowingRecordPractice) {
+            RecordPracticeSheet()
             #if os(macOS)
                 .frame(minWidth: UIConstants.SheetSize.large.width, minHeight: UIConstants.SheetSize.large.height)
                 .presentationSizingFitted()

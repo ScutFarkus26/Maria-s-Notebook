@@ -11,7 +11,7 @@ struct SupplyRow: View {
             // Category icon
             Image(systemName: supply.category.icon)
                 .font(.title3)
-                .foregroundStyle(colorForStatus(supply.status))
+                .foregroundStyle(supply.status.color)
                 .frame(width: 32)
 
             // Supply info
@@ -56,7 +56,7 @@ struct SupplyRow: View {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text("\(supply.currentQuantity)")
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(colorForStatus(supply.status))
+                        .foregroundStyle(supply.status.color)
 
                     Text(supply.unit)
                         .font(.caption2)
@@ -77,6 +77,15 @@ struct SupplyRow: View {
 
                 // Status indicator
                 statusBadge
+
+                if supply.isOnOrder {
+                    Label("Ordered", systemImage: "shippingbox.fill")
+                        .font(.caption2.weight(.medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.blue.opacity(0.15)))
+                        .foregroundStyle(.blue)
+                }
             }
         }
         .padding(.vertical, 8)
@@ -132,46 +141,6 @@ struct SupplyRow: View {
         }
     }
 
-    private func colorForStatus(_ status: SupplyStatus) -> Color {
-        switch status {
-        case .healthy: return .primary
-        case .low: return .orange
-        case .critical, .outOfStock: return .red
-        }
-    }
-}
-
-/// A compact row for supply lists
-struct SupplyCompactRow: View {
-    let supply: Supply
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: supply.category.icon)
-                .foregroundStyle(colorForStatus(supply.status))
-
-            Text(supply.name)
-                .lineLimit(1)
-
-            Spacer()
-
-            Text("\(supply.currentQuantity)")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(colorForStatus(supply.status))
-
-            Image(systemName: supply.status.icon)
-                .font(.caption)
-                .foregroundStyle(colorForStatus(supply.status))
-        }
-    }
-
-    private func colorForStatus(_ status: SupplyStatus) -> Color {
-        switch status {
-        case .healthy: return .green
-        case .low: return .orange
-        case .critical, .outOfStock: return .red
-        }
-    }
 }
 
 #Preview {

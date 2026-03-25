@@ -10,16 +10,6 @@ import OSLog
 enum SchemaMigrationService {
     private static let logger = Logger.migration
 
-    // MARK: - Date Normalization
-
-    /// LegacyPresentation model removed — migration complete. Marks flag if not already set.
-    static func normalizeGivenAtToDateOnlyIfNeeded(using context: ModelContext) async {
-        let flagKey = "Migration.givenAtDateOnly.v1"
-        if !MigrationFlag.isComplete(key: flagKey) {
-            MigrationFlag.markComplete(key: flagKey)
-        }
-    }
-
     // MARK: - UUID to String Migrations
 
     /// Migrate AttendanceRecord.studentID from UUID to String format.
@@ -69,24 +59,6 @@ enum SchemaMigrationService {
         }
     }
 
-    // MARK: - Legacy Presentation Sync (no-op)
-
-    /// LegacyPresentation model removed — migration complete. Marks flag if not already set.
-    static func syncLegacyPresentationIDsIfNeeded(using context: ModelContext) async {
-        let flagKey = "Migration.studentLessonIDSync.v1"
-        if !MigrationFlag.isComplete(key: flagKey) {
-            MigrationFlag.markComplete(key: flagKey)
-        }
-    }
-
-    // MARK: - WorkModel Migration
-
-    /// Legacy model removed — WorkModel ID backfill is no longer possible.
-    /// Any WorkModels that needed backfill should have been handled before the model was removed.
-    static func migrateWorkContractsToWorkModelsIfNeeded(using context: ModelContext) async {
-        // No-op: LegacyPresentation model removed. Migration complete.
-    }
-
     // MARK: - Note Category to Tags Migration
 
     /// Migrates Note and NoteTemplate records from the legacy categoryRaw field to the new tags array.
@@ -127,16 +99,4 @@ enum SchemaMigrationService {
         }
     }
 
-    // MARK: - Run All Schema Migrations
-
-    /// Runs all schema migrations in sequence.
-    /// Safe to call repeatedly - each migration is idempotent.
-    static func runAllSchemaMigrations(using context: ModelContext) async {
-        await normalizeGivenAtToDateOnlyIfNeeded(using: context)
-        migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
-        migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
-        await syncLegacyPresentationIDsIfNeeded(using: context)
-        await migrateWorkContractsToWorkModelsIfNeeded(using: context)
-        await migrateNoteCategoryToTagsIfNeeded(using: context)
-    }
 }

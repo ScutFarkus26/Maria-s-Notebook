@@ -269,13 +269,13 @@ final class TodoItem {
     
     /// Check if todo is due today
     var isDueToday: Bool {
-        guard let dueDate = dueDate else { return false }
+        guard let dueDate = dueDate, !isCompleted else { return false }
         return Calendar.current.isDateInToday(dueDate)
     }
-    
+
     /// Check if todo is due this week
     var isDueThisWeek: Bool {
-        guard let dueDate = dueDate else { return false }
+        guard let dueDate = dueDate, !isCompleted else { return false }
         let now = Date()
         guard let weekEnd = Calendar.current.date(
             byAdding: .day,

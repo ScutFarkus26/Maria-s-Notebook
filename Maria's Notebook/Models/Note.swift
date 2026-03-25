@@ -153,17 +153,14 @@ final class Note: Identifiable {
     // Computed, Codable scope
     var scope: NoteScope {
         get {
-            let decoded = decodeScope() ?? .all
-            // Ensure search index is synced (for existing notes that may not have it set)
-            syncSearchIndex(with: decoded)
-            return decoded
+            decodeScope() ?? .all
         }
         set {
             do {
                 scopeBlob = try JSONEncoder().encode(newValue)
             } catch {
-                Self.logger.warning("Failed to encode scope: \(error.localizedDescription)")
-                scopeBlob = nil
+                Self.logger.error("Failed to encode scope: \(error.localizedDescription)")
+                // Preserve existing scopeBlob rather than wiping it to nil
             }
             // Update search index attributes for database-level filtering
             syncSearchIndex(with: newValue)
@@ -178,6 +175,17 @@ final class Note: Identifiable {
 
     /// Returns true if studentLinks need to be synced after a scope change.
     var studentLinksNeedSync: Bool { _studentLinksNeedSync }
+
+    /// Debug-only check: asserts that student links have been synced after a scope change.
+    /// Call this before saving to catch missed `syncStudentLinksIfNeeded(in:)` calls during development.
+    func assertStudentLinksSynced(context: String = #function) {
+        #if DEBUG
+        if _studentLinksNeedSync {
+            Self.logger.error("Student links not synced before save in \(context). Call syncStudentLinksIfNeeded(in:) after setting scope.")
+            assertionFailure("Note.studentLinks not synced after scope change — call syncStudentLinksIfNeeded(in:) before saving. Triggered in \(context)")
+        }
+        #endif
+    }
 
     /// Syncs studentLinks if needed and clears the flag. Call this after setting scope.
     @MainActor
@@ -305,8 +313,8 @@ final class Note: Identifiable {
         }
     }
 
-    // MARK: - Private helpers
-    private func decodeScope() -> NoteScope? {
+    // MARK: - Helpers
+    func decodeScope() -> NoteScope? {
         guard let data = scopeBlob else { return nil }
         do {
             return try JSONDecoder().decode(NoteScope.self, from: data)

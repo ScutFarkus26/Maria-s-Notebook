@@ -64,8 +64,6 @@ struct PlanningWeekViewMac: View {
             )
             #endif
             
-            // Run migrations once
-            await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
             DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
             
             // Calculate initial start date

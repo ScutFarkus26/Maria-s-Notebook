@@ -124,10 +124,6 @@ struct PlanningWeekViewiOS: View {
         )
         #endif
         
-        // Run migrations once on first load
-        Task {
-            await DataMigrations.normalizeGivenAtToDateOnlyIfNeeded(using: modelContext)
-        }
         DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
     }
     

@@ -43,7 +43,21 @@ struct StudentReadinessAssessor {
         for student: Student,
         modelContext: ModelContext
     ) -> StudentReadinessProfile {
-        assessReadiness(for: [student], modelContext: modelContext).first!
+        guard let profile = assessReadiness(for: [student], modelContext: modelContext).first else {
+            logger.error("assessReadiness returned empty array for single student \(student.id)")
+            return StudentReadinessProfile(
+                studentID: student.id,
+                studentName: student.firstName,
+                level: "",
+                subjectReadiness: [],
+                practiceQualityAvg: nil,
+                independenceAvg: nil,
+                daysSinceLastPresentation: nil,
+                activeWorkCount: 0,
+                behavioralFlags: []
+            )
+        }
+        return profile
     }
     
     // MARK: - Profile Building
