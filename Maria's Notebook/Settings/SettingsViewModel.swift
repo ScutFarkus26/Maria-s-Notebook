@@ -111,6 +111,7 @@ final class SettingsViewModel {
                     try FileManager.default.copyItem(at: tmp, to: dest)
                     setLastBackupNow()
                     resultSummary = "Exported backup to \(dest.lastPathComponent)."
+                    ToastService.shared.showSuccess("Backup saved successfully")
                     safeRemoveItem(at: tmp, context: "performExport-seamlessSave")
                     loadDefaultFolderName()
                     return
@@ -142,6 +143,7 @@ final class SettingsViewModel {
                     try FileManager.default.copyItem(at: tmp, to: finalURL)
                     setLastBackupNow()
                     resultSummary = "Exported backup to \(finalURL.lastPathComponent)."
+                    ToastService.shared.showSuccess("Backup saved successfully")
                     loadDefaultFolderName()
                 } catch {
                     importError = "Failed to write backup: \(error.localizedDescription)"
