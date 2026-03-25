@@ -117,44 +117,47 @@ struct MeetingsWorkflowView: View {
         }
     }
 
-    /// Filter students based on search and age
+    /// Filter students based on search and age.
+    /// Search brings matching students to the top rather than hiding non-matches.
     private var filteredStudentsNeedingMeeting: [Student] {
         var result = studentsNeedingMeeting
-        
-        // Search filter
-        if !searchText.isEmpty {
-            let search = searchText.lowercased()
-            result = result.filter {
-                $0.firstName.lowercased().contains(search) ||
-                $0.lastName.lowercased().contains(search)
-            }
-        }
-        
+
         // Age filter
         if !selectedAgeRanges.isEmpty {
             result = result.filter { AgeRange.matchesAny($0.birthday, in: selectedAgeRanges) }
         }
-        
+
+        // Search: bring matching students to the top
+        if !searchText.isEmpty {
+            let search = searchText.lowercased()
+            let (matching, rest) = result.partitioned { student in
+                student.firstName.lowercased().contains(search) ||
+                student.lastName.lowercased().contains(search)
+            }
+            result = matching + rest
+        }
+
         return result
     }
 
     private var filteredStudentsCompleted: [Student] {
         var result = studentsWithRecentMeeting
-        
-        // Search filter
-        if !searchText.isEmpty {
-            let search = searchText.lowercased()
-            result = result.filter {
-                $0.firstName.lowercased().contains(search) ||
-                $0.lastName.lowercased().contains(search)
-            }
-        }
-        
+
         // Age filter
         if !selectedAgeRanges.isEmpty {
             result = result.filter { AgeRange.matchesAny($0.birthday, in: selectedAgeRanges) }
         }
-        
+
+        // Search: bring matching students to the top
+        if !searchText.isEmpty {
+            let search = searchText.lowercased()
+            let (matching, rest) = result.partitioned { student in
+                student.firstName.lowercased().contains(search) ||
+                student.lastName.lowercased().contains(search)
+            }
+            result = matching + rest
+        }
+
         return result
     }
 
