@@ -1,14 +1,33 @@
 import SwiftUI
 import SwiftData
 
-/// A year-at-a-glance perpetual calendar showing all 12 months with day numbers,
-/// US federal holidays, non-school days, and today highlighted.
+// MARK: - Perpetual Calendar View
+
+/// A year-at-a-glance calendar in the classic landscape spreadsheet layout:
+/// 12 month columns side by side, days running vertically, with an editable
+/// note field beside each day. Supports multiple years with a year stepper.
+/// Non-school days from Settings sync automatically; US federal holidays
+/// are pre-populated.
 struct PerpetualCalendarView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var displayYear: Int = Calendar.current.component(.year, from: Date())
-    @State private var nonSchoolDates: Set<Date> = []
+    @Query(sort: [SortDescriptor(\CalendarNote.year), SortDescriptor(\CalendarNote.month), SortDescriptor(\CalendarNote.day)])
+    private var allNotes: [CalendarNote]
 
-    private var calendar: Calendar { AppCalendar.shared }
+    @State private var displayYear: Int = Calendar.current.component(.year, from: Date())
+    @State private var editingCell: CellID?
+    @State private var editText: String = ""
+    @State private var nonSchoolCells: Set<CellID> = []
+
+    private static let monthNames = Calendar.current.monthSymbols
+
+    /// Notes for the currently displayed year, keyed by month+day
+    private var notesLookup: [CellID: CalendarNote] {
+        var lookup: [CellID: CalendarNote] = [:]
+        for note in allNotes where note.year == displayYear {
+            lookup[CellID(month: note.month, day: note.day)] = note
+        }
+        return lookup
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,14 +37,12 @@ struct PerpetualCalendarView: View {
 
             Divider()
 
-            ScrollView {
-                yearGrid
-                    .padding(20)
+            ScrollView([.horizontal, .vertical]) {
+                calendarGrid
+                    .padding(16)
             }
         }
-        .task(id: displayYear) {
-            await loadNonSchoolDays()
-        }
+        .task(id: displayYear) { await loadNonSchoolDays() }
     }
 
     // MARK: - Year Stepper
@@ -54,232 +71,226 @@ struct PerpetualCalendarView: View {
             .controlSize(.small)
 
             Button("Today") {
-                displayYear = calendar.component(.year, from: Date())
+                displayYear = AppCalendar.shared.component(.year, from: Date())
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
         }
     }
 
-    // MARK: - Year Grid
+    // MARK: - Non-School Day Loading
 
-    private var yearGrid: some View {
-        let columns = [
-            GridItem(.adaptive(minimum: 180, maximum: 280), spacing: 20)
-        ]
-        return LazyVGrid(columns: columns, spacing: 20) {
+    private func loadNonSchoolDays() async {
+        let cal = AppCalendar.shared
+        var startComps = DateComponents()
+        startComps.year = displayYear
+        startComps.month = 1
+        startComps.day = 1
+        guard let start = cal.date(from: startComps),
+              let end = cal.date(byAdding: .year, value: 1, to: start) else { return }
+
+        let dates = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
+        var cells = Set<CellID>()
+        for date in dates {
+            let m = cal.component(.month, from: date)
+            let d = cal.component(.day, from: date)
+            cells.insert(CellID(month: m, day: d))
+        }
+        await MainActor.run { nonSchoolCells = cells }
+    }
+
+    // MARK: - Calendar Grid
+
+    private var calendarGrid: some View {
+        HStack(alignment: .top, spacing: 0) {
             ForEach(1...12, id: \.self) { month in
-                MonthCard(
-                    year: displayYear,
-                    month: month,
-                    calendar: calendar,
-                    nonSchoolDates: nonSchoolDates
-                )
+                monthColumn(month: month)
+                if month < 12 {
+                    Divider()
+                }
             }
         }
     }
 
-    // MARK: - Data Loading
+    private func monthColumn(month: Int) -> some View {
+        let days = daysInMonth(month)
 
-    private func loadNonSchoolDays() async {
+        return VStack(spacing: 0) {
+            Text(Self.monthNames[month - 1])
+                .font(.subheadline.weight(.bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.12))
+
+            Divider()
+
+            ForEach(1...days, id: \.self) { day in
+                dayRow(month: month, day: day)
+                if day < days {
+                    Divider()
+                        .opacity(0.4)
+                }
+            }
+        }
+        .frame(width: 180)
+    }
+
+    /// Actual days in month for the selected year (handles leap years)
+    private func daysInMonth(_ month: Int) -> Int {
+        let cal = AppCalendar.shared
         var comps = DateComponents()
         comps.year = displayYear
-        comps.month = 1
-        comps.day = 1
-        guard let start = calendar.date(from: comps) else { return }
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return }
-        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
-        await MainActor.run { nonSchoolDates = set }
-    }
-}
-
-// MARK: - Month Card
-
-private struct MonthCard: View {
-    let year: Int
-    let month: Int
-    let calendar: Calendar
-    let nonSchoolDates: Set<Date>
-
-    private var monthName: String {
-        calendar.monthSymbols[month - 1]
-    }
-
-    private var daysInMonth: Int {
-        var comps = DateComponents()
-        comps.year = year
         comps.month = month
         comps.day = 1
-        guard let date = calendar.date(from: comps),
-              let range = calendar.range(of: .day, in: .month, for: date) else { return 30 }
+        guard let date = cal.date(from: comps),
+              let range = cal.range(of: .day, in: .month, for: date) else { return 30 }
         return range.count
     }
 
-    private var firstWeekday: Int {
-        var comps = DateComponents()
-        comps.year = year
-        comps.month = month
-        comps.day = 1
-        guard let date = calendar.date(from: comps) else { return 1 }
-        return (calendar.component(.weekday, from: date) - calendar.firstWeekday + 7) % 7
-    }
+    // MARK: - Day Row
 
-    private let weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"]
+    private func dayRow(month: Int, day: Int) -> some View {
+        let cellID = CellID(month: month, day: day)
+        let holiday = PerpetualHolidays.holiday(month: month, day: day, year: displayYear)
+        let note = notesLookup[cellID]
+        let displayText = note?.text ?? holiday ?? ""
+        let isEditing = editingCell == cellID
+        let isHoliday = holiday != nil && (note == nil || note?.text.isEmpty == true)
+        let isToday = isTodayCell(month: month, day: day)
+        let isNoSchool = nonSchoolCells.contains(cellID)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Month header
-            Text(monthName)
-                .font(.headline)
-                .padding(.bottom, 2)
+        return HStack(spacing: 0) {
+            Text("\(day)")
+                .font(.caption.monospacedDigit().weight(isToday ? .bold : .regular))
+                .foregroundStyle(dayNumberColor(isToday: isToday, isNoSchool: isNoSchool))
+                .frame(width: 28, alignment: .trailing)
+                .padding(.trailing, 6)
 
-            // Weekday headers
-            HStack(spacing: 0) {
-                ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { _, label in
-                    Text(label)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-
-            // Day grid
-            let cells = buildCells()
-            let weeks = stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<min($0 + 7, cells.count)]) }
-
-            ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
-                HStack(spacing: 0) {
-                    ForEach(Array(week.enumerated()), id: \.offset) { _, cell in
-                        DayCellView(cell: cell)
-                            .frame(maxWidth: .infinity)
+            if isEditing {
+                TextField("Add note…", text: $editText, onCommit: {
+                    commitEdit(cellID: cellID)
+                })
+                .font(.caption)
+                .textFieldStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onSubmit { commitEdit(cellID: cellID) }
+            } else {
+                Text(displayText)
+                    .font(.caption)
+                    .foregroundStyle(noteTextColor(isHoliday: isHoliday, isNoSchool: isNoSchool))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        beginEdit(cellID: cellID, currentText: note?.text ?? holiday ?? "")
                     }
-                }
+            }
+
+            if isNoSchool && !isEditing {
+                Circle()
+                    .fill(Color.red.opacity(0.6))
+                    .frame(width: 6, height: 6)
+                    .help("No School")
+                    .padding(.leading, 2)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
-        )
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(rowBackground(isToday: isToday, isHoliday: isHoliday, isNoSchool: isNoSchool))
     }
 
-    private func buildCells() -> [DayCell] {
-        var cells: [DayCell] = Array(repeating: DayCell(day: 0, isToday: false, isNonSchool: false, holiday: nil),
-                                     count: firstWeekday)
-        let today = Date()
-        for day in 1...daysInMonth {
-            var comps = DateComponents()
-            comps.year = year
-            comps.month = month
-            comps.day = day
-            let date = calendar.date(from: comps)
-            let startOfDay = date.map { calendar.startOfDay(for: $0) }
-            let isToday = date.map { calendar.isDateInToday($0) } ?? false
-            let isNonSchool = startOfDay.map { nonSchoolDates.contains($0) } ?? false
-            let holiday = PerpetualHolidays.holiday(month: month, day: day, year: year)
-            cells.append(DayCell(day: day, isToday: isToday, isNonSchool: isNonSchool, holiday: holiday))
-        }
-        // Pad to complete the last week
-        while cells.count % 7 != 0 {
-            cells.append(DayCell(day: 0, isToday: false, isNonSchool: false, holiday: nil))
-        }
-        return cells
-    }
-}
-
-// MARK: - Day Cell
-
-private struct DayCell {
-    let day: Int
-    let isToday: Bool
-    let isNonSchool: Bool
-    let holiday: String?
-
-    var isEmpty: Bool { day == 0 }
-}
-
-private struct DayCellView: View {
-    let cell: DayCell
-
-    var body: some View {
-        if cell.isEmpty {
-            Color.clear
-                .frame(height: 24)
-        } else {
-            Text("\(cell.day)")
-                .font(.caption.monospacedDigit())
-                .fontWeight(cell.isToday ? .bold : .regular)
-                .foregroundStyle(foregroundColor)
-                .frame(height: 24)
-                .frame(maxWidth: .infinity)
-                .background(background)
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                .help(helpText)
-        }
-    }
-
-    private var foregroundColor: Color {
-        if cell.isToday {
-            return .white
-        }
-        if cell.isNonSchool {
-            return .red
-        }
-        if cell.holiday != nil {
-            return .blue
-        }
+    private func dayNumberColor(isToday: Bool, isNoSchool: Bool) -> Color {
+        if isToday { return .accentColor }
+        if isNoSchool { return .red }
         return .primary
     }
 
-    private var background: some ShapeStyle {
-        if cell.isToday {
-            return AnyShapeStyle(Color.accentColor)
-        }
-        if cell.isNonSchool {
-            return AnyShapeStyle(Color.red.opacity(0.12))
-        }
-        if cell.holiday != nil {
-            return AnyShapeStyle(Color.blue.opacity(0.1))
-        }
-        return AnyShapeStyle(Color.clear)
+    private func noteTextColor(isHoliday: Bool, isNoSchool: Bool) -> Color {
+        if isNoSchool { return .red }
+        if isHoliday { return .blue }
+        return .primary
     }
 
-    private var helpText: String {
-        var parts: [String] = []
-        if let holiday = cell.holiday {
-            parts.append(holiday)
+    private func rowBackground(isToday: Bool, isHoliday: Bool, isNoSchool: Bool) -> some View {
+        Group {
+            if isToday {
+                Color.accentColor.opacity(0.08)
+            } else if isNoSchool {
+                Color.red.opacity(0.06)
+            } else if isHoliday {
+                Color.blue.opacity(0.04)
+            } else {
+                Color.clear
+            }
         }
-        if cell.isNonSchool {
-            parts.append("Non-school day")
-        }
-        if cell.isToday {
-            parts.append("Today")
-        }
-        return parts.isEmpty ? "\(cell.day)" : parts.joined(separator: " \u{2022} ")
     }
+
+    // MARK: - Today Detection
+
+    private func isTodayCell(month: Int, day: Int) -> Bool {
+        let now = Date()
+        let cal = AppCalendar.shared
+        return cal.component(.year, from: now) == displayYear
+            && cal.component(.month, from: now) == month
+            && cal.component(.day, from: now) == day
+    }
+
+    // MARK: - Editing
+
+    private func beginEdit(cellID: CellID, currentText: String) {
+        if let previous = editingCell, previous != cellID {
+            commitEdit(cellID: previous)
+        }
+        editText = currentText
+        editingCell = cellID
+    }
+
+    private func commitEdit(cellID: CellID) {
+        let trimmed = editText.trimmed()
+        let holiday = PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: displayYear)
+
+        if let existing = notesLookup[cellID] {
+            if trimmed.isEmpty || trimmed == holiday {
+                modelContext.delete(existing)
+            } else {
+                existing.text = trimmed
+                existing.modifiedAt = Date()
+            }
+        } else if !trimmed.isEmpty && trimmed != holiday {
+            let note = CalendarNote(year: displayYear, month: cellID.month, day: cellID.day, text: trimmed)
+            modelContext.insert(note)
+        }
+
+        modelContext.safeSave()
+        editingCell = nil
+        editText = ""
+    }
+}
+
+// MARK: - Cell Identifier
+
+private struct CellID: Hashable {
+    let month: Int
+    let day: Int
 }
 
 // MARK: - US Federal Holidays
 
+/// Fixed-date and floating US federal holidays.
 enum PerpetualHolidays {
-    /// Returns the holiday name for a given date, or nil if not a holiday.
-    /// Covers fixed-date and floating US federal holidays.
     static func holiday(month: Int, day: Int, year: Int) -> String? {
         // Fixed-date holidays
         switch (month, day) {
-        case (1, 1): return "New Year's Day"
-        case (6, 19): return "Juneteenth"
-        case (7, 4): return "Independence Day"
+        case (1, 1):   return "New Year's Day"
+        case (6, 19):  return "Juneteenth"
+        case (7, 4):   return "Independence Day"
         case (11, 11): return "Veterans Day"
         case (12, 25): return "Christmas Day"
         default: break
         }
 
-        // Floating holidays (nth weekday of month)
+        // Floating holidays require year to compute weekday
         let cal = AppCalendar.shared
         var comps = DateComponents()
         comps.year = year
@@ -290,32 +301,25 @@ enum PerpetualHolidays {
         let weekOfMonth = (day - 1) / 7 + 1
 
         switch (month, weekday, weekOfMonth) {
-        // MLK Day: 3rd Monday of January
-        case (1, 2, 3): return "MLK Day"
-        // Presidents' Day: 3rd Monday of February
-        case (2, 2, 3): return "Presidents' Day"
-        // Memorial Day: last Monday of May
-        case (5, 2, _) where isLastWeekdayOccurrence(day: day, month: month, year: year, weekday: 2):
+        case (1, 2, 3):  return "MLK Day"
+        case (2, 2, 3):  return "Presidents' Day"
+        case (5, 2, _) where isLastOccurrence(day: day, month: month, year: year):
             return "Memorial Day"
-        // Labor Day: 1st Monday of September
-        case (9, 2, 1): return "Labor Day"
-        // Columbus Day: 2nd Monday of October
+        case (9, 2, 1):  return "Labor Day"
         case (10, 2, 2): return "Columbus Day"
-        // Thanksgiving: 4th Thursday of November
         case (11, 5, 4): return "Thanksgiving"
         default: return nil
         }
     }
 
-    private static func isLastWeekdayOccurrence(day: Int, month: Int, year: Int, weekday: Int) -> Bool {
+    private static func isLastOccurrence(day: Int, month: Int, year: Int) -> Bool {
         let cal = AppCalendar.shared
         var comps = DateComponents()
         comps.year = year
         comps.month = month
         comps.day = day
-        guard let date = cal.date(from: comps) else { return false }
-        let nextWeek = cal.date(byAdding: .day, value: 7, to: date)
-        guard let nextWeek else { return false }
+        guard let date = cal.date(from: comps),
+              let nextWeek = cal.date(byAdding: .day, value: 7, to: date) else { return false }
         return cal.component(.month, from: nextWeek) != month
     }
 }

@@ -64,6 +64,7 @@ struct AppSchema {
         ClassroomJob.self,
         JobAssignment.self,
         TransitionPlan.self,
-        TransitionChecklistItem.self
+        TransitionChecklistItem.self,
+        CalendarNote.self
     ])
 }
