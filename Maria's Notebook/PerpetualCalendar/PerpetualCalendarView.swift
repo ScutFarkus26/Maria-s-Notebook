@@ -165,25 +165,19 @@ struct PerpetualCalendarView: View {
 
     private func monthColumn(_ monthID: MonthID) -> some View {
         let days = daysInMonth(monthID)
-        let isNewYear = monthID.month == 1
 
         return VStack(spacing: 0) {
-            // Show year label above January columns
-            VStack(spacing: 0) {
-                if isNewYear {
-                    Text(String(monthID.year))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 2)
-                }
-
+            // Month + year header
+            VStack(spacing: 1) {
                 Text(Self.monthNames[monthID.month - 1])
                     .font(.subheadline.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(Color.accentColor.opacity(0.12))
+                Text(String(monthID.year))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .background(Color.accentColor.opacity(0.12))
 
             Divider()
 
