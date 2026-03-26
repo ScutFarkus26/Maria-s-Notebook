@@ -13,6 +13,8 @@ struct PerpetualCalendarView: View {
     @State private var editText: String = ""
     @State private var nonSchoolCells: Set<CellID> = []
     @State private var loadedYearRange: ClosedRange<Int>?
+    @State private var scrollProxy: ScrollViewProxy?
+    @State private var suppressYearScroll = false
 
     private static let yearRadius = 5
 
@@ -45,8 +47,15 @@ struct PerpetualCalendarView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                 }
-                .onAppear { scrollToCurrentMonth(proxy) }
+                .onAppear {
+                    scrollProxy = proxy
+                    scrollToCurrentMonth(proxy)
+                }
                 .onChange(of: displayYear) { _, newYear in
+                    if suppressYearScroll {
+                        suppressYearScroll = false
+                        return
+                    }
                     withAnimation(.easeInOut(duration: 0.3)) {
                         proxy.scrollTo(MonthID(year: newYear, month: 1), anchor: .leading)
                     }
@@ -90,7 +99,7 @@ struct PerpetualCalendarView: View {
                 .buttonStyle(.plain)
 
                 Button("Today") {
-                    displayYear = AppCalendar.shared.component(.year, from: Date())
+                    scrollToToday()
                 }
                 .font(.subheadline.weight(.medium))
                 .buttonStyle(.plain)
@@ -107,10 +116,24 @@ struct PerpetualCalendarView: View {
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy) {
         let cal = AppCalendar.shared
         let now = Date()
-        proxy.scrollTo(
-            MonthID(year: cal.component(.year, from: now), month: cal.component(.month, from: now)),
-            anchor: .leading
-        )
+        let todayYear = cal.component(.year, from: now)
+        let todayMonth = cal.component(.month, from: now)
+        suppressYearScroll = true
+        displayYear = todayYear
+        proxy.scrollTo(MonthID(year: todayYear, month: todayMonth), anchor: .leading)
+    }
+
+    private func scrollToToday() {
+        guard let proxy = scrollProxy else { return }
+        let cal = AppCalendar.shared
+        let now = Date()
+        let todayYear = cal.component(.year, from: now)
+        let todayMonth = cal.component(.month, from: now)
+        suppressYearScroll = true
+        displayYear = todayYear
+        withAnimation(.easeInOut(duration: 0.3)) {
+            proxy.scrollTo(MonthID(year: todayYear, month: todayMonth), anchor: .leading)
+        }
     }
 
     // MARK: - Non-School Day Loading
