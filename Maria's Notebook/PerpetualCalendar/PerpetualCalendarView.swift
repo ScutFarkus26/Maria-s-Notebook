@@ -3,11 +3,6 @@ import SwiftData
 
 // MARK: - Perpetual Calendar View
 
-/// A continuous-scroll calendar in classic landscape spreadsheet layout:
-/// month columns side by side, days running vertically, with an editable
-/// note field beside each day. Scrolls seamlessly across year boundaries.
-/// Non-school days from Settings sync automatically; US federal holidays
-/// are pre-populated.
 struct PerpetualCalendarView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\CalendarNote.year), SortDescriptor(\CalendarNote.month), SortDescriptor(\CalendarNote.day)])
@@ -19,9 +14,6 @@ struct PerpetualCalendarView: View {
     @State private var nonSchoolCells: Set<CellID> = []
     @State private var loadedYearRange: ClosedRange<Int>?
 
-    private static let monthNames = Calendar.current.monthSymbols
-
-    /// How many years before/after the current year to render
     private static let yearRadius = 5
 
     private var yearRange: ClosedRange<Int> {
@@ -35,7 +27,6 @@ struct PerpetualCalendarView: View {
         }
     }
 
-    /// Notes keyed by year+month+day
     private var notesLookup: [CellID: CalendarNote] {
         var lookup: [CellID: CalendarNote] = [:]
         for note in allNotes {
@@ -46,22 +37,17 @@ struct PerpetualCalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ViewHeader(title: "Calendar") {
-                yearStepper
-            }
-
-            Divider()
+            header
 
             ScrollViewReader { proxy in
                 ScrollView([.horizontal, .vertical]) {
                     calendarGrid
-                        .padding(16)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                 }
-                .onAppear {
-                    scrollToCurrentMonth(proxy)
-                }
+                .onAppear { scrollToCurrentMonth(proxy) }
                 .onChange(of: displayYear) { _, newYear in
-                    withAnimation {
+                    withAnimation(.easeInOut(duration: 0.3)) {
                         proxy.scrollTo(MonthID(year: newYear, month: 1), anchor: .leading)
                     }
                 }
@@ -70,47 +56,61 @@ struct PerpetualCalendarView: View {
         .task { await loadNonSchoolDays() }
     }
 
-    // MARK: - Year Stepper
+    // MARK: - Header
 
-    private var yearStepper: some View {
-        HStack(spacing: 12) {
-            Button {
-                displayYear -= 1
-            } label: {
-                Image(systemName: "chevron.left")
+    private var header: some View {
+        HStack {
+            Text("Calendar")
+                .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button {
+                    displayYear -= 1
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Text(String(displayYear))
+                    .font(.body.weight(.medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    displayYear += 1
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button("Today") {
+                    displayYear = AppCalendar.shared.component(.year, from: Date())
+                }
+                .font(.subheadline.weight(.medium))
+                .buttonStyle(.plain)
+                .foregroundStyle(.accentColor)
+                .padding(.leading, 4)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-
-            Text(String(displayYear))
-                .font(.title3.weight(.semibold))
-                .monospacedDigit()
-                .frame(minWidth: 60)
-
-            Button {
-                displayYear += 1
-            } label: {
-                Image(systemName: "chevron.right")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-
-            Button("Today") {
-                displayYear = AppCalendar.shared.component(.year, from: Date())
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
         }
+        .padding()
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
     }
 
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy) {
         let cal = AppCalendar.shared
         let now = Date()
-        let m = MonthID(
-            year: cal.component(.year, from: now),
-            month: cal.component(.month, from: now)
+        proxy.scrollTo(
+            MonthID(year: cal.component(.year, from: now), month: cal.component(.month, from: now)),
+            anchor: .leading
         )
-        proxy.scrollTo(m, anchor: .leading)
     }
 
     // MARK: - Non-School Day Loading
@@ -129,10 +129,11 @@ struct PerpetualCalendarView: View {
         let dates = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
         var cells = Set<CellID>()
         for date in dates {
-            let y = cal.component(.year, from: date)
-            let m = cal.component(.month, from: date)
-            let d = cal.component(.day, from: date)
-            cells.insert(CellID(year: y, month: m, day: d))
+            cells.insert(CellID(
+                year: cal.component(.year, from: date),
+                month: cal.component(.month, from: date),
+                day: cal.component(.day, from: date)
+            ))
         }
         await MainActor.run {
             nonSchoolCells = cells
@@ -148,48 +149,38 @@ struct PerpetualCalendarView: View {
                 monthColumn(monthID)
                     .id(monthID)
                     .onAppear { trackVisibleYear(monthID) }
-
-                Divider()
             }
         }
     }
 
-    /// Update the displayed year label as columns scroll into view
     private func trackVisibleYear(_ monthID: MonthID) {
-        if monthID.month >= 1 && monthID.month <= 6 && monthID.year != displayYear {
-            // When early months of a new year appear, update the label
-            // Use month <= 6 so the label flips roughly when a year is centered
+        if monthID.month <= 6 && monthID.year != displayYear {
             displayYear = monthID.year
         }
     }
 
+    // MARK: - Month Column
+
     private func monthColumn(_ monthID: MonthID) -> some View {
         let days = daysInMonth(monthID)
+        let abbrev = Calendar.current.shortMonthSymbols[monthID.month - 1].uppercased()
 
         return VStack(spacing: 0) {
-            // Month + year header
-            VStack(spacing: 1) {
-                Text(Self.monthNames[monthID.month - 1])
-                    .font(.subheadline.weight(.bold))
-                Text(String(monthID.year))
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
-            .background(Color.accentColor.opacity(0.12))
+            // Header
+            Text("\(abbrev) \(String(monthID.year))")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.top, 4)
+                .padding(.bottom, 6)
 
-            Divider()
-
+            // Days
             ForEach(1...days, id: \.self) { day in
                 dayRow(monthID: monthID, day: day)
-                if day < days {
-                    Divider()
-                        .opacity(0.4)
-                }
             }
         }
-        .frame(width: 180)
+        .frame(width: 164)
     }
 
     private func daysInMonth(_ monthID: MonthID) -> Int {
@@ -211,75 +202,50 @@ struct PerpetualCalendarView: View {
         let note = notesLookup[cellID]
         let displayText = note?.text ?? holiday ?? ""
         let isEditing = editingCell == cellID
-        let isHoliday = holiday != nil && (note == nil || note?.text.isEmpty == true)
+        let hasUserNote = note != nil && !(note?.text.isEmpty ?? true)
+        let isHoliday = holiday != nil && !hasUserNote
         let isToday = isTodayCell(cellID)
         let isNoSchool = nonSchoolCells.contains(cellID)
 
-        return HStack(spacing: 0) {
+        return HStack(spacing: 4) {
+            // Day number
             Text("\(day)")
-                .font(.caption.monospacedDigit().weight(isToday ? .bold : .regular))
-                .foregroundStyle(dayNumberColor(isToday: isToday, isNoSchool: isNoSchool))
-                .frame(width: 28, alignment: .trailing)
-                .padding(.trailing, 6)
+                .font(.system(.caption, design: .rounded).monospacedDigit())
+                .foregroundStyle(isToday ? .white : (isNoSchool ? .red.opacity(0.5) : .tertiary))
+                .frame(width: 22, height: 22)
+                .background {
+                    if isToday {
+                        Circle().fill(Color.accentColor)
+                    }
+                }
 
+            // Note text
             if isEditing {
-                TextField("Add note…", text: $editText, onCommit: {
-                    commitEdit(cellID: cellID)
-                })
-                .font(.caption)
-                .textFieldStyle(.plain)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .onSubmit { commitEdit(cellID: cellID) }
+                TextField("", text: $editText)
+                    .font(.system(.caption, design: .rounded))
+                    .textFieldStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .onSubmit { commitEdit(cellID: cellID) }
             } else {
                 Text(displayText)
-                    .font(.caption)
-                    .foregroundStyle(noteTextColor(isHoliday: isHoliday, isNoSchool: isNoSchool))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(textStyle(isHoliday: isHoliday, isNoSchool: isNoSchool))
                     .lineLimit(1)
-                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         beginEdit(cellID: cellID, currentText: note?.text ?? holiday ?? "")
                     }
             }
-
-            if isNoSchool && !isEditing {
-                Circle()
-                    .fill(Color.red.opacity(0.6))
-                    .frame(width: 6, height: 6)
-                    .help("No School")
-                    .padding(.leading, 2)
-            }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(rowBackground(isToday: isToday, isHoliday: isHoliday, isNoSchool: isNoSchool))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 1)
     }
 
-    private func dayNumberColor(isToday: Bool, isNoSchool: Bool) -> Color {
-        if isToday { return .accentColor }
-        if isNoSchool { return .red }
-        return .primary
-    }
-
-    private func noteTextColor(isHoliday: Bool, isNoSchool: Bool) -> Color {
-        if isNoSchool { return .red }
-        if isHoliday { return .blue }
-        return .primary
-    }
-
-    private func rowBackground(isToday: Bool, isHoliday: Bool, isNoSchool: Bool) -> some View {
-        Group {
-            if isToday {
-                Color.accentColor.opacity(0.08)
-            } else if isNoSchool {
-                Color.red.opacity(0.06)
-            } else if isHoliday {
-                Color.blue.opacity(0.04)
-            } else {
-                Color.clear
-            }
-        }
+    private func textStyle(isHoliday: Bool, isNoSchool: Bool) -> some ShapeStyle {
+        if isNoSchool { return AnyShapeStyle(.red.opacity(0.5)) }
+        if isHoliday { return AnyShapeStyle(.secondary) }
+        return AnyShapeStyle(.primary)
     }
 
     // MARK: - Today Detection
@@ -314,8 +280,7 @@ struct PerpetualCalendarView: View {
                 existing.modifiedAt = Date()
             }
         } else if !trimmed.isEmpty && trimmed != holiday {
-            let note = CalendarNote(year: cellID.year, month: cellID.month, day: cellID.day, text: trimmed)
-            modelContext.insert(note)
+            modelContext.insert(CalendarNote(year: cellID.year, month: cellID.month, day: cellID.day, text: trimmed))
         }
 
         modelContext.safeSave()
@@ -324,15 +289,13 @@ struct PerpetualCalendarView: View {
     }
 }
 
-// MARK: - Month Identifier
+// MARK: - Supporting Types
 
 private struct MonthID: Hashable, Identifiable {
     let year: Int
     let month: Int
     var id: Int { year * 12 + month }
 }
-
-// MARK: - Cell Identifier
 
 private struct CellID: Hashable {
     let year: Int
@@ -342,7 +305,6 @@ private struct CellID: Hashable {
 
 // MARK: - US Federal Holidays
 
-/// Fixed-date and floating US federal holidays.
 enum PerpetualHolidays {
     static func holiday(month: Int, day: Int, year: Int) -> String? {
         switch (month, day) {
