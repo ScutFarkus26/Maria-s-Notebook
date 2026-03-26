@@ -113,26 +113,36 @@ struct PerpetualCalendarView: View {
         #endif
     }
 
+    /// Scrolls so that the current month appears as the 3rd column by
+    /// anchoring 2 months earlier to the leading edge.
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy) {
-        let cal = AppCalendar.shared
-        let now = Date()
-        let todayYear = cal.component(.year, from: now)
-        let todayMonth = cal.component(.month, from: now)
+        let target = todayOffsetTarget()
         suppressYearScroll = true
-        displayYear = todayYear
-        proxy.scrollTo(MonthID(year: todayYear, month: todayMonth), anchor: .leading)
+        displayYear = AppCalendar.shared.component(.year, from: Date())
+        proxy.scrollTo(target, anchor: .leading)
     }
 
     private func scrollToToday() {
         guard let proxy = scrollProxy else { return }
+        let target = todayOffsetTarget()
+        suppressYearScroll = true
+        displayYear = AppCalendar.shared.component(.year, from: Date())
+        withAnimation(.easeInOut(duration: 0.3)) {
+            proxy.scrollTo(target, anchor: .leading)
+        }
+    }
+
+    /// Returns the MonthID 2 months before today so today's month lands in column 3.
+    private func todayOffsetTarget() -> MonthID {
         let cal = AppCalendar.shared
         let now = Date()
-        let todayYear = cal.component(.year, from: now)
-        let todayMonth = cal.component(.month, from: now)
-        suppressYearScroll = true
-        displayYear = todayYear
-        withAnimation(.easeInOut(duration: 0.3)) {
-            proxy.scrollTo(MonthID(year: todayYear, month: todayMonth), anchor: .leading)
+        let y = cal.component(.year, from: now)
+        let m = cal.component(.month, from: now)
+        // Subtract 2 months, wrapping across year boundary
+        if m > 2 {
+            return MonthID(year: y, month: m - 2)
+        } else {
+            return MonthID(year: y - 1, month: m + 10)
         }
     }
 
