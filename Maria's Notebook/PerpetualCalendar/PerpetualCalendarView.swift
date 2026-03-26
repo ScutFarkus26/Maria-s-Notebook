@@ -94,7 +94,7 @@ struct PerpetualCalendarView: View {
                 }
                 .font(.subheadline.weight(.medium))
                 .buttonStyle(.plain)
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(Color.accentColor)
                 .padding(.leading, 4)
             }
         }
@@ -211,7 +211,7 @@ struct PerpetualCalendarView: View {
             // Day number
             Text("\(day)")
                 .font(.system(.caption, design: .rounded).monospacedDigit())
-                .foregroundStyle(isToday ? .white : (isNoSchool ? .red.opacity(0.5) : .tertiary))
+                .foregroundStyle(isToday ? Color.white : (isNoSchool ? Color.red.opacity(0.5) : Color.secondary))
                 .frame(width: 22, height: 22)
                 .background {
                     if isToday {
