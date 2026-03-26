@@ -79,6 +79,8 @@ struct RootDetailContent: View {
                 TransitionPlannerRootView()
             case .needsLesson:
                 NeedsLessonView()
+            case .perpetualCalendar:
+                PerpetualCalendarView()
             case .community:
                 CommunityMeetingsView()
             case .schedules:
@@ -283,6 +285,11 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Schedules", systemImage: "clock.badge.checkmark")
             }
+            Tab(value: RootView.NavigationItem.perpetualCalendar) {
+                RootDetailContent(selectedNavItem: .perpetualCalendar)
+            } label: {
+                Label("Calendar", systemImage: "calendar.day.timeline.leading")
+            }
             Tab(value: RootView.NavigationItem.issues) {
                 RootDetailContent(selectedNavItem: .issues)
             } label: {
@@ -353,6 +360,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.supplies)
                     moreMenuButton(.procedures)
                     moreMenuButton(.schedules)
+                    moreMenuButton(.perpetualCalendar)
                     moreMenuButton(.issues)
                 }
 

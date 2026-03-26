@@ -121,9 +121,12 @@ final class CloudKitSyncStatusService {
     }
 
     deinit {
-        stopObserving()
-        // Note: Cannot call stopNetworkMonitoring() from deinit since it's MainActor-isolated
-        // The specialized services will be cleaned up when deallocated
+        // Cannot call @MainActor stopObserving() from nonisolated deinit.
+        // Dispatch cleanup to MainActor; the specialized services will be
+        // cleaned up when deallocated.
+        Task { @MainActor [weak self] in
+            self?.stopObserving()
+        }
     }
 
     // MARK: - Setup

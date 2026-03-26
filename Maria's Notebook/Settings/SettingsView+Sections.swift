@@ -128,7 +128,7 @@ extension SettingsView {
         }
     }
 
-    private func exportSettingsToFile() {
+    @MainActor private func exportSettingsToFile() {
         guard let data = SettingsExportService.exportSettings() else { return }
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("marias-notebook-settings.json")
@@ -589,3 +589,4 @@ extension SettingsView {
         )
     }
 }
+

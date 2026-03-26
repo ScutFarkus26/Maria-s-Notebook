@@ -169,6 +169,10 @@ extension RootSidebar {
                     Label("Schedules", systemImage: "clock.badge.checkmark")
                 }
 
+                NavigationLink(value: RootView.NavigationItem.perpetualCalendar) {
+                    Label("Calendar", systemImage: "calendar.day.timeline.leading")
+                }
+
                 NavigationLink(value: RootView.NavigationItem.issues) {
                     Label("Issues", systemImage: "exclamationmark.triangle")
                 }
@@ -356,6 +360,12 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View recurring schedules")
+
+                Button { selection = .perpetualCalendar } label: {
+                    Label("Calendar", systemImage: "calendar.day.timeline.leading")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View perpetual year-at-a-glance calendar")
 
                 Button { selection = .issues } label: {
                     Label("Issues", systemImage: "exclamationmark.triangle")

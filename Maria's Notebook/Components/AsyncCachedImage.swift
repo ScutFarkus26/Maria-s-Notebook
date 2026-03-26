@@ -10,7 +10,7 @@ import UIKit
 // MARK: - Image Caching
 
 /// In-memory cache for loaded images
-final class ImageCache {
+final class ImageCache: @unchecked Sendable {
     nonisolated(unsafe) static let shared: NSCache<NSString, PlatformImage> = {
         let cache = NSCache<NSString, PlatformImage>()
         // Limit to ~100MB to prevent unbounded memory growth
@@ -40,7 +40,7 @@ final class ImageCache {
 private enum ImageDiskCache {
     private static let logger = Logger.photos
     /// Returns the disk cache directory URL, creating it if needed
-    nonisolated static var cacheDirectory: URL? {
+    static var cacheDirectory: URL? {
         guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
             return nil
         }
@@ -59,7 +59,7 @@ private enum ImageDiskCache {
     }
 
     /// Returns the file URL for a cached image with the given key
-    nonisolated static func fileURL(for cacheKey: String) -> URL? {
+    static func fileURL(for cacheKey: String) -> URL? {
         guard let cacheDir = cacheDirectory else { return nil }
         // Use a hash of the cache key to avoid filesystem issues with special characters
         let safeFilename = cacheKey.replacingOccurrences(of: "/", with: "_")
@@ -68,7 +68,7 @@ private enum ImageDiskCache {
     }
 
     /// Loads an image from disk cache
-    nonisolated static func loadImage(for cacheKey: String) -> PlatformImage? {
+    static func loadImage(for cacheKey: String) -> PlatformImage? {
         guard let fileURL = fileURL(for: cacheKey),
               FileManager.default.fileExists(atPath: fileURL.path) else {
             return nil
@@ -90,7 +90,7 @@ private enum ImageDiskCache {
     }
 
     /// Saves an image to disk cache
-    nonisolated static func saveImage(_ image: PlatformImage, for cacheKey: String) {
+    static func saveImage(_ image: PlatformImage, for cacheKey: String) {
         guard let fileURL = fileURL(for: cacheKey) else { return }
 
         #if os(macOS)
@@ -154,7 +154,7 @@ struct AsyncCachedImage: View {
         }
     }
     
-    private func loadImage() async {
+    @MainActor private func loadImage() async {
         // Determine the effective target size (use default thumbnail size if not provided)
         let effectiveSize = targetSize ?? CGSize(width: 300, height: 300)
 
