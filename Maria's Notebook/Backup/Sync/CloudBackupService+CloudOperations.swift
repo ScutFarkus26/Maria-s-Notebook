@@ -4,6 +4,17 @@
 import Foundation
 import OSLog
 
+/// Thread-safe single-resumption guard for checked continuations.
+private actor SingleResumptionTracker {
+    var hasResumed = false
+
+    func tryResume(with result: Result<URL, Error>) -> Bool {
+        guard !hasResumed else { return false }
+        hasResumed = true
+        return true
+    }
+}
+
 extension CloudBackupService {
 
     // MARK: - Listing
@@ -126,59 +137,22 @@ extension CloudBackupService {
     /// Coordinates reading a ubiquitous file, waiting for it to finish downloading.
     private func coordinateDownload(for backup: CloudBackupInfo) async throws -> URL {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
-            // NSFileCoordinator still requires blocking, so run on cooperative thread pool
             Task.detached(priority: .userInitiated) {
                 let coordinator = NSFileCoordinator()
                 var coordinatorError: NSError?
 
-                // Use actor for thread-safe single resumption
-                actor ResumeTracker {
-                    var hasResumed = false
-
-                    func tryResume(with result: Result<URL, Error>) -> Bool {
-                        guard !hasResumed else { return false }
-                        hasResumed = true
-                        return true
-                    }
-                }
-
-                let tracker = ResumeTracker()
+                let tracker = SingleResumptionTracker()
 
                 coordinator.coordinate(
                     readingItemAt: backup.fileURL,
                     options: [.withoutChanges],
                     error: &coordinatorError
                 ) { url in
-                    Task { @MainActor in
-                        do {
-                            let resourceValues = try url.resourceValues(
-                                forKeys: [.ubiquitousItemDownloadingStatusKey]
-                            )
-                            if resourceValues.ubiquitousItemDownloadingStatus == .current ||
-                               resourceValues.ubiquitousItemDownloadingStatus == nil {
-                                if await tracker.tryResume(with: .success(url)) {
-                                    continuation.resume(returning: url)
-                                }
-                            } else {
-                                let error = self.cloudDownloadError(
-                                    "File '\(backup.fileName)' not downloaded", code: 404
-                                )
-                                if await tracker.tryResume(with: .failure(error)) {
-                                    continuation.resume(throwing: error)
-                                }
-                            }
-                        } catch {
-                            let wrappedError = BackupOperationError.cloudOperationFailed(
-                                .downloadFailed(underlying: error)
-                            )
-                            if await tracker.tryResume(with: .failure(wrappedError)) {
-                                continuation.resume(throwing: wrappedError)
-                            }
-                        }
-                    }
+                    self.handleCoordinatedRead(
+                        url: url, backup: backup, tracker: tracker, continuation: continuation
+                    )
                 }
 
-                // Handle coordination error
                 if let error = coordinatorError {
                     Task {
                         let wrappedErr = BackupOperationError.cloudOperationFailed(
@@ -188,6 +162,41 @@ extension CloudBackupService {
                             continuation.resume(throwing: wrappedErr)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private func handleCoordinatedRead(
+        url: URL,
+        backup: CloudBackupInfo,
+        tracker: SingleResumptionTracker,
+        continuation: CheckedContinuation<URL, Error>
+    ) {
+        Task { @MainActor in
+            do {
+                let resourceValues = try url.resourceValues(
+                    forKeys: [.ubiquitousItemDownloadingStatusKey]
+                )
+                if resourceValues.ubiquitousItemDownloadingStatus == .current ||
+                   resourceValues.ubiquitousItemDownloadingStatus == nil {
+                    if await tracker.tryResume(with: .success(url)) {
+                        continuation.resume(returning: url)
+                    }
+                } else {
+                    let error = self.cloudDownloadError(
+                        "File '\(backup.fileName)' not downloaded", code: 404
+                    )
+                    if await tracker.tryResume(with: .failure(error)) {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            } catch {
+                let wrappedError = BackupOperationError.cloudOperationFailed(
+                    .downloadFailed(underlying: error)
+                )
+                if await tracker.tryResume(with: .failure(wrappedError)) {
+                    continuation.resume(throwing: wrappedError)
                 }
             }
         }

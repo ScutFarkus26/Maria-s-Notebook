@@ -1,131 +1,51 @@
-// swiftlint:disable file_length
 // BackupIntegrityMonitor.swift
 // Monitors backup health and integrity
 
 import Foundation
-import SwiftUI
 import OSLog
 
 /// Monitors backup integrity and provides health status
 @Observable
 @MainActor
-// swiftlint:disable:next type_body_length
 public final class BackupIntegrityMonitor {
-
-    // MARK: - Types
-
-    public enum BackupHealth: Sendable, CustomStringConvertible {
-        case healthy
-        case warning(String)
-        case critical(String)
-
-        public var isHealthy: Bool {
-            if case .healthy = self { return true }
-            return false
-        }
-
-        public var message: String? {
-            switch self {
-            case .healthy: return nil
-            case .warning(let msg), .critical(let msg): return msg
-            }
-        }
-
-        public var description: String {
-            switch self {
-            case .healthy: return "healthy"
-            case .warning(let msg): return "warning: \(msg)"
-            case .critical(let msg): return "critical: \(msg)"
-            }
-        }
-
-        public var icon: String {
-            switch self {
-            case .healthy: return "checkmark.shield.fill"
-            case .warning: return "exclamationmark.triangle.fill"
-            case .critical: return "xmark.shield.fill"
-            }
-        }
-
-        public var color: Color {
-            switch self {
-            case .healthy: return .green
-            case .warning: return .orange
-            case .critical: return .red
-            }
-        }
-    }
-
-    public struct IntegrityReport: Sendable {
-        public let timestamp: Date
-        public let health: BackupHealth
-        public let totalBackups: Int
-        public let healthyBackups: Int
-        public let corruptedBackups: Int
-        public let lastBackupDate: Date?
-        public let daysSinceLastBackup: Int?
-        public let oldestBackupDate: Date?
-        public let totalBackupSize: Int64
-        public let issues: [String]
-        public let recommendations: [String]
-
-        public var formattedTotalSize: String {
-            let formatter = ByteCountFormatter()
-            formatter.countStyle = .file
-            formatter.allowedUnits = [.useKB, .useMB, .useGB]
-            return formatter.string(fromByteCount: totalBackupSize)
-        }
-    }
-
-    public struct BackupVerificationResult: Identifiable, Sendable {
-        public let id: UUID
-        public let url: URL
-        public let fileName: String
-        public let isValid: Bool
-        public let errorMessage: String?
-        public let checksumValid: Bool?
-        public let formatVersion: Int?
-        public let createdAt: Date?
-        public let fileSize: Int64
-    }
 
     // MARK: - State
 
     private(set) var latestReport: IntegrityReport?
     private(set) var isScanning = false
     private(set) var lastScanDate: Date?
-    private(set) var nextScheduledScanDate: Date?
+    var nextScheduledScanDate: Date?
 
     // MARK: - Settings (using UserDefaults since @AppStorage conflicts with @Observable)
 
-    private var autoVerifyEnabled: Bool {
+    var autoVerifyEnabled: Bool {
         get { UserDefaults.standard.object(forKey: "BackupIntegrity.autoVerifyEnabled") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.autoVerifyEnabled") }
     }
-    
-    private var scheduledVerificationEnabled: Bool {
+
+    var scheduledVerificationEnabled: Bool {
         get { UserDefaults.standard.object(forKey: "BackupIntegrity.scheduledVerificationEnabled") as? Bool ?? false }
         set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.scheduledVerificationEnabled") }
     }
-    
-    private var verificationIntervalHours: Int {
+
+    var verificationIntervalHours: Int {
         get { UserDefaults.standard.object(forKey: "BackupIntegrity.verificationIntervalHours") as? Int ?? 24 }
         set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.verificationIntervalHours") }
     }
-    
-    private var warningDaysThreshold: Int {
+
+    var warningDaysThreshold: Int {
         get { UserDefaults.standard.object(forKey: "BackupIntegrity.warningDaysThreshold") as? Int ?? 7 }
         set { UserDefaults.standard.set(newValue, forKey: "BackupIntegrity.warningDaysThreshold") }
     }
 
     // MARK: - Properties
 
-    private let codec = BackupCodec()
+    let codec = BackupCodec()
     private let checksumService = ChecksumVerificationService()
-    private var scheduledVerificationTask: Task<Void, Never>?
-    
+    var scheduledVerificationTask: Task<Void, Never>?
+
     // MARK: - Initialization
-    
+
     public init() {
         // Load last scan date from UserDefaults
         let timestamp = UserDefaults.standard.double(forKey: "BackupIntegrity.lastScanDate")
@@ -134,10 +54,44 @@ public final class BackupIntegrityMonitor {
         }
     }
 
+    // MARK: - Settings Access
+
+    var isAutoVerifyEnabled: Bool {
+        get { autoVerifyEnabled }
+        set { autoVerifyEnabled = newValue }
+    }
+
+    var backupWarningDaysThreshold: Int {
+        get { warningDaysThreshold }
+        set { warningDaysThreshold = max(1, min(newValue, 30)) }
+    }
+
+    var isScheduledVerificationEnabled: Bool {
+        get { scheduledVerificationEnabled }
+        set {
+            scheduledVerificationEnabled = newValue
+            if newValue {
+                startScheduledVerification()
+            } else {
+                stopScheduledVerification()
+            }
+        }
+    }
+
+    var verificationInterval: Int {
+        get { verificationIntervalHours }
+        set {
+            verificationIntervalHours = max(1, min(newValue, 168)) // Max 1 week
+            // Restart scheduled verification with new interval
+            if scheduledVerificationEnabled {
+                startScheduledVerification()
+            }
+        }
+    }
+
     // MARK: - Public API
 
-    // Performs a full integrity scan of all backups
-    // swiftlint:disable:next function_body_length
+    /// Performs a full integrity scan of all backups
     public func performIntegrityScan() async -> IntegrityReport {
         isScanning = true
         defer {
@@ -145,72 +99,44 @@ public final class BackupIntegrityMonitor {
             lastScanDate = Date()
         }
 
-        var issues: [String] = []
-        var recommendations: [String] = []
-
-        // Scan auto-backup directory
         let autoBackupDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Backups/Auto")
 
         let verificationResults = await verifyBackupsInDirectory(autoBackupDir)
+        let report = buildIntegrityReport(from: verificationResults)
 
+        latestReport = report
+        return report
+    }
+
+    private func buildIntegrityReport(from verificationResults: [BackupVerificationResult]) -> IntegrityReport {
         let totalBackups = verificationResults.count
         let healthyBackups = verificationResults.filter(\.isValid).count
         let corruptedBackups = verificationResults.filter { !$0.isValid }.count
 
-        // Calculate dates
-        let sortedByDate = verificationResults
-            .compactMap(\.createdAt)
-            .sorted(by: >)
+        let sortedByDate = verificationResults.compactMap(\.createdAt).sorted(by: >)
         let lastBackupDate = sortedByDate.first
         let oldestBackupDate = sortedByDate.last
-
-        let daysSinceLastBackup: Int?
-        if let lastDate = lastBackupDate {
-            daysSinceLastBackup = Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day
-        } else {
-            daysSinceLastBackup = nil
+        let daysSinceLastBackup = lastBackupDate.flatMap {
+            Calendar.current.dateComponents([.day], from: $0, to: Date()).day
         }
 
-        // Calculate total size
         let totalSize = verificationResults.reduce(0) { $0 + $1.fileSize }
 
-        // Analyze issues
-        if totalBackups == 0 {
-            issues.append("No automatic backups found.")
-            recommendations.append("Enable automatic backups in Settings to protect your data.")
-        }
+        let (issues, recommendations) = analyzeIssues(
+            verificationResults: verificationResults,
+            totalBackups: totalBackups,
+            corruptedBackups: corruptedBackups,
+            daysSinceLastBackup: daysSinceLastBackup
+        )
 
-        if corruptedBackups > 0 {
-            issues.append("\(corruptedBackups) backup(s) failed integrity verification.")
-            recommendations.append("Delete corrupted backups and create a new backup.")
-        }
+        let health = determineHealth(
+            totalBackups: totalBackups,
+            corruptedBackups: corruptedBackups,
+            daysSinceLastBackup: daysSinceLastBackup
+        )
 
-        if let days = daysSinceLastBackup, days > warningDaysThreshold {
-            issues.append("Last backup is \(days) days old.")
-            recommendations.append("Create a new backup to ensure recent data is protected.")
-        }
-
-        // Add specific error messages from corrupted backups
-        for result in verificationResults where !result.isValid {
-            if let error = result.errorMessage {
-                issues.append("\(result.fileName): \(error)")
-            }
-        }
-
-        // Determine overall health
-        let health: BackupHealth
-        if corruptedBackups > 0 {
-            health = .critical("Found \(corruptedBackups) corrupted backup(s)")
-        } else if let days = daysSinceLastBackup, days > warningDaysThreshold {
-            health = .warning("Last backup is \(days) days old")
-        } else if totalBackups == 0 {
-            health = .warning("No backups found")
-        } else {
-            health = .healthy
-        }
-
-        let report = IntegrityReport(
+        return IntegrityReport(
             timestamp: Date(),
             health: health,
             totalBackups: totalBackups,
@@ -223,33 +149,62 @@ public final class BackupIntegrityMonitor {
             issues: issues,
             recommendations: recommendations
         )
+    }
 
-        latestReport = report
-        return report
+    private func analyzeIssues(
+        verificationResults: [BackupVerificationResult],
+        totalBackups: Int,
+        corruptedBackups: Int,
+        daysSinceLastBackup: Int?
+    ) -> (issues: [String], recommendations: [String]) {
+        var issues: [String] = []
+        var recommendations: [String] = []
+
+        if totalBackups == 0 {
+            issues.append("No automatic backups found.")
+            recommendations.append("Enable automatic backups in Settings to protect your data.")
+        }
+        if corruptedBackups > 0 {
+            issues.append("\(corruptedBackups) backup(s) failed integrity verification.")
+            recommendations.append("Delete corrupted backups and create a new backup.")
+        }
+        if let days = daysSinceLastBackup, days > warningDaysThreshold {
+            issues.append("Last backup is \(days) days old.")
+            recommendations.append("Create a new backup to ensure recent data is protected.")
+        }
+        for result in verificationResults where !result.isValid {
+            if let error = result.errorMessage {
+                issues.append("\(result.fileName): \(error)")
+            }
+        }
+        return (issues, recommendations)
+    }
+
+    private func determineHealth(
+        totalBackups: Int,
+        corruptedBackups: Int,
+        daysSinceLastBackup: Int?
+    ) -> BackupHealth {
+        if corruptedBackups > 0 {
+            return .critical("Found \(corruptedBackups) corrupted backup(s)")
+        } else if let days = daysSinceLastBackup, days > warningDaysThreshold {
+            return .warning("Last backup is \(days) days old")
+        } else if totalBackups == 0 {
+            return .warning("No backups found")
+        } else {
+            return .healthy
+        }
     }
 
     /// Verifies a single backup file
     public func verifyBackup(at url: URL) async -> BackupVerificationResult {
-        let fm = FileManager.default
-
-        // Get file size
-        let fileSize: Int64
-        do {
-            let attributes = try fm.attributesOfItem(atPath: url.path)
-            fileSize = attributes[.size] as? Int64 ?? 0
-        } catch {
-            let name = url.lastPathComponent
-            let desc = error.localizedDescription
-            Logger.backup.warning("Failed to get file size for \(name, privacy: .public): \(desc, privacy: .public)")
-            fileSize = 0
-        }
+        let fileSize = Self.fileSize(at: url)
 
         // Attempt to verify the backup
         let result = BackupVerification.verifyBackup(at: url)
 
         switch result {
         case .success(let info):
-            // Additionally verify checksum if possible
             let checksumValid = await verifyChecksum(at: url, expectedChecksum: info.checksum)
 
             return BackupVerificationResult(
@@ -337,115 +292,23 @@ public final class BackupIntegrityMonitor {
         return deletedCount
     }
 
-    // MARK: - Scheduled Verification
-    
-    /// Starts scheduled background verification
-    public func startScheduledVerification() {
-        stopScheduledVerification()
-        
-        guard scheduledVerificationEnabled && verificationIntervalHours > 0 else { return }
-        
-        scheduledVerificationTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { break }
-                
-                // Calculate time until next scan
-                let intervalSeconds = TimeInterval(self.verificationIntervalHours * 3600)
-                let nextScanTime: Date
-                
-                if let lastScan = self.lastScanDate {
-                    nextScanTime = lastScan.addingTimeInterval(intervalSeconds)
-                } else {
-                    // First scan after interval from now
-                    nextScanTime = Date().addingTimeInterval(intervalSeconds)
-                }
-                
-                self.nextScheduledScanDate = nextScanTime
-                
-                let waitTime = max(0, nextScanTime.timeIntervalSinceNow)
-                
-                // Wait until next scan time
-                if waitTime > 0 {
-                    do {
-                        try await Task.sleep(for: .seconds(waitTime))
-                    } catch {
-                        Logger.backup.warning("Task sleep interrupted: \(error.localizedDescription, privacy: .public)")
-                    }
-                }
-                
-                // Check if still enabled and not cancelled
-                guard !Task.isCancelled, self.scheduledVerificationEnabled else { break }
-                
-                // Perform scheduled scan
-                await self.performScheduledScan()
-            }
-        }
-    }
-    
-    /// Stops scheduled verification
-    public func stopScheduledVerification() {
-        scheduledVerificationTask?.cancel()
-        scheduledVerificationTask = nil
-        nextScheduledScanDate = nil
-    }
-    
-    /// Performs a scheduled integrity scan
-    private func performScheduledScan() async {
-        let report = await performIntegrityScan()
-        
-        // Save last scan date
-        UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: "BackupIntegrity.lastScanDate")
-        
-        // Post notification if issues found
-        if !report.health.isHealthy {
-            NotificationCenter.default.post(
-                name: .backupIntegrityIssuesDetected,
-                object: self,
-                userInfo: ["report": report]
-            )
-        }
+    // MARK: - Internal Helpers
 
-        Logger.backup.info("Scheduled scan complete. Health: \(report.health)")
-    }
-
-    // MARK: - Settings Access
-
-    var isAutoVerifyEnabled: Bool {
-        get { autoVerifyEnabled }
-        set { autoVerifyEnabled = newValue }
-    }
-
-    var backupWarningDaysThreshold: Int {
-        get { warningDaysThreshold }
-        set { warningDaysThreshold = max(1, min(newValue, 30)) }
-    }
-    
-    var isScheduledVerificationEnabled: Bool {
-        get { scheduledVerificationEnabled }
-        set {
-            scheduledVerificationEnabled = newValue
-            if newValue {
-                startScheduledVerification()
-            } else {
-                stopScheduledVerification()
-            }
-        }
-    }
-    
-    var verificationInterval: Int {
-        get { verificationIntervalHours }
-        set {
-            verificationIntervalHours = max(1, min(newValue, 168)) // Max 1 week
-            // Restart scheduled verification with new interval
-            if scheduledVerificationEnabled {
-                startScheduledVerification()
-            }
+    /// Gets the file size at a URL, returning 0 on failure
+    static func fileSize(at url: URL) -> Int64 {
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            return attributes[.size] as? Int64 ?? 0
+        } catch {
+            let name = url.lastPathComponent
+            let desc = error.localizedDescription
+            Logger.backup.warning("Failed to get file size for \(name, privacy: .public): \(desc, privacy: .public)")
+            return 0
         }
     }
 
-    // MARK: - Private Helpers
-
-    private func verifyChecksum(at url: URL, expectedChecksum: String) async -> Bool? {
+    /// Verifies the checksum of a backup file against an expected value
+    func verifyChecksum(at url: URL, expectedChecksum: String) async -> Bool? {
         guard !expectedChecksum.isEmpty else { return nil }
 
         // Read the file and extract payload to verify checksum
@@ -501,44 +364,4 @@ public final class BackupIntegrityMonitor {
         let computedChecksum = codec.sha256Hex(bytes)
         return computedChecksum == expectedChecksum
     }
-}
-
-// MARK: - Quick Health Check Extension
-
-extension BackupIntegrityMonitor {
-    /// Performs a quick health check without deep verification
-    public func quickHealthCheck() async -> BackupHealth {
-        let status = BackupVerification.getBackupStatus()
-
-        guard status.autoBackupDirectoryExists else {
-            return .warning("No backup directory found")
-        }
-
-        guard let lastBackupURL = status.mostRecentAutoBackupURL else {
-            return .warning("No backups found")
-        }
-
-        // Check age of most recent backup
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: lastBackupURL.path)
-            if let modDate = attributes[.modificationDate] as? Date {
-                let daysSince = Calendar.current.dateComponents([.day], from: modDate, to: Date()).day ?? 0
-
-                if daysSince > warningDaysThreshold {
-                    return .warning("Last backup is \(daysSince) days old")
-                }
-            }
-        } catch {
-            let desc = error.localizedDescription
-            Logger.backup.warning("Failed to get backup modification date: \(desc, privacy: .public)")
-        }
-
-        return .healthy
-    }
-}
-
-// MARK: - Notification Names
-
-extension Notification.Name {
-    static let backupIntegrityIssuesDetected = Notification.Name("BackupIntegrityIssuesDetected")
 }
