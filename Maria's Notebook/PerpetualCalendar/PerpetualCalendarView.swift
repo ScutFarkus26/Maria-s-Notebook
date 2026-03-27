@@ -5,7 +5,11 @@ import SwiftData
 
 struct PerpetualCalendarView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: [SortDescriptor(\CalendarNote.year), SortDescriptor(\CalendarNote.month), SortDescriptor(\CalendarNote.day)])
+    @Query(sort: [
+        SortDescriptor(\CalendarNote.year),
+        SortDescriptor(\CalendarNote.month),
+        SortDescriptor(\CalendarNote.day)
+    ])
     private var allNotes: [CalendarNote]
 
     @State private var displayYear: Int = Calendar.current.component(.year, from: Date())
@@ -15,6 +19,7 @@ struct PerpetualCalendarView: View {
     @State private var loadedYearRange: ClosedRange<Int>?
     @State private var scrollProxy: ScrollViewProxy?
     @State private var suppressYearScroll = false
+    @State private var programmaticScrollInFlight = false
 
     private static let yearRadius = 5
 
@@ -117,18 +122,27 @@ struct PerpetualCalendarView: View {
     /// anchoring 2 months earlier to the leading edge.
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy) {
         let target = todayOffsetTarget()
+        programmaticScrollInFlight = true
         suppressYearScroll = true
         displayYear = AppCalendar.shared.component(.year, from: Date())
         proxy.scrollTo(target, anchor: .leading)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            programmaticScrollInFlight = false
+        }
     }
 
     private func scrollToToday() {
         guard let proxy = scrollProxy else { return }
         let target = todayOffsetTarget()
+        programmaticScrollInFlight = true
         suppressYearScroll = true
         displayYear = AppCalendar.shared.component(.year, from: Date())
         withAnimation(.easeInOut(duration: 0.3)) {
             proxy.scrollTo(target, anchor: .leading)
+        }
+        // Allow trackVisibleYear to resume after the animation settles.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            programmaticScrollInFlight = false
         }
     }
 
@@ -187,6 +201,7 @@ struct PerpetualCalendarView: View {
     }
 
     private func trackVisibleYear(_ monthID: MonthID) {
+        guard !programmaticScrollInFlight else { return }
         if monthID.month <= 6 && monthID.year != displayYear {
             displayYear = monthID.year
         }
