@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 //
 //  OllamaClient.swift
 //  Maria's Notebook
@@ -12,7 +11,6 @@ import OSLog
 
 // MCPClientProtocol implementation backed by a local Ollama server.
 // Ollama must be running separately on the user's machine.
-// swiftlint:disable:next type_body_length
 final class OllamaClient: MCPClientProtocol {
     private static let logger = Logger.ai
 
@@ -86,54 +84,12 @@ final class OllamaClient: MCPClientProtocol {
                 } catch let error as OllamaError {
                     continuation.finish(throwing: error)
                 } catch let urlError as URLError {
-                    continuation.finish(throwing: OllamaClient.pullURLError(urlError))
+                    continuation.finish(throwing: OllamaError.from(urlError))
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
-        }
-    }
-
-    private static func buildPullRequest(for name: String, baseURL: URL) throws -> URLRequest {
-        let url = baseURL.appendingPathComponent("api/pull")
-        let body: [String: Any] = ["name": name, "stream": true]
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 3600 // 1 hour — large models take time
-        Self.logger.info("Pulling model: \(name)")
-        return request
-    }
-
-    private static func streamPullProgress(
-        for name: String,
-        bytes: URLSession.AsyncBytes,
-        into continuation: AsyncThrowingStream<OllamaPullProgress, Error>.Continuation
-    ) async throws {
-        for try await line in bytes.lines {
-            guard !line.isEmpty,
-                  let lineData = line.data(using: .utf8),
-                  let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
-            else { continue }
-            continuation.yield(OllamaPullProgress(
-                status: chunk.status, completed: chunk.completed, total: chunk.total
-            ))
-            if chunk.status == "success" {
-                Self.logger.info("Successfully pulled model: \(name)")
-                continuation.finish()
-                return
-            }
-        }
-        continuation.finish(throwing: OllamaError.pullFailed(name))
-    }
-
-    private static func pullURLError(_ urlError: URLError) -> OllamaError {
-        switch urlError.code {
-        case .cannotConnectToHost, .cannotFindHost: return .serverUnreachable
-        case .timedOut: return .timeout
-        default: return .networkError(urlError.localizedDescription)
         }
     }
 
@@ -204,19 +160,7 @@ final class OllamaClient: MCPClientProtocol {
             timeout: timeout
         )
 
-        // Clean up markdown code blocks if present
-        var cleaned = text.trimmed()
-        if cleaned.hasPrefix("```json") {
-            cleaned = cleaned
-                .replacingOccurrences(of: "```json\n", with: "")
-                .replacingOccurrences(of: "```json", with: "")
-                .replacingOccurrences(of: "```", with: "")
-                .trimmed()
-        } else if cleaned.hasPrefix("```") {
-            cleaned = cleaned
-                .replacingOccurrences(of: "```", with: "")
-                .trimmed()
-        }
+        let cleaned = Self.stripMarkdownCodeBlock(text)
 
         // Validate JSON
         do {
@@ -256,21 +200,9 @@ final class OllamaClient: MCPClientProtocol {
     ) async throws -> String {
         let url = baseURL.appendingPathComponent("api/chat")
 
-        // Convert to Ollama chat format
-        var ollamaMessages: [[String: String]] = []
-        if let systemMessage, !systemMessage.isEmpty {
-            ollamaMessages.append(["role": "system", "content": systemMessage])
-        }
-        for msg in messages {
-            ollamaMessages.append([
-                "role": msg["role"] ?? "user",
-                "content": msg["content"] ?? ""
-            ])
-        }
-
         let body: [String: Any] = [
             "model": model ?? modelName,
-            "messages": ollamaMessages,
+            "messages": Self.buildChatMessages(messages, systemMessage: systemMessage),
             "stream": false,
             "options": buildOptions(temperature: temperature, maxTokens: maxTokens)
         ]
@@ -294,20 +226,9 @@ final class OllamaClient: MCPClientProtocol {
     ) async throws -> String {
         let url = baseURL.appendingPathComponent("api/chat")
 
-        var ollamaMessages: [[String: String]] = []
-        if let systemMessage, !systemMessage.isEmpty {
-            ollamaMessages.append(["role": "system", "content": systemMessage])
-        }
-        for msg in messages {
-            ollamaMessages.append([
-                "role": msg["role"] ?? "user",
-                "content": msg["content"] ?? ""
-            ])
-        }
-
         let body: [String: Any] = [
             "model": model ?? modelName,
-            "messages": ollamaMessages,
+            "messages": Self.buildChatMessages(messages, systemMessage: systemMessage),
             "stream": true,
             "options": buildOptions(temperature: temperature, maxTokens: maxTokens)
         ]
@@ -345,9 +266,55 @@ final class OllamaClient: MCPClientProtocol {
         return fullText
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Configuration
 
-    private func buildOptions(temperature: Double, maxTokens: Int?) -> [String: Any] {
+    /// Updates the base URL (e.g., user changed it in settings).
+    func updateBaseURL(_ url: URL) {
+        baseURL = url
+    }
+}
+
+// MARK: - Private Helpers
+
+extension OllamaClient {
+
+    /// Converts user-supplied messages into the Ollama chat format,
+    /// prepending a system message if provided.
+    static func buildChatMessages(
+        _ messages: [[String: String]],
+        systemMessage: String?
+    ) -> [[String: String]] {
+        var ollamaMessages: [[String: String]] = []
+        if let systemMessage, !systemMessage.isEmpty {
+            ollamaMessages.append(["role": "system", "content": systemMessage])
+        }
+        for msg in messages {
+            ollamaMessages.append([
+                "role": msg["role"] ?? "user",
+                "content": msg["content"] ?? ""
+            ])
+        }
+        return ollamaMessages
+    }
+
+    /// Strips markdown code-block fencing (```json ... ``` or ``` ... ```) from LLM output.
+    static func stripMarkdownCodeBlock(_ text: String) -> String {
+        var cleaned = text.trimmed()
+        if cleaned.hasPrefix("```json") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```json\n", with: "")
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmed()
+        } else if cleaned.hasPrefix("```") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```", with: "")
+                .trimmed()
+        }
+        return cleaned
+    }
+
+    func buildOptions(temperature: Double, maxTokens: Int?) -> [String: Any] {
         var options: [String: Any] = ["temperature": temperature]
         if let maxTokens {
             options["num_predict"] = maxTokens
@@ -355,7 +322,7 @@ final class OllamaClient: MCPClientProtocol {
         return options
     }
 
-    private func postJSON(url: URL, body: [String: Any], timeout: TimeInterval) async throws -> Data {
+    func postJSON(url: URL, body: [String: Any], timeout: TimeInterval) async throws -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -378,144 +345,41 @@ final class OllamaClient: MCPClientProtocol {
         } catch let error as OllamaError {
             throw error
         } catch let urlError as URLError {
-            switch urlError.code {
-            case .cannotConnectToHost, .cannotFindHost:
-                throw OllamaError.serverUnreachable
-            case .timedOut:
-                throw OllamaError.timeout
-            default:
-                throw OllamaError.networkError(urlError.localizedDescription)
+            throw OllamaError.from(urlError)
+        }
+    }
+
+    static func buildPullRequest(for name: String, baseURL: URL) throws -> URLRequest {
+        let url = baseURL.appendingPathComponent("api/pull")
+        let body: [String: Any] = ["name": name, "stream": true]
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.timeoutInterval = 3600
+        Self.logger.info("Pulling model: \(name)")
+        return request
+    }
+
+    static func streamPullProgress(
+        for name: String,
+        bytes: URLSession.AsyncBytes,
+        into continuation: AsyncThrowingStream<OllamaPullProgress, Error>.Continuation
+    ) async throws {
+        for try await line in bytes.lines {
+            guard !line.isEmpty,
+                  let lineData = line.data(using: .utf8),
+                  let chunk = try? JSONDecoder().decode(OllamaPullChunk.self, from: lineData)
+            else { continue }
+            continuation.yield(OllamaPullProgress(
+                status: chunk.status, completed: chunk.completed, total: chunk.total
+            ))
+            if chunk.status == "success" {
+                Self.logger.info("Successfully pulled model: \(name)")
+                continuation.finish()
+                return
             }
         }
-    }
-
-    // MARK: - Configuration
-
-    /// Updates the base URL (e.g., user changed it in settings).
-    func updateBaseURL(_ url: URL) {
-        baseURL = url
-    }
-}
-
-// MARK: - Ollama API Types
-
-struct OllamaModel: Codable, Identifiable {
-    let name: String
-    let size: Int64
-    let digest: String
-    let modifiedAt: String
-
-    var id: String { name }
-
-    enum CodingKeys: String, CodingKey {
-        case name, size, digest
-        case modifiedAt = "modified_at"
-    }
-}
-
-private struct OllamaTagsResponse: Codable {
-    let models: [OllamaModel]
-}
-
-private struct OllamaGenerateResponse: Codable {
-    let response: String
-}
-
-private struct OllamaChatResponse: Codable {
-    let message: OllamaChatMessage
-}
-
-private struct OllamaChatMessage: Codable {
-    let role: String
-    let content: String
-}
-
-private struct OllamaChatStreamChunk: Codable {
-    let message: OllamaChatMessage
-    let done: Bool
-}
-
-// MARK: - Pull API Types
-
-/// Progress update during an Ollama model pull operation.
-struct OllamaPullProgress: Sendable {
-    let status: String
-    let completed: Int64?
-    let total: Int64?
-
-    /// Fraction completed (0.0 to 1.0), or nil if not in a download phase.
-    var fractionCompleted: Double? {
-        guard let total, total > 0, let completed else { return nil }
-        return Double(completed) / Double(total)
-    }
-}
-
-private struct OllamaPullChunk: Codable {
-    let status: String
-    let digest: String?
-    let total: Int64?
-    let completed: Int64?
-}
-
-// MARK: - Model Catalog
-
-/// Describes a popular Ollama model available for installation.
-struct OllamaModelCatalog: Identifiable {
-    let id: String
-    let name: String
-    let parameterCount: String
-    let sizeGB: Double
-    let description: String
-
-    /// Curated list of recommended models for classroom use.
-    static let recommended: [OllamaModelCatalog] = [
-        OllamaModelCatalog(
-            id: "llama3.2",
-            name: "Llama 3.2",
-            parameterCount: "3B",
-            sizeGB: 2.0,
-            description: "Meta's compact model. Good balance of speed and quality."
-        ),
-        OllamaModelCatalog(
-            id: "gemma2:9b",
-            name: "Gemma 2 9B",
-            parameterCount: "9B",
-            sizeGB: 5.5,
-            description: "Google's model. Best quality, needs 16GB+ RAM."
-        )
-    ]
-}
-
-// MARK: - Errors
-
-enum OllamaError: Error, LocalizedError {
-    case serverUnreachable
-    case serverError(statusCode: Int, detail: String = "")
-    case invalidResponse
-    case invalidJSON(String)
-    case timeout
-    case networkError(String)
-    case modelNotFound(String)
-    case pullFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .serverUnreachable:
-            return "Cannot connect to Ollama. Make sure Ollama is running (ollama serve)."
-        case .serverError(let code, let detail):
-            return "Ollama server error (\(code))\(detail.isEmpty ? "" : ": \(detail)")"
-        case .invalidResponse:
-            return "Invalid response from Ollama server."
-        case .invalidJSON(let text):
-            return "Ollama returned invalid JSON: \(text.prefix(100))..."
-        case .timeout:
-            return "Ollama request timed out. The model may be loading — try again."
-        case .networkError(let msg):
-            return "Network error: \(msg)"
-        case .modelNotFound(let name):
-            return "Model '\(name)' not found. Run: ollama pull \(name)"
-        case .pullFailed(let name):
-            return "Failed to pull model '\(name)'. The download may have been interrupted."
-        }
+        continuation.finish(throwing: OllamaError.pullFailed(name))
     }
 }

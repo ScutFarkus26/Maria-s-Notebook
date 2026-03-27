@@ -5,37 +5,44 @@
 //  Direct Anthropic API client for student analysis
 //
 
-// swiftlint:disable file_length
 import Foundation
 import OSLog
 
-// swiftlint:disable type_body_length
 /// Direct implementation that connects to Anthropic's Claude API
 final class AnthropicAPIClient: MCPClientProtocol {
-    private static let logger = Logger.ai
+    static let logger = Logger.ai
 
-    private let apiKey: String
-    private let session: URLSession
+    let apiKey: String
+    let session: URLSession
     private let baseURL: URL
-    
+
     init(apiKey: String? = nil, session: URLSession = .shared) {
         // Try to load API key from UserDefaults, then from keychain, then use provided
         self.apiKey = apiKey ?? Self.loadAPIKey()
         self.session = session
-        
+
         // Hardcoded URL should always be valid, but make it explicit
         guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
             preconditionFailure("Invalid hardcoded Anthropic API URL. This is a programming error.")
         }
         self.baseURL = url
     }
-    
+
+    // MARK: - API Key Validation
+
+    /// Shared guard that throws `AnthropicAPIError.noAPIKey` when the key is empty.
+    func validateAPIKey() throws {
+        guard !apiKey.isEmpty else {
+            throw AnthropicAPIError.noAPIKey
+        }
+    }
+
     // MARK: - MCPClientProtocol Implementation
-    
+
     func generateText(prompt: String, temperature: Double) async throws -> String {
         try await generateText(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
     }
-    
+
     func generateText(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?
@@ -53,10 +60,8 @@ final class AnthropicAPIClient: MCPClientProtocol {
         temperature: Double, maxTokens: Int?,
         model: String?, timeout: TimeInterval?
     ) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw AnthropicAPIError.noAPIKey
-        }
-        
+        try validateAPIKey()
+
         let response = try await sendClaudeRequest(
             prompt: prompt,
             systemMessage: systemMessage,
@@ -65,14 +70,14 @@ final class AnthropicAPIClient: MCPClientProtocol {
             model: model,
             timeout: timeout
         )
-        
+
         return response
     }
-    
+
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
         try await generateStructuredJSON(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
     }
-    
+
     func generateStructuredJSON(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?
@@ -90,10 +95,8 @@ final class AnthropicAPIClient: MCPClientProtocol {
         temperature: Double, maxTokens: Int?,
         model: String?, timeout: TimeInterval?
     ) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw AnthropicAPIError.noAPIKey
-        }
-        
+        try validateAPIKey()
+
         // Enhance prompt to ensure JSON output
         // swiftlint:disable:next line_length
         let jsonInstruction = "IMPORTANT: Return ONLY valid JSON in your response. Do not include any markdown formatting, code blocks, or explanatory text. Just the raw JSON object."
@@ -102,7 +105,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
 
         \(jsonInstruction)
         """
-        
+
         let response = try await sendClaudeRequest(
             prompt: enhancedPrompt,
             systemMessage: systemMessage,
@@ -111,73 +114,40 @@ final class AnthropicAPIClient: MCPClientProtocol {
             model: model,
             timeout: timeout
         )
-        
-        // Clean up response if it contains markdown code blocks
-        var cleanedResponse = response.trimmed()
-        
-        if cleanedResponse.hasPrefix("```json") {
-            cleanedResponse = cleanedResponse
-                .replacingOccurrences(of: "```json\n", with: "")
-                .replacingOccurrences(of: "```json", with: "")
-                .replacingOccurrences(of: "```", with: "")
-                .trimmed()
-        } else if cleanedResponse.hasPrefix("```") {
-            cleanedResponse = cleanedResponse
-                .replacingOccurrences(of: "```", with: "")
-                .trimmed()
-        }
-        
-        // Validate it's proper JSON
-        do {
-            _ = try JSONSerialization.jsonObject(with: Data(cleanedResponse.utf8))
-        } catch {
-            throw AnthropicAPIError.invalidJSON(cleanedResponse)
-        }
-        
-        return cleanedResponse
+
+        return try cleanAndValidateJSON(response)
     }
-    
+
     func analyzePatterns(text: String, context: String) async throws -> [String] {
-        guard !apiKey.isEmpty else {
-            throw AnthropicAPIError.noAPIKey
-        }
-        
+        try validateAPIKey()
+
         let prompt = """
         Analyze the following text and identify 3-5 key patterns.
-        
+
         Context: \(context)
-        
+
         Text to analyze:
         \(text)
-        
+
         Return ONLY a JSON array of strings, like: ["Pattern 1", "Pattern 2", "Pattern 3"]
         """
-        
+
         let response = try await sendClaudeRequest(
             prompt: prompt,
             temperature: 0.3,
             maxTokens: 1024
         )
-        
-        // Parse JSON array
-        var cleanedResponse = response.trimmed()
-        if cleanedResponse.hasPrefix("```") {
-            cleanedResponse = cleanedResponse
-                .replacingOccurrences(of: "```json\n", with: "")
-                .replacingOccurrences(of: "```json", with: "")
-                .replacingOccurrences(of: "```", with: "")
-                .trimmed()
-        }
-        
+
+        let cleanedResponse = stripMarkdownCodeBlock(response)
         let data = Data(cleanedResponse.utf8)
         return try JSONDecoder().decode([String].self, from: data)
     }
-    
+
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] {
         // Not implemented for direct API - return empty results
         return []
     }
-    
+
     // MARK: - Private Helpers
 
     private func sendClaudeRequest(
@@ -185,9 +155,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         temperature: Double, maxTokens: Int,
         model: String? = nil, timeout: TimeInterval? = nil
     ) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw AnthropicAPIError.noAPIKey
-        }
+        try validateAPIKey()
 
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 60
@@ -236,9 +204,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         model: String? = nil,
         timeout: TimeInterval? = nil
     ) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw AnthropicAPIError.noAPIKey
-        }
+        try validateAPIKey()
 
         let resolvedModel = model ?? "claude-sonnet-4-20250514"
         let resolvedTimeout = timeout ?? 90
@@ -265,22 +231,13 @@ final class AnthropicAPIClient: MCPClientProtocol {
         }
     }
 
-    // MARK: - Request Building
+}
 
-    private struct ClaudeRequestConfig {
-        let model: String
-        let maxTokens: Int
-        let temperature: Double
-        let timeout: TimeInterval
-        let stream: Bool
+// MARK: - Request Building & Response Handling
 
-        init(model: String, maxTokens: Int, temperature: Double, timeout: TimeInterval, stream: Bool = false) {
-            self.model = model; self.maxTokens = maxTokens; self.temperature = temperature
-            self.timeout = timeout; self.stream = stream
-        }
-    }
+extension AnthropicAPIClient {
 
-    private func buildAPIRequest(
+    func buildAPIRequest(
         messages: Any, systemMessage: String?, config: ClaudeRequestConfig
     ) throws -> URLRequest {
         var request = URLRequest(url: baseURL)
@@ -304,10 +261,8 @@ final class AnthropicAPIClient: MCPClientProtocol {
         return request
     }
 
-    // MARK: - Response Handling
-
     @discardableResult
-    private func validateHTTPResponse(
+    func validateHTTPResponse(
         _ response: URLResponse, data: Data
     ) throws -> HTTPURLResponse {
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -319,7 +274,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         return httpResponse
     }
 
-    private func buildHTTPError(statusCode: Int, data: Data) -> AnthropicAPIError {
+    func buildHTTPError(statusCode: Int, data: Data) -> AnthropicAPIError {
         let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
         Self.logger.debug("HTTP Status Code: \(statusCode, privacy: .public)")
 
@@ -344,7 +299,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         return .apiError(statusCode: statusCode, message: helpfulMessage)
     }
 
-    private func parseResponseBody(_ data: Data) throws -> ([String: Any], String) {
+    func parseResponseBody(_ data: Data) throws -> ([String: Any], String) {
         let responseBody: [String: Any]
         do {
             guard let body = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -362,7 +317,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         return (responseBody, text)
     }
 
-    private func trackAPIUsage(responseBody: [String: Any], model: String) {
+    func trackAPIUsage(responseBody: [String: Any], model: String) {
         let usage = responseBody["usage"] as? [String: Any]
         let inputTokens = usage?["input_tokens"] as? Int
         let outputTokens = usage?["output_tokens"] as? Int
@@ -373,7 +328,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
         }
     }
 
-    private func mapNetworkError(_ error: Error) -> AnthropicAPIError {
+    func mapNetworkError(_ error: Error) -> AnthropicAPIError {
         if let urlError = error as? URLError {
             switch urlError.code {
             case .notConnectedToInternet:
@@ -399,135 +354,32 @@ final class AnthropicAPIClient: MCPClientProtocol {
         Self.logger.debug("Unknown error: \(error.localizedDescription)")
         return .apiError(statusCode: 0, message: "Network error: \(error.localizedDescription)")
     }
-    
-    // MARK: - Streaming Conversation
 
-    /// Send a multi-turn conversation with streaming, calling onDelta for each text chunk.
-    /// Returns the full response text when complete.
-    func streamConversation(
-        messages: [[String: String]],
-        systemMessage: String? = nil,
-        temperature: Double = 0.7,
-        maxTokens: Int = 2048,
-        model: String? = nil,
-        timeout: TimeInterval? = nil,
-        onDelta: @escaping @Sendable (String) -> Void
-    ) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw AnthropicAPIError.noAPIKey
+    func stripMarkdownCodeBlock(_ response: String) -> String {
+        var cleaned = response.trimmed()
+        if cleaned.hasPrefix("```json") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```json\n", with: "")
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmed()
+        } else if cleaned.hasPrefix("```") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```", with: "")
+                .trimmed()
         }
-
-        let resolvedModel = model ?? "claude-sonnet-4-20250514"
-        let resolvedTimeout = timeout ?? 120
-
-        Self.logger.debug(
-            "Streaming conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
-        )
-
-        let config = ClaudeRequestConfig(
-            model: resolvedModel, maxTokens: maxTokens,
-            temperature: temperature, timeout: resolvedTimeout, stream: true
-        )
-        let request = try buildAPIRequest(messages: messages, systemMessage: systemMessage, config: config)
-
-        let (bytes, response) = try await session.bytes(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AnthropicAPIError.invalidResponse
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            var errorData = Data()
-            for try await byte in bytes { errorData.append(byte) }
-            throw buildHTTPError(statusCode: httpResponse.statusCode, data: errorData)
-        }
-
-        return try await parseSSEStream(bytes: bytes, onDelta: onDelta)
+        return cleaned
     }
 
-    private func parseSSEStream(
-        bytes: URLSession.AsyncBytes, onDelta: @escaping @Sendable (String) -> Void
-    ) async throws -> String {
-        var fullText = ""
-        for try await line in bytes.lines {
-            guard line.hasPrefix("data: ") else { continue }
-            let jsonString = String(line.dropFirst(6))
-            if jsonString == "[DONE]" { break }
+    func cleanAndValidateJSON(_ response: String) throws -> String {
+        let cleaned = stripMarkdownCodeBlock(response)
 
-            guard let jsonData = jsonString.data(using: .utf8),
-                  let event = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
-                continue
-            }
-
-            let eventType = event["type"] as? String
-            if eventType == "content_block_delta",
-               let delta = event["delta"] as? [String: Any],
-               let text = delta["text"] as? String {
-                fullText += text
-                onDelta(text)
-            }
-            if eventType == "error",
-               let error = event["error"] as? [String: Any],
-               let message = error["message"] as? String {
-                throw AnthropicAPIError.apiError(statusCode: 0, message: message)
-            }
+        do {
+            _ = try JSONSerialization.jsonObject(with: Data(cleaned.utf8))
+        } catch {
+            throw AnthropicAPIError.invalidJSON(cleaned)
         }
-        return fullText
-    }
 
-    // MARK: - API Key Management
-    
-    private static func loadAPIKey() -> String {
-        // Try UserDefaults first (easiest for users to configure)
-        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
-            return key
-        }
-        
-        // Could add keychain support here in the future
-        
-        return ""
-    }
-    
-    /// Save API key to UserDefaults
-    static func saveAPIKey(_ key: String) {
-        UserDefaults.standard.set(key, forKey: "anthropicAPIKey")
-    }
-    
-    /// Check if API key is configured
-    static func hasAPIKey() -> Bool {
-        let key = loadAPIKey()
-        // Modern Anthropic API keys should start with sk-ant-api03-
-        return !key.isEmpty && (key.hasPrefix("sk-ant-api03-") || key.hasPrefix("sk-ant-"))
-    }
-    
-    /// Clear saved API key
-    static func clearAPIKey() {
-        UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
-    }
-}
-// swiftlint:enable type_body_length
-
-// MARK: - Errors
-
-enum AnthropicAPIError: Error, LocalizedError {
-    case noAPIKey
-    case invalidResponse
-    case invalidResponseFormat
-    case invalidJSON(String)
-    case apiError(statusCode: Int, message: String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .noAPIKey:
-            return "Anthropic API key not configured. Please add your API key in Settings."
-        case .invalidResponse:
-            return "Invalid response from Anthropic API"
-        case .invalidResponseFormat:
-            return "Unexpected response format from Anthropic API"
-        case .invalidJSON(let json):
-            return "Claude returned invalid JSON: \(json.prefix(100))..."
-        case .apiError(let statusCode, let message):
-            return "Anthropic API error (\(statusCode)): \(message)"
-        }
+        return cleaned
     }
 }

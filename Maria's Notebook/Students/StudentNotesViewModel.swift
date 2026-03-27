@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 // StudentNotesViewModel.swift
 // Aggregates all notes for a specific Student
 
@@ -6,43 +5,15 @@ import OSLog
 import SwiftData
 import SwiftUI
 
-// MARK: - Unified Item
-public struct UnifiedNoteItem: Identifiable {
-    public enum Source {
-        case general
-        case lesson
-        case work
-        case meeting
-        case presentation
-        case attendance // Added for clarity, though mapped to .general in UI if needed
-    }
-
-    public let id: UUID
-    public let date: Date
-    public let body: String
-    public let source: Source
-    public let contextText: String
-    public let color: Color
-    public let associatedID: UUID?
-    public let tags: [String]
-    public let includeInReport: Bool
-    public let needsFollowUp: Bool
-    public let imagePath: String?
-    public let reportedBy: String?
-    public let reporterName: String?
-    public let isPinned: Bool
-}
-
 // MARK: - View Model
 @Observable
 @MainActor
-// swiftlint:disable:next type_body_length
 final class StudentNotesViewModel {
     private static let logger = Logger.students
 
     private let student: Student
     let modelContext: ModelContext
-    private let saveCoordinator: SaveCoordinator
+    let saveCoordinator: SaveCoordinator
 
     var items: [UnifiedNoteItem] = []
 
@@ -110,10 +81,49 @@ final class StudentNotesViewModel {
         loadInitialPage()
     }
 
-    // MARK: - Note Source Helpers
+    // MARK: - Add
+    func addGeneralNote(body: String) {
+        let trimmed = body.trimmed()
+        guard !trimmed.isEmpty else { return }
+
+        let newNote = Note(
+            body: trimmed,
+            scope: .student(student.id)
+        )
+        modelContext.insert(newNote)
+
+        if saveCoordinator.save(modelContext, reason: "Adding note") {
+            fetchAllNotes()
+        }
+    }
+
+    // MARK: - Delete
+    func delete(item: UnifiedNoteItem) {
+        if let note = note(by: item.id) {
+            note.deleteAssociatedImage()
+            modelContext.delete(note)
+            if saveCoordinator.save(modelContext, reason: "Deleting note") {
+                items.removeAll { $0.id == item.id }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    func note(by id: UUID) -> Note? {
+        let d = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { $0.id == id }
+        )
+        return modelContext.safeFetchFirst(d)
+    }
+}
+
+// MARK: - Note Source Fetchers
+
+extension StudentNotesViewModel {
 
     /// 1) General notes where scope matches this student.
-    private func fetchGeneralNotes(
+    func fetchGeneralNotes(
         noteSort: [SortDescriptor<Note>], studentIDString: String
     ) -> [UnifiedNoteItem] {
         let studentID = student.id
@@ -141,7 +151,6 @@ final class StudentNotesViewModel {
         }
 
         return visibleNotes.compactMap { note in
-            // Exclude notes attached to specific contexts (handled by other blocks)
             if note.work != nil { return nil }
             if note.lessonAssignment != nil { return nil }
             if note.studentMeeting != nil { return nil }
@@ -167,7 +176,7 @@ final class StudentNotesViewModel {
     }
 
     /// 2) Work-related notes.
-    private func fetchWorkRelatedNotes(
+    func fetchWorkRelatedNotes(
         noteSort: [SortDescriptor<Note>], studentIDString: String
     ) -> [UnifiedNoteItem] {
         let workFetch = FetchDescriptor<WorkModel>(
@@ -202,7 +211,7 @@ final class StudentNotesViewModel {
     }
 
     /// 3) Presentation-related notes (from LessonAssignment).
-    private func fetchPresentationNotes(
+    func fetchPresentationNotes(
         noteSort: [SortDescriptor<Note>], studentIDString: String
     ) -> [UnifiedNoteItem] {
         let presentationNoteFetch = FetchDescriptor<Note>(
@@ -243,7 +252,7 @@ final class StudentNotesViewModel {
     }
 
     /// 4) Meeting-related notes.
-    private func fetchMeetingNotes(studentIDString: String) -> [UnifiedNoteItem] {
+    func fetchMeetingNotes(studentIDString: String) -> [UnifiedNoteItem] {
         let meetingFetch = FetchDescriptor<StudentMeeting>(
             predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
             sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
@@ -269,7 +278,7 @@ final class StudentNotesViewModel {
     }
 
     /// 5) Attendance-related notes.
-    private func fetchAttendanceNotes(
+    func fetchAttendanceNotes(
         noteSort: [SortDescriptor<Note>], studentIDString: String
     ) -> [UnifiedNoteItem] {
         let attNoteFetch = FetchDescriptor<Note>(
@@ -294,8 +303,8 @@ final class StudentNotesViewModel {
             )
         }
     }
-    
-    private func makeMeetingNote(_ meeting: StudentMeeting, body: String, context: String) -> UnifiedNoteItem {
+
+    func makeMeetingNote(_ meeting: StudentMeeting, body: String, context: String) -> UnifiedNoteItem {
         UnifiedNoteItem(
             id: UUID(),
             date: meeting.date,
@@ -314,48 +323,7 @@ final class StudentNotesViewModel {
         )
     }
 
-    // MARK: - Add
-    func addGeneralNote(body: String) {
-        let trimmed = body.trimmed()
-        guard !trimmed.isEmpty else { return }
-
-        let newNote = Note(
-            body: trimmed,
-            scope: .student(student.id)
-        )
-        modelContext.insert(newNote)
-
-        if saveCoordinator.save(modelContext, reason: "Adding note") {
-            fetchAllNotes()
-        }
-    }
-
-    // MARK: - Delete
-    func delete(item: UnifiedNoteItem) {
-        if let note = fetchNote(id: item.id) {
-            // Clean up associated image file before deleting the note
-            note.deleteAssociatedImage()
-            modelContext.delete(note)
-            if saveCoordinator.save(modelContext, reason: "Deleting note") {
-                items.removeAll { $0.id == item.id }
-            }
-        }
-    }
-
-    // MARK: - Helpers
-    private func fetchNote(id: UUID) -> Note? {
-        let d = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.id == id }
-        )
-        return modelContext.safeFetchFirst(d)
-    }
-    
-    // Public method to fetch a note by ID (used by views)
-    func note(by id: UUID) -> Note? {
-        return fetchNote(id: id)
-    }
-
-    private func buildLessonNameLookup(forWorkModels workModels: [WorkModel]) -> [String: String] {
+    func buildLessonNameLookup(forWorkModels workModels: [WorkModel]) -> [String: String] {
         let lessonIDs = Set(workModels.compactMap { UUID(uuidString: $0.lessonID) })
         guard !lessonIDs.isEmpty else { return [:] }
 
@@ -376,84 +344,5 @@ final class StudentNotesViewModel {
             }
         }
         return map
-    }
-
-    // MARK: - Batch Operations
-
-    func batchDelete(ids: Set<UUID>) {
-        for id in ids {
-            if let note = fetchNote(id: id) {
-                note.deleteAssociatedImage()
-                modelContext.delete(note)
-            }
-        }
-        if saveCoordinator.save(modelContext, reason: "Batch deleting notes") {
-            items.removeAll { ids.contains($0.id) }
-        }
-    }
-
-    func batchAddTags(_ tagsToAdd: [String], for ids: Set<UUID>) {
-        for id in ids {
-            if let note = fetchNote(id: id) {
-                var current = note.tags
-                for tag in tagsToAdd where !current.contains(tag) {
-                    current.append(tag)
-                }
-                note.tags = current
-                note.updatedAt = Date()
-            }
-        }
-        if saveCoordinator.save(modelContext, reason: "Adding tags to notes") {
-            fetchAllNotes()
-        }
-    }
-
-    func batchRemoveTags(_ tagsToRemove: [String], for ids: Set<UUID>) {
-        let removeSet = Set(tagsToRemove)
-        for id in ids {
-            if let note = fetchNote(id: id) {
-                note.tags = note.tags.filter { !removeSet.contains($0) }
-                note.updatedAt = Date()
-            }
-        }
-        if saveCoordinator.save(modelContext, reason: "Removing tags from notes") {
-            fetchAllNotes()
-        }
-    }
-
-    func batchToggleFollowUp(for ids: Set<UUID>) {
-        for id in ids {
-            if let note = fetchNote(id: id) {
-                note.needsFollowUp.toggle()
-                note.updatedAt = Date()
-            }
-        }
-        if saveCoordinator.save(modelContext, reason: "Toggling follow-up flags") {
-            fetchAllNotes()
-        }
-    }
-
-    func batchToggleReportFlag(for ids: Set<UUID>) {
-        for id in ids {
-            if let note = fetchNote(id: id) {
-                note.includeInReport.toggle()
-                note.updatedAt = Date()
-            }
-        }
-        if saveCoordinator.save(modelContext, reason: "Toggling report flags") {
-            fetchAllNotes()
-        }
-    }
-
-    func batchTogglePin(for ids: Set<UUID>) {
-        for id in ids {
-            if let note = fetchNote(id: id) {
-                note.isPinned.toggle()
-                note.updatedAt = Date()
-            }
-        }
-        if saveCoordinator.save(modelContext, reason: "Toggling pin status") {
-            fetchAllNotes()
-        }
     }
 }

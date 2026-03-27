@@ -160,9 +160,13 @@ struct PerpetualCalendarView: View {
         }
     }
 
-    // MARK: - Non-School Day Loading
+}
 
-    private func loadNonSchoolDays() async {
+// MARK: - Grid & Month Column
+
+private extension PerpetualCalendarView {
+
+    func loadNonSchoolDays() async {
         let cal = AppCalendar.shared
         let range = yearRange
         var startComps = DateComponents()
@@ -188,9 +192,7 @@ struct PerpetualCalendarView: View {
         }
     }
 
-    // MARK: - Calendar Grid
-
-    private var calendarGrid: some View {
+    var calendarGrid: some View {
         LazyHStack(alignment: .top, spacing: 0) {
             ForEach(allMonths) { monthID in
                 monthColumn(monthID)
@@ -200,21 +202,18 @@ struct PerpetualCalendarView: View {
         }
     }
 
-    private func trackVisibleYear(_ monthID: MonthID) {
+    func trackVisibleYear(_ monthID: MonthID) {
         guard !programmaticScrollInFlight else { return }
         if monthID.month <= 6 && monthID.year != displayYear {
             displayYear = monthID.year
         }
     }
 
-    // MARK: - Month Column
-
-    private func monthColumn(_ monthID: MonthID) -> some View {
+    func monthColumn(_ monthID: MonthID) -> some View {
         let days = daysInMonth(monthID)
         let abbrev = Calendar.current.shortMonthSymbols[monthID.month - 1].uppercased()
 
         return VStack(spacing: 0) {
-            // Header
             Text("\(abbrev) \(String(monthID.year))")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
@@ -223,7 +222,6 @@ struct PerpetualCalendarView: View {
                 .padding(.top, 4)
                 .padding(.bottom, 6)
 
-            // Days
             ForEach(1...days, id: \.self) { day in
                 dayRow(monthID: monthID, day: day)
             }
@@ -231,7 +229,7 @@ struct PerpetualCalendarView: View {
         .frame(width: 164)
     }
 
-    private func daysInMonth(_ monthID: MonthID) -> Int {
+    func daysInMonth(_ monthID: MonthID) -> Int {
         let cal = AppCalendar.shared
         var comps = DateComponents()
         comps.year = monthID.year
@@ -241,10 +239,13 @@ struct PerpetualCalendarView: View {
               let range = cal.range(of: .day, in: .month, for: date) else { return 30 }
         return range.count
     }
+}
 
-    // MARK: - Day Row
+// MARK: - Day Row & Editing
 
-    private func dayRow(monthID: MonthID, day: Int) -> some View {
+private extension PerpetualCalendarView {
+
+    func dayRow(monthID: MonthID, day: Int) -> some View {
         let cellID = CellID(year: monthID.year, month: monthID.month, day: day)
         let holiday = PerpetualHolidays.holiday(month: monthID.month, day: day, year: monthID.year)
         let note = notesLookup[cellID]
@@ -256,7 +257,6 @@ struct PerpetualCalendarView: View {
         let isNoSchool = nonSchoolCells.contains(cellID)
 
         return HStack(spacing: 4) {
-            // Day number
             Text("\(day)")
                 .font(.system(.caption, design: .rounded).monospacedDigit())
                 .foregroundStyle(isToday ? Color.white : (isNoSchool ? Color.red.opacity(0.5) : Color.secondary))
@@ -267,7 +267,6 @@ struct PerpetualCalendarView: View {
                     }
                 }
 
-            // Note text
             if isEditing {
                 TextField("", text: $editText)
                     .font(.system(.caption, design: .rounded))
@@ -290,15 +289,13 @@ struct PerpetualCalendarView: View {
         .padding(.vertical, 1)
     }
 
-    private func textStyle(isHoliday: Bool, isNoSchool: Bool) -> some ShapeStyle {
+    func textStyle(isHoliday: Bool, isNoSchool: Bool) -> some ShapeStyle {
         if isNoSchool { return AnyShapeStyle(.red.opacity(0.5)) }
         if isHoliday { return AnyShapeStyle(.secondary) }
         return AnyShapeStyle(.primary)
     }
 
-    // MARK: - Today Detection
-
-    private func isTodayCell(_ cellID: CellID) -> Bool {
+    func isTodayCell(_ cellID: CellID) -> Bool {
         let now = Date()
         let cal = AppCalendar.shared
         return cal.component(.year, from: now) == cellID.year
@@ -306,9 +303,7 @@ struct PerpetualCalendarView: View {
             && cal.component(.day, from: now) == cellID.day
     }
 
-    // MARK: - Editing
-
-    private func beginEdit(cellID: CellID, currentText: String) {
+    func beginEdit(cellID: CellID, currentText: String) {
         if let previous = editingCell, previous != cellID {
             commitEdit(cellID: previous)
         }
@@ -316,7 +311,7 @@ struct PerpetualCalendarView: View {
         editingCell = cellID
     }
 
-    private func commitEdit(cellID: CellID) {
+    func commitEdit(cellID: CellID) {
         let trimmed = editText.trimmed()
         let holiday = PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year)
 

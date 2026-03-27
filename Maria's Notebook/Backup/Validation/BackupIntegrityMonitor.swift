@@ -196,11 +196,16 @@ public final class BackupIntegrityMonitor {
         }
     }
 
+}
+
+// MARK: - Verification
+
+extension BackupIntegrityMonitor {
+
     /// Verifies a single backup file
     public func verifyBackup(at url: URL) async -> BackupVerificationResult {
         let fileSize = Self.fileSize(at: url)
 
-        // Attempt to verify the backup
         let result = BackupVerification.verifyBackup(at: url)
 
         switch result {
@@ -259,12 +264,10 @@ public final class BackupIntegrityMonitor {
         let backupFiles = files.filter { $0.pathExtension == BackupFile.fileExtension }
 
         var results: [BackupVerificationResult] = []
-
         for file in backupFiles {
             let result = await verifyBackup(at: file)
             results.append(result)
         }
-
         return results
     }
 
@@ -286,13 +289,9 @@ public final class BackupIntegrityMonitor {
             }
         }
 
-        // Refresh report after deletion
         _ = await performIntegrityScan()
-
         return deletedCount
     }
-
-    // MARK: - Internal Helpers
 
     /// Gets the file size at a URL, returning 0 on failure
     static func fileSize(at url: URL) -> Int64 {
@@ -311,7 +310,6 @@ public final class BackupIntegrityMonitor {
     func verifyChecksum(at url: URL, expectedChecksum: String) async -> Bool? {
         guard !expectedChecksum.isEmpty else { return nil }
 
-        // Read the file and extract payload to verify checksum
         let data: Data
         do {
             data = try Data(contentsOf: url)
@@ -331,11 +329,9 @@ public final class BackupIntegrityMonitor {
             return nil
         }
 
-        // Get payload bytes
         let payloadBytes: Data?
 
         if envelope.payload != nil {
-            // For unencrypted, uncompressed backups
             do {
                 payloadBytes = try BackupPayloadExtractor.extractPayloadBytes(from: data)
             } catch {
@@ -344,7 +340,6 @@ public final class BackupIntegrityMonitor {
                 return nil
             }
         } else if let compressed = envelope.compressedPayload {
-            // For compressed backups
             do {
                 payloadBytes = try codec.decompress(compressed)
             } catch {
@@ -353,7 +348,6 @@ public final class BackupIntegrityMonitor {
                 return nil
             }
         } else if envelope.encryptedPayload != nil {
-            // Can't verify encrypted backups without password
             return nil
         } else {
             return nil

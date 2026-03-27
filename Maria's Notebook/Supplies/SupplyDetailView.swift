@@ -1,9 +1,7 @@
-// swiftlint:disable file_length
 import SwiftUI
 import SwiftData
 
 // Detail view for viewing and editing a supply
-// swiftlint:disable:next type_body_length
 struct SupplyDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -38,13 +36,21 @@ struct SupplyDetailView: View {
 
                     // Details section
                     if isEditing {
-                        editableDetailsSection
+                        SupplyEditableDetailsSection(
+                            editName: $editName,
+                            editCategory: $editCategory,
+                            editLocation: $editLocation,
+                            editUnit: $editUnit,
+                            editMinimumThreshold: $editMinimumThreshold,
+                            editReorderAmount: $editReorderAmount,
+                            editNotes: $editNotes
+                        )
                     } else {
                         detailsSection
                     }
 
                     // Transaction history
-                    historySection
+                    SupplyHistorySection(transactions: transactions)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -133,11 +139,39 @@ struct SupplyDetailView: View {
         #endif
     }
 
-    // MARK: - Status Header
+    // MARK: - Actions
 
-    private var statusHeader: some View {
+    private func startEditing() {
+        editName = supply.name
+        editCategory = supply.category
+        editLocation = supply.location
+        editMinimumThreshold = supply.minimumThreshold
+        editReorderAmount = supply.reorderAmount
+        editUnit = supply.unit
+        editNotes = supply.notes
+        isEditing = true
+    }
+
+    private func saveChanges() {
+        supply.name = editName
+        supply.category = editCategory
+        supply.location = editLocation
+        supply.minimumThreshold = editMinimumThreshold
+        supply.reorderAmount = editReorderAmount
+        supply.unit = editUnit
+        supply.notes = editNotes
+        supply.modifiedAt = Date()
+        modelContext.safeSave()
+    }
+
+}
+
+// MARK: - Sections
+
+private extension SupplyDetailView {
+
+    var statusHeader: some View {
         HStack(spacing: 16) {
-            // Category icon
             ZStack {
                 Circle()
                     .fill(supply.status.color.opacity(0.15))
@@ -197,9 +231,7 @@ struct SupplyDetailView: View {
         )
     }
 
-    // MARK: - Current Stock Card
-
-    private var currentStockCard: some View {
+    var currentStockCard: some View {
         VStack(spacing: 16) {
             HStack {
                 Text("Current Stock")
@@ -236,7 +268,6 @@ struct SupplyDetailView: View {
                 }
             }
 
-            // Progress bar showing stock level
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
@@ -253,15 +284,13 @@ struct SupplyDetailView: View {
         .cardStyle()
     }
 
-    private var stockPercentage: CGFloat {
+    var stockPercentage: CGFloat {
         guard supply.minimumThreshold > 0 else { return 1.0 }
         let ratio = CGFloat(supply.currentQuantity) / CGFloat(supply.minimumThreshold * 2)
         return min(1.0, max(0, ratio))
     }
 
-    // MARK: - Details Section
-
-    private var detailsSection: some View {
+    var detailsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Details")
                 .font(.headline)
@@ -291,7 +320,7 @@ struct SupplyDetailView: View {
         }
     }
 
-    private func detailRow(label: String, value: String) -> some View {
+    func detailRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
                 .foregroundStyle(.secondary)
@@ -299,328 +328,6 @@ struct SupplyDetailView: View {
             Text(value)
         }
         .font(.subheadline)
-    }
-
-    // MARK: - Editable Details Section
-
-    private var editableDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Details")
-                .font(.headline)
-
-            VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Name")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextField("Supply name", text: $editName)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Category")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Picker("Category", selection: $editCategory) {
-                        ForEach(SupplyCategory.allCases) { category in
-                            Label(category.rawValue, systemImage: category.icon)
-                                .tag(category)
-                        }
-                    }
-                    #if os(macOS)
-                    .pickerStyle(.menu)
-                    #endif
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Location")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextField("Storage location", text: $editLocation)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Unit")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextField("e.g., boxes, packs, items", text: $editUnit)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Minimum Threshold")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField("0", value: $editMinimumThreshold, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Reorder Amount")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField("0", value: $editReorderAmount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Notes")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: $editNotes)
-                        .frame(minHeight: 80)
-                        .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.primary.opacity(0.04))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(Color.primary.opacity(0.08))
-                        )
-                }
-            }
-            .padding()
-            .cardStyle()
-        }
-    }
-
-    // MARK: - History Section
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("History")
-                .font(.headline)
-
-            if transactions.isEmpty {
-                Text("No transactions recorded yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .cardStyle()
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(transactions) { transaction in
-                        transactionRow(transaction)
-
-                        if transaction.id != transactions.last?.id {
-                            Divider()
-                                .padding(.horizontal)
-                        }
-                    }
-                }
-                .cardStyle(padding: 0)
-            }
-        }
-    }
-
-    private func transactionRow(_ transaction: SupplyTransaction) -> some View {
-        HStack(spacing: 12) {
-            // Change indicator
-            ZStack {
-                Circle()
-                    .fill(transaction.quantityChange >= 0 ? Color.green.opacity(0.15) : Color.red.opacity(0.15))
-                    .frame(width: 32, height: 32)
-
-                Image(systemName: transaction.quantityChange >= 0 ? "plus" : "minus")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(transaction.quantityChange >= 0 ? .green : .red)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(transaction.reason)
-                    .font(.subheadline)
-
-                Text(transaction.date, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Text(transaction.quantityChange >= 0 ? "+\(transaction.quantityChange)" : "\(transaction.quantityChange)")
-                .font(.headline)
-                .foregroundStyle(transaction.quantityChange >= 0 ? .green : .red)
-        }
-        .padding()
-    }
-
-    // MARK: - Actions
-
-    private func startEditing() {
-        editName = supply.name
-        editCategory = supply.category
-        editLocation = supply.location
-        editMinimumThreshold = supply.minimumThreshold
-        editReorderAmount = supply.reorderAmount
-        editUnit = supply.unit
-        editNotes = supply.notes
-        isEditing = true
-    }
-
-    private func saveChanges() {
-        supply.name = editName
-        supply.category = editCategory
-        supply.location = editLocation
-        supply.minimumThreshold = editMinimumThreshold
-        supply.reorderAmount = editReorderAmount
-        supply.unit = editUnit
-        supply.notes = editNotes
-        supply.modifiedAt = Date()
-        modelContext.safeSave()
-    }
-
-}
-
-// MARK: - Mark as Ordered Sheet
-
-struct MarkAsOrderedSheet: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-
-    let supply: Supply
-
-    @State private var quantity: Int = 0
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        Text("Supply")
-                        Spacer()
-                        Text(supply.name)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack {
-                        Text("Current Stock")
-                        Spacer()
-                        Text("\(supply.currentQuantity) \(supply.unit)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section("Order Quantity") {
-                    HStack {
-                        TextField("0", value: $quantity, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        Stepper("", value: $quantity, in: 1...9999)
-                            .labelsHidden()
-                        Text(supply.unit)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("Mark as Ordered")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Mark as Ordered") {
-                        SupplyService.markAsOrdered(supply, quantity: quantity, in: modelContext)
-                        dismiss()
-                    }
-                    .disabled(quantity <= 0)
-                }
-            }
-        }
-        .onAppear {
-            quantity = supply.reorderAmount > 0 ? supply.reorderAmount : 1
-        }
-        #if os(macOS)
-        .frame(minWidth: 400, minHeight: 250)
-        #endif
-    }
-}
-
-// MARK: - Mark as Received Sheet
-
-struct MarkAsReceivedSheet: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-
-    let supply: Supply
-
-    @State private var receivedQuantity: Int = 0
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        Text("Supply")
-                        Spacer()
-                        Text(supply.name)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack {
-                        Text("Current Stock")
-                        Spacer()
-                        Text("\(supply.currentQuantity) \(supply.unit)")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack {
-                        Text("Ordered")
-                        Spacer()
-                        Text("\(supply.orderedQuantity) \(supply.unit)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section("Received Quantity") {
-                    HStack {
-                        TextField("0", value: $receivedQuantity, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        Stepper("", value: $receivedQuantity, in: 0...9999)
-                            .labelsHidden()
-                        Text(supply.unit)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack {
-                        Text("New Total")
-                        Spacer()
-                        Text("\(supply.currentQuantity + receivedQuantity) \(supply.unit)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("Mark as Received")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Mark as Received") {
-                        SupplyService.markAsReceived(supply, receivedQuantity: receivedQuantity, in: modelContext)
-                        dismiss()
-                    }
-                    .disabled(receivedQuantity <= 0)
-                }
-            }
-        }
-        .onAppear {
-            receivedQuantity = supply.orderedQuantity
-        }
-        #if os(macOS)
-        .frame(minWidth: 400, minHeight: 300)
-        #endif
     }
 }
 
