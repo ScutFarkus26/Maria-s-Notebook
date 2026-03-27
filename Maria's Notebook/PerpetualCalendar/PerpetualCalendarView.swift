@@ -355,15 +355,24 @@ private struct CellID: Hashable {
 
 enum PerpetualHolidays {
     static func holiday(month: Int, day: Int, year: Int) -> String? {
+        if let fixed = fixedHoliday(month: month, day: day) {
+            return fixed
+        }
+        return floatingHoliday(month: month, day: day, year: year)
+    }
+
+    private static func fixedHoliday(month: Int, day: Int) -> String? {
         switch (month, day) {
         case (1, 1):   return "New Year's Day"
         case (6, 19):  return "Juneteenth"
         case (7, 4):   return "Independence Day"
         case (11, 11): return "Veterans Day"
         case (12, 25): return "Christmas Day"
-        default: break
+        default:       return nil
         }
+    }
 
+    private static func floatingHoliday(month: Int, day: Int, year: Int) -> String? {
         let cal = AppCalendar.shared
         var comps = DateComponents()
         comps.year = year
