@@ -7,8 +7,7 @@ struct NoteTagPickerSheet: View {
     @Binding var selectedTags: [String]
     @Environment(\.dismiss) private var dismiss
     @State private var searchText: String = ""
-    @State private var showingCustomTagSheet: Bool = false
-    @State private var pendingNewTagName: String = ""
+    @State private var newTagColor: TagColor = .blue
     @FocusState private var isSearchFocused: Bool
 
     /// All tags currently used across notes in the database
@@ -101,43 +100,67 @@ struct NoteTagPickerSheet: View {
                         }
                     }
 
-                    Section("Available Tags") {
-                        ForEach(availableTags, id: \.self) { tag in
-                            Button {
-                                selectedTags.append(tag)
-                            } label: {
-                                HStack {
-                                    TagBadge(tag: tag)
-                                    Spacer()
-                                    Image(systemName: "circle")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-
-                        if !hasSearchResults {
-                            Button {
-                                createTagFromSearch()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundStyle(.blue)
-                                    Text("Create \"\(searchText.trimmed())\"")
+                    if !availableTags.isEmpty {
+                        Section("Available Tags") {
+                            ForEach(availableTags, id: \.self) { tag in
+                                Button {
+                                    selectedTags.append(tag)
+                                } label: {
+                                    HStack {
+                                        TagBadge(tag: tag)
+                                        Spacer()
+                                        Image(systemName: "circle")
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
                     }
 
-                    Section {
-                        Button {
-                            pendingNewTagName = ""
-                            showingCustomTagSheet = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(.blue)
-                                Text("Create New Tag")
+                    if !hasSearchResults {
+                        Section {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    TagBadge(
+                                        tag: TagHelper.createTag(
+                                            name: searchText.trimmed(),
+                                            color: newTagColor
+                                        )
+                                    )
+                                    Spacer()
+                                    Button {
+                                        createTagImmediately()
+                                    } label: {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.title3)
+                                            .foregroundStyle(newTagColor.color)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+
+                                HStack(spacing: 8) {
+                                    ForEach(TagColor.allCases, id: \.self) { color in
+                                        Button {
+                                            newTagColor = color
+                                        } label: {
+                                            Circle()
+                                                .fill(color.color)
+                                                .frame(width: 24, height: 24)
+                                                .overlay(
+                                                    Circle()
+                                                        .strokeBorder(
+                                                            Color.primary,
+                                                            lineWidth: newTagColor == color ? 2 : 0
+                                                        )
+                                                )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
+                            .padding(.vertical, 4)
+                        } header: {
+                            Text("Create \"\(searchText.trimmed())\"")
                         }
                     }
                 }
@@ -149,15 +172,6 @@ struct NoteTagPickerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                }
-            }
-            .sheet(isPresented: $showingCustomTagSheet) {
-                NoteCustomTagSheet(initialName: pendingNewTagName) { newTag in
-                    if !selectedTags.contains(newTag) {
-                        selectedTags.append(newTag)
-                    }
-                    searchText = ""
-                    isSearchFocused = true
                 }
             }
             #if os(macOS)
@@ -176,88 +190,20 @@ struct NoteTagPickerSheet: View {
         }
     }
 
-    private func createTagFromSearch() {
+    private func createTagImmediately() {
         let trimmed = searchText.trimmed()
         guard !trimmed.isEmpty else { return }
-        pendingNewTagName = trimmed
-        showingCustomTagSheet = true
+        let newTag = TagHelper.createTag(name: trimmed, color: newTagColor)
+        if !selectedTags.contains(newTag) {
+            selectedTags.append(newTag)
+        }
+        searchText = ""
+        newTagColor = .blue
+        isSearchFocused = true
     }
 
     private func createTagFromSearchIfNeeded() {
         guard !hasSearchResults else { return }
-        createTagFromSearch()
-    }
-}
-
-// MARK: - Custom Tag Creation Sheet
-
-struct NoteCustomTagSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var tagName: String
-    @State private var selectedColor: TagColor = .blue
-    let onSave: (String) -> Void
-
-    init(initialName: String = "", onSave: @escaping (String) -> Void) {
-        _tagName = State(initialValue: initialName)
-        self.onSave = onSave
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Tag Name") {
-                    TextField("Enter tag name", text: $tagName)
-                }
-
-                Section("Color") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
-                        ForEach(TagColor.allCases, id: \.self) { color in
-                            Button {
-                                selectedColor = color
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Circle()
-                                        .fill(color.color)
-                                        .frame(width: 40, height: 40)
-                                        .overlay(
-                                            Circle()
-                                                .strokeBorder(Color.primary, lineWidth: selectedColor == color ? 3 : 0)
-                                        )
-                                    Text(color.rawValue)
-                                        .font(AppTheme.ScaledFont.captionSmall)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                Section("Preview") {
-                    if !tagName.trimmed().isEmpty {
-                        TagBadge(tag: TagHelper.createTag(name: tagName.trimmed(), color: selectedColor))
-                    }
-                }
-            }
-            .navigationTitle("New Tag")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        let trimmed = tagName.trimmed()
-                        guard !trimmed.isEmpty else { return }
-                        onSave(TagHelper.createTag(name: trimmed, color: selectedColor))
-                        dismiss()
-                    }
-                    .disabled(tagName.trimmed().isEmpty)
-                }
-            }
-        }
+        createTagImmediately()
     }
 }
