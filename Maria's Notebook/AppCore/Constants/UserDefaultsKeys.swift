@@ -137,6 +137,13 @@ enum UserDefaultsKeys {
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
 
     // MARK: - Settings UI
+    static let settingsSelectedCategory = "settings_selectedCategory"
     static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"
     static let backupAgeWarningDays = "BackupAge.warningDays"
+
+    // MARK: - Onboarding
+    static let hasCompletedOnboarding = "hasCompletedOnboarding"
+
+    // MARK: - Resources
+    static let resourceLibraryViewMode = "resourceLibrary.viewMode"
 }

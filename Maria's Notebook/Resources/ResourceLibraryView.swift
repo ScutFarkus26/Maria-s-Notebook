@@ -44,7 +44,7 @@ struct ResourceLibraryView: View {
     // Drag-and-drop
     @State var isDropTargeted = false
 
-    @AppStorage("resourceLibrary.viewMode") var viewModeRaw: String = ResourceViewMode.grid.rawValue
+    @AppStorage(UserDefaultsKeys.resourceLibraryViewMode) var viewModeRaw: String = ResourceViewMode.grid.rawValue
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
