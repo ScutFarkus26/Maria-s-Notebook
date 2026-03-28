@@ -122,10 +122,13 @@ struct MariasNotebookApp: App {
                     databaseErrorCoordinator.setError(error)
                 }
                 
-                // Configure TipKit for contextual feature tips
+                #if !os(macOS)
+                // TipKit's root quick-action tip is temporarily disabled on macOS
+                // because it can trigger a SwiftUI update loop when switching views.
                 try? Tips.configure([
                     .displayFrequency(.weekly)
                 ])
+                #endif
 
                 // Only bootstrap if the store loaded successfully
                 if AppBootstrapping.initError == nil {

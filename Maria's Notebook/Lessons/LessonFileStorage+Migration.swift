@@ -79,7 +79,7 @@ extension LessonFileStorage {
             // Clean up empty directories in old location
             cleanUpEmptyDirectory(at: oldLocation)
 
-            logger.info("Migration complete: \(migratedCount, privacy: .public) files migrated")
+            logger.info("Migration complete: \(migratedCount) files migrated")
             return migratedCount
 
         } catch {

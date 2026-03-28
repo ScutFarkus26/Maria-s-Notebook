@@ -25,19 +25,13 @@ extension RootSidebar {
     var macOSSidebar: some View {
         List(selection: $selection) {
             Section("Today") {
-                NavigationLink(value: RootView.NavigationItem.today) {
-                    Label("Today", systemImage: SFSymbol.Weather.sun)
-                }
+                sidebarRow(.today, title: "Today", systemImage: SFSymbol.Weather.sun)
 
-                NavigationLink(value: RootView.NavigationItem.todos) {
-                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
-                }
+                sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
             }
 
             Section("Students") {
-                NavigationLink(value: RootView.NavigationItem.students) {
-                    Label("Students", systemImage: SFSymbol.People.person3)
-                }
+                sidebarRow(.students, title: "Students", systemImage: SFSymbol.People.person3)
                 .contextMenu {
                     Button {
                         appRouter.requestNewStudent()
@@ -52,38 +46,24 @@ extension RootSidebar {
                     }
                 }
 
-                NavigationLink(value: RootView.NavigationItem.observationMode) {
-                    Label("Observe", systemImage: "eye")
-                }
+                sidebarRow(.observationMode, title: "Observe", systemImage: "eye")
 
-                NavigationLink(value: RootView.NavigationItem.meetings) {
-                    Label("Meetings", systemImage: SFSymbol.People.person2)
-                }
+                sidebarRow(.meetings, title: "Meetings", systemImage: SFSymbol.People.person2)
 
-                NavigationLink(value: RootView.NavigationItem.goingOut) {
-                    Label("Going Out", systemImage: "figure.walk")
-                }
+                sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
 
             }
 
             Section("Classroom") {
-                NavigationLink(value: RootView.NavigationItem.community) {
-                    Label("Community", systemImage: "bubble.left.and.bubble.right")
-                }
+                sidebarRow(.community, title: "Community", systemImage: "bubble.left.and.bubble.right")
 
-                NavigationLink(value: RootView.NavigationItem.classroomJobs) {
-                    Label("Jobs", systemImage: "person.2.badge.gearshape")
-                }
+                sidebarRow(.classroomJobs, title: "Jobs", systemImage: "person.2.badge.gearshape")
 
-                NavigationLink(value: RootView.NavigationItem.attendance) {
-                    Label("Attendance", systemImage: "checklist")
-                }
+                sidebarRow(.attendance, title: "Attendance", systemImage: "checklist")
             }
 
             Section("Curriculum") {
-                NavigationLink(value: RootView.NavigationItem.lessons) {
-                    Label("Lessons", systemImage: SFSymbol.Education.book)
-                }
+                sidebarRow(.lessons, title: "Lessons", systemImage: SFSymbol.Education.book)
                 .contextMenu {
                     Button {
                         appRouter.requestNewLesson()
@@ -98,17 +78,11 @@ extension RootSidebar {
                     }
                 }
 
-                NavigationLink(value: RootView.NavigationItem.planningChecklist) {
-                    Label("Checklist", systemImage: "list.clipboard")
-                }
+                sidebarRow(.planningChecklist, title: "Checklist", systemImage: "list.clipboard")
 
-                NavigationLink(value: RootView.NavigationItem.planningAgenda) {
-                    Label("Presentations", systemImage: SFSymbol.Time.calendar)
-                }
+                sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
 
-                NavigationLink(value: RootView.NavigationItem.planningWork) {
-                    Label("Open Work", systemImage: "tray.full")
-                }
+                sidebarRow(.planningWork, title: "Open Work", systemImage: "tray.full")
                 .contextMenu {
                     Button {
                         appRouter.requestNewWork()
@@ -117,83 +91,57 @@ extension RootSidebar {
                     }
                 }
 
-                NavigationLink(value: RootView.NavigationItem.cosmicMap) {
-                    Label("Cosmic Map", systemImage: "globe.americas")
-                }
+                sidebarRow(.cosmicMap, title: "Cosmic Map", systemImage: "globe.americas")
 
-                NavigationLink(value: RootView.NavigationItem.needsLesson) {
-                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
-                }
+                sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
 
-                NavigationLink(value: RootView.NavigationItem.planningProjects) {
-                    Label("Projects", systemImage: SFSymbol.Document.folder)
-                }
+                sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.Document.folder)
             }
 
             Section("Progress") {
-                NavigationLink(value: RootView.NavigationItem.planningProgression) {
-                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
-                }
+                sidebarRow(.planningProgression, title: "Progression", systemImage: SFSymbol.Chart.chartLine)
 
-                NavigationLink(value: RootView.NavigationItem.progressDashboard) {
-                    Label("Progress Dashboard", systemImage: "person.text.rectangle")
-                }
+                sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
 
-                NavigationLink(value: RootView.NavigationItem.lessonFrequency) {
-                    Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
-                }
+                sidebarRow(.lessonFrequency, title: "Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
 
-                NavigationLink(value: RootView.NavigationItem.curriculumBalance) {
-                    Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
-                }
+                sidebarRow(.curriculumBalance, title: "Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
 
-                NavigationLink(value: RootView.NavigationItem.transitionPlanner) {
-                    Label("Transitions", systemImage: "arrow.right.arrow.left")
-                }
+                sidebarRow(.transitionPlanner, title: "Transitions", systemImage: "arrow.right.arrow.left")
             }
 
             Section("Resources") {
-                NavigationLink(value: RootView.NavigationItem.resourceLibrary) {
-                    Label("Resources", systemImage: "tray.2")
-                }
+                sidebarRow(.resourceLibrary, title: "Resources", systemImage: "tray.2")
 
-                NavigationLink(value: RootView.NavigationItem.supplies) {
-                    Label("Supplies", systemImage: "shippingbox")
-                }
+                sidebarRow(.supplies, title: "Supplies", systemImage: "shippingbox")
 
-                NavigationLink(value: RootView.NavigationItem.procedures) {
-                    Label("Procedures", systemImage: SFSymbol.Document.docText)
-                }
+                sidebarRow(.procedures, title: "Procedures", systemImage: SFSymbol.Document.docText)
 
-                NavigationLink(value: RootView.NavigationItem.schedules) {
-                    Label("Schedules", systemImage: "clock.badge.checkmark")
-                }
+                sidebarRow(.schedules, title: "Schedules", systemImage: "clock.badge.checkmark")
 
-                NavigationLink(value: RootView.NavigationItem.perpetualCalendar) {
-                    Label("Calendar", systemImage: "calendar.day.timeline.leading")
-                }
+                sidebarRow(.perpetualCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading")
 
-                NavigationLink(value: RootView.NavigationItem.issues) {
-                    Label("Issues", systemImage: "exclamationmark.triangle")
-                }
+                sidebarRow(.issues, title: "Issues", systemImage: "exclamationmark.triangle")
             }
 
             Section("Tools") {
-                NavigationLink(value: RootView.NavigationItem.askAI) {
-                    Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
-                }
+                sidebarRow(.askAI, title: "Ask AI", systemImage: "bubble.left.and.text.bubble.right")
             }
 
             Section("System") {
-                NavigationLink(value: RootView.NavigationItem.logs) {
-                    Label("Logs", systemImage: SFSymbol.List.list)
-                }
-                NavigationLink(value: RootView.NavigationItem.settings) {
-                    Label("Settings", systemImage: SFSymbol.Settings.gear)
-                }
+                sidebarRow(.logs, title: "Logs", systemImage: SFSymbol.List.list)
+                sidebarRow(.settings, title: "Settings", systemImage: SFSymbol.Settings.gear)
             }
         }
         .listStyle(.sidebar)
+    }
+    #endif
+
+    #if os(macOS)
+    private func sidebarRow(_ item: RootView.NavigationItem, title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .contentShape(Rectangle())
+            .tag(item)
     }
     #endif
 

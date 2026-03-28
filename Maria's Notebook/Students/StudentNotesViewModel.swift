@@ -108,14 +108,6 @@ final class StudentNotesViewModel {
         }
     }
 
-    // MARK: - Helpers
-
-    func note(by id: UUID) -> Note? {
-        let d = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.id == id }
-        )
-        return modelContext.safeFetchFirst(d)
-    }
 }
 
 // MARK: - Note Source Fetchers

@@ -69,7 +69,7 @@ final class OllamaClient: MCPClientProtocol {
     /// - Parameter name: The model identifier (e.g., "llama3.2", "mistral").
     /// - Returns: A stream of `OllamaPullProgress` values, ending on success or throwing on failure.
     func pullModel(name: String) -> AsyncThrowingStream<OllamaPullProgress, Error> {
-        AsyncThrowingStream { continuation in
+        AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
             let task = Task { [baseURL, session] in
                 do {
                     let request = try OllamaClient.buildPullRequest(for: name, baseURL: baseURL)

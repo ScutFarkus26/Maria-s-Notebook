@@ -13,13 +13,16 @@ extension TodayView {
     var todosListSection: some View {
         let selectedDay = AppCalendar.startOfDay(viewModel.date)
         let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
+        // PERFORMANCE: Cache todayTodos once — the computed property previously ran
+        // its filter+sort on every access (5 times per body evaluation).
+        let todos = todayTodos
 
         return Section {
-            if todayTodos.isEmpty {
+            if todos.isEmpty {
                 emptyStateText("No todos for today")
             } else {
                 // Overdue todos (deadline before the selected day)
-                let overdue = todayTodos.filter { todo in
+                let overdue = todos.filter { todo in
                     guard let dueDate = todo.dueDate else { return false }
                     return dueDate < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay)
                 }
@@ -54,7 +57,7 @@ extension TodayView {
                     }
                 }
                 // Scheduled or due on selected day
-                let dueOnDay = todayTodos.filter { todo in
+                let dueOnDay = todos.filter { todo in
                     let isOverdue = todo.dueDate.map {
                         $0 < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay)
                     } ?? false
@@ -92,7 +95,7 @@ extension TodayView {
                 // High priority without a date on the selected day
                 let overdueIDs = Set(overdue.map(\.id))
                 let dueOnDayIDs = Set(dueOnDay.map(\.id))
-                let highPriority = todayTodos.filter { todo in
+                let highPriority = todos.filter { todo in
                     !overdueIDs.contains(todo.id) && !dueOnDayIDs.contains(todo.id)
                 }
                 if !highPriority.isEmpty {
@@ -121,12 +124,12 @@ extension TodayView {
                 }
             }
         } header: {
-            todosSectionHeader
+            todosSectionHeader(count: todos.count)
         }
     }
 
     @ViewBuilder
-    var todosSectionHeader: some View {
+    func todosSectionHeader(count: Int) -> some View {
         HStack {
             Text("Todos")
                 .font(AppTheme.ScaledFont.caption)
@@ -135,7 +138,6 @@ extension TodayView {
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
-            let count = todayTodos.count
             if count > 0 {
                 Text("\(count)")
                     .font(AppTheme.ScaledFont.captionSmallSemibold)

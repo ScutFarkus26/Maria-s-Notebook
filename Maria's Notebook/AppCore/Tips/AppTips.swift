@@ -6,6 +6,8 @@ import TipKit
 
 /// Tip shown near the floating quick-note button
 struct QuickNoteTip: Tip {
+    var id: String { "quick-note-tip" }
+
     var title: Text {
         Text("Quick Actions")
     }
@@ -21,6 +23,8 @@ struct QuickNoteTip: Tip {
 
 /// Tip shown on the Today view to encourage pull-to-refresh
 struct PullToRefreshTip: Tip {
+    var id: String { "pull-to-refresh-tip" }
+
     var title: Text {
         Text("Pull to Refresh")
     }
@@ -36,6 +40,8 @@ struct PullToRefreshTip: Tip {
 
 /// macOS-only tip for keyboard shortcuts
 struct KeyboardShortcutsTip: Tip {
+    var id: String { "keyboard-shortcuts-tip" }
+
     var title: Text {
         Text("Keyboard Shortcuts")
     }
@@ -51,6 +57,8 @@ struct KeyboardShortcutsTip: Tip {
 
 /// Tip shown in the work detail view explaining the lifecycle
 struct WorkLifecycleTip: Tip {
+    var id: String { "work-lifecycle-tip" }
+
     var title: Text {
         Text("Work Lifecycle")
     }

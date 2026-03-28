@@ -66,7 +66,7 @@ struct BirthdayStudentCard: View {
             }
             .padding(14)
         }
-        .drawingGroup()
+        .studentCardRasterization()
     }
 
     // MARK: - Prominent headline badges

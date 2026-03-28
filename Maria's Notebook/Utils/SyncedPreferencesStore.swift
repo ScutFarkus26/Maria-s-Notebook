@@ -19,9 +19,9 @@ import UIKit
 public final class SyncedPreferencesStore {
     public static let shared = SyncedPreferencesStore()
 
-    private let kvStore = NSUbiquitousKeyValueStore.default
-    private let userDefaults = UserDefaults.standard
-    private let logger = Logger.app(category: "SyncedPreferences")
+    let kvStore = NSUbiquitousKeyValueStore.default
+    let userDefaults = UserDefaults.standard
+    let logger = Logger.app(category: "SyncedPreferences")
 
     // MARK: - Quota Monitoring
 
@@ -38,7 +38,7 @@ public final class SyncedPreferencesStore {
     public private(set) var isQuotaViolation: Bool = false
     
     /// Keys that should sync across devices
-    private static let syncedKeys: Set<String> = [
+    static let syncedKeys: Set<String> = [
         // Attendance Email
         "AttendanceEmail.enabled",
         "AttendanceEmail.to",
@@ -63,7 +63,7 @@ public final class SyncedPreferencesStore {
     ]
     
     /// Key prefixes that should sync across devices (for dynamic keys like per-date locks)
-    private static let syncedKeyPrefixes: [String] = [
+    static let syncedKeyPrefixes: [String] = [
         "Attendance.locked."
     ]
     
@@ -109,55 +109,6 @@ public final class SyncedPreferencesStore {
         if let observer = lifecycleObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-    }
-    
-    // MARK: - Migration
-    
-    /// Migrates preferences from UserDefaults to KVS if not already migrated
-    private func migrateFromUserDefaultsIfNeeded() {
-        let migrationKey = "SyncedPreferencesMigrated"
-        guard !userDefaults.bool(forKey: migrationKey) else {
-            return // Already migrated
-        }
-        
-        logger.info("Migrating preferences from UserDefaults to iCloud Key-Value Storage...")
-        var migratedCount = 0
-        
-        // Migrate exact keys
-        for key in Self.syncedKeys {
-            // Check if value exists in UserDefaults but not in KVS
-            if let value = userDefaults.object(forKey: key), kvStore.object(forKey: key) == nil {
-                kvStore.set(value, forKey: key)
-                migratedCount += 1
-                logger.debug("Migrated key: \(key)")
-            }
-        }
-        
-        // Migrate prefix-based keys (e.g., attendance lock keys)
-        let allUserDefaultsKeys = userDefaults.dictionaryRepresentation().keys
-        for key in allUserDefaultsKeys {
-            // Check if this key matches any synced prefix
-            for prefix in Self.syncedKeyPrefixes where key.hasPrefix(prefix) {
-                // Check if value exists in UserDefaults but not in KVS
-                if let value = userDefaults.object(forKey: key), kvStore.object(forKey: key) == nil {
-                    kvStore.set(value, forKey: key)
-                    migratedCount += 1
-                    logger.debug("Migrated key: \(key)")
-                }
-                break
-            }
-        }
-        
-        if migratedCount > 0 {
-            let synced = kvStore.synchronize()
-            if synced {
-                logger.info("Successfully migrated \(migratedCount) preferences to iCloud Key-Value Storage")
-            } else {
-                logger.error("Failed to sync migrated preferences to iCloud")
-            }
-        }
-        
-        userDefaults.set(true, forKey: migrationKey)
     }
     
     // MARK: - External Change Observation

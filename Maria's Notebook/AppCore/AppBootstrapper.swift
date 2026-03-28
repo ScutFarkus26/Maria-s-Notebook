@@ -96,7 +96,12 @@ final class AppBootstrapper {
         state = .ready
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
+        // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.
+        // Without this delay, background DB operations compete with @Query evaluations
+        // and TodayViewModel.reload() for the persistent store coordinator, causing the
+        // main thread to block in AG::Subgraph::update() (spinning beach ball).
         Task.detached(priority: .utility) { [modelContainer] in
+            try? await Task.sleep(for: .seconds(3))
             await AppBootstrapper.runPostLaunchMigrations(modelContainer: modelContainer)
         }
     }

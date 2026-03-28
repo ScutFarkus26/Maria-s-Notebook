@@ -10,7 +10,9 @@
 import SwiftUI
 import SwiftData
 import OSLog
+#if !os(macOS)
 import TipKit
+#endif
 
 extension UUID: @retroactive Identifiable {
     public var id: UUID { self }
@@ -29,7 +31,9 @@ struct RootView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
+    #if !os(macOS)
     private let quickNoteTip = QuickNoteTip()
+    #endif
     @State private var isShowingQuickNote = false
     @State private var isShowingCommandBar = false
     @State private var newPresentationDraftID: UUID?
@@ -37,6 +41,7 @@ struct RootView: View {
     @State private var isShowingRecordPractice = false
     @State private var isShowingNewTodo = false
     @State private var workDetailIDToOpen: UUID?
+    @State private var selectedNavItem: NavigationItem = .today
 
     // Command bar pre-population state
     @State private var commandBarNoteStudentID: UUID?
@@ -57,7 +62,7 @@ struct RootView: View {
     }
 
     // MARK: - Computed
-    private var selectedNavItem: NavigationItem {
+    private func resolvedPersistedNavItem() -> NavigationItem {
         if let raw = selectedNavItemRaw, let item = NavigationItem(rawValue: raw) {
             return item
         }
@@ -87,17 +92,22 @@ struct RootView: View {
             Divider()
             mainContent
         }
-        .onAppear(perform: handleMigration)
+        .onAppear(perform: restoreSelectionIfNeeded)
+        .onChange(of: selectedNavItem) { _, item in
+            persistSelection(item)
+        }
         .onChange(of: appRouter.navigationDestination, handleNavigationDestinationChange)
         .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
         .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
         .saveErrorAlert()
-        .toastOverlay(ToastService.shared)
+        .toastOverlay(dependencies.toastService)
+        #if !os(macOS)
         .overlay(alignment: .bottom) {
             TipView(quickNoteTip, arrowEdge: .bottom)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 80)
         }
+        #endif
         .overlay(alignment: .bottomTrailing) {
             QuickNoteGlassButton(
                 isShowingCommandBar: $isShowingCommandBar,
@@ -258,10 +268,7 @@ struct RootView: View {
     @ViewBuilder
     private var mainContent: some View {
         #if os(iOS)
-        RootAdaptiveTabs(selectedNavItem: Binding(
-            get: { selectedNavItem },
-            set: { selectedNavItemRaw = $0.rawValue }
-        ))
+        RootAdaptiveTabs(selectedNavItem: $selectedNavItem)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         #else
         splitViewContent
@@ -271,53 +278,29 @@ struct RootView: View {
 
     private var splitViewContent: some View {
         NavigationSplitView {
-            RootSidebar(selection: Binding(
-                get: { selectedNavItem },
-                set: { selectedNavItemRaw = $0.rawValue }
-            ))
+            RootSidebar(selection: $selectedNavItem)
             .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } detail: {
             RootDetailContent(selectedNavItem: selectedNavItem)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationDestination(for: RootView.NavigationItem.self) { item in
-                    RootDetailContent(selectedNavItem: item)
-                }
         }
     }
 
     // MARK: - Event Handlers
 
     // swiftlint:disable:next cyclomatic_complexity
-    private func handleMigration() {
-        guard self.selectedNavItemRaw == nil, let legacyRaw = self.selectedTabRaw else { return }
-
-        var targetItem: RootView.NavigationItem?
-
-        if legacyRaw == "Lesson Planning" {
-            targetItem = .planningAgenda
-        } else if legacyRaw == "Work Planning" || legacyRaw == "Work" {
-            targetItem = .planningWork
-        } else if let legacyTab = RootView.Tab(rawValue: legacyRaw) {
-            if let navItem = RootView.NavigationItem(fromLegacyTab: legacyTab) {
-                if legacyTab == .planning {
-                    if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
-                        switch modeRaw {
-                        case "Open Work": targetItem = .planningWork
-                        case "Projects": targetItem = .planningProjects
-                        case "Checklist": targetItem = .planningChecklist
-                        default: targetItem = .planningAgenda
-                        }
-                    } else {
-                        targetItem = .planningAgenda
-                    }
-                } else {
-                    targetItem = navItem
-                }
-            }
+    private func restoreSelectionIfNeeded() {
+        let persistedSelection = resolvedPersistedNavItem()
+        if selectedNavItem != persistedSelection {
+            selectedNavItem = persistedSelection
         }
+        persistSelection(persistedSelection)
+    }
 
-        if let target = targetItem {
-            self.selectedNavItemRaw = target.rawValue
+    private func persistSelection(_ item: RootView.NavigationItem) {
+        let newValue = item.rawValue
+        if selectedNavItemRaw != newValue {
+            selectedNavItemRaw = newValue
         }
     }
 
@@ -326,9 +309,8 @@ struct RootView: View {
         _ destination: AppRouter.NavigationDestination?
     ) {
         if case .openAttendance = destination {
-            let newValue = RootView.NavigationItem.attendance.rawValue
-            if self.selectedNavItemRaw != newValue {
-                self.selectedNavItemRaw = newValue
+            if selectedNavItem != .attendance {
+                selectedNavItem = .attendance
             }
             self.appRouter.clearNavigation()
         }
@@ -336,9 +318,8 @@ struct RootView: View {
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
         if let item {
-            let newValue = item.rawValue
-            if self.selectedNavItemRaw != newValue {
-                self.selectedNavItemRaw = newValue
+            if selectedNavItem != item {
+                selectedNavItem = item
             }
             self.appRouter.selectedNavItem = nil
         }
@@ -352,8 +333,8 @@ struct RootView: View {
         } else {
             newValue = navItem.rawValue
         }
-        if self.selectedNavItemRaw != newValue {
-            self.selectedNavItemRaw = newValue
+        if let item = RootView.NavigationItem(rawValue: newValue), selectedNavItem != item {
+            selectedNavItem = item
         }
         self.appRouter.selectedTab = nil
     }

@@ -383,3 +383,73 @@ extension AnthropicAPIClient {
         return cleaned
     }
 }
+
+// MARK: - API Key Management
+
+extension AnthropicAPIClient {
+
+    private static func loadAPIKey() -> String {
+        // Try UserDefaults first (easiest for users to configure)
+        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+            return key
+        }
+        return ""
+    }
+
+    /// Save API key to UserDefaults
+    static func saveAPIKey(_ key: String) {
+        UserDefaults.standard.set(key, forKey: "anthropicAPIKey")
+    }
+
+    /// Check if API key is configured
+    static func hasAPIKey() -> Bool {
+        let key = loadAPIKey()
+        return !key.isEmpty && (key.hasPrefix("sk-ant-api03-") || key.hasPrefix("sk-ant-"))
+    }
+
+    /// Clear saved API key
+    static func clearAPIKey() {
+        UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+    }
+
+    struct ClaudeRequestConfig {
+        let model: String
+        let maxTokens: Int
+        let temperature: Double
+        let timeout: TimeInterval
+        let stream: Bool
+
+        init(
+            model: String, maxTokens: Int, temperature: Double,
+            timeout: TimeInterval, stream: Bool = false
+        ) {
+            self.model = model; self.maxTokens = maxTokens; self.temperature = temperature
+            self.timeout = timeout; self.stream = stream
+        }
+    }
+}
+
+// MARK: - Errors
+
+enum AnthropicAPIError: Error, LocalizedError {
+    case noAPIKey
+    case invalidResponse
+    case invalidResponseFormat
+    case invalidJSON(String)
+    case apiError(statusCode: Int, message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .noAPIKey:
+            return "Anthropic API key not configured. Please add your API key in Settings."
+        case .invalidResponse:
+            return "Invalid response from Anthropic API"
+        case .invalidResponseFormat:
+            return "Unexpected response format from Anthropic API"
+        case .invalidJSON(let json):
+            return "Claude returned invalid JSON: \(json.prefix(100))..."
+        case .apiError(let statusCode, let message):
+            return "Anthropic API error (\(statusCode)): \(message)"
+        }
+    }
+}

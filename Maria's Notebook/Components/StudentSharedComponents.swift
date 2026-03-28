@@ -193,10 +193,17 @@ struct BobbingAnimationModifier: ViewModifier {
     }
 
     private var isAnimating: Bool {
+        #if os(macOS)
+        false
+        #else
         scenePhase == .active
+        #endif
     }
 
     func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+        #else
         content
             .offset(y: bob ? -offset : offset)
             .adaptiveAnimation(
@@ -215,6 +222,7 @@ struct BobbingAnimationModifier: ViewModifier {
                     }
                 }
             }
+        #endif
     }
 }
 
@@ -222,6 +230,17 @@ extension View {
     /// Applies a bobbing animation that respects scene phase for energy efficiency
     func bobbingAnimation(bob: Binding<Bool>, duration: Double = 1.6, offset: CGFloat = 2) -> some View {
         modifier(BobbingAnimationModifier(bob: bob, duration: duration, offset: offset))
+    }
+
+    /// Avoid offscreen rasterization on macOS where the student card grids can
+    /// create sustained RenderBox pressure during navigation and layout.
+    @ViewBuilder
+    func studentCardRasterization() -> some View {
+        #if os(macOS)
+        self
+        #else
+        self.drawingGroup()
+        #endif
     }
 }
 

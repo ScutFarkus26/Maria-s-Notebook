@@ -4,7 +4,7 @@ import OSLog
 
 // swiftlint:disable type_body_length
 public enum LessonFileStorage {
-    private static let logger = Logger.lessons
+    static let logger = Logger.lessons
 
     // MARK: - Result Types
 
@@ -452,116 +452,5 @@ public enum LessonFileStorage {
 
         return sanitized
     }
-    
-    // MARK: - Migration
-    
-    // swiftlint:disable cyclomatic_complexity function_body_length
-    /// Migrates files from the old private iCloud container location to the new public iCloud Drive location.
-    /// This should be called once during app startup to move existing files to the user-visible location.
-    /// - Returns: Number of files migrated, or nil if no migration was needed
-    @discardableResult
-    public static func migrateToICloudDrive() -> Int? {
-        let fm = FileManager.default
-        
-        // Get the old location (private container - iCloud~AppID~/Documents/Lesson Files/)
-        guard let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) else {
-            logger.warning("No iCloud container available for migration")
-            return nil
-        }
-        
-        let oldLocation = ubiquityURL
-            .appendingPathComponent("Documents", isDirectory: true)
-            .appendingPathComponent("Lesson Files", isDirectory: true)
-        
-        // Check if old location exists and has files
-        guard fm.fileExists(atPath: oldLocation.path) else {
-            logger.info("No old files to migrate")
-            return nil
-        }
-        
-        do {
-            // Get the new location (public iCloud Drive)
-            let newLocation = try lessonFilesDirectory()
-            
-            // Check if they're the same (migration already done or not needed)
-            if oldLocation.standardizedFileURL == newLocation.standardizedFileURL {
-                logger.info("Already using new location, no migration needed")
-                return nil
-            }
-            
-            logger.info("Starting migration from old: \(oldLocation.path) to new: \(newLocation.path)")
-            
-            // Get all items in old location (recursively to handle Subject/Group folders)
-            let contents = try fm.contentsOfDirectory(
-                at: oldLocation,
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: []
-            )
-            var migratedCount = 0
-            
-            for oldItemURL in contents {
-                let itemName = oldItemURL.lastPathComponent
-                let newItemURL = newLocation.appendingPathComponent(itemName)
-                
-                // Skip .DS_Store files
-                if itemName == ".DS_Store" {
-                    continue
-                }
-                
-                // Check if it's a directory or file
-                let resourceValues = try oldItemURL.resourceValues(forKeys: [.isDirectoryKey])
-                let isDirectory = resourceValues.isDirectory ?? false
-                
-                if isDirectory {
-                    // Recursively migrate directory contents
-                    if !fm.fileExists(atPath: newItemURL.path) {
-                        try fm.createDirectory(at: newItemURL, withIntermediateDirectories: true)
-                    }
-                    
-                    let subContents = try fm.contentsOfDirectory(at: oldItemURL, includingPropertiesForKeys: nil)
-                    for subItemURL in subContents {
-                        let subItemName = subItemURL.lastPathComponent
-                        if subItemName == ".DS_Store" { continue }
-                        
-                        let newSubItemURL = newItemURL.appendingPathComponent(subItemName)
-                        if !fm.fileExists(atPath: newSubItemURL.path) {
-                            try fm.moveItem(at: subItemURL, to: newSubItemURL)
-                            logger.info("Migrated: \(itemName)/\(subItemName)")
-                            migratedCount += 1
-                        }
-                    }
-                } else {
-                    // Move file
-                    if !fm.fileExists(atPath: newItemURL.path) {
-                        try fm.moveItem(at: oldItemURL, to: newItemURL)
-                        logger.info("Migrated: \(itemName)")
-                        migratedCount += 1
-                    } else {
-                        logger.info("Skipping \(itemName) - already exists at destination")
-                    }
-                }
-            }
-            
-            // Clean up empty directories in old location
-            let remainingContents = try fm.contentsOfDirectory(at: oldLocation, includingPropertiesForKeys: nil)
-            let nonDSStoreContents = remainingContents.filter { $0.lastPathComponent != ".DS_Store" }
-            if nonDSStoreContents.isEmpty {
-                do {
-                    try fm.removeItem(at: oldLocation)
-                    logger.info("Removed empty old location")
-                } catch {
-                    logger.warning("Failed to remove old location: \(error)")
-                }
-            }
-            
-            logger.info("Migration complete: \(migratedCount, privacy: .public) files migrated")
-            return migratedCount
-            
-        } catch {
-            logger.error("Migration failed: \(error)")
-            return nil
-        }
-    }
-    // swiftlint:enable cyclomatic_complexity function_body_length
 }
 // swiftlint:enable type_body_length

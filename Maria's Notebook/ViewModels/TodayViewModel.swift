@@ -153,8 +153,10 @@ final class TodayViewModel {
         self.context = context
         self.calendar = calendar
         AppCalendar.adopt(timeZoneFrom: calendar)
+        // Set date without triggering didSet (which would call scheduleReload)
+        // The initial reload is deferred to handleViewAppear() via .task to avoid
+        // competing with SwiftUI's initial body evaluation for the store coordinator.
         self.date = date.startOfDay
-        scheduleReload()
 
         // Clean up old agenda order entries in the background
         let ctx = context

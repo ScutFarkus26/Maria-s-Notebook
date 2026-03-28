@@ -61,7 +61,7 @@ struct DefaultStudentCard: View {
                 )
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
-        .drawingGroup()
+        .studentCardRasterization()
     }
 }
 
@@ -178,7 +178,7 @@ struct AgeStudentCard: View {
             .padding(14)
         }
         .frame(minHeight: 100)
-        .drawingGroup()
+        .studentCardRasterization()
         .accessibilityElement(children: .combine)
     }
 }

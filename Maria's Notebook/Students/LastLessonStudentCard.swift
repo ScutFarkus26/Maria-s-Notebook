@@ -151,7 +151,7 @@ struct LastLessonStudentCard: View {
             .padding(14)
         }
         .frame(minHeight: 100)
-        .drawingGroup()
+        .studentCardRasterization()
         .accessibilityElement(children: .combine)
     }
 }

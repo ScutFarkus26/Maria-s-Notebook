@@ -12,7 +12,7 @@ import OSLog
 @Observable
 @MainActor
 public final class CloudBackupService {
-    private static let logger = Logger.backup
+    static let logger = Logger.backup
 
     // MARK: - Types
 
@@ -106,6 +106,23 @@ public final class CloudBackupService {
         static let scheduleConfig = "CloudBackup.scheduleConfig"
     }
 
+    // MARK: - Validation Helpers
+
+    /// Ensures iCloud is available, throwing if not
+    func requireICloudAvailable() throws {
+        guard isICloudAvailable else {
+            throw BackupOperationError.cloudOperationFailed(.iCloudNotAvailable)
+        }
+    }
+
+    /// Returns the cloud backup directory URL, throwing if not available
+    func requireCloudDirectory() throws -> URL {
+        guard let cloudDir = cloudBackupDirectory else {
+            throw BackupOperationError.cloudOperationFailed(.containerNotFound)
+        }
+        return cloudDir
+    }
+
     // MARK: - Public API
 
     /// Checks if iCloud Drive is available
@@ -177,211 +194,6 @@ public final class CloudBackupService {
             return destinationURL
         } catch {
             throw BackupOperationError.cloudOperationFailed(.uploadFailed(underlying: error))
-        }
-    }
-
-    // Lists all backups available in iCloud Drive
-    // - Returns: Array of cloud backup info sorted by date (newest first)
-    // swiftlint:disable:next function_body_length
-    public func listCloudBackups() async throws -> [CloudBackupInfo] {
-        guard isICloudAvailable else {
-            throw BackupOperationError.cloudOperationFailed(.iCloudNotAvailable)
-        }
-
-        guard let cloudDir = cloudBackupDirectory else {
-            throw BackupOperationError.cloudOperationFailed(.containerNotFound)
-        }
-
-        // Ensure directory exists
-        if !fileManager.fileExists(atPath: cloudDir.path) {
-            return []
-        }
-
-        let resourceKeys: Set<URLResourceKey> = [
-            .nameKey,
-            .fileSizeKey,
-            .creationDateKey,
-            .contentModificationDateKey,
-            .ubiquitousItemDownloadingStatusKey,
-            .ubiquitousItemIsUploadingKey,
-            .ubiquitousItemIsDownloadingKey
-        ]
-
-        let enumerator = fileManager.enumerator(
-            at: cloudDir,
-            includingPropertiesForKeys: Array(resourceKeys),
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
-        )
-        guard let enumerator else {
-            return []
-        }
-
-        var backups: [CloudBackupInfo] = []
-
-        // Collect URLs first to avoid makeIterator() in async context (Swift 6 requirement)
-        let fileURLs = enumerator.allObjects.compactMap { $0 as? URL }
-
-        for fileURL in fileURLs {
-            guard fileURL.pathExtension == BackupFile.fileExtension else { continue }
-
-            let resourceValues: URLResourceValues
-            do {
-                resourceValues = try fileURL.resourceValues(forKeys: resourceKeys)
-            } catch {
-                let name = fileURL.lastPathComponent
-                let desc = error.localizedDescription
-                Self.logger.warning("Resource values failed for \(name, privacy: .public): \(desc, privacy: .public)")
-                continue
-            }
-
-            // Check download status using the downloading status key
-            let downloadStatus = resourceValues.ubiquitousItemDownloadingStatus
-            let isDownloaded = downloadStatus == .current || downloadStatus == nil
-
-            let info = CloudBackupInfo(
-                id: UUID(),
-                fileName: resourceValues.name ?? fileURL.lastPathComponent,
-                fileURL: fileURL,
-                fileSize: Int64(resourceValues.fileSize ?? 0),
-                createdAt: resourceValues.creationDate ?? Date.distantPast,
-                modifiedAt: resourceValues.contentModificationDate ?? Date.distantPast,
-                isDownloaded: isDownloaded,
-                isUploading: resourceValues.ubiquitousItemIsUploading ?? false,
-                isDownloading: resourceValues.ubiquitousItemIsDownloading ?? false
-            )
-            backups.append(info)
-        }
-
-        // Sort by modification date (newest first)
-        return backups.sorted { $0.modifiedAt > $1.modifiedAt }
-    }
-
-    // Downloads a backup from iCloud if not already downloaded
-    // - Parameter backup: The backup to download
-    // - Returns: The local URL once downloaded
-    // swiftlint:disable:next function_body_length
-    public func downloadBackupIfNeeded(_ backup: CloudBackupInfo) async throws -> URL {
-        guard isICloudAvailable else {
-            throw BackupOperationError.cloudOperationFailed(.iCloudNotAvailable)
-        }
-
-        if backup.isDownloaded {
-            return backup.fileURL
-        }
-
-        // Start download
-        try fileManager.startDownloadingUbiquitousItem(at: backup.fileURL)
-
-        // Use NSFileCoordinator to wait for the file to be available
-        // Modernized using structured concurrency with timeout support
-        return try await withThrowingTaskGroup(of: URL.self) { group in
-            // Add the file coordination task
-            group.addTask {
-                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
-                    // NSFileCoordinator still requires blocking, so run on cooperative thread pool
-                    Task.detached(priority: .userInitiated) {
-                        let coordinator = NSFileCoordinator()
-                        var coordinatorError: NSError?
-
-                        // Use actor for thread-safe single resumption
-                        actor ResumeTracker {
-                            var hasResumed = false
-
-                            func tryResume(with result: Result<URL, Error>) -> Bool {
-                                guard !hasResumed else { return false }
-                                hasResumed = true
-                                return true
-                            }
-                        }
-
-                        let tracker = ResumeTracker()
-
-                        coordinator.coordinate(
-                            readingItemAt: backup.fileURL,
-                            options: [.withoutChanges],
-                            error: &coordinatorError
-                        ) { url in
-                            Task {
-                                // Check download status one final time
-                                do {
-                                    let resourceValues = try url.resourceValues(
-                                        forKeys: [.ubiquitousItemDownloadingStatusKey]
-                                    )
-                                    if resourceValues.ubiquitousItemDownloadingStatus == .current ||
-                                       resourceValues.ubiquitousItemDownloadingStatus == nil {
-                                        if await tracker.tryResume(with: .success(url)) {
-                                            continuation.resume(returning: url)
-                                        }
-                                    } else {
-                                        let dlError = NSError(
-                                            domain: "CloudBackup", code: 404,
-                                            userInfo: [
-                                                NSLocalizedDescriptionKey:
-                                                    "File '\(backup.fileName)' not downloaded"
-                                            ]
-                                        )
-                                        let error = BackupOperationError.cloudOperationFailed(
-                                            .downloadFailed(underlying: dlError)
-                                        )
-                                        if await tracker.tryResume(with: .failure(error)) {
-                                            continuation.resume(throwing: error)
-                                        }
-                                    }
-                                } catch {
-                                    let wrappedError = BackupOperationError.cloudOperationFailed(
-                                        .downloadFailed(underlying: error)
-                                    )
-                                    if await tracker.tryResume(with: .failure(wrappedError)) {
-                                        continuation.resume(throwing: wrappedError)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Handle coordination error
-                        if let error = coordinatorError {
-                            Task {
-                                let wrappedErr = BackupOperationError.cloudOperationFailed(
-                                    .downloadFailed(underlying: error)
-                                )
-                                if await tracker.tryResume(with: .failure(wrappedErr)) {
-                                    continuation.resume(throwing: wrappedErr)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Add timeout task using structured concurrency
-            group.addTask {
-                try await Task.sleep(for: .seconds(60))
-                let timeoutError = NSError(
-                    domain: "CloudBackup", code: 408,
-                    userInfo: [
-                        NSLocalizedDescriptionKey:
-                            "Download timed out for '\(backup.fileName)'"
-                    ]
-                )
-                throw BackupOperationError.cloudOperationFailed(
-                    .downloadFailed(underlying: timeoutError)
-                )
-            }
-
-            // Return the first result (either success or timeout)
-            guard let result = try await group.next() else {
-                let noResultError = NSError(
-                    domain: "CloudBackup", code: 500,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: "No task result available"
-                    ]
-                )
-                throw BackupOperationError.cloudOperationFailed(
-                    .downloadFailed(underlying: noResultError)
-                )
-            }
-            group.cancelAll() // Cancel the other task
-            return result
         }
     }
 
