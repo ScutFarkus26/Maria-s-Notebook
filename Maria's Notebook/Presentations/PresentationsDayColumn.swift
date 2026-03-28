@@ -217,7 +217,7 @@ struct PresentationsDayColumn: View {
     }
 
     private struct PillFramePreference: PreferenceKey {
-        nonisolated(unsafe) static var defaultValue: [UUID: CGRect] = [:]
+        static let defaultValue: [UUID: CGRect] = [:]
         static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
             value.merge(nextValue(), uniquingKeysWith: { $1 })
         }

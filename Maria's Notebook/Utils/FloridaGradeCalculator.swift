@@ -35,17 +35,17 @@ enum GradeResult: Equatable {
 
 /// Grade calculation helpers with configurable constants for school-year boundaries.
 /// All functions are pure computations.
-struct FloridaGradeCalculator {
+struct FloridaGradeCalculator: Sendable {
     // MARK: - Configuration
 
     /// Month of the school year start (default: September)
-    nonisolated(unsafe) static var schoolStartMonth: Int = 9
+    static let schoolStartMonth = 9
     /// Day of the school year start (default: 1st)
-    nonisolated(unsafe) static var schoolStartDay: Int = 1
+    static let schoolStartDay = 1
     /// Minimum age (in whole years) on/before school start to be 1st grade (default: 6)
-    nonisolated(unsafe) static var minimumFirstGradeAge: Int = 6
+    static let minimumFirstGradeAge = 6
     /// Ages at or above this threshold are considered "Graduated" (default: 12)
-    nonisolated(unsafe) static var graduatedAgeThreshold: Int = 12
+    static let graduatedAgeThreshold = 12
 
     // MARK: - Helpers
 

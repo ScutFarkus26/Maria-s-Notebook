@@ -260,7 +260,7 @@ struct StudentsCardsGridView: View {
 
 // MARK: - Preferences
 private struct ItemFramePreference: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: [UUID: CGRect] = [:]
+    static let defaultValue: [UUID: CGRect] = [:]
     static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
