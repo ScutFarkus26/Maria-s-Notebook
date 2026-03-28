@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - API Usage Tracker
 
@@ -6,6 +7,7 @@ import Foundation
 /// Stores entries in UserDefaults as JSON.
 @Observable @MainActor
 final class APIUsageTracker {
+    private static let logger = Logger.ai
     static let shared = APIUsageTracker()
 
     struct UsageEntry: Codable, Sendable {
@@ -94,15 +96,20 @@ final class APIUsageTracker {
     // MARK: - Persistence
 
     private func loadEntries() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let decoded = try? JSONDecoder().decode([UsageEntry].self, from: data) else {
-            return
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return }
+        do {
+            entries = try JSONDecoder().decode([UsageEntry].self, from: data)
+        } catch {
+            Self.logger.warning("Failed to decode API usage entries: \(error.localizedDescription)")
         }
-        entries = decoded
     }
 
     private func saveEntries() {
-        guard let data = try? JSONEncoder().encode(entries) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        do {
+            let data = try JSONEncoder().encode(entries)
+            UserDefaults.standard.set(data, forKey: storageKey)
+        } catch {
+            Self.logger.warning("Failed to encode API usage entries: \(error.localizedDescription)")
+        }
     }
 }

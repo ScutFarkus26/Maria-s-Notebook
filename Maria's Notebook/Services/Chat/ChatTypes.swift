@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - Chat Message
 
@@ -64,17 +65,26 @@ struct ChatSession: Codable {
     // MARK: - Persistence
 
     private static let storageKey = "ChatSession.saved"
+    private static let logger = Logger.ai
 
     /// Save session to UserDefaults.
     func save() {
-        guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
+        do {
+            let data = try JSONEncoder().encode(self)
+            UserDefaults.standard.set(data, forKey: Self.storageKey)
+        } catch {
+            Self.logger.warning("Failed to encode chat session: \(error.localizedDescription)")
+        }
     }
 
     /// Load a previously saved session from UserDefaults. Returns nil if none exists or is older than 24 hours.
     static func loadSaved() -> ChatSession? {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let session = try? JSONDecoder().decode(ChatSession.self, from: data) else {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return nil }
+        let session: ChatSession
+        do {
+            session = try JSONDecoder().decode(ChatSession.self, from: data)
+        } catch {
+            logger.warning("Failed to decode chat session: \(error.localizedDescription)")
             return nil
         }
         // Discard sessions older than 24 hours
