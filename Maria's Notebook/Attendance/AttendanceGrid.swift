@@ -137,6 +137,11 @@ struct AttendanceGrid: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityRotor("Students") {
+            ForEach(students, id: \.id) { student in
+                AccessibilityRotorEntry(student.fullName, id: student.id)
+            }
+        }
     }
 
     // Calculate the optimal grid layout to fill available space without scrolling

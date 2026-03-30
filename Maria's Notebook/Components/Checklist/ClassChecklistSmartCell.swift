@@ -6,6 +6,8 @@ struct ClassChecklistSmartCell: View {
     let state: StudentChecklistRowState?
     let isSelected: Bool
     let isSelectionMode: Bool
+    var studentName: String = ""
+    var lessonName: String = ""
 
     var onTap: () -> Void
     var onSelect: () -> Void
@@ -109,6 +111,10 @@ struct ClassChecklistSmartCell: View {
             Divider()
             Button(role: .destructive) { onClear() } label: { Label("Clear All Status", systemImage: "xmark.circle") }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(studentName), \(lessonName)")
+        .accessibilityValue(state?.displayStatus.label ?? "Not Started")
+        .accessibilityHint(isSelectionMode ? "Double tap to select" : "Double tap to see options")
     }
 }
 

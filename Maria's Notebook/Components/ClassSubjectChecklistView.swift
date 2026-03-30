@@ -179,6 +179,8 @@ struct ClassSubjectChecklistView: View {
                                             state: state,
                                             isSelected: viewModel.isSelected(student: student, lesson: lesson),
                                             isSelectionMode: viewModel.isSelectionMode,
+                                            studentName: student.fullName,
+                                            lessonName: lesson.name,
                                             onTap: {
                                                 viewModel.toggleScheduled(
                                                     student: student, lesson: lesson, context: modelContext
