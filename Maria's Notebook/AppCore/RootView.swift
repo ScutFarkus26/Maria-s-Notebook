@@ -36,6 +36,7 @@ struct RootView: View {
     #endif
     @State private var isShowingQuickNote = false
     @State private var isShowingCommandBar = false
+    @State private var isShowingSearch = false
     @State private var newPresentationDraftID: UUID?
     @State private var isShowingNewWorkItem = false
     @State private var isShowingRecordPractice = false
@@ -93,9 +94,20 @@ struct RootView: View {
             mainContent
         }
         .overlay(alignment: .topTrailing) {
-            CompactSyncStatusIndicator(compact: true)
-                .padding(.trailing, 12)
-                .padding(.top, 6)
+            HStack(spacing: 8) {
+                Button {
+                    isShowingSearch = true
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Search")
+                CompactSyncStatusIndicator(compact: true)
+            }
+            .padding(.trailing, 12)
+            .padding(.top, 6)
         }
         .onAppear(perform: restoreSelectionIfNeeded)
         .onChange(of: selectedNavItem) { _, item in
@@ -241,6 +253,9 @@ struct RootView: View {
             .onDisappear {
                 commandBarTodoTitle = ""
             }
+        }
+        .sheet(isPresented: $isShowingSearch) {
+            AppSearchView()
         }
     #if os(macOS)
         .background(

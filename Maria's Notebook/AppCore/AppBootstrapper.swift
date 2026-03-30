@@ -151,6 +151,11 @@ final class AppBootstrapper {
         }
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
+
+        // 4. Build full-text search index after data is clean
+        await MainActor.run {
+            SearchIndexService.shared.rebuildIndex(container: modelContainer)
+        }
     }
 
     private static func formatSeconds(_ interval: TimeInterval) -> String {
