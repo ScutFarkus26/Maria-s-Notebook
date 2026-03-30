@@ -46,8 +46,6 @@ extension RootSidebar {
                     }
                 }
 
-                sidebarRow(.observationMode, title: "Observe", systemImage: "eye")
-
                 sidebarRow(.meetings, title: "Meetings", systemImage: SFSymbol.People.person2)
 
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
@@ -90,8 +88,6 @@ extension RootSidebar {
                         Label("New Work…", systemImage: SFSymbol.Action.plusCircle)
                     }
                 }
-
-                sidebarRow(.cosmicMap, title: "Cosmic Map", systemImage: "globe.americas")
 
                 sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
 
@@ -168,12 +164,6 @@ extension RootSidebar {
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student profiles and records")
 
-                Button { selection = .observationMode } label: {
-                    Label("Observe", systemImage: "eye")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Record Montessori observations with guided prompts")
-
                 Button { selection = .meetings } label: {
                     Label("Meetings", systemImage: SFSymbol.People.person2)
                 }
@@ -232,12 +222,6 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View and manage student work")
-
-                Button { selection = .cosmicMap } label: {
-                    Label("Cosmic Map", systemImage: "globe.americas")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Explore lessons organized by the Five Great Lessons")
 
                 Button { selection = .needsLesson } label: {
                     Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")

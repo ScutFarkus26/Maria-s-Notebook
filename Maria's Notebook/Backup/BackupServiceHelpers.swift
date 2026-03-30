@@ -423,6 +423,17 @@ enum BackupPayloadDeduplicator {
         result.planningRecommendations = payload.planningRecommendations.map { uniqueBy($0) { $0.id } }
         result.resources = payload.resources.map { uniqueBy($0) { $0.id } }
         result.noteStudentLinks = payload.noteStudentLinks.map { uniqueBy($0) { $0.id } }
+        // Format v12+ entity deduplication
+        result.goingOuts = payload.goingOuts.map { uniqueBy($0) { $0.id } }
+        result.goingOutChecklistItems = payload.goingOutChecklistItems.map { uniqueBy($0) { $0.id } }
+        result.classroomJobs = payload.classroomJobs.map { uniqueBy($0) { $0.id } }
+        result.jobAssignments = payload.jobAssignments.map { uniqueBy($0) { $0.id } }
+        result.transitionPlans = payload.transitionPlans.map { uniqueBy($0) { $0.id } }
+        result.transitionChecklistItems = payload.transitionChecklistItems.map { uniqueBy($0) { $0.id } }
+        result.calendarNotes = payload.calendarNotes.map { uniqueBy($0) { $0.id } }
+        result.scheduledMeetings = payload.scheduledMeetings.map { uniqueBy($0) { $0.id } }
+        result.albumGroupOrders = payload.albumGroupOrders.map { uniqueBy($0) { $0.id } }
+        result.albumGroupUIStates = payload.albumGroupUIStates.map { uniqueBy($0) { $0.id } }
 
         return result
     }

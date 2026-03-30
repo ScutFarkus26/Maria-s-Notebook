@@ -4,6 +4,8 @@ import Foundation
 public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
+    /// Format version 12: Adds GoingOut, ClassroomJob, TransitionPlan, CalendarNote,
+    /// ScheduledMeeting, AlbumGroupOrder, AlbumGroupUIState backup coverage
     /// Format version 11: Adds WorkModel/PlanningRecommendation/Resource/NoteStudentLink;
     /// removes LegacyPresentation backward compatibility
     /// Format version 10: Adds SampleWork/SampleWorkStep, WorkStep completionOutcome, PracticeSession workStepID
@@ -11,7 +13,7 @@ public enum BackupFile: Sendable {
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    nonisolated public static let formatVersion = 11
+    nonisolated public static let formatVersion = 12
     /// Minimum format version that enforces checksum validation
     nonisolated public static let checksumEnforcedVersion = 5
     /// Format version that introduced compression (backups < this version are uncompressed)
@@ -203,6 +205,11 @@ public struct BackupPayload: Codable, Sendable {
         case todoItems, todoSubtasks, todoTemplates
         case todayAgendaOrders
         case planningRecommendations, resources, noteStudentLinks
+        case goingOuts, goingOutChecklistItems
+        case classroomJobs, jobAssignments
+        case transitionPlans, transitionChecklistItems
+        case calendarNotes, scheduledMeetings
+        case albumGroupOrders, albumGroupUIStates
         case preferences
     }
 
@@ -296,6 +303,28 @@ public struct BackupPayload: Codable, Sendable {
 
     // Note-Student junction links (format v11+)
     public var noteStudentLinks: [NoteStudentLinkDTO]?
+
+    // Going Out (format v12+)
+    public var goingOuts: [GoingOutDTO]?
+    public var goingOutChecklistItems: [GoingOutChecklistItemDTO]?
+
+    // Classroom Jobs (format v12+)
+    public var classroomJobs: [ClassroomJobDTO]?
+    public var jobAssignments: [JobAssignmentDTO]?
+
+    // Transition Plans (format v12+)
+    public var transitionPlans: [TransitionPlanDTO]?
+    public var transitionChecklistItems: [TransitionChecklistItemDTO]?
+
+    // Calendar Notes (format v12+)
+    public var calendarNotes: [CalendarNoteDTO]?
+
+    // Scheduled Meetings (format v12+)
+    public var scheduledMeetings: [ScheduledMeetingDTO]?
+
+    // Album Group state (format v12+)
+    public var albumGroupOrders: [AlbumGroupOrderDTO]?
+    public var albumGroupUIStates: [AlbumGroupUIStateDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

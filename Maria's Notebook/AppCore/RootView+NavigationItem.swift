@@ -28,8 +28,6 @@ extension RootView {
         case progressDashboard
         case lessonFrequency
         case curriculumBalance
-        case cosmicMap
-        case observationMode
         case goingOut
         case classroomJobs
         case transitionPlanner
@@ -69,8 +67,6 @@ extension RootView {
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
             case .lessonFrequency:     return ("Lesson Frequency", SFSymbol.Chart.chartBar)
             case .curriculumBalance:   return ("Curriculum Balance", SFSymbol.Chart.chartPie)
-            case .cosmicMap:           return ("Cosmic Map", "globe.americas")
-            case .observationMode:     return ("Observe", "eye")
             case .goingOut:            return ("Going Out", "figure.walk")
             case .classroomJobs:       return ("Jobs", "person.2.badge.gearshape")
             case .transitionPlanner:   return ("Transitions", "arrow.right.arrow.left")
@@ -107,8 +103,8 @@ extension RootView {
             case .lessons, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
-                 .lessonFrequency, .curriculumBalance, .cosmicMap,
-                 .observationMode, .goingOut,
+                 .lessonFrequency, .curriculumBalance,
+                 .goingOut,
                  .classroomJobs, .transitionPlanner, .needsLesson,
                  .perpetualCalendar,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
@@ -132,10 +128,9 @@ extension RootView {
             case .todos:             return nil
             case .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
-                 .lessonFrequency, .curriculumBalance, .cosmicMap,
+                 .lessonFrequency, .curriculumBalance,
                  .transitionPlanner, .needsLesson:
                 return .planning
-            case .observationMode:   return nil
             case .goingOut:          return nil
             case .classroomJobs:     return nil
             case .perpetualCalendar: return nil

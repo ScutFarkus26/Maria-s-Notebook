@@ -77,7 +77,23 @@ struct BackupEntityRegistry {
         // Planning recommendations
         PlanningRecommendation.self,
         // Resources
-        Resource.self
+        Resource.self,
+        // Going Out
+        GoingOut.self,
+        GoingOutChecklistItem.self,
+        // Classroom Jobs
+        ClassroomJob.self,
+        JobAssignment.self,
+        // Transition Plans
+        TransitionPlan.self,
+        TransitionChecklistItem.self,
+        // Calendar Notes
+        CalendarNote.self,
+        // Scheduled Meetings
+        ScheduledMeeting.self,
+        // Album UI State
+        AlbumGroupOrder.self,
+        AlbumGroupUIState.self
     ]
     
     /// Entity type names for progress reporting and error messages

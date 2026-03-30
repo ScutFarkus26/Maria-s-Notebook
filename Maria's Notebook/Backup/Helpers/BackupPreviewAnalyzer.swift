@@ -113,6 +113,21 @@ enum BackupPreviewAnalyzer {
             payload.projectWeekRoleAssignments.count, 0,
             count(ProjectWeekRoleAssignment.self)
         )
+        // Format v12+ entities
+        assign("GoingOut", payload.goingOuts?.count ?? 0, 0, count(GoingOut.self))
+        assign("GoingOutChecklistItem", payload.goingOutChecklistItems?.count ?? 0, 0, count(GoingOutChecklistItem.self))
+        assign("ClassroomJob", payload.classroomJobs?.count ?? 0, 0, count(ClassroomJob.self))
+        assign("JobAssignment", payload.jobAssignments?.count ?? 0, 0, count(JobAssignment.self))
+        assign("TransitionPlan", payload.transitionPlans?.count ?? 0, 0, count(TransitionPlan.self))
+        assign(
+            "TransitionChecklistItem",
+            payload.transitionChecklistItems?.count ?? 0, 0,
+            count(TransitionChecklistItem.self)
+        )
+        assign("CalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CalendarNote.self))
+        assign("ScheduledMeeting", payload.scheduledMeetings?.count ?? 0, 0, count(ScheduledMeeting.self))
+        assign("AlbumGroupOrder", payload.albumGroupOrders?.count ?? 0, 0, count(AlbumGroupOrder.self))
+        assign("AlbumGroupUIState", payload.albumGroupUIStates?.count ?? 0, 0, count(AlbumGroupUIState.self))
     }
 
     // MARK: - Merge Mode Analysis

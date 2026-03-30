@@ -213,6 +213,36 @@ extension BackupService {
             Resource.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
         payload.noteStudentLinks = fetchAndTransformInBatches(
             NoteStudentLink.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.85),
+            "Collecting going-outs, jobs & transitions\u{2026}"
+        )
+        payload.goingOuts = fetchAndTransformInBatches(
+            GoingOut.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.goingOutChecklistItems = fetchAndTransformInBatches(
+            GoingOutChecklistItem.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.classroomJobs = fetchAndTransformInBatches(
+            ClassroomJob.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.jobAssignments = fetchAndTransformInBatches(
+            JobAssignment.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.transitionPlans = fetchAndTransformInBatches(
+            TransitionPlan.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.transitionChecklistItems = fetchAndTransformInBatches(
+            TransitionChecklistItem.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.90),
+            "Collecting calendar notes & meetings\u{2026}"
+        )
+        payload.calendarNotes = fetchAndTransformInBatches(
+            CalendarNote.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.scheduledMeetings = fetchAndTransformInBatches(
+            ScheduledMeeting.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumGroupOrders = fetchAndTransformInBatches(
+            AlbumGroupOrder.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumGroupUIStates = fetchAndTransformInBatches(
+            AlbumGroupUIState.self, using: modelContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Encode & Write
@@ -350,7 +380,17 @@ extension BackupService {
             "TodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0,
             "PlanningRecommendation": payload.planningRecommendations?.count ?? 0,
             "Resource": payload.resources?.count ?? 0,
-            "NoteStudentLink": payload.noteStudentLinks?.count ?? 0
+            "NoteStudentLink": payload.noteStudentLinks?.count ?? 0,
+            "GoingOut": payload.goingOuts?.count ?? 0,
+            "GoingOutChecklistItem": payload.goingOutChecklistItems?.count ?? 0,
+            "ClassroomJob": payload.classroomJobs?.count ?? 0,
+            "JobAssignment": payload.jobAssignments?.count ?? 0,
+            "TransitionPlan": payload.transitionPlans?.count ?? 0,
+            "TransitionChecklistItem": payload.transitionChecklistItems?.count ?? 0,
+            "CalendarNote": payload.calendarNotes?.count ?? 0,
+            "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
+            "AlbumGroupOrder": payload.albumGroupOrders?.count ?? 0,
+            "AlbumGroupUIState": payload.albumGroupUIStates?.count ?? 0
         ]
     }
 

@@ -604,4 +604,190 @@ extension BackupDTOTransformers {
     static func toDTOs(_ links: [NoteStudentLink]) -> [NoteStudentLinkDTO] {
         links.map { toDTO($0) }
     }
+
+    // MARK: - GoingOut
+
+    static func toDTO(_ g: GoingOut) -> GoingOutDTO {
+        GoingOutDTO(
+            id: g.id,
+            createdAt: g.createdAt,
+            modifiedAt: g.modifiedAt,
+            title: g.title,
+            purpose: g.purpose,
+            destination: g.destination,
+            proposedDate: g.proposedDate,
+            actualDate: g.actualDate,
+            statusRaw: g.statusRaw,
+            studentIDs: g.studentIDs,
+            curriculumLinkIDs: g.curriculumLinkIDs,
+            permissionStatusRaw: g.permissionStatusRaw,
+            notes: g.notes,
+            followUpWork: g.followUpWork,
+            supervisorName: g.supervisorName
+        )
+    }
+
+    static func toDTOs(_ goingOuts: [GoingOut]) -> [GoingOutDTO] {
+        goingOuts.map { toDTO($0) }
+    }
+
+    // MARK: - GoingOutChecklistItem
+
+    static func toDTO(_ item: GoingOutChecklistItem) -> GoingOutChecklistItemDTO {
+        GoingOutChecklistItemDTO(
+            id: item.id,
+            createdAt: item.createdAt,
+            goingOutID: item.goingOutID,
+            title: item.title,
+            isCompleted: item.isCompleted,
+            sortOrder: item.sortOrder,
+            assignedToStudentID: item.assignedToStudentID
+        )
+    }
+
+    static func toDTOs(_ items: [GoingOutChecklistItem]) -> [GoingOutChecklistItemDTO] {
+        items.map { toDTO($0) }
+    }
+
+    // MARK: - ClassroomJob
+
+    static func toDTO(_ job: ClassroomJob) -> ClassroomJobDTO {
+        ClassroomJobDTO(
+            id: job.id,
+            createdAt: job.createdAt,
+            modifiedAt: job.modifiedAt,
+            name: job.name,
+            jobDescription: job.jobDescription,
+            icon: job.icon,
+            colorRaw: job.colorRaw,
+            sortOrder: job.sortOrder,
+            isActive: job.isActive,
+            maxStudents: job.maxStudents
+        )
+    }
+
+    static func toDTOs(_ jobs: [ClassroomJob]) -> [ClassroomJobDTO] {
+        jobs.map { toDTO($0) }
+    }
+
+    // MARK: - JobAssignment
+
+    static func toDTO(_ a: JobAssignment) -> JobAssignmentDTO {
+        JobAssignmentDTO(
+            id: a.id,
+            createdAt: a.createdAt,
+            modifiedAt: a.modifiedAt,
+            jobID: a.jobID,
+            studentID: a.studentID,
+            weekStartDate: a.weekStartDate,
+            isCompleted: a.isCompleted
+        )
+    }
+
+    static func toDTOs(_ assignments: [JobAssignment]) -> [JobAssignmentDTO] {
+        assignments.map { toDTO($0) }
+    }
+
+    // MARK: - TransitionPlan
+
+    static func toDTO(_ plan: TransitionPlan) -> TransitionPlanDTO {
+        TransitionPlanDTO(
+            id: plan.id,
+            createdAt: plan.createdAt,
+            modifiedAt: plan.modifiedAt,
+            studentID: plan.studentID,
+            fromLevelRaw: plan.fromLevelRaw,
+            toLevelRaw: plan.toLevelRaw,
+            statusRaw: plan.statusRaw,
+            targetDate: plan.targetDate,
+            notes: plan.notes
+        )
+    }
+
+    static func toDTOs(_ plans: [TransitionPlan]) -> [TransitionPlanDTO] {
+        plans.map { toDTO($0) }
+    }
+
+    // MARK: - TransitionChecklistItem
+
+    static func toDTO(_ item: TransitionChecklistItem) -> TransitionChecklistItemDTO {
+        TransitionChecklistItemDTO(
+            id: item.id,
+            createdAt: item.createdAt,
+            transitionPlanID: item.transitionPlanID,
+            title: item.title,
+            categoryRaw: item.categoryRaw,
+            isCompleted: item.isCompleted,
+            completedAt: item.completedAt,
+            sortOrder: item.sortOrder,
+            notes: item.notes
+        )
+    }
+
+    static func toDTOs(_ items: [TransitionChecklistItem]) -> [TransitionChecklistItemDTO] {
+        items.map { toDTO($0) }
+    }
+
+    // MARK: - CalendarNote
+
+    static func toDTO(_ note: CalendarNote) -> CalendarNoteDTO {
+        CalendarNoteDTO(
+            id: note.id,
+            year: note.year,
+            month: note.month,
+            day: note.day,
+            text: note.text,
+            createdAt: note.createdAt,
+            modifiedAt: note.modifiedAt
+        )
+    }
+
+    static func toDTOs(_ notes: [CalendarNote]) -> [CalendarNoteDTO] {
+        notes.map { toDTO($0) }
+    }
+
+    // MARK: - ScheduledMeeting
+
+    static func toDTO(_ meeting: ScheduledMeeting) -> ScheduledMeetingDTO {
+        ScheduledMeetingDTO(
+            id: meeting.id,
+            studentID: meeting.studentID,
+            date: meeting.date,
+            createdAt: meeting.createdAt
+        )
+    }
+
+    static func toDTOs(_ meetings: [ScheduledMeeting]) -> [ScheduledMeetingDTO] {
+        meetings.map { toDTO($0) }
+    }
+
+    // MARK: - AlbumGroupOrder
+
+    static func toDTO(_ order: AlbumGroupOrder) -> AlbumGroupOrderDTO {
+        AlbumGroupOrderDTO(
+            id: order.id,
+            scopeKey: order.scopeKey,
+            groupName: order.groupName,
+            sortIndex: order.sortIndex
+        )
+    }
+
+    static func toDTOs(_ orders: [AlbumGroupOrder]) -> [AlbumGroupOrderDTO] {
+        orders.map { toDTO($0) }
+    }
+
+    // MARK: - AlbumGroupUIState
+
+    static func toDTO(_ state: AlbumGroupUIState) -> AlbumGroupUIStateDTO {
+        AlbumGroupUIStateDTO(
+            id: state.id,
+            scopeKey: state.scopeKey,
+            groupName: state.groupName,
+            isCollapsed: state.isCollapsed
+        )
+    }
+
+    static func toDTOs(_ states: [AlbumGroupUIState]) -> [AlbumGroupUIStateDTO] {
+        states.map { toDTO($0) }
+    }
 }

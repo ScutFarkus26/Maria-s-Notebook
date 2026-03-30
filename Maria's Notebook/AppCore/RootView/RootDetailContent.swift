@@ -67,10 +67,6 @@ struct RootDetailContent: View {
                 LessonFrequencyView()
             case .curriculumBalance:
                 CurriculumBalanceView()
-            case .cosmicMap:
-                CosmicMapRootView()
-            case .observationMode:
-                ObservationModeView()
             case .goingOut:
                 GoingOutRootView()
             case .classroomJobs:
@@ -165,12 +161,7 @@ struct RootAdaptiveTabs: View {
         }
 
         TabSection {
-            Tab(value: RootView.NavigationItem.observationMode) {
-                RootDetailContent(selectedNavItem: .observationMode)
-            } label: {
-                Label("Observe", systemImage: "eye")
-            }
-            Tab(value: RootView.NavigationItem.meetings) {
+Tab(value: RootView.NavigationItem.meetings) {
                 RootDetailContent(selectedNavItem: .meetings)
             } label: {
                 Label("Meetings", systemImage: "person.2")
@@ -215,12 +206,7 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Open Work", systemImage: "tray.full")
             }
-            Tab(value: RootView.NavigationItem.cosmicMap) {
-                RootDetailContent(selectedNavItem: .cosmicMap)
-            } label: {
-                Label("Cosmic Map", systemImage: "globe.americas")
-            }
-            Tab(value: RootView.NavigationItem.needsLesson) {
+Tab(value: RootView.NavigationItem.needsLesson) {
                 RootDetailContent(selectedNavItem: .needsLesson)
             } label: {
                 Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
@@ -336,7 +322,6 @@ struct MoreMenuView: View {
             List {
                 Section("Daily") {
                     moreMenuButton(.meetings)
-                    moreMenuButton(.observationMode)
                     moreMenuButton(.goingOut)
                     moreMenuButton(.classroomJobs)
                 }
@@ -350,7 +335,6 @@ struct MoreMenuView: View {
                     moreMenuButton(.planningProjects)
                     moreMenuButton(.lessonFrequency)
                     moreMenuButton(.curriculumBalance)
-                    moreMenuButton(.cosmicMap)
                     moreMenuButton(.transitionPlanner)
                     moreMenuButton(.needsLesson)
                 }

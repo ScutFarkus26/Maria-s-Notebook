@@ -150,6 +150,7 @@ extension BackupService {
 
         progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
         try importAdditionalEntities(from: payload, into: modelContext)
+        try importV12Entities(from: payload, into: modelContext)
 
         progress(RestoreProgress.saving, "Saving\u{2026}")
         try modelContext.save()
@@ -622,6 +623,94 @@ extension BackupService {
                 into: modelContext,
                 existingCheck: { try fetchOne(NoteStudentLink.self, id: $0, using: modelContext) },
                 noteCheck: { try fetchOne(Note.self, id: $0, using: modelContext) }
+            )
+        }
+    }
+
+    private func importV12Entities(
+        from payload: BackupPayload,
+        into modelContext: ModelContext
+    ) throws {
+        if let goingOuts = payload.goingOuts {
+            try BackupEntityImporter.importGoingOuts(
+                goingOuts,
+                into: modelContext,
+                existingCheck: { try fetchOne(GoingOut.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let goingOutItems = payload.goingOutChecklistItems {
+            try BackupEntityImporter.importGoingOutChecklistItems(
+                goingOutItems,
+                into: modelContext,
+                existingCheck: { try fetchOne(GoingOutChecklistItem.self, id: $0, using: modelContext) },
+                goingOutCheck: { try fetchOne(GoingOut.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let classroomJobs = payload.classroomJobs {
+            try BackupEntityImporter.importClassroomJobs(
+                classroomJobs,
+                into: modelContext,
+                existingCheck: { try fetchOne(ClassroomJob.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let jobAssignments = payload.jobAssignments {
+            try BackupEntityImporter.importJobAssignments(
+                jobAssignments,
+                into: modelContext,
+                existingCheck: { try fetchOne(JobAssignment.self, id: $0, using: modelContext) },
+                jobCheck: { try fetchOne(ClassroomJob.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let transitionPlans = payload.transitionPlans {
+            try BackupEntityImporter.importTransitionPlans(
+                transitionPlans,
+                into: modelContext,
+                existingCheck: { try fetchOne(TransitionPlan.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let transitionItems = payload.transitionChecklistItems {
+            try BackupEntityImporter.importTransitionChecklistItems(
+                transitionItems,
+                into: modelContext,
+                existingCheck: { try fetchOne(TransitionChecklistItem.self, id: $0, using: modelContext) },
+                planCheck: { try fetchOne(TransitionPlan.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let calendarNotes = payload.calendarNotes {
+            try BackupEntityImporter.importCalendarNotes(
+                calendarNotes,
+                into: modelContext,
+                existingCheck: { try fetchOne(CalendarNote.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let scheduledMeetings = payload.scheduledMeetings {
+            try BackupEntityImporter.importScheduledMeetings(
+                scheduledMeetings,
+                into: modelContext,
+                existingCheck: { try fetchOne(ScheduledMeeting.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let albumOrders = payload.albumGroupOrders {
+            try BackupEntityImporter.importAlbumGroupOrders(
+                albumOrders,
+                into: modelContext,
+                existingCheck: { try fetchOne(AlbumGroupOrder.self, id: $0, using: modelContext) }
+            )
+        }
+
+        if let albumStates = payload.albumGroupUIStates {
+            try BackupEntityImporter.importAlbumGroupUIStates(
+                albumStates,
+                into: modelContext,
+                existingCheck: { try fetchOne(AlbumGroupUIState.self, id: $0, using: modelContext) }
             )
         }
     }

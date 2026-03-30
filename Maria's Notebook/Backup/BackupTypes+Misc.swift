@@ -166,3 +166,121 @@ public struct TodayAgendaOrderDTO: Codable, Sendable {
     public var itemID: UUID
     public var position: Int
 }
+
+// MARK: - Going Out DTOs (format v12+)
+
+public struct GoingOutDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var title: String
+    public var purpose: String
+    public var destination: String
+    public var proposedDate: Date?
+    public var actualDate: Date?
+    public var statusRaw: String
+    public var studentIDs: [String]
+    public var curriculumLinkIDs: String
+    public var permissionStatusRaw: String
+    public var notes: String
+    public var followUpWork: String
+    public var supervisorName: String
+}
+
+public struct GoingOutChecklistItemDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var goingOutID: String
+    public var title: String
+    public var isCompleted: Bool
+    public var sortOrder: Int
+    public var assignedToStudentID: String?
+}
+
+// MARK: - Classroom Job DTOs (format v12+)
+
+public struct ClassroomJobDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var name: String
+    public var jobDescription: String
+    public var icon: String
+    public var colorRaw: String
+    public var sortOrder: Int
+    public var isActive: Bool
+    public var maxStudents: Int
+}
+
+public struct JobAssignmentDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var jobID: String
+    public var studentID: String
+    public var weekStartDate: Date
+    public var isCompleted: Bool
+}
+
+// MARK: - Transition Plan DTOs (format v12+)
+
+public struct TransitionPlanDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var studentID: String
+    public var fromLevelRaw: String
+    public var toLevelRaw: String
+    public var statusRaw: String
+    public var targetDate: Date?
+    public var notes: String
+}
+
+public struct TransitionChecklistItemDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var transitionPlanID: String
+    public var title: String
+    public var categoryRaw: String
+    public var isCompleted: Bool
+    public var completedAt: Date?
+    public var sortOrder: Int
+    public var notes: String
+}
+
+// MARK: - Calendar Note DTO (format v12+)
+
+public struct CalendarNoteDTO: Codable, Sendable {
+    public var id: UUID
+    public var year: Int
+    public var month: Int
+    public var day: Int
+    public var text: String
+    public var createdAt: Date
+    public var modifiedAt: Date
+}
+
+// MARK: - Scheduled Meeting DTO (format v12+)
+
+public struct ScheduledMeetingDTO: Codable, Sendable {
+    public var id: UUID
+    public var studentID: String
+    public var date: Date
+    public var createdAt: Date
+}
+
+// MARK: - Album Group DTOs (format v12+)
+
+public struct AlbumGroupOrderDTO: Codable, Sendable {
+    public var id: UUID
+    public var scopeKey: String
+    public var groupName: String
+    public var sortIndex: Int
+}
+
+public struct AlbumGroupUIStateDTO: Codable, Sendable {
+    public var id: UUID
+    public var scopeKey: String
+    public var groupName: String
+    public var isCollapsed: Bool
+}
