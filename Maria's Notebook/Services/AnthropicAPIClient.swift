@@ -17,7 +17,7 @@ final class AnthropicAPIClient: MCPClientProtocol {
     private let baseURL: URL
 
     init(apiKey: String? = nil, session: URLSession = .shared) {
-        // Try to load API key from UserDefaults, then from keychain, then use provided
+        // Try to load API key from Keychain (auto-migrates from UserDefaults if needed)
         self.apiKey = apiKey ?? Self.loadAPIKey()
         self.session = session
 
@@ -388,17 +388,38 @@ extension AnthropicAPIClient {
 
 extension AnthropicAPIClient {
 
+    private static let keychain = KeychainStore(
+        service: "com.danielsdeberry.MariasNoteBook",
+        account: "anthropicAPIKey"
+    )
+
     private static func loadAPIKey() -> String {
-        // Try UserDefaults first (easiest for users to configure)
-        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+        // Try Keychain first (secure storage)
+        if let data = try? keychain.get(), let key = String(data: data, encoding: .utf8), !key.isEmpty {
             return key
         }
+
+        // Fall back to UserDefaults and auto-migrate to Keychain
+        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+            if let data = key.data(using: .utf8) {
+                try? keychain.set(data)
+                UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+                logger.info("Migrated API key from UserDefaults to Keychain")
+            }
+            return key
+        }
+
         return ""
     }
 
-    /// Save API key to UserDefaults
+    /// Save API key to Keychain
     static func saveAPIKey(_ key: String) {
-        UserDefaults.standard.set(key, forKey: "anthropicAPIKey")
+        guard let data = key.data(using: .utf8) else { return }
+        do {
+            try keychain.set(data)
+        } catch {
+            logger.error("Failed to save API key to Keychain: \(error.localizedDescription)")
+        }
     }
 
     /// Check if API key is configured
@@ -409,6 +430,7 @@ extension AnthropicAPIClient {
 
     /// Clear saved API key
     static func clearAPIKey() {
+        try? keychain.delete()
         UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
     }
 

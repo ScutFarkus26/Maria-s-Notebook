@@ -13,7 +13,7 @@ public enum KeychainError: Error, LocalizedError {
     }
 }
 
-public struct KeychainStore {
+public struct KeychainStore: Sendable {
     public let service: String
     public let account: String
 
