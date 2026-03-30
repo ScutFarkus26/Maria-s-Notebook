@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ProjectWeekRoleAssignment)
-public class ProjectWeekRoleAssignment: NSManagedObject {
+public class CDProjectWeekRoleAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -11,7 +11,7 @@ public class ProjectWeekRoleAssignment: NSManagedObject {
     @NSManaged public var roleID: String
 
     // MARK: - Relationships
-    @NSManaged public var week: ProjectTemplateWeek?
+    @NSManaged public var week: CDProjectTemplateWeek?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -28,7 +28,7 @@ public class ProjectWeekRoleAssignment: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ProjectWeekRoleAssignment {
+extension CDProjectWeekRoleAssignment {
     var weekIDUUID: UUID? {
         get { UUID(uuidString: weekID) }
         set { weekID = newValue?.uuidString ?? "" }

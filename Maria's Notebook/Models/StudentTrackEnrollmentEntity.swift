@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(StudentTrackEnrollmentEntity)
-public class StudentTrackEnrollmentEntity: NSManagedObject {
+public class CDStudentTrackEnrollmentEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -29,7 +29,7 @@ public class StudentTrackEnrollmentEntity: NSManagedObject {
 }
 
 // MARK: - Generated Accessors for richNotes
-extension StudentTrackEnrollmentEntity {
+extension CDStudentTrackEnrollmentEntity {
     @objc(addRichNotesObject:)
     @NSManaged public func addToRichNotes(_ value: NSManagedObject)
 

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(JobAssignment)
-public class JobAssignment: NSManagedObject {
+public class CDJobAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -13,7 +13,7 @@ public class JobAssignment: NSManagedObject {
     @NSManaged public var isCompleted: Bool
 
     // MARK: - Relationships
-    @NSManaged public var job: ClassroomJob?
+    @NSManaged public var job: CDClassroomJob?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -32,7 +32,7 @@ public class JobAssignment: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension JobAssignment {
+extension CDJobAssignment {
     var studentUUID: UUID? {
         UUID(uuidString: studentID)
     }

@@ -4,89 +4,10 @@ import OSLog
 
 // MARK: - Enums
 
-public enum NoteCategory: String, Codable, CaseIterable {
-    case academic
-    case behavioral
-    case social
-    case emotional
-    case health
-    case attendance
-    case general
-}
-
-enum NoteScope: Codable, Equatable {
-    case all
-    case student(UUID)
-    case students([UUID])
-
-    enum CodingKeys: String, CodingKey {
-        case type
-        case id
-        case ids
-    }
-
-    enum ScopeType: String, Codable {
-        case all
-        case student
-        case students
-    }
-
-    nonisolated init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(ScopeType.self, forKey: .type)
-        switch type {
-        case .all:
-            self = .all
-        case .student:
-            let id = try container.decode(UUID.self, forKey: .id)
-            self = .student(id)
-        case .students:
-            let ids = try container.decode([UUID].self, forKey: .ids)
-            self = .students(ids)
-        }
-    }
-
-    nonisolated func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case .all:
-            try container.encode(ScopeType.all, forKey: .type)
-            try container.encodeNil(forKey: .id)
-            try container.encodeNil(forKey: .ids)
-        case .student(let id):
-            try container.encode(ScopeType.student, forKey: .type)
-            try container.encode(id, forKey: .id)
-            try container.encodeNil(forKey: .ids)
-        case .students(let ids):
-            try container.encode(ScopeType.students, forKey: .type)
-            try container.encodeNil(forKey: .id)
-            try container.encode(ids, forKey: .ids)
-        }
-    }
-
-    var isAll: Bool {
-        if case .all = self {
-            return true
-        }
-        return false
-    }
-
-    func applies(to studentID: UUID) -> Bool {
-        switch self {
-        case .all:
-            return true
-        case .student(let id):
-            return id == studentID
-        case .students(let ids):
-            return ids.contains(studentID)
-        }
-    }
-}
-
 // MARK: - Core Data Entity
 
 @objc(Note)
-public class Note: NSManagedObject {
+public class CDNote: NSManagedObject {
     private static let logger = Logger.database
 
     // MARK: - Core Data Properties
@@ -107,22 +28,22 @@ public class Note: NSManagedObject {
     @NSManaged public var scopeIsAll: Bool
 
     // MARK: - Relationships
-    @NSManaged public var lesson: Lesson?
-    @NSManaged public var work: WorkModel?
-    @NSManaged public var lessonAssignment: LessonAssignment?
-    @NSManaged public var attendanceRecord: AttendanceRecord?
-    @NSManaged public var workCheckIn: WorkCheckIn?
-    @NSManaged public var workCompletionRecord: WorkCompletionRecord?
-    @NSManaged public var studentMeeting: StudentMeeting?
-    @NSManaged public var projectSession: ProjectSession?
-    @NSManaged public var communityTopic: CommunityTopic?
-    @NSManaged public var reminder: Reminder?
-    @NSManaged public var schoolDayOverride: SchoolDayOverride?
-    @NSManaged public var studentTrackEnrollment: StudentTrackEnrollment?
-    @NSManaged public var practiceSession: PracticeSession?
-    @NSManaged public var issue: Issue?
-    @NSManaged public var goingOut: GoingOut?
-    @NSManaged public var transitionPlan: TransitionPlan?
+    @NSManaged public var lesson: CDLesson?
+    @NSManaged public var work: CDWorkModel?
+    @NSManaged public var lessonAssignment: CDLessonAssignment?
+    @NSManaged public var attendanceRecord: CDAttendanceRecord?
+    @NSManaged public var workCheckIn: CDWorkCheckIn?
+    @NSManaged public var workCompletionRecord: CDWorkCompletionRecord?
+    @NSManaged public var studentMeeting: CDStudentMeeting?
+    @NSManaged public var projectSession: CDProjectSession?
+    @NSManaged public var communityTopic: CDCommunityTopicEntity?
+    @NSManaged public var reminder: CDReminder?
+    @NSManaged public var schoolDayOverride: CDSchoolDayOverride?
+    @NSManaged public var studentTrackEnrollment: CDStudentTrackEnrollmentEntity?
+    @NSManaged public var practiceSession: CDPracticeSession?
+    @NSManaged public var issue: CDIssue?
+    @NSManaged public var goingOut: CDGoingOut?
+    @NSManaged public var transitionPlan: CDTransitionPlan?
     @NSManaged public var studentLinks: NSSet?
 
     // MARK: - Convenience Initializer
@@ -150,7 +71,7 @@ public class Note: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension Note {
+extension CDNote {
     /// Access tags as a Swift [String] array
     var tagsArray: [String] {
         get { (tags as? [String]) ?? [] }
@@ -245,12 +166,12 @@ extension Note {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Note {
+extension CDNote {
     @objc(addStudentLinksObject:)
-    @NSManaged public func addToStudentLinks(_ value: NoteStudentLink)
+    @NSManaged public func addToStudentLinks(_ value: CDNoteStudentLink)
 
     @objc(removeStudentLinksObject:)
-    @NSManaged public func removeFromStudentLinks(_ value: NoteStudentLink)
+    @NSManaged public func removeFromStudentLinks(_ value: CDNoteStudentLink)
 
     @objc(addStudentLinks:)
     @NSManaged public func addToStudentLinks(_ values: NSSet)

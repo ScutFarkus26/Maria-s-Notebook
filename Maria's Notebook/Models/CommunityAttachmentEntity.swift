@@ -2,7 +2,10 @@ import Foundation
 import CoreData
 
 @objc(CommunityAttachmentEntity)
-public class CommunityAttachmentEntity: NSManagedObject {
+public class CDCommunityAttachmentEntity: NSManagedObject {
+    // MARK: - Type Aliases (enums defined in SwiftData models)
+    typealias Kind = CommunityAttachment.Kind
+
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var filename: String
@@ -11,7 +14,7 @@ public class CommunityAttachmentEntity: NSManagedObject {
     @NSManaged public var createdAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var topic: CommunityTopicEntity?
+    @NSManaged public var topic: CDCommunityTopicEntity?
 
     // MARK: - Convenience Init
     @discardableResult
@@ -27,11 +30,8 @@ public class CommunityAttachmentEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties & Enums
-extension CommunityAttachmentEntity {
+extension CDCommunityAttachmentEntity {
     /// Kind enum matching the original SwiftData model
-    enum Kind: String, Codable, CaseIterable {
-        case photo, file
-    }
 
     var kind: Kind {
         get { Kind(rawValue: kindRaw) ?? .file }

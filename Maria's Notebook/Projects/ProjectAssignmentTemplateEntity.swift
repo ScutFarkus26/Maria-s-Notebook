@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ProjectAssignmentTemplate)
-public class ProjectAssignmentTemplate: NSManagedObject {
+public class CDProjectAssignmentTemplate: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -13,7 +13,7 @@ public class ProjectAssignmentTemplate: NSManagedObject {
     @NSManaged public var defaultLinkedLessonID: String?
 
     // MARK: - Relationships
-    @NSManaged public var project: Project?
+    @NSManaged public var project: CDProject?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -32,7 +32,7 @@ public class ProjectAssignmentTemplate: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ProjectAssignmentTemplate {
+extension CDProjectAssignmentTemplate {
     var projectIDUUID: UUID? {
         get { UUID(uuidString: projectID) }
         set { projectID = newValue?.uuidString ?? "" }

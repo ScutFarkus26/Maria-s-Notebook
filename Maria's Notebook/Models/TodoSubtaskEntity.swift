@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TodoSubtaskEntity)
-public class TodoSubtaskEntity: NSManagedObject {
+public class CDTodoSubtaskEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -12,7 +12,7 @@ public class TodoSubtaskEntity: NSManagedObject {
     @NSManaged public var completedAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var todo: TodoItemEntity?
+    @NSManaged public var todo: CDTodoItemEntity?
 
     // MARK: - Convenience Init
     @discardableResult

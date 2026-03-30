@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(NoteTemplateEntity)
-public class NoteTemplateEntity: NSManagedObject {
+public class CDNoteTemplateEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -31,7 +31,7 @@ public class NoteTemplateEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension NoteTemplateEntity {
+extension CDNoteTemplateEntity {
     /// Legacy category field -- kept for migration; new code uses `tags`
     var category: NoteCategory {
         get { NoteCategory(rawValue: categoryRaw) ?? .general }

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ProjectRole)
-public class ProjectRole: NSManagedObject {
+public class CDProjectRole: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -27,7 +27,7 @@ public class ProjectRole: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ProjectRole {
+extension CDProjectRole {
     var projectIDUUID: UUID? {
         get { UUID(uuidString: projectID) }
         set { projectID = newValue?.uuidString ?? "" }

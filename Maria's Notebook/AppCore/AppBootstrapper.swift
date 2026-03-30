@@ -26,10 +26,13 @@ final class AppBootstrapper {
         state = newState
     }
     
-    func bootstrap(modelContainer: ModelContainer) async {
+    func bootstrap(coreDataStack: CoreDataStack) async {
         guard state == .idle else { return }
         state = .migrating
-        
+
+        // Legacy ModelContainer + context still used by services not yet converted to Core Data.
+        // Will be replaced with coreDataStack.viewContext in Phase 3.
+        let modelContainer = AppBootstrapping.getSharedModelContainer()
         let context = modelContainer.mainContext
         
         let startTime = Date()

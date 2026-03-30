@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Issue)
-public class Issue: NSManagedObject {
+public class CDIssue: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -45,69 +45,13 @@ public class Issue: NSManagedObject {
 
 // MARK: - Enums
 
-extension Issue {
-    enum IssueCategory: String, Codable, CaseIterable, Sendable {
-        case behavioral = "Behavioral"
-        case social = "Social"
-        case facility = "Facility"
-        case supply = "Supply"
-        case safety = "Safety"
-        case health = "Health"
-        case communication = "Communication"
-        case other = "Other"
+extension CDIssue {
 
-        public var systemImage: String {
-            switch self {
-            case .behavioral: return "exclamationmark.bubble"
-            case .social: return "person.2"
-            case .facility: return "wrench.and.screwdriver"
-            case .supply: return "shippingbox"
-            case .safety: return "shield"
-            case .health: return "cross.case"
-            case .communication: return "message"
-            case .other: return "questionmark.circle"
-            }
-        }
-    }
-
-    enum IssuePriority: String, Codable, CaseIterable, Sendable {
-        case low = "Low"
-        case medium = "Medium"
-        case high = "High"
-        case urgent = "Urgent"
-
-        public var color: String {
-            switch self {
-            case .low: return "gray"
-            case .medium: return "blue"
-            case .high: return "orange"
-            case .urgent: return "red"
-            }
-        }
-    }
-
-    enum IssueStatus: String, Codable, CaseIterable, Sendable {
-        case open = "Open"
-        case investigating = "Investigating"
-        case inProgress = "In Progress"
-        case resolved = "Resolved"
-        case closed = "Closed"
-
-        public var systemImage: String {
-            switch self {
-            case .open: return "circle"
-            case .investigating: return "magnifyingglass"
-            case .inProgress: return "arrow.clockwise"
-            case .resolved: return "checkmark.circle"
-            case .closed: return "checkmark.circle.fill"
-            }
-        }
-    }
 }
 
 // MARK: - Computed Properties
 
-extension Issue {
+extension CDIssue {
     var category: IssueCategory {
         get { IssueCategory(rawValue: categoryRaw) ?? .other }
         set { categoryRaw = newValue.rawValue }
@@ -135,12 +79,12 @@ extension Issue {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Issue {
+extension CDIssue {
     @objc(addActionsObject:)
-    @NSManaged public func addToActions(_ value: IssueAction)
+    @NSManaged public func addToActions(_ value: CDIssueAction)
 
     @objc(removeActionsObject:)
-    @NSManaged public func removeFromActions(_ value: IssueAction)
+    @NSManaged public func removeFromActions(_ value: CDIssueAction)
 
     @objc(addActions:)
     @NSManaged public func addToActions(_ values: NSSet)
@@ -149,10 +93,10 @@ extension Issue {
     @NSManaged public func removeFromActions(_ values: NSSet)
 
     @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: Note)
+    @NSManaged public func addToNotes(_ value: CDNote)
 
     @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: Note)
+    @NSManaged public func removeFromNotes(_ value: CDNote)
 
     @objc(addNotes:)
     @NSManaged public func addToNotes(_ values: NSSet)

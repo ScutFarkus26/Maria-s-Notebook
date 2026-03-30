@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Schedule)
-public class Schedule: NSManagedObject {
+public class CDSchedule: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -32,73 +32,20 @@ public class Schedule: NSManagedObject {
 
 // MARK: - Enums
 
-extension Schedule {
+extension CDSchedule {
     /// Days of the week for scheduling
-    enum Weekday: String, Codable, CaseIterable, Identifiable, Sendable {
-        case sunday = "Sunday"
-        case monday = "Monday"
-        case tuesday = "Tuesday"
-        case wednesday = "Wednesday"
-        case thursday = "Thursday"
-        case friday = "Friday"
-        case saturday = "Saturday"
-
-        public var id: String { rawValue }
-
-        public var shortName: String {
-            switch self {
-            case .sunday: return "Sun"
-            case .monday: return "Mon"
-            case .tuesday: return "Tue"
-            case .wednesday: return "Wed"
-            case .thursday: return "Thu"
-            case .friday: return "Fri"
-            case .saturday: return "Sat"
-            }
-        }
-
-        public var calendarWeekday: Int {
-            switch self {
-            case .sunday: return 1
-            case .monday: return 2
-            case .tuesday: return 3
-            case .wednesday: return 4
-            case .thursday: return 5
-            case .friday: return 6
-            case .saturday: return 7
-            }
-        }
-
-        public static func from(calendarWeekday: Int) -> Weekday? {
-            switch calendarWeekday {
-            case 1: return .sunday
-            case 2: return .monday
-            case 3: return .tuesday
-            case 4: return .wednesday
-            case 5: return .thursday
-            case 6: return .friday
-            case 7: return .saturday
-            default: return nil
-            }
-        }
-
-        /// School days (Mon-Fri)
-        public static var schoolDays: [Weekday] {
-            [.monday, .tuesday, .wednesday, .thursday, .friday]
-        }
-    }
 }
 
 // MARK: - Computed Properties
 
-extension Schedule {
+extension CDSchedule {
     /// Safely access slots
-    var safeSlots: [ScheduleSlot] {
-        (slots as? Set<ScheduleSlot>).map(Array.init) ?? []
+    var safeSlots: [CDScheduleSlot] {
+        (slots as? Set<CDScheduleSlot>).map(Array.init) ?? []
     }
 
     /// Get slots for a specific weekday, sorted by time then sort order
-    func slots(for weekday: Weekday) -> [ScheduleSlot] {
+    func slots(for weekday: Weekday) -> [CDScheduleSlot] {
         safeSlots.filter { $0.weekday == weekday }
             .sorted { lhs, rhs in
                 let lhsTime = lhs.timeString ?? ""
@@ -140,12 +87,12 @@ extension Schedule {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Schedule {
+extension CDSchedule {
     @objc(addSlotsObject:)
-    @NSManaged public func addToSlots(_ value: ScheduleSlot)
+    @NSManaged public func addToSlots(_ value: CDScheduleSlot)
 
     @objc(removeSlotsObject:)
-    @NSManaged public func removeFromSlots(_ value: ScheduleSlot)
+    @NSManaged public func removeFromSlots(_ value: CDScheduleSlot)
 
     @objc(addSlots:)
     @NSManaged public func addToSlots(_ values: NSSet)

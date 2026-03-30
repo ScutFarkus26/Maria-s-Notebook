@@ -4,14 +4,14 @@ import CoreData
 /// A junction model linking Notes to Students for efficient querying.
 /// Created automatically when a note's scope includes multiple students.
 @objc(NoteStudentLink)
-public class NoteStudentLink: NSManagedObject {
+public class CDNoteStudentLink: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var noteID: String
     @NSManaged public var studentID: String
 
     // MARK: - Relationships
-    @NSManaged public var note: Note?
+    @NSManaged public var note: CDNote?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -26,7 +26,7 @@ public class NoteStudentLink: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension NoteStudentLink {
+extension CDNoteStudentLink {
     var noteIDUUID: UUID? {
         get { UUID(uuidString: noteID) }
         set { noteID = newValue?.uuidString ?? "" }

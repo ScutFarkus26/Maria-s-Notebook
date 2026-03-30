@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ScheduledMeeting)
-public class ScheduledMeeting: NSManagedObject {
+public class CDScheduledMeeting: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -23,7 +23,7 @@ public class ScheduledMeeting: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ScheduledMeeting {
+extension CDScheduledMeeting {
     var studentIDUUID: UUID? {
         get { UUID(uuidString: studentID) }
         set { studentID = newValue?.uuidString ?? "" }

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(GroupTrackEntity)
-public class GroupTrackEntity: NSManagedObject {
+public class CDGroupTrackEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var subject: String
@@ -26,7 +26,7 @@ public class GroupTrackEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension GroupTrackEntity {
+extension CDGroupTrackEntity {
     /// Unique identifier for this (subject, group) combination
     var groupKey: String {
         "\(subject)|\(group)"

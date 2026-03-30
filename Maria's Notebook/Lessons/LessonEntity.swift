@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Lesson)
-public class Lesson: NSManagedObject {
+public class CDLesson: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -69,7 +69,7 @@ public class Lesson: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension Lesson {
+extension CDLesson {
     var source: LessonSource {
         get { LessonSource(rawValue: sourceRaw) ?? .album }
         set { sourceRaw = newValue.rawValue }
@@ -168,12 +168,12 @@ extension Lesson {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Lesson {
+extension CDLesson {
     @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: Note)
+    @NSManaged public func addToNotes(_ value: CDNote)
 
     @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: Note)
+    @NSManaged public func removeFromNotes(_ value: CDNote)
 
     @objc(addNotes:)
     @NSManaged public func addToNotes(_ values: NSSet)
@@ -182,10 +182,10 @@ extension Lesson {
     @NSManaged public func removeFromNotes(_ values: NSSet)
 
     @objc(addLessonAssignmentsObject:)
-    @NSManaged public func addToLessonAssignments(_ value: LessonAssignment)
+    @NSManaged public func addToLessonAssignments(_ value: CDLessonAssignment)
 
     @objc(removeLessonAssignmentsObject:)
-    @NSManaged public func removeFromLessonAssignments(_ value: LessonAssignment)
+    @NSManaged public func removeFromLessonAssignments(_ value: CDLessonAssignment)
 
     @objc(addLessonAssignments:)
     @NSManaged public func addToLessonAssignments(_ values: NSSet)
@@ -194,10 +194,10 @@ extension Lesson {
     @NSManaged public func removeFromLessonAssignments(_ values: NSSet)
 
     @objc(addAttachmentsObject:)
-    @NSManaged public func addToAttachments(_ value: LessonAttachment)
+    @NSManaged public func addToAttachments(_ value: CDLessonAttachment)
 
     @objc(removeAttachmentsObject:)
-    @NSManaged public func removeFromAttachments(_ value: LessonAttachment)
+    @NSManaged public func removeFromAttachments(_ value: CDLessonAttachment)
 
     @objc(addAttachments:)
     @NSManaged public func addToAttachments(_ values: NSSet)
@@ -206,10 +206,10 @@ extension Lesson {
     @NSManaged public func removeFromAttachments(_ values: NSSet)
 
     @objc(addSampleWorksObject:)
-    @NSManaged public func addToSampleWorks(_ value: SampleWork)
+    @NSManaged public func addToSampleWorks(_ value: CDSampleWorkEntity)
 
     @objc(removeSampleWorksObject:)
-    @NSManaged public func removeFromSampleWorks(_ value: SampleWork)
+    @NSManaged public func removeFromSampleWorks(_ value: CDSampleWorkEntity)
 
     @objc(addSampleWorks:)
     @NSManaged public func addToSampleWorks(_ values: NSSet)

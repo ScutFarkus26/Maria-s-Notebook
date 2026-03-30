@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SampleWorkEntity)
-public class SampleWorkEntity: NSManagedObject {
+public class CDSampleWorkEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -30,7 +30,7 @@ public class SampleWorkEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension SampleWorkEntity {
+extension CDSampleWorkEntity {
     /// The work kind this template produces (reuses WorkKind enum)
     var workKind: WorkKind? {
         get { WorkKind(rawValue: workKindRaw) }
@@ -38,24 +38,24 @@ extension SampleWorkEntity {
     }
 
     /// Returns steps sorted by orderIndex for deterministic display
-    var orderedSteps: [SampleWorkStepEntity] {
-        let stepSet = steps as? Set<SampleWorkStepEntity> ?? []
+    var orderedSteps: [CDSampleWorkStepEntity] {
+        let stepSet = steps as? Set<CDSampleWorkStepEntity> ?? []
         return stepSet.sorted { $0.orderIndex < $1.orderIndex }
     }
 
     /// Number of steps in this template
     var stepCount: Int {
-        (steps as? Set<SampleWorkStepEntity>)?.count ?? 0
+        (steps as? Set<CDSampleWorkStepEntity>)?.count ?? 0
     }
 }
 
 // MARK: - Generated Accessors for steps
-extension SampleWorkEntity {
+extension CDSampleWorkEntity {
     @objc(addStepsObject:)
-    @NSManaged public func addToSteps(_ value: SampleWorkStepEntity)
+    @NSManaged public func addToSteps(_ value: CDSampleWorkStepEntity)
 
     @objc(removeStepsObject:)
-    @NSManaged public func removeFromSteps(_ value: SampleWorkStepEntity)
+    @NSManaged public func removeFromSteps(_ value: CDSampleWorkStepEntity)
 
     @objc(addSteps:)
     @NSManaged public func addToSteps(_ values: NSSet)

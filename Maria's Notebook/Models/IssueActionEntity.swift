@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(IssueAction)
-public class IssueAction: NSManagedObject {
+public class CDIssueAction: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -19,7 +19,7 @@ public class IssueAction: NSManagedObject {
     @NSManaged public var followUpCompleted: Bool
 
     // MARK: - Relationships
-    @NSManaged public var issue: Issue?
+    @NSManaged public var issue: CDIssue?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -44,33 +44,12 @@ public class IssueAction: NSManagedObject {
 
 // MARK: - Enums
 
-extension IssueAction {
-    enum IssueActionType: String, Codable, CaseIterable, Sendable {
-        case initialReport = "Initial Report"
-        case conversation = "Conversation"
-        case agreement = "Agreement"
-        case followUp = "Follow-up"
-        case observation = "Observation"
-        case resolution = "Resolution"
-        case note = "Note"
-
-        public var systemImage: String {
-            switch self {
-            case .initialReport: return "flag"
-            case .conversation: return "bubble.left.and.bubble.right"
-            case .agreement: return "hand.thumbsup"
-            case .followUp: return "arrow.turn.up.right"
-            case .observation: return "eye"
-            case .resolution: return "checkmark.seal"
-            case .note: return "note.text"
-            }
-        }
-    }
+extension CDIssueAction {
 }
 
 // MARK: - Computed Properties
 
-extension IssueAction {
+extension CDIssueAction {
     var actionType: IssueActionType {
         get { IssueActionType(rawValue: actionTypeRaw) ?? .note }
         set { actionTypeRaw = newValue.rawValue }

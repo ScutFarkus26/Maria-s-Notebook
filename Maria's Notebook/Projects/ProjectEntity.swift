@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Project)
-public class Project: NSManagedObject {
+public class CDProject: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -33,7 +33,7 @@ public class Project: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension Project {
+extension CDProject {
     /// Access memberStudentIDs as a Swift [String] array
     var memberStudentIDsArray: [String] {
         get { (memberStudentIDs as? [String]) ?? [] }
@@ -49,12 +49,12 @@ extension Project {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Project {
+extension CDProject {
     @objc(addSharedTemplatesObject:)
-    @NSManaged public func addToSharedTemplates(_ value: ProjectAssignmentTemplate)
+    @NSManaged public func addToSharedTemplates(_ value: CDProjectAssignmentTemplate)
 
     @objc(removeSharedTemplatesObject:)
-    @NSManaged public func removeFromSharedTemplates(_ value: ProjectAssignmentTemplate)
+    @NSManaged public func removeFromSharedTemplates(_ value: CDProjectAssignmentTemplate)
 
     @objc(addSharedTemplates:)
     @NSManaged public func addToSharedTemplates(_ values: NSSet)
@@ -63,10 +63,10 @@ extension Project {
     @NSManaged public func removeFromSharedTemplates(_ values: NSSet)
 
     @objc(addSessionsObject:)
-    @NSManaged public func addToSessions(_ value: ProjectSession)
+    @NSManaged public func addToSessions(_ value: CDProjectSession)
 
     @objc(removeSessionsObject:)
-    @NSManaged public func removeFromSessions(_ value: ProjectSession)
+    @NSManaged public func removeFromSessions(_ value: CDProjectSession)
 
     @objc(addSessions:)
     @NSManaged public func addToSessions(_ values: NSSet)

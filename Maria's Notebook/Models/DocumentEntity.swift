@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Document)
-public class Document: NSManagedObject {
+public class CDDocument: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -11,7 +11,7 @@ public class Document: NSManagedObject {
     @NSManaged public var pdfData: Data?
 
     // MARK: - Relationships
-    @NSManaged public var student: Student?
+    @NSManaged public var student: CDStudent?
 
     // MARK: - Convenience Initializer
     @discardableResult

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TransitionPlan)
-public class TransitionPlan: NSManagedObject {
+public class CDTransitionPlan: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -37,38 +37,12 @@ public class TransitionPlan: NSManagedObject {
 
 // MARK: - Enums
 
-extension TransitionPlan {
-    enum TransitionStatus: String, CaseIterable, Identifiable, Sendable {
-        case notStarted
-        case inProgress
-        case ready
-        case transitioned
-
-        public var id: String { rawValue }
-
-        public var displayName: String {
-            switch self {
-            case .notStarted: return "Not Started"
-            case .inProgress: return "In Progress"
-            case .ready: return "Ready"
-            case .transitioned: return "Transitioned"
-            }
-        }
-
-        public var icon: String {
-            switch self {
-            case .notStarted: return "circle"
-            case .inProgress: return "arrow.forward.circle"
-            case .ready: return "checkmark.circle"
-            case .transitioned: return "checkmark.circle.fill"
-            }
-        }
-    }
+extension CDTransitionPlan {
 }
 
 // MARK: - Computed Properties
 
-extension TransitionPlan {
+extension CDTransitionPlan {
     var studentUUID: UUID? {
         UUID(uuidString: studentID)
     }
@@ -81,12 +55,12 @@ extension TransitionPlan {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension TransitionPlan {
+extension CDTransitionPlan {
     @objc(addChecklistItemsObject:)
-    @NSManaged public func addToChecklistItems(_ value: TransitionChecklistItem)
+    @NSManaged public func addToChecklistItems(_ value: CDTransitionChecklistItem)
 
     @objc(removeChecklistItemsObject:)
-    @NSManaged public func removeFromChecklistItems(_ value: TransitionChecklistItem)
+    @NSManaged public func removeFromChecklistItems(_ value: CDTransitionChecklistItem)
 
     @objc(addChecklistItems:)
     @NSManaged public func addToChecklistItems(_ values: NSSet)
@@ -95,10 +69,10 @@ extension TransitionPlan {
     @NSManaged public func removeFromChecklistItems(_ values: NSSet)
 
     @objc(addObservationNotesObject:)
-    @NSManaged public func addToObservationNotes(_ value: Note)
+    @NSManaged public func addToObservationNotes(_ value: CDNote)
 
     @objc(removeObservationNotesObject:)
-    @NSManaged public func removeFromObservationNotes(_ value: Note)
+    @NSManaged public func removeFromObservationNotes(_ value: CDNote)
 
     @objc(addObservationNotes:)
     @NSManaged public func addToObservationNotes(_ values: NSSet)

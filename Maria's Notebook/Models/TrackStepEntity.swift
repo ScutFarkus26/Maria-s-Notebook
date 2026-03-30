@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TrackStepEntity)
-public class TrackStepEntity: NSManagedObject {
+public class CDTrackStepEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var orderIndex: Int64
@@ -10,7 +10,7 @@ public class TrackStepEntity: NSManagedObject {
     @NSManaged public var createdAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var track: TrackEntity?
+    @NSManaged public var track: CDTrackEntity?
 
     // MARK: - Convenience Init
     @discardableResult

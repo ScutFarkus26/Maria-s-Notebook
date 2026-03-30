@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CalendarNote)
-public class CalendarNote: NSManagedObject {
+public class CDCalendarNote: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var year: Int64

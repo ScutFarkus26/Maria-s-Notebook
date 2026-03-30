@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(PlanningRecommendation)
-public class PlanningRecommendation: NSManagedObject {
+public class CDPlanningRecommendation: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -51,27 +51,15 @@ public class PlanningRecommendation: NSManagedObject {
 
 // MARK: - Enums
 
-extension PlanningRecommendation {
+extension CDPlanningRecommendation {
     /// Teacher decision on a recommendation
-    enum TeacherDecision: String, Codable, Sendable {
-        case accepted
-        case rejected
-        case modified
-        case deferred
-    }
 
     /// Outcome after a recommendation was accepted and applied
-    enum RecommendationOutcome: String, Codable, Sendable {
-        case presented
-        case deferred
-        case cancelled
-        case modified
-    }
 }
 
 // MARK: - Computed Properties
 
-extension PlanningRecommendation {
+extension CDPlanningRecommendation {
     /// Student IDs decoded from binary data
     var studentIDs: [String] {
         get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }

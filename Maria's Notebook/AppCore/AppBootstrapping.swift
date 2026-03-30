@@ -13,16 +13,19 @@ import OSLog
 /// Handles all app initialization, database setup, and lifecycle management.
 @MainActor
 final class AppBootstrapping {
-    
+
     // MARK: - Shared Instance
-    
+
     /// Track initialization errors to show in the UI
     @MainActor
     static var initError: Error?
-    
-    /// Model container for SwiftData.
+
+    /// Core Data stack with NSPersistentCloudKitContainer.
     /// Initialized on first access via the static factory method.
-    /// If SwiftData asserts internally during schema processing, we cannot catch it.
+    @MainActor
+    static var _sharedCoreDataStack: CoreDataStack?
+
+    /// Legacy SwiftData container — kept only for Phase 8 migration reads.
     @MainActor
     static var _sharedModelContainer: ModelContainer?
 

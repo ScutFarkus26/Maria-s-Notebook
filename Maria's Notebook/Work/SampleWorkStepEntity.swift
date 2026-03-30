@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SampleWorkStepEntity)
-public class SampleWorkStepEntity: NSManagedObject {
+public class CDSampleWorkStepEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -11,7 +11,7 @@ public class SampleWorkStepEntity: NSManagedObject {
     @NSManaged public var createdAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var sampleWork: SampleWorkEntity?
+    @NSManaged public var sampleWork: CDSampleWorkEntity?
 
     // MARK: - Convenience Init
     @discardableResult

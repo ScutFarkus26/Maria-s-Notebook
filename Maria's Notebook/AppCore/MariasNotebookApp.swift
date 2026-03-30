@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreData
 import OSLog
 import TipKit
 #if os(macOS)
@@ -27,26 +28,32 @@ struct MariasNotebookApp: App {
     @State private var dependencies: AppDependencies
     @State private var saveCoordinator: SaveCoordinator
     @State private var restoreCoordinator: RestoreCoordinator
-    
+
     #if os(macOS)
     @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
     #endif
 
+    // MARK: - Core Data Stack
+
+    /// The shared Core Data stack — initialized once in init() and used by all scenes.
+    private let coreDataStack: CoreDataStack
+
     // MARK: - Initialization
-    
+
     init() {
         AppBootstrapping.performInitialSetup()
-        let container = AppBootstrapping.getSharedModelContainer()
-        let deps = AppDependencies(modelContext: container.mainContext)
+        let stack = AppBootstrapping.getSharedCoreDataStack()
+        coreDataStack = stack
+        let deps = AppDependencies(coreDataStack: stack)
         _dependencies = State(wrappedValue: deps)
-        // Initialize coordinators with dependencies
-        // This allows us to use dependency injection when feature flag is enabled
         _saveCoordinator = State(wrappedValue: SaveCoordinator(toastService: deps.toastService))
         _restoreCoordinator = State(wrappedValue: RestoreCoordinator(appRouter: deps.appRouter))
     }
 
     // MARK: - Computed Properties
-    
+
+    /// Legacy accessor — kept during transition while views still use @Query / .modelContainer.
+    /// Will be removed when all views are converted to @FetchRequest in Phase 4.
     @MainActor
     var sharedModelContainer: ModelContainer {
         AppBootstrapping.getSharedModelContainer()
@@ -96,6 +103,7 @@ struct MariasNotebookApp: App {
                                 OnboardingView()
                             } else {
                                 RootView()
+                                    .environment(\.managedObjectContext, coreDataStack.viewContext)
                                     .environment(\.calendar, AppCalendar.shared)
                                     .environment(\.appRouter, appRouter)
                                     .environment(\.dependencies, dependencies)
@@ -135,13 +143,15 @@ struct MariasNotebookApp: App {
                     #if os(macOS)
                     appDelegate.setModelContainer(sharedModelContainer)
                     #endif
-                    await bootstrapper.bootstrap(modelContainer: sharedModelContainer)
+                    await bootstrapper.bootstrap(coreDataStack: coreDataStack)
 
                     // Configure CloudKit sync status monitoring
+                    // NOTE: Still uses legacy ModelContainer during transition.
+                    // Will be converted to use CoreDataStack in Phase 3B.
                     CloudKitSyncStatusService.shared.configure(with: sharedModelContainer)
 
                     // Register for remote notifications so CloudKit can push sync events.
-                    // SwiftData's NSPersistentCloudKitContainer handles incoming notifications
+                    // NSPersistentCloudKitContainer handles incoming notifications
                     // internally — we just need to ensure the app is registered.
                     #if os(iOS)
                     UIApplication.shared.registerForRemoteNotifications()

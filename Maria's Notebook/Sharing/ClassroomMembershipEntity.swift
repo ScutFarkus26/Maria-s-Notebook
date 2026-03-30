@@ -2,7 +2,13 @@ import Foundation
 import CoreData
 
 @objc(ClassroomMembership)
-public class ClassroomMembership: NSManagedObject {
+public class CDClassroomMembership: NSManagedObject {
+    // MARK: - Enums
+    enum ClassroomRole: String, Codable, CaseIterable, Sendable {
+        case leadGuide
+        case assistant
+    }
+
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var classroomZoneID: String
@@ -27,16 +33,12 @@ public class ClassroomMembership: NSManagedObject {
 
 // MARK: - Enums
 
-extension ClassroomMembership {
-    enum ClassroomRole: String, Codable, CaseIterable, Sendable {
-        case leadGuide
-        case assistant
-    }
+extension CDClassroomMembership {
 }
 
 // MARK: - Computed Properties
 
-extension ClassroomMembership {
+extension CDClassroomMembership {
     var role: ClassroomRole {
         get { ClassroomRole(rawValue: roleRaw) ?? .leadGuide }
         set { roleRaw = newValue.rawValue }

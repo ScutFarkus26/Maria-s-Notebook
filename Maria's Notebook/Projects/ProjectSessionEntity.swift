@@ -2,29 +2,9 @@ import Foundation
 import CoreData
 
 /// Describes how work is assigned in a project session
-public enum SessionAssignmentMode: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
-    case uniform    // Everyone gets the same work (auto-assigned to all)
-    case choice     // Teacher offers N works, students pick M
-
-    public var id: String { rawValue }
-
-    public var displayName: String {
-        switch self {
-        case .uniform: return "Uniform"
-        case .choice: return "Student Choice"
-        }
-    }
-
-    public var description: String {
-        switch self {
-        case .uniform: return "All students receive the same assignments"
-        case .choice: return "Students choose from offered works"
-        }
-    }
-}
 
 @objc(ProjectSession)
-public class ProjectSession: NSManagedObject {
+public class CDProjectSession: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -38,7 +18,7 @@ public class ProjectSession: NSManagedObject {
     @NSManaged public var maxSelections: Int64
 
     // MARK: - Relationships
-    @NSManaged public var project: Project?
+    @NSManaged public var project: CDProject?
     @NSManaged public var noteItems: NSSet?
 
     // MARK: - Convenience Initializer
@@ -61,7 +41,7 @@ public class ProjectSession: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ProjectSession {
+extension CDProjectSession {
     var projectIDUUID: UUID? {
         get { UUID(uuidString: projectID) }
         set { projectID = newValue?.uuidString ?? "" }
@@ -99,12 +79,12 @@ extension ProjectSession {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension ProjectSession {
+extension CDProjectSession {
     @objc(addNoteItemsObject:)
-    @NSManaged public func addToNoteItems(_ value: Note)
+    @NSManaged public func addToNoteItems(_ value: CDNote)
 
     @objc(removeNoteItemsObject:)
-    @NSManaged public func removeFromNoteItems(_ value: Note)
+    @NSManaged public func removeFromNoteItems(_ value: CDNote)
 
     @objc(addNoteItems:)
     @NSManaged public func addToNoteItems(_ values: NSSet)

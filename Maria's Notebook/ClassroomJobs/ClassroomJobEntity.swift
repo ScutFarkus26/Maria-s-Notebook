@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ClassroomJob)
-public class ClassroomJob: NSManagedObject {
+public class CDClassroomJob: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -38,12 +38,12 @@ public class ClassroomJob: NSManagedObject {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension ClassroomJob {
+extension CDClassroomJob {
     @objc(addAssignmentsObject:)
-    @NSManaged public func addToAssignments(_ value: JobAssignment)
+    @NSManaged public func addToAssignments(_ value: CDJobAssignment)
 
     @objc(removeAssignmentsObject:)
-    @NSManaged public func removeFromAssignments(_ value: JobAssignment)
+    @NSManaged public func removeFromAssignments(_ value: CDJobAssignment)
 
     @objc(addAssignments:)
     @NSManaged public func addToAssignments(_ values: NSSet)

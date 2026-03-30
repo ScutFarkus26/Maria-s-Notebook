@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Reminder)
-public class Reminder: NSManagedObject {
+public class CDReminder: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -40,7 +40,7 @@ public class Reminder: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension Reminder {
+extension CDReminder {
     /// Mark this reminder as completed
     func markCompleted() {
         self.isCompleted = true
@@ -58,12 +58,12 @@ extension Reminder {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Reminder {
+extension CDReminder {
     @objc(addNoteItemsObject:)
-    @NSManaged public func addToNoteItems(_ value: Note)
+    @NSManaged public func addToNoteItems(_ value: CDNote)
 
     @objc(removeNoteItemsObject:)
-    @NSManaged public func removeFromNoteItems(_ value: Note)
+    @NSManaged public func removeFromNoteItems(_ value: CDNote)
 
     @objc(addNoteItems:)
     @NSManaged public func addToNoteItems(_ values: NSSet)

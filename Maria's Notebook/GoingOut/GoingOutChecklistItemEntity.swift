@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(GoingOutChecklistItem)
-public class GoingOutChecklistItem: NSManagedObject {
+public class CDGoingOutChecklistItem: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -13,7 +13,7 @@ public class GoingOutChecklistItem: NSManagedObject {
     @NSManaged public var assignedToStudentID: String?
 
     // MARK: - Relationships
-    @NSManaged public var goingOut: GoingOut?
+    @NSManaged public var goingOut: CDGoingOut?
 
     // MARK: - Convenience Initializer
     @discardableResult

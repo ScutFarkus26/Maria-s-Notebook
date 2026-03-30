@@ -3,7 +3,7 @@ import CoreData
 import OSLog
 
 @objc(DevelopmentSnapshotEntity)
-public class DevelopmentSnapshotEntity: NSManagedObject {
+public class CDDevelopmentSnapshotEntity: NSManagedObject {
     // MARK: - Attributes (Identity & Metadata)
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -75,7 +75,7 @@ public class DevelopmentSnapshotEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties (JSON Array Accessors)
-extension DevelopmentSnapshotEntity {
+extension CDDevelopmentSnapshotEntity {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook", category: "DevelopmentSnapshotEntity")
 
     var keyStrengths: [String] {

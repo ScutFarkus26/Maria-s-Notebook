@@ -1,88 +1,93 @@
 import SwiftUI
 import SwiftData
+import CoreData
 import OSLog
 
-// MARK: - Error Handling & Fallback Container Creation
+// MARK: - Error Handling & Core Data Stack Creation
 
 extension AppBootstrapping {
 
-    /// Retrieves or creates the shared model container.
-    /// This property manages lazy initialization and error handling for the container.
+    /// Retrieves or creates the shared Core Data stack.
+    /// This manages lazy initialization and error handling.
     @MainActor
-    static func getSharedModelContainer() -> ModelContainer {
-        if let existing = _sharedModelContainer {
+    static func getSharedCoreDataStack() -> CoreDataStack {
+        if let existing = _sharedCoreDataStack {
             return existing
         }
 
-        // Signal that we're initializing the container (this is what takes time)
+        // Signal that we're initializing the container
         AppBootstrapper.shared.setState(.initializingContainer)
 
-        // CRITICAL: If you see a crash at this line (calling createModelContainer()),
-        // SwiftData is asserting internally during schema processing.
-        //
-        // This means there's a problem with the schema definition itself:
-        // - Check the crash log for the exact SwiftData assertion message
-        // - Look for duplicate entity names in AppSchema.schema
-        // - Verify all @Relationship annotations have matching inverses
-        // - Check for invalid property types or annotations
-        //
-        // NOTE: We cannot catch SwiftData's internal assertions - they crash immediately.
-
         do {
-            let containerStart = Date()
             let logger = Logger.app(category: "Container")
-            logger.info("ModelContainer: Starting initialization...")
+            let containerStart = Date()
+            logger.info("CoreDataStack: Starting initialization...")
 
-            let container = try AppBootstrapping.createModelContainer()
+            let stack = try AppBootstrapping.createCoreDataStack()
 
             let elapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
-            logger.info("ModelContainer: Creation completed in \(elapsed)s")
+            logger.info("CoreDataStack: Creation completed in \(elapsed)s")
 
-            // Configure SQLite to suppress detached signature errors
-            AppBootstrapping.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
+            // Disable autosave on view context — we use explicit saves via SaveCoordinator
+            stack.viewContext.automaticallyMergesChangesFromParent = true
 
-            // Disable autosave on main context to prevent excessive write contention
-            // We rely on explicit saves via SaveCoordinator instead
-            container.mainContext.autosaveEnabled = false
-
-            _sharedModelContainer = container
+            _sharedCoreDataStack = stack
 
             // Reset state to idle so bootstrap can start
             AppBootstrapper.shared.setState(.idle)
 
             let totalElapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
-            logger.info("ModelContainer: Total initialization time: \(totalElapsed)s")
-            return container
+            logger.info("CoreDataStack: Total initialization time: \(totalElapsed)s")
+            return stack
         } catch {
-            // This should never be reached if createModelContainer handles all errors properly,
-            // but we include it as a safety net
-            let errorDesc = (error as NSError?)?.localizedDescription ?? String(describing: error)
+            let errorDesc = (error as NSError).localizedDescription
             let unexpectedError = NSError(
                 domain: "MariasNotebook",
                 code: 6000,
-                userInfo: [NSLocalizedDescriptionKey: "Unexpected error during container initialization: \(errorDesc)"]
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Unexpected error during Core Data stack initialization: \(errorDesc)"
+                ]
             )
             AppBootstrapping.initError = unexpectedError
             DatabaseErrorCoordinator.shared.setError(unexpectedError, details: errorDesc)
 
-            // Create an in-memory container with full schema so the app can show the error UI
-            // without crashing when code attempts to fetch entities like NonSchoolDay.
-            // This is a last resort fallback.
+            // Create an in-memory stack so the app can show the error UI
             do {
-                let fallbackSchema = AppSchema.schema
-                let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
-                let fallbackContainer = try ModelContainer(for: fallbackSchema, configurations: fallbackConfig)
+                let fallbackStack = try CoreDataStack(enableCloudKit: false, inMemory: true)
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
                 UserDefaults.standard.set(
                     unexpectedError.localizedDescription,
                     forKey: UserDefaultsKeys.lastStoreErrorDescription
                 )
-                return fallbackContainer
+                _sharedCoreDataStack = fallbackStack
+                return fallbackStack
             } catch {
-                // If even this fails, we have no choice but to crash
-                // This should never happen in practice
-                fatalError("CRITICAL: Cannot create any container, including fallback. System failure: \(errorDesc)")
+                fatalError(
+                    "CRITICAL: Cannot create any Core Data stack, including fallback. "
+                    + "System failure: \(errorDesc)"
+                )
             }
+        }
+    }
+
+    /// Legacy accessor — returns the shared ModelContainer for backward compatibility
+    /// during the migration period. Will be removed after Phase 8.
+    @MainActor
+    static func getSharedModelContainer() -> ModelContainer {
+        if let existing = _sharedModelContainer {
+            return existing
+        }
+        // During the transition, create a minimal SwiftData container for any code
+        // that still references ModelContainer. This will be removed in later phases.
+        let schema = AppSchema.schema
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        do {
+            let container = try ModelContainer(for: schema, configurations: config)
+            _sharedModelContainer = container
+            return container
+        } catch {
+            fatalError("Cannot create legacy ModelContainer: \(error)")
         }
     }
 }

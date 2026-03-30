@@ -3,7 +3,7 @@ import CoreData
 import OSLog
 
 @objc(CommunityTopicEntity)
-public class CommunityTopicEntity: NSManagedObject {
+public class CDCommunityTopicEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -37,7 +37,7 @@ public class CommunityTopicEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CommunityTopicEntity {
+extension CDCommunityTopicEntity {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook", category: "CommunityTopicEntity")
 
     /// Alias for broughtBy (preferred UI name)
@@ -72,12 +72,12 @@ extension CommunityTopicEntity {
 }
 
 // MARK: - Generated Accessors for proposedSolutions
-extension CommunityTopicEntity {
+extension CDCommunityTopicEntity {
     @objc(addProposedSolutionsObject:)
-    @NSManaged public func addToProposedSolutions(_ value: ProposedSolutionEntity)
+    @NSManaged public func addToProposedSolutions(_ value: CDProposedSolutionEntity)
 
     @objc(removeProposedSolutionsObject:)
-    @NSManaged public func removeFromProposedSolutions(_ value: ProposedSolutionEntity)
+    @NSManaged public func removeFromProposedSolutions(_ value: CDProposedSolutionEntity)
 
     @objc(addProposedSolutions:)
     @NSManaged public func addToProposedSolutions(_ values: NSSet)
@@ -87,7 +87,7 @@ extension CommunityTopicEntity {
 }
 
 // MARK: - Generated Accessors for unifiedNotes
-extension CommunityTopicEntity {
+extension CDCommunityTopicEntity {
     @objc(addUnifiedNotesObject:)
     @NSManaged public func addToUnifiedNotes(_ value: NSManagedObject)
 
@@ -102,12 +102,12 @@ extension CommunityTopicEntity {
 }
 
 // MARK: - Generated Accessors for attachments
-extension CommunityTopicEntity {
+extension CDCommunityTopicEntity {
     @objc(addAttachmentsObject:)
-    @NSManaged public func addToAttachments(_ value: CommunityAttachmentEntity)
+    @NSManaged public func addToAttachments(_ value: CDCommunityAttachmentEntity)
 
     @objc(removeAttachmentsObject:)
-    @NSManaged public func removeFromAttachments(_ value: CommunityAttachmentEntity)
+    @NSManaged public func removeFromAttachments(_ value: CDCommunityAttachmentEntity)
 
     @objc(addAttachments:)
     @NSManaged public func addToAttachments(_ values: NSSet)

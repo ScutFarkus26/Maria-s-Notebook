@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TransitionChecklistItem)
-public class TransitionChecklistItem: NSManagedObject {
+public class CDTransitionChecklistItem: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -15,7 +15,7 @@ public class TransitionChecklistItem: NSManagedObject {
     @NSManaged public var notes: String
 
     // MARK: - Relationships
-    @NSManaged public var transitionPlan: TransitionPlan?
+    @NSManaged public var transitionPlan: CDTransitionPlan?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -36,38 +36,12 @@ public class TransitionChecklistItem: NSManagedObject {
 
 // MARK: - Enums
 
-extension TransitionChecklistItem {
-    enum ChecklistCategory: String, CaseIterable, Identifiable, Sendable {
-        case academic
-        case social
-        case independence
-        case executive
-
-        public var id: String { rawValue }
-
-        public var displayName: String {
-            switch self {
-            case .academic: return "Academic"
-            case .social: return "Social"
-            case .independence: return "Independence"
-            case .executive: return "Executive Function"
-            }
-        }
-
-        public var icon: String {
-            switch self {
-            case .academic: return "book"
-            case .social: return "person.2"
-            case .independence: return "figure.stand"
-            case .executive: return "brain"
-            }
-        }
-    }
+extension CDTransitionChecklistItem {
 }
 
 // MARK: - Computed Properties
 
-extension TransitionChecklistItem {
+extension CDTransitionChecklistItem {
     var category: ChecklistCategory {
         get { ChecklistCategory(rawValue: categoryRaw) ?? .academic }
         set { categoryRaw = newValue.rawValue }

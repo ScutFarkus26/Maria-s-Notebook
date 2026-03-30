@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ScheduleSlot)
-public class ScheduleSlot: NSManagedObject {
+public class CDScheduleSlot: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var scheduleID: String
@@ -15,7 +15,7 @@ public class ScheduleSlot: NSManagedObject {
     @NSManaged public var modifiedAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var schedule: Schedule?
+    @NSManaged public var schedule: CDSchedule?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -25,7 +25,7 @@ public class ScheduleSlot: NSManagedObject {
         self.id = UUID()
         self.scheduleID = ""
         self.studentID = ""
-        self.weekdayRaw = Schedule.Weekday.monday.rawValue
+        self.weekdayRaw = Weekday.monday.rawValue
         self.timeString = nil
         self.sortOrder = 0
         self.notes = ""
@@ -36,10 +36,10 @@ public class ScheduleSlot: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ScheduleSlot {
+extension CDScheduleSlot {
     /// Computed property for weekday enum
-    var weekday: Schedule.Weekday {
-        get { Schedule.Weekday(rawValue: weekdayRaw) ?? .monday }
+    var weekday: Weekday {
+        get { Weekday(rawValue: weekdayRaw) ?? .monday }
         set { weekdayRaw = newValue.rawValue }
     }
 

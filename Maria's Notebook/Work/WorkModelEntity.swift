@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(WorkModel)
-public class WorkModel: NSManagedObject {
+public class CDWorkModel: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -71,7 +71,7 @@ public class WorkModel: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension WorkModel {
+extension CDWorkModel {
     /// Work kind (practice, follow-up, research)
     var kind: WorkKind? {
         get { kindRaw.flatMap { WorkKind(rawValue: $0) } }
@@ -114,7 +114,7 @@ extension WorkModel {
     /// A work item is considered open if any participant has not completed their work.
     var isOpen: Bool {
         if status == .complete { return false }
-        let parts = (participants?.allObjects as? [WorkParticipantEntity]) ?? []
+        let parts = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         if parts.isEmpty { return true }
         return parts.contains { $0.completedAt == nil }
     }
@@ -126,9 +126,9 @@ extension WorkModel {
     var isComplete: Bool { status == .complete }
     var isIncomplete: Bool { status == .active || status == .review }
 
-    func participant(for studentID: UUID) -> WorkParticipantEntity? {
+    func participant(for studentID: UUID) -> CDWorkParticipantEntity? {
         let studentIDString = studentID.uuidString
-        let parts = (participants?.allObjects as? [WorkParticipantEntity]) ?? []
+        let parts = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         return parts.first { $0.studentID == studentIDString }
     }
 
@@ -139,21 +139,21 @@ extension WorkModel {
     // MARK: - Step Helpers
 
     /// Returns steps sorted by orderIndex
-    var orderedSteps: [WorkStep] {
-        let s = (steps?.allObjects as? [WorkStep]) ?? []
+    var orderedSteps: [CDWorkStep] {
+        let s = (steps?.allObjects as? [CDWorkStep]) ?? []
         return s.sorted { $0.orderIndex < $1.orderIndex }
     }
 
     /// Returns true if all steps are completed (or if there are no steps)
     var allStepsCompleted: Bool {
-        let s = (steps?.allObjects as? [WorkStep]) ?? []
+        let s = (steps?.allObjects as? [CDWorkStep]) ?? []
         guard !s.isEmpty else { return true }
         return s.allSatisfy { $0.completedAt != nil }
     }
 
     /// Returns step completion progress as (completed, total)
     var stepProgress: (completed: Int, total: Int) {
-        let s = (steps?.allObjects as? [WorkStep]) ?? []
+        let s = (steps?.allObjects as? [CDWorkStep]) ?? []
         let completed = s.filter { $0.completedAt != nil }.count
         return (completed, s.count)
     }
@@ -167,25 +167,25 @@ extension WorkModel {
 
     /// For choice mode: returns true if this work has no participants yet
     var isOffered: Bool {
-        let parts = (participants?.allObjects as? [WorkParticipantEntity]) ?? []
+        let parts = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         return parts.isEmpty
     }
 
     /// For choice mode: returns student IDs who have selected this work
     var selectedStudentIDs: [String] {
-        let parts = (participants?.allObjects as? [WorkParticipantEntity]) ?? []
+        let parts = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         return parts.map(\.studentID)
     }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension WorkModel {
+extension CDWorkModel {
     @objc(addParticipantsObject:)
-    @NSManaged public func addToParticipants(_ value: WorkParticipantEntity)
+    @NSManaged public func addToParticipants(_ value: CDWorkParticipantEntity)
 
     @objc(removeParticipantsObject:)
-    @NSManaged public func removeFromParticipants(_ value: WorkParticipantEntity)
+    @NSManaged public func removeFromParticipants(_ value: CDWorkParticipantEntity)
 
     @objc(addParticipants:)
     @NSManaged public func addToParticipants(_ values: NSSet)
@@ -194,10 +194,10 @@ extension WorkModel {
     @NSManaged public func removeFromParticipants(_ values: NSSet)
 
     @objc(addCheckInsObject:)
-    @NSManaged public func addToCheckIns(_ value: WorkCheckIn)
+    @NSManaged public func addToCheckIns(_ value: CDWorkCheckIn)
 
     @objc(removeCheckInsObject:)
-    @NSManaged public func removeFromCheckIns(_ value: WorkCheckIn)
+    @NSManaged public func removeFromCheckIns(_ value: CDWorkCheckIn)
 
     @objc(addCheckIns:)
     @NSManaged public func addToCheckIns(_ values: NSSet)
@@ -206,10 +206,10 @@ extension WorkModel {
     @NSManaged public func removeFromCheckIns(_ values: NSSet)
 
     @objc(addStepsObject:)
-    @NSManaged public func addToSteps(_ value: WorkStep)
+    @NSManaged public func addToSteps(_ value: CDWorkStep)
 
     @objc(removeStepsObject:)
-    @NSManaged public func removeFromSteps(_ value: WorkStep)
+    @NSManaged public func removeFromSteps(_ value: CDWorkStep)
 
     @objc(addSteps:)
     @NSManaged public func addToSteps(_ values: NSSet)
@@ -218,10 +218,10 @@ extension WorkModel {
     @NSManaged public func removeFromSteps(_ values: NSSet)
 
     @objc(addUnifiedNotesObject:)
-    @NSManaged public func addToUnifiedNotes(_ value: Note)
+    @NSManaged public func addToUnifiedNotes(_ value: CDNote)
 
     @objc(removeUnifiedNotesObject:)
-    @NSManaged public func removeFromUnifiedNotes(_ value: Note)
+    @NSManaged public func removeFromUnifiedNotes(_ value: CDNote)
 
     @objc(addUnifiedNotes:)
     @NSManaged public func addToUnifiedNotes(_ values: NSSet)

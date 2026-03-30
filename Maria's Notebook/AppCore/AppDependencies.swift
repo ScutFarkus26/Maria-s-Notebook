@@ -1,6 +1,7 @@
 // swiftlint:disable file_length
 import Foundation
 import SwiftData
+import CoreData
 import SwiftUI
 import OSLog
 
@@ -13,17 +14,18 @@ import OSLog
 /// ```swift
 /// @main
 /// struct MariasNotebookApp: App {
-///     let container: ModelContainer
+///     let coreDataStack: CoreDataStack
 ///     let dependencies: AppDependencies
 ///
 ///     init() {
-///         container = try! ModelContainer(for: AppSchema.self)
-///         dependencies = AppDependencies(modelContext: container.mainContext)
+///         coreDataStack = AppBootstrapping.getSharedCoreDataStack()
+///         dependencies = AppDependencies(coreDataStack: coreDataStack)
 ///     }
 ///
 ///     var body: some Scene {
 ///         WindowGroup {
 ///             RootView()
+///                 .environment(\.managedObjectContext, coreDataStack.viewContext)
 ///                 .environment(\.dependencies, dependencies)
 ///         }
 ///     }
@@ -47,12 +49,33 @@ import OSLog
 @MainActor
 final class AppDependencies {
     private static let logger = Logger.app_
+
+    /// The Core Data stack powering all persistence.
+    let coreDataStack: CoreDataStack
+
+    /// Convenience accessor for the view context.
+    var viewContext: NSManagedObjectContext { coreDataStack.viewContext }
+
+    /// Legacy SwiftData ModelContext — kept during transition (Phases 3-4).
+    /// Services that haven't been converted yet still reference this.
+    /// Will be removed once all services use NSManagedObjectContext.
     let modelContext: ModelContext
 
     // MARK: - Initialization
 
+    init(coreDataStack: CoreDataStack) {
+        self.coreDataStack = coreDataStack
+        // Create a legacy ModelContext for backward compatibility during the transition.
+        // Services will be migrated to use viewContext in Phase 3.
+        self.modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+    }
+
+    /// Legacy initializer for backward compatibility during transition.
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        // During legacy init, create a minimal in-memory CoreDataStack.
+        // This path is only used by tests and previews.
+        self.coreDataStack = (try? CoreDataStack(enableCloudKit: false, inMemory: true))!
     }
 
     // MARK: - Core Services
@@ -336,23 +359,15 @@ final class AppDependencies {
 
     // MARK: - Testing Support
 
-    /// Create dependencies with in-memory storage for testing
+    /// Create dependencies with in-memory Core Data storage for testing
     static func makeTest() throws -> AppDependencies {
-        let schema = Schema([
-            Student.self,
-            Lesson.self,
-            WorkModel.self,
-            Note.self
-            // Add more models as needed for tests
-        ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        return AppDependencies(modelContext: container.mainContext)
+        let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
+        return AppDependencies(coreDataStack: stack)
     }
 
-    /// Create dependencies with specific ModelContext for testing
-    static func makeTest(context: ModelContext) -> AppDependencies {
-        return AppDependencies(modelContext: context)
+    /// Create dependencies with specific CoreDataStack for testing
+    static func makeTest(coreDataStack: CoreDataStack) -> AppDependencies {
+        return AppDependencies(coreDataStack: coreDataStack)
     }
 
     // MARK: - Memory Pressure Handling
@@ -387,13 +402,11 @@ final class AppDependencies {
 struct AppDependenciesKey: @preconcurrency EnvironmentKey {
     @MainActor static let defaultValue: AppDependencies = {
         // This should never be used in production - only for previews
-        let schema = Schema([Student.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         do {
-            let container = try ModelContainer(for: schema, configurations: [config])
-            return AppDependencies(modelContext: container.mainContext)
+            let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
+            return AppDependencies(coreDataStack: stack)
         } catch {
-            fatalError("Failed to create preview container: \(error.localizedDescription)")
+            fatalError("Failed to create preview Core Data stack: \(error.localizedDescription)")
         }
     }()
 }

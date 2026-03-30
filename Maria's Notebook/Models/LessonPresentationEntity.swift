@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(LessonPresentation)
-public class LessonPresentation: NSManagedObject {
+public class CDLessonPresentation: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -39,16 +39,9 @@ public class LessonPresentation: NSManagedObject {
 
 // MARK: - Enums
 
-enum LessonPresentationState: String, Codable, CaseIterable, Sendable {
-    case presented
-    case practicing
-    case readyForAssessment
-    case proficient = "mastered"
-}
-
 // MARK: - Computed Properties
 
-extension LessonPresentation {
+extension CDLessonPresentation {
     var state: LessonPresentationState {
         get { LessonPresentationState(rawValue: stateRaw) ?? .presented }
         set { stateRaw = newValue.rawValue }

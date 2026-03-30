@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SupplyTransaction)
-public class SupplyTransaction: NSManagedObject {
+public class CDSupplyTransaction: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var supplyID: String
@@ -11,7 +11,7 @@ public class SupplyTransaction: NSManagedObject {
     @NSManaged public var reason: String
 
     // MARK: - Relationships
-    @NSManaged public var supply: Supply?
+    @NSManaged public var supply: CDSupply?
 
     // MARK: - Convenience Initializer
     @discardableResult

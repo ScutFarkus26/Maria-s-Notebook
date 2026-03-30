@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(LessonAssignment)
-public class LessonAssignment: NSManagedObject {
+public class CDLessonAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -27,7 +27,7 @@ public class LessonAssignment: NSManagedObject {
     @NSManaged public var migratedFromPresentationID: String?
 
     // MARK: - Relationships
-    @NSManaged public var lesson: Lesson?
+    @NSManaged public var lesson: CDLesson?
     @NSManaged public var unifiedNotes: NSSet?
 
     // MARK: - Convenience Initializer
@@ -62,18 +62,10 @@ public class LessonAssignment: NSManagedObject {
 // MARK: - State Enum
 
 /// Lifecycle states for a presentation.
-enum LessonAssignmentState: String, Codable, CaseIterable, Sendable {
-    /// Created but not yet scheduled.
-    case draft
-    /// Has a scheduled date for presentation.
-    case scheduled
-    /// Has been given to students (historical record).
-    case presented
-}
 
 // MARK: - Computed Properties
 
-extension LessonAssignment {
+extension CDLessonAssignment {
     /// Type-safe state accessor.
     var state: LessonAssignmentState {
         get { LessonAssignmentState(rawValue: stateRaw) ?? .draft }
@@ -112,7 +104,7 @@ extension LessonAssignment {
 
 // MARK: - State Transitions
 
-extension LessonAssignment {
+extension CDLessonAssignment {
     /// Schedules this presentation for a specific date.
     func schedule(for date: Date, using calendar: Calendar = AppCalendar.shared) {
         self.scheduledFor = date
@@ -169,44 +161,14 @@ extension LessonAssignment {
     }
 }
 
-// MARK: - Snapshot
-
-/// Immutable value-type snapshot of a LessonAssignment for use in SwiftUI and async contexts.
-struct LessonAssignmentSnapshot: Identifiable, Sendable {
-    let id: UUID
-    let lessonID: UUID
-    let studentIDs: [UUID]
-    let createdAt: Date
-    let scheduledFor: Date?
-    let presentedAt: Date?
-    let state: LessonAssignmentState
-    let notes: String
-    let needsPractice: Bool
-    let needsAnotherPresentation: Bool
-    let followUpWork: String
-    let manuallyUnblocked: Bool
-
-    var isScheduled: Bool { scheduledFor != nil }
-    var isGiven: Bool { state == .presented }
-    var isPresented: Bool { state == .presented }
-}
-
-// MARK: - Type Aliases
-
-/// Public alias for the unified presentation model.
-typealias Presentation = LessonAssignment
-
-/// Public alias for presentation state.
-typealias PresentationState = LessonAssignmentState
-
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension LessonAssignment {
+extension CDLessonAssignment {
     @objc(addUnifiedNotesObject:)
-    @NSManaged public func addToUnifiedNotes(_ value: Note)
+    @NSManaged public func addToUnifiedNotes(_ value: CDNote)
 
     @objc(removeUnifiedNotesObject:)
-    @NSManaged public func removeFromUnifiedNotes(_ value: Note)
+    @NSManaged public func removeFromUnifiedNotes(_ value: CDNote)
 
     @objc(addUnifiedNotes:)
     @NSManaged public func addToUnifiedNotes(_ values: NSSet)
@@ -218,8 +180,8 @@ extension LessonAssignment {
 // MARK: - Debug Extensions
 
 #if DEBUG
-extension LessonAssignment {
-    var debugDescription: String {
+extension CDLessonAssignment {
+    override public var debugDescription: String {
         let studentCount = studentIDs.count
         let prefix = lessonID.prefix(8)
         return "Presentation(id=\(id?.uuidString ?? "nil"), state=\(state.rawValue), lessonID=\(prefix)..., students=\(studentCount))"

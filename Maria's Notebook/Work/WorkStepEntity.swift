@@ -5,7 +5,7 @@ import SwiftUI
 /// WorkStep model representing a single step in a Report-type WorkModel.
 /// Steps are ordered by orderIndex to ensure deterministic progression.
 @objc(WorkStep)
-public class WorkStep: NSManagedObject {
+public class CDWorkStep: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var orderIndex: Int64
@@ -17,7 +17,7 @@ public class WorkStep: NSManagedObject {
     @NSManaged public var createdAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var work: WorkModel?
+    @NSManaged public var work: CDWorkModel?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -37,7 +37,7 @@ public class WorkStep: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension WorkStep {
+extension CDWorkStep {
     /// Computed convenience for completion check
     var isCompleted: Bool { completedAt != nil }
 

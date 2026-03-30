@@ -3,7 +3,7 @@ import CoreData
 import SwiftUI
 
 @objc(TodoItemEntity)
-public class TodoItemEntity: NSManagedObject {
+public class CDTodoItemEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -79,7 +79,7 @@ public class TodoItemEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension TodoItemEntity {
+extension CDTodoItemEntity {
     var priority: TodoPriority {
         get { TodoPriority(rawValue: priorityRaw) ?? .none }
         set { priorityRaw = newValue.rawValue }
@@ -147,7 +147,7 @@ extension TodoItemEntity {
 
     /// Get subtasks progress text
     var subtasksProgressText: String? {
-        let items = subtasks as? Set<TodoSubtaskEntity> ?? []
+        let items = subtasks as? Set<CDTodoSubtaskEntity> ?? []
         guard !items.isEmpty else { return nil }
         let completed = items.filter(\.isCompleted).count
         return "\(completed)/\(items.count)"
@@ -155,7 +155,7 @@ extension TodoItemEntity {
 
     /// Check if all subtasks are completed
     var allSubtasksCompleted: Bool {
-        let items = subtasks as? Set<TodoSubtaskEntity> ?? []
+        let items = subtasks as? Set<CDTodoSubtaskEntity> ?? []
         guard !items.isEmpty else { return true }
         return items.allSatisfy { $0.isCompleted }
     }
@@ -203,12 +203,12 @@ extension TodoItemEntity {
 }
 
 // MARK: - Generated Accessors for subtasks
-extension TodoItemEntity {
+extension CDTodoItemEntity {
     @objc(addSubtasksObject:)
-    @NSManaged public func addToSubtasks(_ value: TodoSubtaskEntity)
+    @NSManaged public func addToSubtasks(_ value: CDTodoSubtaskEntity)
 
     @objc(removeSubtasksObject:)
-    @NSManaged public func removeFromSubtasks(_ value: TodoSubtaskEntity)
+    @NSManaged public func removeFromSubtasks(_ value: CDTodoSubtaskEntity)
 
     @objc(addSubtasks:)
     @NSManaged public func addToSubtasks(_ values: NSSet)

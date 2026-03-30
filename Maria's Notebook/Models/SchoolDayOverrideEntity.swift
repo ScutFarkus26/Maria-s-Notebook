@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SchoolDayOverride)
-public class SchoolDayOverride: NSManagedObject {
+public class CDSchoolDayOverride: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var date: Date?
@@ -22,12 +22,12 @@ public class SchoolDayOverride: NSManagedObject {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension SchoolDayOverride {
+extension CDSchoolDayOverride {
     @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: Note)
+    @NSManaged public func addToNotes(_ value: CDNote)
 
     @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: Note)
+    @NSManaged public func removeFromNotes(_ value: CDNote)
 
     @objc(addNotes:)
     @NSManaged public func addToNotes(_ values: NSSet)

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ProposedSolutionEntity)
-public class ProposedSolutionEntity: NSManagedObject {
+public class CDProposedSolutionEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -12,7 +12,7 @@ public class ProposedSolutionEntity: NSManagedObject {
     @NSManaged public var isAdopted: Bool
 
     // MARK: - Relationships
-    @NSManaged public var topic: CommunityTopicEntity?
+    @NSManaged public var topic: CDCommunityTopicEntity?
 
     // MARK: - Convenience Init
     @discardableResult

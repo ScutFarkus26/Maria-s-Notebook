@@ -2,14 +2,14 @@ import Foundation
 import CoreData
 
 @objc(WorkParticipantEntity)
-public class WorkParticipantEntity: NSManagedObject {
+public class CDWorkParticipantEntity: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
     @NSManaged public var completedAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var work: WorkModel?
+    @NSManaged public var work: CDWorkModel?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -24,7 +24,7 @@ public class WorkParticipantEntity: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension WorkParticipantEntity {
+extension CDWorkParticipantEntity {
     // Computed property for backward compatibility with UUID
     var studentIDUUID: UUID? {
         get { UUID(uuidString: studentID) }

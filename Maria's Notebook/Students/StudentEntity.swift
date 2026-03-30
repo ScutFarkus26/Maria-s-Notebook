@@ -2,7 +2,11 @@ import Foundation
 import CoreData
 
 @objc(Student)
-public class Student: NSManagedObject {
+public class CDStudent: NSManagedObject {
+    // MARK: - Type Aliases (enums defined in SwiftData models)
+    typealias EnrollmentStatus = Student.EnrollmentStatus
+    typealias Level = Student.Level
+
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var firstName: String
@@ -42,21 +46,13 @@ public class Student: NSManagedObject {
 
 // MARK: - Enums
 
-extension Student {
-    enum Level: String, Codable, CaseIterable, Sendable {
-        case lower = "Lower"
-        case upper = "Upper"
-    }
+extension CDStudent {
 
-    enum EnrollmentStatus: String, Codable, CaseIterable, Sendable {
-        case enrolled
-        case withdrawn
-    }
 }
 
 // MARK: - Computed Properties
 
-extension Student {
+extension CDStudent {
     var level: Level {
         get { Level(rawValue: levelRaw) ?? .lower }
         set { levelRaw = newValue.rawValue }
@@ -89,12 +85,12 @@ extension Student {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Student {
+extension CDStudent {
     @objc(addDocumentsObject:)
-    @NSManaged public func addToDocuments(_ value: Document)
+    @NSManaged public func addToDocuments(_ value: CDDocument)
 
     @objc(removeDocumentsObject:)
-    @NSManaged public func removeFromDocuments(_ value: Document)
+    @NSManaged public func removeFromDocuments(_ value: CDDocument)
 
     @objc(addDocuments:)
     @NSManaged public func addToDocuments(_ values: NSSet)

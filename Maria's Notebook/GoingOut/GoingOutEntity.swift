@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(GoingOut)
-public class GoingOut: NSManagedObject {
+public class CDGoingOut: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -49,68 +49,13 @@ public class GoingOut: NSManagedObject {
 
 // MARK: - Enums
 
-extension GoingOut {
-    enum GoingOutStatus: String, CaseIterable, Identifiable, Codable, Sendable {
-        case proposed
-        case planning
-        case approved
-        case completed
-        case cancelled
+extension CDGoingOut {
 
-        public var id: String { rawValue }
-
-        public var displayName: String {
-            switch self {
-            case .proposed: return "Proposed"
-            case .planning: return "Planning"
-            case .approved: return "Approved"
-            case .completed: return "Completed"
-            case .cancelled: return "Cancelled"
-            }
-        }
-
-        public var icon: String {
-            switch self {
-            case .proposed: return "lightbulb"
-            case .planning: return "list.clipboard"
-            case .approved: return "checkmark.seal"
-            case .completed: return "flag.checkered"
-            case .cancelled: return "xmark.circle"
-            }
-        }
-    }
-
-    enum PermissionStatus: String, CaseIterable, Identifiable, Codable, Sendable {
-        case pending
-        case sent
-        case approved
-        case denied
-
-        public var id: String { rawValue }
-
-        public var displayName: String {
-            switch self {
-            case .pending: return "Pending"
-            case .sent: return "Sent"
-            case .approved: return "Approved"
-            case .denied: return "Denied"
-            }
-        }
-
-        public var icon: String {
-            switch self {
-            case .pending: return "clock"
-            case .sent: return "envelope"
-            case .approved: return "checkmark.circle"
-            case .denied: return "xmark.circle"
-            }
-        }
-    }
 }
 
 // MARK: - Computed Properties
 
-extension GoingOut {
+extension CDGoingOut {
     var status: GoingOutStatus {
         get { GoingOutStatus(rawValue: statusRaw) ?? .proposed }
         set { statusRaw = newValue.rawValue; modifiedAt = Date() }
@@ -143,20 +88,20 @@ extension GoingOut {
         }
     }
 
-    var sortedChecklistItems: [GoingOutChecklistItem] {
-        ((checklistItems as? Set<GoingOutChecklistItem>).map(Array.init) ?? [])
+    var sortedChecklistItems: [CDGoingOutChecklistItem] {
+        ((checklistItems as? Set<CDGoingOutChecklistItem>).map(Array.init) ?? [])
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension GoingOut {
+extension CDGoingOut {
     @objc(addChecklistItemsObject:)
-    @NSManaged public func addToChecklistItems(_ value: GoingOutChecklistItem)
+    @NSManaged public func addToChecklistItems(_ value: CDGoingOutChecklistItem)
 
     @objc(removeChecklistItemsObject:)
-    @NSManaged public func removeFromChecklistItems(_ value: GoingOutChecklistItem)
+    @NSManaged public func removeFromChecklistItems(_ value: CDGoingOutChecklistItem)
 
     @objc(addChecklistItems:)
     @NSManaged public func addToChecklistItems(_ values: NSSet)
@@ -165,10 +110,10 @@ extension GoingOut {
     @NSManaged public func removeFromChecklistItems(_ values: NSSet)
 
     @objc(addObservationNotesObject:)
-    @NSManaged public func addToObservationNotes(_ value: Note)
+    @NSManaged public func addToObservationNotes(_ value: CDNote)
 
     @objc(removeObservationNotesObject:)
-    @NSManaged public func removeFromObservationNotes(_ value: Note)
+    @NSManaged public func removeFromObservationNotes(_ value: CDNote)
 
     @objc(addObservationNotes:)
     @NSManaged public func addToObservationNotes(_ values: NSSet)

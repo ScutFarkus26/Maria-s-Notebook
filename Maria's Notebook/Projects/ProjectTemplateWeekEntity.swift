@@ -1,15 +1,8 @@
 import Foundation
 import CoreData
 
-/// Represents a work offer in a template (stored as JSON)
-public struct TemplateOfferedWork: Codable, Identifiable, Equatable, Sendable {
-    public var id: String = UUID().uuidString
-    public var title: String = ""
-    public var instructions: String = ""
-}
-
 @objc(ProjectTemplateWeek)
-public class ProjectTemplateWeek: NSManagedObject {
+public class CDProjectTemplateWeek: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -49,7 +42,7 @@ public class ProjectTemplateWeek: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension ProjectTemplateWeek {
+extension CDProjectTemplateWeek {
     var projectIDUUID: UUID? {
         get { UUID(uuidString: projectID) }
         set { projectID = newValue?.uuidString ?? "" }
@@ -118,12 +111,12 @@ extension ProjectTemplateWeek {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension ProjectTemplateWeek {
+extension CDProjectTemplateWeek {
     @objc(addRoleAssignmentsObject:)
-    @NSManaged public func addToRoleAssignments(_ value: ProjectWeekRoleAssignment)
+    @NSManaged public func addToRoleAssignments(_ value: CDProjectWeekRoleAssignment)
 
     @objc(removeRoleAssignmentsObject:)
-    @NSManaged public func removeFromRoleAssignments(_ value: ProjectWeekRoleAssignment)
+    @NSManaged public func removeFromRoleAssignments(_ value: CDProjectWeekRoleAssignment)
 
     @objc(addRoleAssignments:)
     @NSManaged public func addToRoleAssignments(_ values: NSSet)

@@ -4,73 +4,12 @@ import SwiftUI
 
 // MARK: - Attendance Status
 
-enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
-    case unmarked
-    case present
-    case absent
-    case tardy
-    case leftEarly
-
-    var displayName: String {
-        switch self {
-        case .unmarked: return "Unmarked"
-        case .present: return "Present"
-        case .absent: return "Absent"
-        case .tardy: return "Tardy"
-        case .leftEarly: return "Left Early"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .unmarked: return Color.gray.opacity(UIConstants.OpacityConstants.quarter)
-        case .present: return Color.green.opacity(UIConstants.OpacityConstants.statusBg)
-        case .absent: return Color.red.opacity(UIConstants.OpacityConstants.statusBg)
-        case .tardy: return Color.blue.opacity(UIConstants.OpacityConstants.statusBg)
-        case .leftEarly: return Color.purple.opacity(UIConstants.OpacityConstants.statusBg)
-        }
-    }
-
-    /// Returns the next status in the cycle
-    func next() -> AttendanceStatus {
-        switch self {
-        case .unmarked: return .present
-        case .present: return .absent
-        case .absent: return .tardy
-        case .tardy: return .leftEarly
-        case .leftEarly: return .unmarked
-        }
-    }
-}
-
 // MARK: - Absence Reason
-
-enum AbsenceReason: String, Codable, CaseIterable, Sendable {
-    case none
-    case sick
-    case vacation
-
-    var displayName: String {
-        switch self {
-        case .none: return ""
-        case .sick: return "Sick"
-        case .vacation: return "Vacation"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .none: return "circle"
-        case .sick: return "cross.case.fill"
-        case .vacation: return "beach.umbrella.fill"
-        }
-    }
-}
 
 // MARK: - Core Data Entity
 
 @objc(AttendanceRecord)
-public class AttendanceRecord: NSManagedObject {
+public class CDAttendanceRecord: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -96,7 +35,7 @@ public class AttendanceRecord: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension AttendanceRecord {
+extension CDAttendanceRecord {
     // Computed enum mapping for convenient UI usage
     var status: AttendanceStatus {
         get { AttendanceStatus(rawValue: statusRaw) ?? .unmarked }
@@ -124,12 +63,12 @@ extension AttendanceRecord {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension AttendanceRecord {
+extension CDAttendanceRecord {
     @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: Note)
+    @NSManaged public func addToNotes(_ value: CDNote)
 
     @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: Note)
+    @NSManaged public func removeFromNotes(_ value: CDNote)
 
     @objc(addNotes:)
     @NSManaged public func addToNotes(_ values: NSSet)

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Supply)
-public class Supply: NSManagedObject {
+public class CDSupply: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -46,61 +46,13 @@ public class Supply: NSManagedObject {
 
 // MARK: - Enums
 
-extension Supply {
-    enum SupplyCategory: String, Codable, CaseIterable, Identifiable, Sendable {
-        case art = "Art"
-        case math = "Math"
-        case language = "Language"
-        case science = "Science"
-        case practicalLife = "Practical Life"
-        case sensorial = "Sensorial"
-        case geography = "Geography"
-        case music = "Music"
-        case office = "Office"
-        case cleaning = "Cleaning"
-        case firstAid = "First Aid"
-        case other = "Other"
+extension CDSupply {
 
-        public var id: String { rawValue }
-
-        public var icon: String {
-            switch self {
-            case .art: return "paintbrush"
-            case .math: return "number"
-            case .language: return "textformat"
-            case .science: return "flask"
-            case .practicalLife: return "hands.sparkles"
-            case .sensorial: return "hand.point.up"
-            case .geography: return "globe.americas"
-            case .music: return "music.note"
-            case .office: return "paperclip"
-            case .cleaning: return "sparkles"
-            case .firstAid: return "cross.case"
-            case .other: return "shippingbox"
-            }
-        }
-    }
-
-    enum SupplyStatus: String, Codable, Sendable {
-        case healthy = "Healthy"
-        case low = "Low"
-        case critical = "Critical"
-        case outOfStock = "Out of Stock"
-
-        public var icon: String {
-            switch self {
-            case .healthy: return "checkmark.circle.fill"
-            case .low: return "exclamationmark.triangle.fill"
-            case .critical: return "exclamationmark.circle.fill"
-            case .outOfStock: return "xmark.circle.fill"
-            }
-        }
-    }
 }
 
 // MARK: - Computed Properties
 
-extension Supply {
+extension CDSupply {
     /// Computed property for category enum
     var category: SupplyCategory {
         get { SupplyCategory(rawValue: categoryRaw) ?? .other }
@@ -128,12 +80,12 @@ extension Supply {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension Supply {
+extension CDSupply {
     @objc(addTransactionsObject:)
-    @NSManaged public func addToTransactions(_ value: SupplyTransaction)
+    @NSManaged public func addToTransactions(_ value: CDSupplyTransaction)
 
     @objc(removeTransactionsObject:)
-    @NSManaged public func removeFromTransactions(_ value: SupplyTransaction)
+    @NSManaged public func removeFromTransactions(_ value: CDSupplyTransaction)
 
     @objc(addTransactions:)
     @NSManaged public func addToTransactions(_ values: NSSet)
