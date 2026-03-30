@@ -281,8 +281,9 @@ class QuickNoteViewModel {
         )
         
         modelContext.insert(newNote)
+        ToastService.shared.show("Note saved", type: .success, duration: 1.5)
     }
-    
+
     func loadPhoto(_ item: PhotosPickerItem?) {
         guard let item else { return }
         Task {

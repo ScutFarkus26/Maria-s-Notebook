@@ -92,6 +92,11 @@ struct RootView: View {
             Divider()
             mainContent
         }
+        .overlay(alignment: .topTrailing) {
+            CompactSyncStatusIndicator(compact: true)
+                .padding(.trailing, 12)
+                .padding(.top, 6)
+        }
         .onAppear(perform: restoreSelectionIfNeeded)
         .onChange(of: selectedNavItem) { _, item in
             persistSelection(item)
