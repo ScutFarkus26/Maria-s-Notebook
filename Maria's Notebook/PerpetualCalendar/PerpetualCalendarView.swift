@@ -126,7 +126,8 @@ struct PerpetualCalendarView: View {
         suppressYearScroll = true
         displayYear = AppCalendar.shared.component(.year, from: Date())
         proxy.scrollTo(target, anchor: .leading)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
             programmaticScrollInFlight = false
         }
     }
@@ -141,7 +142,8 @@ struct PerpetualCalendarView: View {
             proxy.scrollTo(target, anchor: .leading)
         }
         // Allow trackVisibleYear to resume after the animation settles.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
             programmaticScrollInFlight = false
         }
     }

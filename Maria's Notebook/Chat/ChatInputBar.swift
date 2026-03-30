@@ -87,13 +87,13 @@ struct ChatInputBar: View {
             sendButtonScale = 0.7
             sendButtonRotation = -30
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(120))
             adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
                 sendButtonScale = 1.1
                 sendButtonRotation = 0
             }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            try? await Task.sleep(for: .milliseconds(230))
             adaptiveWithAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                 sendButtonScale = 1.0
             }

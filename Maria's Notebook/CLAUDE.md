@@ -2,13 +2,15 @@
 
 ## Project Overview
 
-Maria's Notebook is a comprehensive teacher planning and classroom management app for iOS/macOS, built with SwiftUI and SwiftData. It helps educators manage students, lessons, work tracking, attendance, and classroom observations.
+Maria's Notebook is a comprehensive teacher planning and classroom management app for iOS/macOS, built with SwiftUI. It helps Montessori educators manage students, lessons, work tracking, attendance, and classroom observations.
 
 **Tech Stack:**
-- Swift 5.9+ / SwiftUI
-- SwiftData (with optional CloudKit sync)
+- Swift 6.0 / SwiftUI
+- Core Data + NSPersistentCloudKitContainer (migrating from SwiftData)
 - iOS 17.0+ / macOS 14.0+
 - Xcode 15.0+
+
+**Rewrite in progress:** This branch (`rewrite/core-data-sharing`) is migrating from SwiftData to Core Data + NSPersistentCloudKitContainer to enable CloudKit sharing between lead guides and assistants. See `docs/REWRITE_PLAN.md` for the full plan.
 
 ## Build & Run
 
@@ -25,13 +27,13 @@ xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -des
 ```
 Maria's Notebook/
 ├── AppCore/          # App entry, initialization, root navigation
-├── Models/           # SwiftData @Model definitions (51 models across project)
-├── Services/         # Business logic layer (70+ services)
+├── Models/           # Data model definitions (58 models across project)
+├── Services/         # Business logic layer (50+ services)
 ├── ViewModels/       # Shared ViewModels (Today, GiveLesson, etc.)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utility functions
 │
-│── Students/         # Student profiles & meetings
+├── Students/         # Student profiles & meetings
 ├── Lessons/          # Lesson library, attachments, exercises
 ├── Work/             # Work items, check-ins, practice sessions
 ├── Presentations/    # Presentation scheduling
@@ -52,35 +54,37 @@ Maria's Notebook/
 ├── Supplies/         # Supply inventory
 ├── Topics/           # Educational topics
 │
+├── Sharing/          # CloudKit sharing (classroom collaboration) [NEW]
 ├── Backup/           # Backup & restore functionality
 ├── Settings/         # App configuration
 ├── Docs/             # Documentation
-└── Repositories/     # Repository management
+└── Repositories/     # Data access layer
 ```
 
 ## Architecture
 
 **MVVM with Services pattern:**
-- **Views** - SwiftUI views using `@Query`, `@Environment`
-- **ViewModels** - Complex state management (24 ViewModels)
-- **Services** - Business logic operations (70+ services)
-- **Models** - SwiftData entities (51 @Model classes)
+- **Views** — SwiftUI views (migrating from `@Query` to `@FetchRequest`)
+- **ViewModels** — `@Observable @MainActor` classes for complex state (~40 ViewModels)
+- **Services** — Business logic operations (50+ services)
+- **Models** — Migrating from SwiftData `@Model` to `NSManagedObject` subclasses (58 entities)
 
-**Data Access Patterns:**
-```swift
-// Direct query for simple views
-@Query private var students: [Student]
+**Concurrency:** Swift 6.0 strict concurrency throughout:
+- `@Observable` on all ViewModels and stateful services (zero `ObservableObject`)
+- `@MainActor` on all ViewModels, services, and repositories
+- `async/await` throughout, actors for off-thread work
+- `Sendable` types for cross-actor data
 
-// Filtered query
-@Query(filter: #Predicate<WorkModel> { $0.statusRaw == "active" })
-
-// ViewModel for complex state
-@StateObject private var viewModel = TodayViewModel()
+**Persistence (target architecture):**
+```
+NSPersistentCloudKitContainer
+├── Private store (private.sqlite) — teacher-specific data
+└── Shared store (shared.sqlite)  — classroom-level data (via CKShare)
 ```
 
 ## Data Model
 
-**Note** is the central hub — nearly all feature models have an inverse relationship to Note for observations/reflections.
+**58 entities** defined in `AppSchema.swift` (SwiftData) / `MariasNotebook.xcdatamodeld` (Core Data).
 
 **Core Models:**
 
@@ -88,102 +92,45 @@ Maria's Notebook/
 |-------|----------|---------|
 | `Student` | Students/ | Student profiles (firstName, lastName, birthday, level) |
 | `Lesson` | Lessons/ | Curriculum lessons with attachments & exercises |
-| `LessonAssignment` | Models/Presentation.swift | Links students to lessons with scheduling |
+| `LessonAssignment` | Models/ | Links students to lessons with scheduling |
 | `WorkModel` | Work/ | Work items with lifecycle (active→review→complete) |
 | `Note` | Models/ | Observations with category, tags, multi-student scoping |
-| `NoteStudentLink` | Models/ | Junction table for multi-student note scoping |
-| `Reminder` | Models/ | EventKit-synced reminders |
 | `AttendanceRecord` | Attendance/ | Daily attendance tracking |
-
-**Work Models:** WorkStep, WorkCheckIn, WorkParticipantEntity, WorkCompletionRecord, PracticeSession (all in Work/)
-
-**Project Models:** Project, ProjectSession, ProjectAssignmentTemplate, ProjectRole, ProjectTemplateWeek, ProjectWeekRoleAssignment (in Projects/)
-
-**Community Models:** CommunityTopic, ProposedSolution, CommunityAttachment (in Models/CommunityModels.swift)
-
-**Curriculum Models:** Track, TrackStep, GroupTrack, StudentTrackEnrollment, LessonPresentation, LessonAttachment, SampleWork, SampleWorkStep
-
-**Planning/Scheduling:** Schedule, ScheduleSlot, TodoItem, TodoSubtask, TodoTemplate, CalendarEvent, TodayAgendaOrder, NonSchoolDay, SchoolDayOverride, Procedure
-
-**Other:** StudentMeeting, Issue, IssueAction, Document, DevelopmentSnapshot, MeetingTemplate, NoteTemplate, PlanningRecommendation, Supply, SupplyTransaction, AlbumGroupOrder, AlbumGroupUIState
+| `ClassroomMembership` | Sharing/ | Links teacher to classroom zone with role [NEW] |
 
 **CloudKit Compatibility Patterns:**
-- UUID primary keys with default values (no `@Attribute(.unique)` — incompatible with CloudKit)
+- No unique constraints (incompatible with CloudKit)
 - Enums stored as raw `String` (e.g., `statusRaw`, `categoryRaw`)
 - Foreign keys as `String` not `UUID`
 - `modifiedAt` for conflict resolution
-- Manual deduplication via `deduplicateAllModels` for CloudKit merge conflicts
+- All properties optional or have defaults
 
-## Key Services
+## Sharing Model
 
-| Service | Location | Purpose |
-|---------|----------|---------|
-| `DataMigrations` | Services/ | Orchestrates all schema migrations |
-| `LifecycleService` | Services/ | Work lifecycle state management |
-| `ReminderSyncService` | Services/ | EventKit integration |
-| `CalendarSyncService` | Services/ | Calendar event display |
-| `FollowUpInboxEngine` | Services/ | Inbox and follow-up tasks |
-| `BackupService` | Backup/ | Backup/restore operations |
-| `WorkCompletionService` | Work/ | Work completion logic |
-| `ChatService` | Services/Chat/ | AI chat functionality |
-| `AnthropicAPIClient` | Services/ | Anthropic API integration |
-| `LessonPlanningService` | Services/LessonPlanning/ | AI-assisted lesson planning |
-| `CloudKitSyncStatusService` | Services/ | CloudKit sync monitoring |
-| `GroupTrackService` | Services/ | Track/group management |
-| `TodoSmartParserService` | Services/ | Smart todo parsing |
-
-**Services subdirectories:** AI/, Chat/, LessonPlanning/, Migrations/
-
-## Common Patterns
-
-### Adding a New Model
-1. Create `@Model` class in `Models/` (or feature directory)
-2. Use `String` for foreign keys (CloudKit compatibility)
-3. Use `statusRaw`/`categoryRaw` pattern for enums
-4. Add `modifiedAt` timestamp
-5. Register in `ModelContainer` in `MariasNotebookApp.swift`
-
-### Creating a New Feature Module
-1. Create directory under root (e.g., `NewFeature/`)
-2. Add Model, ViewModel, Views
-3. Add Service if complex business logic needed
-4. Add route to `AppRouter` for navigation
-
-### SwiftData Queries
-```swift
-// Safe fetch with error handling
-let results = modelContext.safeFetch(descriptor)
-
-// Safe save
-modelContext.safeSave()
-```
-
-## Important Files
-
-- `AppCore/MariasNotebookApp.swift` - App entry point & ModelContainer
-- `AppCore/AppBootstrapper.swift` - Startup migrations
-- `AppCore/RootView.swift` - Root navigation
-- `AppCore/AppRouter.swift` - Navigation routing
-- `Services/DataMigrations.swift` - Migration orchestration
-- `Utils/ModelContext+SafeFetch.swift` - Safe data operations
+- **Lead Guide** — full read/write on all shared + private data
+- **Assistant** — read all shared data, write AttendanceRecord/Note/WorkCheckIn only
+- Shared data: Students, Lessons, Tracks, Procedures, Supplies, Schedules, Templates
+- Private data: Notes, Work, Attendance, Todos, Projects, Meetings
 
 ## Code Conventions
 
-- Use `@MainActor` for ViewModels
+- Use `@Observable @MainActor` for ViewModels (NOT `ObservableObject`)
+- Use `@MainActor` for services and repositories
 - Prefer composition over inheritance
-- Use `private(set)` for ViewModel published properties
 - Follow existing naming: `*ViewModel`, `*Service`, `*View`
 - Keep views focused; extract complex logic to ViewModels
 - Use `safeFetch`/`safeSave` extensions for data operations
+- Use `async/await` and `Task.sleep(for:)` for delays (NOT `DispatchQueue`)
 
 ## Standards
 
 - All code must pass SwiftLint (see `.swiftlint.yml`). A hook runs it automatically after edits.
-- Follow latest Swift 5.9+ and Apple CloudKit conventions.
+- Follow Swift 6.0 strict concurrency rules.
+- Follow Apple Core Data + CloudKit conventions.
 
 ## CloudKit Notes
 
-- CloudKit sync is **disabled by default**
-- Enable in Settings → CloudKit Status
 - Container: `iCloud.DanielSDeBerry.MariasNoteBook`
+- Two persistent stores: private (teacher data) + shared (classroom data)
+- Schema changes must be additive-only after CloudKit deployment
 - All models use string-based foreign keys for sync compatibility
