@@ -20,6 +20,27 @@ final class CommandBarViewModel {
     var parsedCommand: ParsedCommand?
     var errorMessage: String?
 
+    // MARK: - Recent Commands
+
+    private static let recentCommandsKey = "commandBarRecentCommands"
+    private static let maxRecent = 10
+
+    var recentCommands: [String] {
+        get {
+            (UserDefaults.standard.array(forKey: Self.recentCommandsKey) as? [String]) ?? []
+        }
+        set {
+            UserDefaults.standard.set(Array(newValue.prefix(Self.maxRecent)), forKey: Self.recentCommandsKey)
+        }
+    }
+
+    func addToRecent(_ command: String) {
+        var recent = recentCommands
+        recent.removeAll { $0 == command }
+        recent.insert(command, at: 0)
+        recentCommands = recent
+    }
+
     // MARK: - Services
 
     private let commandBarService = CommandBarService()

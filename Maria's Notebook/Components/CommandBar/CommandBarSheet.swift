@@ -138,6 +138,34 @@ struct CommandBarSheet: View {
     private var examplesView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if !viewModel.recentCommands.isEmpty {
+                    Text("Recent")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(viewModel.recentCommands, id: \.self) { command in
+                        Button {
+                            viewModel.inputText = command
+                            submitCommand()
+                        } label: {
+                            HStack {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 24)
+                                Text(command)
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.leading)
+                                    .lineLimit(2)
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 Text("Examples")
                     .font(.headline)
                     .foregroundStyle(.secondary)
@@ -272,6 +300,7 @@ struct CommandBarSheet: View {
     }
 
     private func executeCommand(_ command: ParsedCommand) {
+        viewModel.addToRecent(viewModel.inputText.trimmed())
         let action = viewModel.buildAction(from: command, modelContext: modelContext)
 
         switch action {
