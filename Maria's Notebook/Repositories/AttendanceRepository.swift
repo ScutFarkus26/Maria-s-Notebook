@@ -8,69 +8,63 @@
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct AttendanceRepository: SavingRepository {
-    typealias Model = AttendanceRecord
+    typealias Model = CDAttendanceRecord
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
-    private let store: AttendanceStore
+    private let store: CDAttendanceStore
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil, calendar: Calendar = .current) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil, calendar: Calendar = .current) {
         self.context = context
         self.saveCoordinator = saveCoordinator
-        self.store = AttendanceStore(context: context, calendar: calendar)
+        self.store = CDAttendanceStore(context: context, calendar: calendar)
     }
 
     // MARK: - Fetch
 
     /// Fetch an AttendanceRecord by ID
-    func fetchRecord(id: UUID) -> AttendanceRecord? {
-        var descriptor = FetchDescriptor<AttendanceRecord>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchRecord(id: UUID) -> CDAttendanceRecord? {
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch AttendanceRecords with optional filtering and sorting
     func fetchRecords(
-        predicate: Predicate<AttendanceRecord>? = nil,
-        sortBy: [SortDescriptor<AttendanceRecord>] = [SortDescriptor(\.date, order: .reverse)]
-    ) -> [AttendanceRecord] {
-        var descriptor = FetchDescriptor<AttendanceRecord>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "date", ascending: false)]
+    ) -> [CDAttendanceRecord] {
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch records for a specific date
-    func fetchRecords(forDate date: Date, calendar: Calendar = .current) -> [AttendanceRecord] {
+    func fetchRecords(forDate date: Date, calendar: Calendar = .current) -> [CDAttendanceRecord] {
         let normalizedDate = date.normalizedDay(using: calendar)
-        let predicate = #Predicate<AttendanceRecord> { $0.date == normalizedDate }
-        return fetchRecords(predicate: predicate, sortBy: [])
+        return fetchRecords(predicate: NSPredicate(format: "date == %@", normalizedDate as NSDate), sortBy: [])
     }
 
     /// Fetch records for a specific student
-    func fetchRecords(forStudentID studentID: UUID) -> [AttendanceRecord] {
-        let studentIDString = studentID.uuidString
-        let predicate = #Predicate<AttendanceRecord> { $0.studentID == studentIDString }
-        return fetchRecords(predicate: predicate)
+    func fetchRecords(forStudentID studentID: UUID) -> [CDAttendanceRecord] {
+        fetchRecords(predicate: NSPredicate(format: "studentID == %@", studentID.uuidString))
     }
 
     // MARK: - Create / Load
 
     /// Load or create attendance records for a date, ensuring one record per student
-    /// - Returns: Tuple of (records, didInsertNew)
     @discardableResult
     func loadOrCreateRecords(
         forDate date: Date,
-        students: [Student]
-    ) -> (records: [AttendanceRecord], didInsert: Bool) {
+        students: [CDStudent]
+    ) -> (records: [CDAttendanceRecord], didInsert: Bool) {
         do {
             return try store.loadOrCreateRecords(for: date, students: students)
         } catch {
@@ -86,14 +80,12 @@ struct AttendanceRepository: SavingRepository {
         status: AttendanceStatus = .unmarked,
         absenceReason: AbsenceReason = .none,
         note: String? = nil
-    ) -> AttendanceRecord {
-        let record = AttendanceRecord(
-            studentID: studentID,
-            date: date.normalizedDay(),
-            status: status,
-            absenceReason: absenceReason
-        )
-        context.insert(record)
+    ) -> CDAttendanceRecord {
+        let record = CDAttendanceRecord(context: context)
+        record.studentID = studentID.uuidString
+        record.date = date.normalizedDay()
+        record.status = status
+        record.absenceReason = absenceReason
         if let note {
             record.setLegacyNoteText(note, in: context)
         }
@@ -127,7 +119,7 @@ struct AttendanceRepository: SavingRepository {
 
     /// Mark all students present for a date
     @discardableResult
-    func markAllPresent(forDate date: Date, students: [Student]) -> [AttendanceRecord] {
+    func markAllPresent(forDate date: Date, students: [CDStudent]) -> [CDAttendanceRecord] {
         do {
             return try store.markAllPresent(for: date, students: students)
         } catch {
@@ -137,7 +129,7 @@ struct AttendanceRepository: SavingRepository {
 
     /// Reset all records for a date to unmarked
     @discardableResult
-    func resetDay(forDate date: Date, students: [Student]) -> [AttendanceRecord] {
+    func resetDay(forDate date: Date, students: [CDStudent]) -> [CDAttendanceRecord] {
         do {
             return try store.resetDay(for: date, students: students)
         } catch {
@@ -151,11 +143,6 @@ struct AttendanceRepository: SavingRepository {
     func deleteRecord(id: UUID) throws {
         guard let record = fetchRecord(id: id) else { return }
         context.delete(record)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

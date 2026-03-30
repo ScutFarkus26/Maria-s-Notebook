@@ -4,6 +4,7 @@ import SwiftData
 import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
+import CoreData
 #endif
 
 struct LessonDetailView: View {
@@ -15,10 +16,11 @@ struct LessonDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     private var repository: LessonRepository {
-        LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     var existingSubjects: [String] {

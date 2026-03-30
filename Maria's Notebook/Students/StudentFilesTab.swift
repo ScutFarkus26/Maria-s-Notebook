@@ -2,6 +2,7 @@ import OSLog
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import CoreData
 
 enum DocumentSortOption {
     case dateDesc
@@ -15,10 +16,11 @@ struct StudentFilesTab: View {
     let student: Student
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     var repository: DocumentRepository {
-        DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        DocumentRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     @State private var showFileImporter = false

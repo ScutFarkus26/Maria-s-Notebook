@@ -2,161 +2,144 @@
 //  PresentationFactory.swift
 //  Maria's Notebook
 //
-//  Centralizes LessonAssignment creation to eliminate duplicated initialization logic.
+//  Centralizes CDLessonAssignment creation to eliminate duplicated initialization logic.
 //  Factory for creating LessonAssignment (Presentation) instances.
 //
 
 import Foundation
+import CoreData
 import SwiftData
 
 enum PresentationFactory {
 
     // MARK: - Draft (Inbox)
 
-    /// Creates a draft LessonAssignment (appears in inbox).
-    /// Use when creating a new lesson that hasn't been scheduled yet.
+    /// Creates a draft CDLessonAssignment (appears in inbox).
+    @MainActor
     static func makeDraft(
         lessonID: UUID,
         studentIDs: [UUID],
         id: UUID = UUID(),
-        createdAt: Date = Date()
-    ) -> LessonAssignment {
-        LessonAssignment(
-            id: id,
-            createdAt: createdAt,
-            state: .draft,
-            scheduledFor: nil,
-            presentedAt: nil,
-            lessonID: lessonID,
-            studentIDs: studentIDs,
-            lesson: nil,
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: "",
-            notes: "",
-            trackID: nil,
-            trackStepID: nil,
-            manuallyUnblocked: false
-        )
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = CDLessonAssignment(context: context)
+        la.id = id
+        la.createdAt = createdAt
+        la.state = .draft
+        la.lessonID = lessonID.uuidString
+        la.studentIDs = studentIDs.map(\.uuidString)
+        return la
     }
 
-    /// Creates a draft LessonAssignment with relationship objects.
+    /// Creates a draft CDLessonAssignment with relationship objects.
+    @MainActor
     static func makeDraft(
-        lesson: Lesson,
-        students: [Student],
+        lesson: CDLesson,
+        students: [CDStudent],
         id: UUID = UUID(),
-        createdAt: Date = Date()
-    ) -> LessonAssignment {
-        LessonAssignment(
-            id: id,
-            lesson: lesson,
-            students: students,
-            state: .draft,
-            scheduledFor: nil
-        )
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = CDLessonAssignment(context: context)
+        la.id = id
+        la.createdAt = createdAt
+        la.state = .draft
+        la.lesson = lesson
+        la.lessonID = lesson.id?.uuidString ?? ""
+        la.studentIDs = students.compactMap { $0.id?.uuidString }
+        la.lessonTitleSnapshot = lesson.name
+        la.lessonSubheadingSnapshot = lesson.subheading
+        return la
     }
 
     // MARK: - Scheduled
 
-    /// Creates a scheduled LessonAssignment for a specific date/time.
+    /// Creates a scheduled CDLessonAssignment for a specific date/time.
+    @MainActor
     static func makeScheduled(
         lessonID: UUID,
         studentIDs: [UUID],
         scheduledFor: Date,
         id: UUID = UUID(),
-        createdAt: Date = Date()
-    ) -> LessonAssignment {
-        LessonAssignment(
-            id: id,
-            createdAt: createdAt,
-            state: .scheduled,
-            scheduledFor: scheduledFor,
-            presentedAt: nil,
-            lessonID: lessonID,
-            studentIDs: studentIDs,
-            lesson: nil,
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: "",
-            notes: "",
-            trackID: nil,
-            trackStepID: nil,
-            manuallyUnblocked: false
-        )
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt, context: context)
+        la.schedule(for: scheduledFor)
+        return la
     }
 
-    /// Creates a scheduled LessonAssignment with relationship objects.
+    /// Creates a scheduled CDLessonAssignment with relationship objects.
+    @MainActor
     static func makeScheduled(
-        lesson: Lesson,
-        students: [Student],
+        lesson: CDLesson,
+        students: [CDStudent],
         scheduledFor: Date,
         id: UUID = UUID(),
-        createdAt: Date = Date()
-    ) -> LessonAssignment {
-        LessonAssignment(
-            id: id,
-            lesson: lesson,
-            students: students,
-            state: .scheduled,
-            scheduledFor: scheduledFor
-        )
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = makeDraft(lesson: lesson, students: students, id: id, createdAt: createdAt, context: context)
+        la.schedule(for: scheduledFor)
+        return la
     }
 
     // MARK: - Presented/Given
 
-    /// Creates a LessonAssignment marked as presented.
-    /// Use when marking a lesson as complete.
+    /// Creates a CDLessonAssignment marked as presented.
+    @MainActor
     static func makePresented(
         lessonID: UUID,
         studentIDs: [UUID],
         presentedAt: Date = Date(),
         id: UUID = UUID(),
-        createdAt: Date = Date()
-    ) -> LessonAssignment {
-        LessonAssignment(
-            id: id,
-            createdAt: createdAt,
-            state: .presented,
-            scheduledFor: nil,
-            presentedAt: presentedAt,
-            lessonID: lessonID,
-            studentIDs: studentIDs,
-            lesson: nil,
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: "",
-            notes: "",
-            trackID: nil,
-            trackStepID: nil,
-            manuallyUnblocked: false
-        )
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt, context: context)
+        la.markPresented(at: presentedAt, snapshotLesson: false)
+        return la
     }
 
-    /// Creates a presented LessonAssignment with relationship objects.
+    /// Creates a presented CDLessonAssignment with relationship objects.
+    @MainActor
     static func makePresented(
-        lesson: Lesson,
-        students: [Student],
+        lesson: CDLesson,
+        students: [CDStudent],
         presentedAt: Date = Date(),
         id: UUID = UUID(),
-        createdAt: Date = Date()
-    ) -> LessonAssignment {
-        let la = LessonAssignment(
-            id: id,
-            lesson: lesson,
-            students: students,
-            state: .presented,
-            scheduledFor: nil
-        )
-        la.presentedAt = presentedAt
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = makeDraft(lesson: lesson, students: students, id: id, createdAt: createdAt, context: context)
+        la.markPresented(at: presentedAt)
         return la
     }
 
     // MARK: - Previously Presented (Undated)
 
-    /// Creates a LessonAssignment marked as previously presented (no date).
-    /// Use when the teacher wants to record that a lesson was given at some
-    /// unknown past date without cluttering the dated presentation log.
+    /// Creates a CDLessonAssignment marked as previously presented (no date).
+    @MainActor
     static func makePreviouslyPresented(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        id: UUID = UUID(),
+        createdAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt, context: context)
+        la.state = .presented
+        // No presentedAt date — this is an undated historical record
+        return la
+    }
+
+    // MARK: - Legacy SwiftData overloads (transition period — remove when views migrate to Core Data)
+
+    /// Legacy draft creation returning SwiftData LessonAssignment.
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    @MainActor
+    static func makeDraft(
         lessonID: UUID,
         studentIDs: [UUID],
         id: UUID = UUID(),
@@ -165,40 +148,15 @@ enum PresentationFactory {
         LessonAssignment(
             id: id,
             createdAt: createdAt,
-            state: .presented,
-            scheduledFor: nil,
-            presentedAt: nil,
+            state: .draft,
             lessonID: lessonID,
-            studentIDs: studentIDs,
-            lesson: nil,
-            needsPractice: false,
-            needsAnotherPresentation: false,
-            followUpWork: "",
-            notes: "",
-            trackID: nil,
-            trackStepID: nil,
-            manuallyUnblocked: false
+            studentIDs: studentIDs
         )
     }
 
-    // MARK: - Helpers
-
-    /// Attaches relationship objects to an existing LessonAssignment.
-    /// Useful when you create with IDs but need to attach resolved objects later.
-    static func attachRelationships(
-        to lessonAssignment: LessonAssignment,
-        lesson: Lesson?,
-        students: [Student]
-    ) {
-        lessonAssignment.lesson = lesson
-        lessonAssignment.students = students
-        lessonAssignment.syncSnapshotsFromRelationships()
-    }
-
-    // MARK: - Insert Helpers (for convenience)
-
-    /// Creates and inserts a draft LessonAssignment.
-    @MainActor @discardableResult
+    /// Legacy insertDraft — creates and inserts into ModelContext.
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    @MainActor
     static func insertDraft(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -209,21 +167,38 @@ enum PresentationFactory {
         return la
     }
 
-    /// Creates and inserts a scheduled LessonAssignment.
+    /// Legacy presented creation returning SwiftData LessonAssignment.
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
     @MainActor
-    static func insertScheduled(
+    static func makePresented(
         lessonID: UUID,
         studentIDs: [UUID],
-        scheduledFor: Date,
-        context: ModelContext
+        presentedAt: Date = Date(),
+        id: UUID = UUID(),
+        createdAt: Date = Date()
     ) -> LessonAssignment {
-        let la = makeScheduled(lessonID: lessonID, studentIDs: studentIDs, scheduledFor: scheduledFor)
-        context.insert(la)
+        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt)
+        la.stateRaw = LessonAssignmentState.presented.rawValue
+        la.presentedAt = presentedAt
         return la
     }
 
-    /// Creates and inserts a presented LessonAssignment.
-    @MainActor @discardableResult
+    /// Legacy relationship attachment for SwiftData LessonAssignment.
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    @MainActor
+    static func attachRelationships(
+        to la: LessonAssignment,
+        lesson: Lesson?,
+        students: [Student]
+    ) {
+        la.lesson = lesson
+        la.students = students
+        la.syncSnapshotsFromRelationships()
+    }
+
+    /// Legacy insertPresented — creates, inserts, and marks as presented.
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    @MainActor
     static func insertPresented(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -235,15 +210,35 @@ enum PresentationFactory {
         return la
     }
 
-    /// Creates and inserts a previously presented (undated) LessonAssignment.
-    @MainActor @discardableResult
+    /// Legacy insertPreviouslyPresented — creates, inserts, and marks as previously presented (undated).
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    @MainActor
+    @discardableResult
     static func insertPreviouslyPresented(
         lessonID: UUID,
         studentIDs: [UUID],
         context: ModelContext
     ) -> LessonAssignment {
-        let la = makePreviouslyPresented(lessonID: lessonID, studentIDs: studentIDs)
+        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs)
+        la.stateRaw = LessonAssignmentState.presented.rawValue
+        // No presentedAt date — this is an undated historical record
         context.insert(la)
+        return la
+    }
+
+    /// Legacy scheduled creation returning SwiftData LessonAssignment.
+    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    @MainActor
+    static func makeScheduled(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        scheduledFor: Date,
+        id: UUID = UUID(),
+        createdAt: Date = Date()
+    ) -> LessonAssignment {
+        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt)
+        la.scheduledFor = scheduledFor
+        la.stateRaw = LessonAssignmentState.scheduled.rawValue
         return la
     }
 }

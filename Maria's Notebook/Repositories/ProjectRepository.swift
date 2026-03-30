@@ -3,23 +3,22 @@
 //  Maria's Notebook
 //
 //  Repository for Project, ProjectSession, and ProjectAssignmentTemplate CRUD operations.
-//  Follows the pattern established by WorkRepository.
 //
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct ProjectRepository: SavingRepository {
-    typealias Model = Project
+    typealias Model = CDProject
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
@@ -27,29 +26,26 @@ struct ProjectRepository: SavingRepository {
     // MARK: - Fetch Projects
 
     /// Fetch a Project by ID
-    func fetchProject(id: UUID) -> Project? {
-        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchProject(id: UUID) -> CDProject? {
+        let request = CDFetchRequest(CDProject.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple Projects with optional filtering and sorting
     func fetchProjects(
-        predicate: Predicate<Project>? = nil,
-        sortBy: [SortDescriptor<Project>] = [SortDescriptor(\.createdAt, order: .reverse)]
-    ) -> [Project] {
-        var descriptor = FetchDescriptor<Project>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
+    ) -> [CDProject] {
+        let request = CDFetchRequest(CDProject.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch active projects
-    func fetchActiveProjects() -> [Project] {
-        let predicate = #Predicate<Project> { $0.isActive }
-        return fetchProjects(predicate: predicate)
+    func fetchActiveProjects() -> [CDProject] {
+        fetchProjects(predicate: NSPredicate(format: "isActive == YES"))
     }
 
     // MARK: - Create Project
@@ -61,14 +57,12 @@ struct ProjectRepository: SavingRepository {
         bookTitle: String? = nil,
         memberStudentIDs: [UUID] = [],
         isActive: Bool = true
-    ) -> Project {
-        let project = Project(
-            title: title,
-            bookTitle: bookTitle,
-            memberStudentIDs: memberStudentIDs.map(\.uuidString),
-            isActive: isActive
-        )
-        context.insert(project)
+    ) -> CDProject {
+        let project = CDProject(context: context)
+        project.title = title
+        project.bookTitle = bookTitle
+        project.memberStudentUUIDs = memberStudentIDs
+        project.isActive = isActive
         return project
     }
 
@@ -85,18 +79,10 @@ struct ProjectRepository: SavingRepository {
     ) -> Bool {
         guard let project = fetchProject(id: id) else { return false }
 
-        if let title {
-            project.title = title
-        }
-        if let bookTitle {
-            project.bookTitle = bookTitle.isEmpty ? nil : bookTitle
-        }
-        if let memberStudentIDs {
-            project.memberStudentIDs = memberStudentIDs.map(\.uuidString)
-        }
-        if let isActive {
-            project.isActive = isActive
-        }
+        if let title { project.title = title }
+        if let bookTitle { project.bookTitle = bookTitle.isEmpty ? nil : bookTitle }
+        if let memberStudentIDs { project.memberStudentUUIDs = memberStudentIDs }
+        if let isActive { project.isActive = isActive }
 
         return true
     }
@@ -107,31 +93,24 @@ struct ProjectRepository: SavingRepository {
     func deleteProject(id: UUID) throws {
         guard let project = fetchProject(id: id) else { return }
         context.delete(project)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 
     // MARK: - Fetch Sessions
 
     /// Fetch a ProjectSession by ID
-    func fetchSession(id: UUID) -> ProjectSession? {
-        var descriptor = FetchDescriptor<ProjectSession>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchSession(id: UUID) -> CDProjectSession? {
+        let request = CDFetchRequest(CDProjectSession.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch sessions for a project
-    func fetchSessions(forProjectID projectID: UUID) -> [ProjectSession] {
-        let projectIDString = projectID.uuidString
-        let descriptor = FetchDescriptor<ProjectSession>(
-            predicate: #Predicate { $0.projectID == projectIDString },
-            sortBy: [SortDescriptor(\.meetingDate)]
-        )
-        return context.safeFetch(descriptor)
+    func fetchSessions(forProjectID projectID: UUID) -> [CDProjectSession] {
+        let request = CDFetchRequest(CDProjectSession.self)
+        request.predicate = NSPredicate(format: "projectID == %@", projectID.uuidString)
+        request.sortDescriptors = [NSSortDescriptor(key: "meetingDate", ascending: true)]
+        return context.safeFetch(request)
     }
 
     // MARK: - Create Session
@@ -144,14 +123,12 @@ struct ProjectRepository: SavingRepository {
         chapterOrPages: String? = nil,
         notes: String? = nil,
         agendaItems: [String] = []
-    ) -> ProjectSession {
-        let session = ProjectSession(
-            projectID: projectID,
-            meetingDate: meetingDate,
-            chapterOrPages: chapterOrPages
-        )
+    ) -> CDProjectSession {
+        let session = CDProjectSession(context: context)
+        session.projectIDUUID = projectID
+        session.meetingDate = meetingDate
+        session.chapterOrPages = chapterOrPages
         session.agendaItems = agendaItems
-        context.insert(session)
         if let notes {
             session.setLegacyNoteText(notes, in: context)
         }
@@ -171,18 +148,10 @@ struct ProjectRepository: SavingRepository {
     ) -> Bool {
         guard let session = fetchSession(id: id) else { return false }
 
-        if let meetingDate {
-            session.meetingDate = meetingDate
-        }
-        if let chapterOrPages {
-            session.chapterOrPages = chapterOrPages.isEmpty ? nil : chapterOrPages
-        }
-        if let notes {
-            session.setLegacyNoteText(notes, in: context)
-        }
-        if let agendaItems {
-            session.agendaItems = agendaItems
-        }
+        if let meetingDate { session.meetingDate = meetingDate }
+        if let chapterOrPages { session.chapterOrPages = chapterOrPages.isEmpty ? nil : chapterOrPages }
+        if let notes { session.setLegacyNoteText(notes, in: context) }
+        if let agendaItems { session.agendaItems = agendaItems }
 
         return true
     }
@@ -193,31 +162,24 @@ struct ProjectRepository: SavingRepository {
     func deleteSession(id: UUID) throws {
         guard let session = fetchSession(id: id) else { return }
         context.delete(session)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 
     // MARK: - Fetch Templates
 
     /// Fetch a ProjectAssignmentTemplate by ID
-    func fetchTemplate(id: UUID) -> ProjectAssignmentTemplate? {
-        var descriptor = FetchDescriptor<ProjectAssignmentTemplate>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchTemplate(id: UUID) -> CDProjectAssignmentTemplate? {
+        let request = CDFetchRequest(CDProjectAssignmentTemplate.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch templates for a project
-    func fetchTemplates(forProjectID projectID: UUID) -> [ProjectAssignmentTemplate] {
-        let projectIDString = projectID.uuidString
-        let descriptor = FetchDescriptor<ProjectAssignmentTemplate>(
-            predicate: #Predicate { $0.projectID == projectIDString },
-            sortBy: [SortDescriptor(\.createdAt)]
-        )
-        return context.safeFetch(descriptor)
+    func fetchTemplates(forProjectID projectID: UUID) -> [CDProjectAssignmentTemplate] {
+        let request = CDFetchRequest(CDProjectAssignmentTemplate.self)
+        request.predicate = NSPredicate(format: "projectID == %@", projectID.uuidString)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        return context.safeFetch(request)
     }
 
     // MARK: - Create Template
@@ -230,15 +192,13 @@ struct ProjectRepository: SavingRepository {
         instructions: String = "",
         isShared: Bool = true,
         defaultLinkedLessonID: UUID? = nil
-    ) -> ProjectAssignmentTemplate {
-        let template = ProjectAssignmentTemplate(
-            projectID: projectID,
-            title: title,
-            instructions: instructions,
-            isShared: isShared,
-            defaultLinkedLessonID: defaultLinkedLessonID?.uuidString
-        )
-        context.insert(template)
+    ) -> CDProjectAssignmentTemplate {
+        let template = CDProjectAssignmentTemplate(context: context)
+        template.projectIDUUID = projectID
+        template.title = title
+        template.instructions = instructions
+        template.isShared = isShared
+        template.defaultLinkedLessonID = defaultLinkedLessonID?.uuidString
         return template
     }
 
@@ -248,11 +208,6 @@ struct ProjectRepository: SavingRepository {
     func deleteTemplate(id: UUID) throws {
         guard let template = fetchTemplate(id: id) else { return }
         context.delete(template)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

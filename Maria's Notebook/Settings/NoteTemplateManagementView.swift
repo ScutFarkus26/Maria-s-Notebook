@@ -4,10 +4,12 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import CoreData
 
 struct NoteTemplateManagementView: View {
     private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Query(sort: \NoteTemplate.sortOrder)
     private var templates: [NoteTemplate]
 
@@ -16,7 +18,7 @@ struct NoteTemplateManagementView: View {
     @State private var previewingTemplate: NoteTemplate?
 
     private var repository: NoteTemplateRepository {
-        NoteTemplateRepository(context: modelContext)
+        NoteTemplateRepository(context: managedObjectContext)
     }
 
     private var builtInTemplates: [NoteTemplate] {

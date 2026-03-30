@@ -3,23 +3,22 @@
 //  Maria's Notebook
 //
 //  Repository for Lesson entity CRUD operations.
-//  Follows the pattern established by WorkRepository.
 //
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct LessonRepository: SavingRepository {
-    typealias Model = Lesson
+    typealias Model = CDLesson
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
@@ -27,76 +26,51 @@ struct LessonRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a Lesson by ID
-    func fetchLesson(id: UUID) -> Lesson? {
-        var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchLesson(id: UUID) -> CDLesson? {
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple Lessons with optional filtering and sorting
-    /// - Parameters:
-    ///   - predicate: Optional predicate to filter lessons. If nil, fetches all.
-    ///   - sortBy: Optional sort descriptors. Defaults to sorting by subject, group, sortIndex.
-    /// - Returns: Array of Lesson entities matching the criteria
     func fetchLessons(
-        predicate: Predicate<Lesson>? = nil,
-        sortBy: [SortDescriptor<Lesson>] = [
-            SortDescriptor(\.subject),
-            SortDescriptor(\.group),
-            SortDescriptor(\.sortIndex)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [
+            NSSortDescriptor(key: "subject", ascending: true),
+            NSSortDescriptor(key: "group", ascending: true),
+            NSSortDescriptor(key: "sortIndex", ascending: true)
         ]
-    ) -> [Lesson] {
-        var descriptor = FetchDescriptor<Lesson>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+    ) -> [CDLesson] {
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch lessons by subject
-    func fetchLessons(bySubject subject: String) -> [Lesson] {
-        let predicate = #Predicate<Lesson> { $0.subject == subject }
-        return fetchLessons(predicate: predicate)
+    func fetchLessons(bySubject subject: String) -> [CDLesson] {
+        fetchLessons(predicate: NSPredicate(format: "subject == %@", subject))
     }
 
     /// Fetch lessons by subject and group
-    func fetchLessons(bySubject subject: String, group: String) -> [Lesson] {
-        let predicate = #Predicate<Lesson> { $0.subject == subject && $0.group == group }
-        return fetchLessons(predicate: predicate)
+    func fetchLessons(bySubject subject: String, group: String) -> [CDLesson] {
+        fetchLessons(predicate: NSPredicate(format: "subject == %@ AND group == %@", subject, group))
     }
 
     /// Fetch all root story lessons (stories with no parent)
-    func fetchRootStories() -> [Lesson] {
+    func fetchRootStories() -> [CDLesson] {
         let storyRaw = LessonFormat.story.rawValue
-        let predicate = #Predicate<Lesson> {
-            $0.lessonFormatRaw == storyRaw && $0.parentStoryID == nil
-        }
-        return fetchLessons(predicate: predicate)
+        return fetchLessons(predicate: NSPredicate(format: "lessonFormatRaw == %@ AND parentStoryID == nil", storyRaw))
     }
 
     /// Fetch child stories that branch off a given parent story
-    func fetchChildStories(parentID: UUID) -> [Lesson] {
-        let parentIDString = parentID.uuidString
-        let predicate = #Predicate<Lesson> { $0.parentStoryID == parentIDString }
-        return fetchLessons(predicate: predicate)
+    func fetchChildStories(parentID: UUID) -> [CDLesson] {
+        fetchLessons(predicate: NSPredicate(format: "parentStoryID == %@", parentID.uuidString))
     }
 
     // MARK: - Create
 
     /// Create a new Lesson
-    /// - Parameters:
-    ///   - name: Lesson name
-    ///   - subject: Subject area (e.g., Math, Language)
-    ///   - group: Group/category within subject
-    ///   - subheading: Short description
-    ///   - writeUp: Detailed lesson content
-    ///   - orderInGroup: Manual order within group
-    ///   - sortIndex: Order within subject
-    ///   - source: Lesson source (album or personal)
-    ///   - personalKind: Kind when source is personal
-    ///   - defaultWorkKind: Preferred work type for this lesson
-    /// - Returns: The created Lesson entity
     @discardableResult
     func createLesson(
         name: String,
@@ -115,34 +89,30 @@ struct LessonRepository: SavingRepository {
         teacherNotes: String = "",
         lessonFormat: LessonFormat = .standard,
         parentStoryID: String? = nil
-    ) -> Lesson {
-        let lesson = Lesson(
-            name: name,
-            subject: subject,
-            group: group,
-            orderInGroup: orderInGroup,
-            sortIndex: sortIndex,
-            subheading: subheading,
-            writeUp: writeUp,
-            sourceRaw: source.rawValue,
-            personalKindRaw: personalKind?.rawValue,
-            defaultWorkKind: defaultWorkKind,
-            materials: materials,
-            purpose: purpose,
-            ageRange: ageRange,
-            teacherNotes: teacherNotes,
-            lessonFormatRaw: lessonFormat.rawValue,
-            parentStoryID: parentStoryID
-        )
-        context.insert(lesson)
+    ) -> CDLesson {
+        let lesson = CDLesson(context: context)
+        lesson.name = name
+        lesson.subject = subject
+        lesson.group = group
+        lesson.subheading = subheading
+        lesson.writeUp = writeUp
+        lesson.orderInGroup = Int64(orderInGroup)
+        lesson.sortIndex = Int64(sortIndex)
+        lesson.source = source
+        lesson.personalKind = personalKind
+        lesson.defaultWorkKind = defaultWorkKind
+        lesson.materials = materials
+        lesson.purpose = purpose
+        lesson.ageRange = ageRange
+        lesson.teacherNotes = teacherNotes
+        lesson.lessonFormat = lessonFormat
+        lesson.parentStoryID = parentStoryID
         return lesson
     }
 
     // MARK: - Update
 
-    // Update an existing Lesson's properties
     @discardableResult
-    // swiftlint:disable:next cyclomatic_complexity
     func updateLesson(
         id: UUID,
         name: String? = nil,
@@ -169,8 +139,8 @@ struct LessonRepository: SavingRepository {
         if let group { lesson.group = group }
         if let subheading { lesson.subheading = subheading }
         if let writeUp { lesson.writeUp = writeUp }
-        if let orderInGroup { lesson.orderInGroup = orderInGroup }
-        if let sortIndex { lesson.sortIndex = sortIndex }
+        if let orderInGroup { lesson.orderInGroup = Int64(orderInGroup) }
+        if let sortIndex { lesson.sortIndex = Int64(sortIndex) }
         if let defaultWorkKind { lesson.defaultWorkKind = defaultWorkKind }
         if let materials { lesson.materials = materials }
         if let purpose { lesson.purpose = purpose }
@@ -190,11 +160,6 @@ struct LessonRepository: SavingRepository {
     func deleteLesson(id: UUID) throws {
         guard let lesson = fetchLesson(id: id) else { return }
         context.delete(lesson)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

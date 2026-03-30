@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import CoreData
 
 struct AddLessonView: View {
     private static let logger = Logger.lessons
@@ -11,10 +12,11 @@ struct AddLessonView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: LessonRepository {
-        LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     @State private var name: String = ""

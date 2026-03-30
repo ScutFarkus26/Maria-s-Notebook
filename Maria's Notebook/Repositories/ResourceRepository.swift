@@ -1,56 +1,53 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct ResourceRepository: SavingRepository {
-    typealias Model = Resource
+    typealias Model = CDResource
 
     private static let logger = Logger.resources
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
 
     // MARK: - Fetch
 
-    func fetchResource(id: UUID) -> Resource? {
-        var descriptor = FetchDescriptor<Resource>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchResource(id: UUID) -> CDResource? {
+        let request = CDFetchRequest(CDResource.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     func fetchResources(
-        predicate: Predicate<Resource>? = nil,
-        sortBy: [SortDescriptor<Resource>] = [SortDescriptor(\.createdAt, order: .reverse)]
-    ) -> [Resource] {
-        var descriptor = FetchDescriptor<Resource>()
-        if let predicate { descriptor.predicate = predicate }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
+    ) -> [CDResource] {
+        let request = CDFetchRequest(CDResource.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
-    func fetchResources(byCategory category: String) -> [Resource] {
-        let predicate = #Predicate<Resource> { $0.categoryRaw == category }
-        return fetchResources(predicate: predicate)
+    func fetchResources(byCategory category: String) -> [CDResource] {
+        fetchResources(predicate: NSPredicate(format: "categoryRaw == %@", category))
     }
 
-    func fetchFavorites() -> [Resource] {
-        let predicate = #Predicate<Resource> { $0.isFavorite == true }
-        return fetchResources(predicate: predicate)
+    func fetchFavorites() -> [CDResource] {
+        fetchResources(predicate: NSPredicate(format: "isFavorite == YES"))
     }
 
-    func fetchRecents(limit: Int = 20) -> [Resource] {
-        var descriptor = FetchDescriptor<Resource>(
-            predicate: #Predicate { $0.lastViewedAt != nil },
-            sortBy: [SortDescriptor(\.lastViewedAt, order: .reverse)]
-        )
-        descriptor.fetchLimit = limit
-        return context.safeFetch(descriptor)
+    func fetchRecents(limit: Int = 20) -> [CDResource] {
+        let request = CDFetchRequest(CDResource.self)
+        request.predicate = NSPredicate(format: "lastViewedAt != nil")
+        request.sortDescriptors = [NSSortDescriptor(key: "lastViewedAt", ascending: false)]
+        request.fetchLimit = limit
+        return context.safeFetch(request)
     }
 
     // MARK: - Create
@@ -67,20 +64,18 @@ struct ResourceRepository: SavingRepository {
         tags: [String] = [],
         linkedLessonIDs: String = "",
         linkedSubjects: String = ""
-    ) -> Resource {
-        let resource = Resource(
-            title: title,
-            descriptionText: descriptionText,
-            category: category,
-            fileBookmark: fileBookmark,
-            fileRelativePath: fileRelativePath,
-            fileSizeBytes: fileSizeBytes,
-            thumbnailData: thumbnailData,
-            tags: tags,
-            linkedLessonIDs: linkedLessonIDs,
-            linkedSubjects: linkedSubjects
-        )
-        context.insert(resource)
+    ) -> CDResource {
+        let resource = CDResource(context: context)
+        resource.title = title
+        resource.category = category
+        resource.descriptionText = descriptionText
+        resource.fileBookmark = fileBookmark
+        resource.fileRelativePath = fileRelativePath
+        resource.fileSizeBytes = fileSizeBytes
+        resource.thumbnailData = thumbnailData
+        resource.tagsArray = tags
+        resource.linkedLessonIDs = linkedLessonIDs
+        resource.linkedSubjects = linkedSubjects
         return resource
     }
 
@@ -102,7 +97,7 @@ struct ResourceRepository: SavingRepository {
         if let title { resource.title = title }
         if let category { resource.category = category }
         if let descriptionText { resource.descriptionText = descriptionText }
-        if let tags { resource.tags = tags }
+        if let tags { resource.tagsArray = tags }
         if let isFavorite { resource.isFavorite = isFavorite }
         if let linkedLessonIDs { resource.linkedLessonIDs = linkedLessonIDs }
         if let linkedSubjects { resource.linkedSubjects = linkedSubjects }
@@ -118,8 +113,7 @@ struct ResourceRepository: SavingRepository {
 
     // MARK: - Delete
 
-    func deleteResource(_ resource: Resource) {
-        // Clean up file from storage
+    func deleteResource(_ resource: CDResource) {
         if !resource.fileRelativePath.isEmpty {
             do {
                 let fileURL = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
@@ -128,7 +122,6 @@ struct ResourceRepository: SavingRepository {
                 Self.logger.warning("Failed to delete resource file: \(error, privacy: .public)")
             }
         }
-
         context.delete(resource)
     }
 }

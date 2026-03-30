@@ -2,24 +2,23 @@
 //  PresentationRepository.swift
 //  Maria's Notebook
 //
-//  Repository for LessonAssignment (Presentation) entity CRUD operations.
 //  Repository for LessonAssignment (Presentation) CRUD operations.
 //
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct PresentationRepository: SavingRepository {
-    typealias Model = LessonAssignment
+    typealias Model = CDLessonAssignment
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
@@ -27,61 +26,44 @@ struct PresentationRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a LessonAssignment by ID
-    func fetchLessonAssignment(id: UUID) -> LessonAssignment? {
-        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchLessonAssignment(id: UUID) -> CDLessonAssignment? {
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple LessonAssignments with optional filtering and sorting
-    /// - Parameters:
-    ///   - predicate: Optional predicate to filter. If nil, fetches all.
-    ///   - sortBy: Optional sort descriptors. Defaults to sorting by createdAt descending.
-    /// - Returns: Array of LessonAssignment entities matching the criteria
     func fetchLessonAssignments(
-        predicate: Predicate<LessonAssignment>? = nil,
-        sortBy: [SortDescriptor<LessonAssignment>] = [SortDescriptor(\.createdAt, order: .reverse)]
-    ) -> [LessonAssignment] {
-        var descriptor = FetchDescriptor<LessonAssignment>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
+    ) -> [CDLessonAssignment] {
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch LessonAssignments for a specific lesson
-    func fetchLessonAssignments(forLessonID lessonID: UUID) -> [LessonAssignment] {
-        let lessonIDString = lessonID.uuidString
-        let predicate = #Predicate<LessonAssignment> { $0.lessonID == lessonIDString }
-        return fetchLessonAssignments(predicate: predicate)
+    func fetchLessonAssignments(forLessonID lessonID: UUID) -> [CDLessonAssignment] {
+        fetchLessonAssignments(predicate: NSPredicate(format: "lessonID == %@", lessonID.uuidString))
     }
 
     /// Fetch inbox items (draft or scheduled but not yet presented)
-    func fetchInboxItems() -> [LessonAssignment] {
-        let predicate = #Predicate<LessonAssignment> { la in
-            la.stateRaw == "draft" || la.stateRaw == "scheduled"
-        }
-        return fetchLessonAssignments(predicate: predicate)
+    func fetchInboxItems() -> [CDLessonAssignment] {
+        fetchLessonAssignments(predicate: NSPredicate(format: "stateRaw == %@ OR stateRaw == %@", "draft", "scheduled"))
     }
 
     /// Fetch scheduled LessonAssignments for a date range
-    func fetchScheduled(from startDate: Date, to endDate: Date) -> [LessonAssignment] {
-        let predicate = #Predicate<LessonAssignment> { la in
-            la.scheduledForDay >= startDate && la.scheduledForDay < endDate
-        }
-        return fetchLessonAssignments(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.scheduledForDay)]
+    func fetchScheduled(from startDate: Date, to endDate: Date) -> [CDLessonAssignment] {
+        fetchLessonAssignments(
+            predicate: NSPredicate(format: "scheduledForDay >= %@ AND scheduledForDay < %@", startDate as NSDate, endDate as NSDate),
+            sortBy: [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
         )
     }
 
     /// Fetch active (not yet presented) LessonAssignments
-    func fetchActiveAssignments() -> [LessonAssignment] {
-        let predicate = #Predicate<LessonAssignment> { la in
-            la.stateRaw != "presented"
-        }
-        return fetchLessonAssignments(predicate: predicate)
+    func fetchActiveAssignments() -> [CDLessonAssignment] {
+        fetchLessonAssignments(predicate: NSPredicate(format: "stateRaw != %@", "presented"))
     }
 
     // MARK: - Create (using PresentationFactory)
@@ -91,27 +73,17 @@ struct PresentationRepository: SavingRepository {
     func createDraft(
         lessonID: UUID,
         studentIDs: [UUID]
-    ) -> LessonAssignment {
-        let la = PresentationFactory.makeDraft(
-            lessonID: lessonID,
-            studentIDs: studentIDs
-        )
-        context.insert(la)
-        return la
+    ) -> CDLessonAssignment {
+        PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: studentIDs, context: context)
     }
 
     /// Create a draft LessonAssignment with relationship objects
     @discardableResult
     func createDraft(
-        lesson: Lesson,
-        students: [Student]
-    ) -> LessonAssignment {
-        let la = PresentationFactory.makeDraft(
-            lesson: lesson,
-            students: students
-        )
-        context.insert(la)
-        return la
+        lesson: CDLesson,
+        students: [CDStudent]
+    ) -> CDLessonAssignment {
+        PresentationFactory.makeDraft(lesson: lesson, students: students, context: context)
     }
 
     /// Create a scheduled LessonAssignment
@@ -120,30 +92,18 @@ struct PresentationRepository: SavingRepository {
         lessonID: UUID,
         studentIDs: [UUID],
         scheduledFor: Date
-    ) -> LessonAssignment {
-        let la = PresentationFactory.makeScheduled(
-            lessonID: lessonID,
-            studentIDs: studentIDs,
-            scheduledFor: scheduledFor
-        )
-        context.insert(la)
-        return la
+    ) -> CDLessonAssignment {
+        PresentationFactory.makeScheduled(lessonID: lessonID, studentIDs: studentIDs, scheduledFor: scheduledFor, context: context)
     }
 
     /// Create a scheduled LessonAssignment with relationship objects
     @discardableResult
     func createScheduled(
-        lesson: Lesson,
-        students: [Student],
+        lesson: CDLesson,
+        students: [CDStudent],
         scheduledFor: Date
-    ) -> LessonAssignment {
-        let la = PresentationFactory.makeScheduled(
-            lesson: lesson,
-            students: students,
-            scheduledFor: scheduledFor
-        )
-        context.insert(la)
-        return la
+    ) -> CDLessonAssignment {
+        PresentationFactory.makeScheduled(lesson: lesson, students: students, scheduledFor: scheduledFor, context: context)
     }
 
     /// Create a presented LessonAssignment
@@ -152,30 +112,18 @@ struct PresentationRepository: SavingRepository {
         lessonID: UUID,
         studentIDs: [UUID],
         presentedAt: Date = Date()
-    ) -> LessonAssignment {
-        let la = PresentationFactory.makePresented(
-            lessonID: lessonID,
-            studentIDs: studentIDs,
-            presentedAt: presentedAt
-        )
-        context.insert(la)
-        return la
+    ) -> CDLessonAssignment {
+        PresentationFactory.makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt, context: context)
     }
 
     /// Create a presented LessonAssignment with relationship objects
     @discardableResult
     func createPresented(
-        lesson: Lesson,
-        students: [Student],
+        lesson: CDLesson,
+        students: [CDStudent],
         presentedAt: Date = Date()
-    ) -> LessonAssignment {
-        let la = PresentationFactory.makePresented(
-            lesson: lesson,
-            students: students,
-            presentedAt: presentedAt
-        )
-        context.insert(la)
-        return la
+    ) -> CDLessonAssignment {
+        PresentationFactory.makePresented(lesson: lesson, students: students, presentedAt: presentedAt, context: context)
     }
 
     // MARK: - Update
@@ -223,15 +171,9 @@ struct PresentationRepository: SavingRepository {
     ) -> Bool {
         guard let la = fetchLessonAssignment(id: id) else { return false }
 
-        if let needsPractice {
-            la.needsPractice = needsPractice
-        }
-        if let needsAnotherPresentation {
-            la.needsAnotherPresentation = needsAnotherPresentation
-        }
-        if let followUpWork {
-            la.followUpWork = followUpWork
-        }
+        if let needsPractice { la.needsPractice = needsPractice }
+        if let needsAnotherPresentation { la.needsAnotherPresentation = needsAnotherPresentation }
+        if let followUpWork { la.followUpWork = followUpWork }
 
         la.modifiedAt = Date()
         return true
@@ -243,11 +185,6 @@ struct PresentationRepository: SavingRepository {
     func deleteLessonAssignment(id: UUID) throws {
         guard let la = fetchLessonAssignment(id: id) else { return }
         context.delete(la)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

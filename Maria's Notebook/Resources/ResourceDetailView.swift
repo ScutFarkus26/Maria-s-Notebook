@@ -3,11 +3,13 @@ import SwiftUI
 import SwiftData
 @preconcurrency import PDFKit
 import OSLog
+import CoreData
 
 // Detail view for a single resource, showing PDF preview, metadata, and edit/delete actions.
 // swiftlint:disable:next type_body_length
 struct ResourceDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.dismiss) private var dismiss
 
     @Bindable var resource: Resource
@@ -498,8 +500,7 @@ struct ResourceDetailView: View {
     #endif
 
     private func deleteResource() {
-        let repo = ResourceRepository(context: modelContext)
-        repo.deleteResource(resource)
+        modelContext.delete(resource)
         modelContext.safeSave()
         dismiss()
     }

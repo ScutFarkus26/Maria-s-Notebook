@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import OSLog
+import CoreData
 
 // MARK: - Presentation Assignment Service
 

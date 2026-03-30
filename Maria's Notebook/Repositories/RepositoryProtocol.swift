@@ -7,16 +7,16 @@
 //
 
 import Foundation
-import SwiftData
+import CoreData
 
 /// Protocol defining standard repository operations.
 /// Repositories encapsulate data access, making views testable without a real database.
 @MainActor
 protocol Repository {
-    associatedtype Model: PersistentModel
+    associatedtype Model: NSManagedObject
 
-    /// The ModelContext used for data operations
-    var context: ModelContext { get }
+    /// The NSManagedObjectContext used for data operations
+    var context: NSManagedObjectContext { get }
 }
 
 /// Protocol for repositories that support coordinated saves with error handling.

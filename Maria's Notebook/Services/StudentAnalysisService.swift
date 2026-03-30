@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import CoreData
 
 /// Service that leverages MCP tools to analyze student data and provide actionable insights
 @MainActor
@@ -154,10 +155,14 @@ final class StudentAnalysisService {
         // Fetch notes for this student
         let studentID = student.id
         let sinceDate = since
-        let noteRepository = NoteRepository(context: modelContext)
-        let notes = noteRepository
-            .fetchNotesForStudent(studentID: studentID)
-            .filter { $0.createdAt >= sinceDate }
+        // Fetch notes via SwiftData (StudentAnalysisService uses ModelContext)
+        let noteDescriptor = FetchDescriptor<Note>(
+            predicate: #Predicate<Note> { note in
+                note.searchIndexStudentID == studentID && note.createdAt >= sinceDate
+            },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let notes = (try? modelContext.fetch(noteDescriptor)) ?? []
         
         // Fetch practice sessions
         let practiceDescriptor = FetchDescriptor<PracticeSession>(

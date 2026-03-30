@@ -3,6 +3,7 @@
 import OSLog
 import SwiftData
 import SwiftUI
+import CoreData
 
 struct StudentDetailView: View {
     private static let logger = Logger.students
@@ -14,10 +15,11 @@ struct StudentDetailView: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: StudentRepository {
-        StudentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        StudentRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     // MARK: - State

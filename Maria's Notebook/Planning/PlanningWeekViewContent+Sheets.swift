@@ -113,6 +113,9 @@ extension PlanningWeekViewContent {
         if let found = inboxLessons.first(where: { $0.id == id }) {
             return found
         }
-        return presentationRepository.fetchLessonAssignment(id: id)
+        // Fallback to SwiftData fetch (PlanningWeekViewContent works with SwiftData LessonAssignment)
+        var fetch = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
+        fetch.fetchLimit = 1
+        return try? modelContext.fetch(fetch).first
     }
 }

@@ -4,10 +4,12 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import CoreData
 
 struct MeetingTemplateManagementView: View {
     private static let logger = Logger.settings
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Query(sort: \MeetingTemplate.sortOrder)
     private var templates: [MeetingTemplate]
 
@@ -16,7 +18,7 @@ struct MeetingTemplateManagementView: View {
     @State private var previewingTemplate: MeetingTemplate?
 
     private var repository: MeetingTemplateRepository {
-        MeetingTemplateRepository(context: modelContext)
+        MeetingTemplateRepository(context: managedObjectContext)
     }
 
     private var builtInTemplates: [MeetingTemplate] {

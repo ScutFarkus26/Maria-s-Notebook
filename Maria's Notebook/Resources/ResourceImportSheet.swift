@@ -2,10 +2,12 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 import OSLog
+import CoreData
 
 /// Sheet for importing a PDF into the Resource Library.
 struct ResourceImportSheet: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: [SortDescriptor(\Lesson.name)]) private var allLessons: [Lesson]
@@ -229,7 +231,7 @@ struct ResourceImportSheet: View {
             let subjectsString = selectedSubjects.sorted().joined(separator: ",")
 
             // Create resource
-            let repo = ResourceRepository(context: modelContext)
+            let repo = ResourceRepository(context: managedObjectContext)
             repo.createResource(
                 title: trimmedTitle,
                 category: selectedCategory,

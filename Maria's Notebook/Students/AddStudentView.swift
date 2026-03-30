@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
+import CoreData
 
 struct AddStudentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var firstName = ""
@@ -14,7 +16,7 @@ struct AddStudentView: View {
     @State private var level: Student.Level = .lower
 
     private var repository: StudentRepository {
-        StudentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        StudentRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     var body: some View {

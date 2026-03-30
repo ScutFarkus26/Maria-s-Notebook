@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import CoreData
 
 private struct EntryRow: Identifiable, Hashable {
     let id = UUID()
@@ -21,9 +22,10 @@ public struct BulkLessonsEntryView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
 
     private var repository: LessonRepository {
-        LessonRepository(context: modelContext, saveCoordinator: nil)
+        LessonRepository(context: managedObjectContext, saveCoordinator: nil)
     }
 
     @State private var rows: [EntryRow] = []
@@ -327,12 +329,13 @@ public struct BulkLessonsEntryView: View {
         for lesson in allLessons {
             let key = "\(lesson.subject)|\(lesson.group)"
             let current = maxOrderByGroup[key] ?? -1
-            if lesson.orderInGroup > current {
-                maxOrderByGroup[key] = lesson.orderInGroup
+            let order = Int(lesson.orderInGroup)
+            if order > current {
+                maxOrderByGroup[key] = order
             }
         }
 
-        var insertedLessons: [Lesson] = []
+        var insertedLessons: [CDLesson] = []
         for r in items {
             // Calculate the next orderInGroup for this subject+group
             let key = "\(r.subject)|\(r.group)"
@@ -352,7 +355,7 @@ public struct BulkLessonsEntryView: View {
             insertedLessons.append(lesson)
         }
         do {
-            try modelContext.save()
+            try managedObjectContext.save()
 
             // Automatically create/update Track objects for new subject/group combinations
             var processedGroups: Set<String> = []

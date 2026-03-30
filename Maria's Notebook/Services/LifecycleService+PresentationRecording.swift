@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import os
+import CoreData
 
 // MARK: - Presentation Recording
 

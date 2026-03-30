@@ -3,23 +3,22 @@
 //  Maria's Notebook
 //
 //  Repository for StudentMeeting entity CRUD operations.
-//  Follows the pattern established by WorkRepository.
 //
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct MeetingRepository: SavingRepository {
-    typealias Model = StudentMeeting
+    typealias Model = CDStudentMeeting
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
@@ -27,44 +26,39 @@ struct MeetingRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a StudentMeeting by ID
-    func fetchMeeting(id: UUID) -> StudentMeeting? {
-        var descriptor = FetchDescriptor<StudentMeeting>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchMeeting(id: UUID) -> CDStudentMeeting? {
+        let request = CDFetchRequest(CDStudentMeeting.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple StudentMeetings with optional filtering and sorting
     func fetchMeetings(
-        predicate: Predicate<StudentMeeting>? = nil,
-        sortBy: [SortDescriptor<StudentMeeting>] = [SortDescriptor(\.date, order: .reverse)]
-    ) -> [StudentMeeting] {
-        var descriptor = FetchDescriptor<StudentMeeting>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "date", ascending: false)]
+    ) -> [CDStudentMeeting] {
+        let request = CDFetchRequest(CDStudentMeeting.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch meetings for a specific student
-    func fetchMeetings(forStudentID studentID: UUID) -> [StudentMeeting] {
-        let studentIDString = studentID.uuidString
-        let predicate = #Predicate<StudentMeeting> { $0.studentID == studentIDString }
-        return fetchMeetings(predicate: predicate)
+    func fetchMeetings(forStudentID studentID: UUID) -> [CDStudentMeeting] {
+        fetchMeetings(predicate: NSPredicate(format: "studentID == %@", studentID.uuidString))
     }
 
     /// Fetch incomplete meetings
-    func fetchIncompleteMeetings() -> [StudentMeeting] {
-        let predicate = #Predicate<StudentMeeting> { !$0.completed }
-        return fetchMeetings(predicate: predicate)
+    func fetchIncompleteMeetings() -> [CDStudentMeeting] {
+        fetchMeetings(predicate: NSPredicate(format: "completed == NO"))
     }
 
     /// Fetch meetings for a date range
-    func fetchMeetings(from startDate: Date, to endDate: Date) -> [StudentMeeting] {
-        let predicate = #Predicate<StudentMeeting> { meeting in
-            meeting.date >= startDate && meeting.date < endDate
-        }
-        return fetchMeetings(predicate: predicate, sortBy: [SortDescriptor(\.date)])
+    func fetchMeetings(from startDate: Date, to endDate: Date) -> [CDStudentMeeting] {
+        fetchMeetings(
+            predicate: NSPredicate(format: "date >= %@ AND date < %@", startDate as NSDate, endDate as NSDate),
+            sortBy: [NSSortDescriptor(key: "date", ascending: true)]
+        )
     }
 
     // MARK: - Create
@@ -79,17 +73,15 @@ struct MeetingRepository: SavingRepository {
         focus: String = "",
         requests: String = "",
         guideNotes: String = ""
-    ) -> StudentMeeting {
-        let meeting = StudentMeeting(
-            studentID: studentID,
-            date: date,
-            completed: completed,
-            reflection: reflection,
-            focus: focus,
-            requests: requests,
-            guideNotes: guideNotes
-        )
-        context.insert(meeting)
+    ) -> CDStudentMeeting {
+        let meeting = CDStudentMeeting(context: context)
+        meeting.studentID = studentID.uuidString
+        meeting.date = date
+        meeting.completed = completed
+        meeting.reflection = reflection
+        meeting.focus = focus
+        meeting.requests = requests
+        meeting.guideNotes = guideNotes
         return meeting
     }
 
@@ -108,24 +100,12 @@ struct MeetingRepository: SavingRepository {
     ) -> Bool {
         guard let meeting = fetchMeeting(id: id) else { return false }
 
-        if let date {
-            meeting.date = date
-        }
-        if let completed {
-            meeting.completed = completed
-        }
-        if let reflection {
-            meeting.reflection = reflection
-        }
-        if let focus {
-            meeting.focus = focus
-        }
-        if let requests {
-            meeting.requests = requests
-        }
-        if let guideNotes {
-            meeting.guideNotes = guideNotes
-        }
+        if let date { meeting.date = date }
+        if let completed { meeting.completed = completed }
+        if let reflection { meeting.reflection = reflection }
+        if let focus { meeting.focus = focus }
+        if let requests { meeting.requests = requests }
+        if let guideNotes { meeting.guideNotes = guideNotes }
 
         return true
     }
@@ -144,11 +124,6 @@ struct MeetingRepository: SavingRepository {
     func deleteMeeting(id: UUID) throws {
         guard let meeting = fetchMeeting(id: id) else { return }
         context.delete(meeting)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

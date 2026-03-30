@@ -3,23 +3,22 @@
 //  Maria's Notebook
 //
 //  Repository for Reminder entity CRUD operations.
-//  Follows the pattern established by WorkRepository.
 //
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct ReminderRepository: SavingRepository {
-    typealias Model = Reminder
+    typealias Model = CDReminder
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
@@ -27,35 +26,31 @@ struct ReminderRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a Reminder by ID
-    func fetchReminder(id: UUID) -> Reminder? {
-        var descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchReminder(id: UUID) -> CDReminder? {
+        let request = CDFetchRequest(CDReminder.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple Reminders with optional filtering and sorting
     func fetchReminders(
-        predicate: Predicate<Reminder>? = nil,
-        sortBy: [SortDescriptor<Reminder>] = [SortDescriptor(\.dueDate)]
-    ) -> [Reminder] {
-        var descriptor = FetchDescriptor<Reminder>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "dueDate", ascending: true)]
+    ) -> [CDReminder] {
+        let request = CDFetchRequest(CDReminder.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch incomplete reminders
-    func fetchIncompleteReminders() -> [Reminder] {
-        let predicate = #Predicate<Reminder> { !$0.isCompleted }
-        return fetchReminders(predicate: predicate)
+    func fetchIncompleteReminders() -> [CDReminder] {
+        fetchReminders(predicate: NSPredicate(format: "isCompleted == NO"))
     }
 
     /// Fetch reminders due today or overdue
-    func fetchDueToday(calendar: Calendar = .current) -> [Reminder] {
+    func fetchDueToday(calendar: Calendar = .current) -> [CDReminder] {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
-        // Fetch all incomplete reminders and filter in memory to avoid SwiftData predicate issues with optionals
         let allIncomplete = fetchIncompleteReminders()
         return allIncomplete.filter { reminder in
             guard let dueDate = reminder.dueDate else { return false }
@@ -64,9 +59,10 @@ struct ReminderRepository: SavingRepository {
     }
 
     /// Fetch reminder by EventKit ID (for sync)
-    func fetchReminder(byEventKitID eventKitID: String) -> Reminder? {
-        let predicate = #Predicate<Reminder> { $0.eventKitReminderID == eventKitID }
-        return fetchReminders(predicate: predicate).first
+    func fetchReminder(byEventKitID eventKitID: String) -> CDReminder? {
+        let request = CDFetchRequest(CDReminder.self)
+        request.predicate = NSPredicate(format: "eventKitReminderID == %@", eventKitID)
+        return context.safeFetchFirst(request)
     }
 
     // MARK: - Create
@@ -79,16 +75,15 @@ struct ReminderRepository: SavingRepository {
         dueDate: Date? = nil,
         eventKitReminderID: String? = nil,
         eventKitCalendarID: String? = nil
-    ) -> Reminder {
-        let reminder = Reminder(
-            title: title,
-            notes: eventKitReminderID == nil ? nil : notes,
-            dueDate: dueDate,
-            eventKitReminderID: eventKitReminderID,
-            eventKitCalendarID: eventKitCalendarID
-        )
-        context.insert(reminder)
-        if eventKitReminderID == nil {
+    ) -> CDReminder {
+        let reminder = CDReminder(context: context)
+        reminder.title = title
+        reminder.dueDate = dueDate
+        reminder.eventKitReminderID = eventKitReminderID
+        reminder.eventKitCalendarID = eventKitCalendarID
+        if eventKitReminderID != nil {
+            reminder.notes = notes
+        } else {
             reminder.setLegacyNoteText(notes, in: context)
         }
         return reminder
@@ -106,9 +101,7 @@ struct ReminderRepository: SavingRepository {
     ) -> Bool {
         guard let reminder = fetchReminder(id: id) else { return false }
 
-        if let title {
-            reminder.title = title
-        }
+        if let title { reminder.title = title }
         if let notes {
             if reminder.eventKitReminderID != nil {
                 reminder.notes = notes.isEmpty ? nil : notes
@@ -117,9 +110,7 @@ struct ReminderRepository: SavingRepository {
                 reminder.setLegacyNoteText(notes, in: context)
             }
         }
-        if let dueDate {
-            reminder.dueDate = dueDate
-        }
+        if let dueDate { reminder.dueDate = dueDate }
         reminder.updatedAt = Date()
 
         return true
@@ -147,11 +138,6 @@ struct ReminderRepository: SavingRepository {
     func deleteReminder(id: UUID) throws {
         guard let reminder = fetchReminder(id: id) else { return }
         context.delete(reminder)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

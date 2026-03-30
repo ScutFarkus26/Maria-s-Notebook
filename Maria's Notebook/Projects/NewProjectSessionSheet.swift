@@ -2,6 +2,7 @@
 import OSLog
 import SwiftUI
 import SwiftData
+import CoreData
 
 // swiftlint:disable:next type_body_length
 struct NewProjectSessionSheet: View {
@@ -10,6 +11,7 @@ struct NewProjectSessionSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var meetingDate: Date = Date()
@@ -268,9 +270,10 @@ struct NewProjectSessionSheet: View {
                     let newLA = PresentationFactory.makeScheduled(
                         lessonID: lessonID,
                         studentIDs: memberUUIDs,
-                        scheduledFor: scheduledDay
+                        scheduledFor: scheduledDay,
+                        context: managedObjectContext
                     )
-                    modelContext.insert(newLA)
+                    _ = newLA // auto-inserted by Core Data
                 }
             }
         }

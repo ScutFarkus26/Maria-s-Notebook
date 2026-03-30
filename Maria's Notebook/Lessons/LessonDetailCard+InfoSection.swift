@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreData
 
 extension LessonDetailCard {
     var infoSection: some View {
@@ -131,13 +132,13 @@ extension LessonDetailCard {
 
             // Story Branches (child stories)
             if lesson.isStory {
-                let repo = LessonRepository(context: modelContext, saveCoordinator: saveCoordinator)
+                let repo = LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
                 let children = repo.fetchChildStories(parentID: lesson.id)
                 if !children.isEmpty {
                     LessonRelationshipsSection(
                         title: "Story Branches",
                         icon: "arrow.triangle.branch",
-                        lessonIDs: children.map(\.id),
+                        lessonIDs: children.compactMap(\.id),
                         modelContext: modelContext
                     )
                 }

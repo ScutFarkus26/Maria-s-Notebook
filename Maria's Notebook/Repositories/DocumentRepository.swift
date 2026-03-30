@@ -3,23 +3,22 @@
 //  Maria's Notebook
 //
 //  Repository for Document entity CRUD operations.
-//  Follows the pattern established by WorkRepository.
 //
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 struct DocumentRepository: SavingRepository {
-    typealias Model = Document
+    typealias Model = CDDocument
 
     private static let logger = Logger.database
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    init(context: ModelContext, saveCoordinator: SaveCoordinator? = nil) {
+    init(context: NSManagedObjectContext, saveCoordinator: SaveCoordinator? = nil) {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
@@ -27,72 +26,56 @@ struct DocumentRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a Document by ID
-    func fetchDocument(id: UUID) -> Document? {
-        var descriptor = FetchDescriptor<Document>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetchDocument(id: UUID) -> CDDocument? {
+        let request = CDFetchRequest(CDDocument.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple Documents with optional filtering and sorting
     func fetchDocuments(
-        predicate: Predicate<Document>? = nil,
-        sortBy: [SortDescriptor<Document>] = [SortDescriptor(\.uploadDate, order: .reverse)]
-    ) -> [Document] {
-        var descriptor = FetchDescriptor<Document>()
-        if let predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
-        return context.safeFetch(descriptor)
+        predicate: NSPredicate? = nil,
+        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "uploadDate", ascending: false)]
+    ) -> [CDDocument] {
+        let request = CDFetchRequest(CDDocument.self)
+        request.predicate = predicate
+        request.sortDescriptors = sortBy
+        return context.safeFetch(request)
     }
 
     /// Fetch documents for a specific student
-    func fetchDocuments(forStudent student: Student) -> [Document] {
-        return (student.documents ?? []).sorted { $0.uploadDate > $1.uploadDate }
+    func fetchDocuments(forStudent student: CDStudent) -> [CDDocument] {
+        let docs = (student.documents?.allObjects as? [CDDocument]) ?? []
+        return docs.sorted { ($0.uploadDate ?? .distantPast) > ($1.uploadDate ?? .distantPast) }
     }
 
     /// Fetch documents by category
-    func fetchDocuments(byCategory category: String) -> [Document] {
-        let predicate = #Predicate<Document> { $0.category == category }
-        return fetchDocuments(predicate: predicate)
+    func fetchDocuments(byCategory category: String) -> [CDDocument] {
+        fetchDocuments(predicate: NSPredicate(format: "category == %@", category))
     }
 
     // MARK: - Create
 
     /// Create a new Document
-    /// - Parameters:
-    ///   - title: Document title
-    ///   - category: Document category
-    ///   - pdfData: Optional PDF data
-    ///   - student: Optional associated student
-    /// - Returns: The created Document entity
     @discardableResult
     func createDocument(
         title: String,
         category: String,
         pdfData: Data? = nil,
-        student: Student? = nil
-    ) -> Document {
-        let document = Document(
-            title: title,
-            category: category,
-            uploadDate: Date(),
-            pdfData: pdfData,
-            student: student
-        )
-        context.insert(document)
+        student: CDStudent? = nil
+    ) -> CDDocument {
+        let document = CDDocument(context: context)
+        document.title = title
+        document.category = category
+        document.uploadDate = Date()
+        document.pdfData = pdfData
+        document.student = student
         return document
     }
 
     // MARK: - Update
 
     /// Update an existing Document's properties
-    /// - Parameters:
-    ///   - id: The UUID of the document to update
-    ///   - title: New title (optional)
-    ///   - category: New category (optional)
-    ///   - pdfData: New PDF data (optional)
-    /// - Returns: true if update succeeded, false if document not found
     @discardableResult
     func updateDocument(
         id: UUID,
@@ -102,15 +85,9 @@ struct DocumentRepository: SavingRepository {
     ) -> Bool {
         guard let document = fetchDocument(id: id) else { return false }
 
-        if let title {
-            document.title = title
-        }
-        if let category {
-            document.category = category
-        }
-        if let pdfData {
-            document.pdfData = pdfData
-        }
+        if let title { document.title = title }
+        if let category { document.category = category }
+        if let pdfData { document.pdfData = pdfData }
 
         return true
     }
@@ -121,11 +98,6 @@ struct DocumentRepository: SavingRepository {
     func deleteDocument(id: UUID) throws {
         guard let document = fetchDocument(id: id) else { return }
         context.delete(document)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error, privacy: .public)")
-            throw error
-        }
+        try context.save()
     }
 }

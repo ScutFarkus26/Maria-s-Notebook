@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -10,7 +11,7 @@ final class DeduplicationCoordinator {
     static let shared = DeduplicationCoordinator()
     nonisolated private static let logger = Logger.app(category: "DeduplicationCoordinator")
 
-    var modelContainer: ModelContainer?
+    var persistentContainer: NSPersistentContainer?
 
     private var debounceTask: Task<Void, Never>?
     private var isRunning = false
@@ -29,19 +30,23 @@ final class DeduplicationCoordinator {
     }
 
     private func runDeduplication() {
-        guard !isRunning, let container = modelContainer else { return }
+        guard !isRunning, let container = persistentContainer else { return }
         isRunning = true
 
+        // Get ModelContainer on MainActor before detaching
+        let modelContainer = AppBootstrapping.getSharedModelContainer()
+
         Task.detached(priority: .utility) { [weak self] in
-            let context = ModelContext(container)
-            context.autosaveEnabled = false
+            // DataCleanupService still uses SwiftData ModelContext during transition
+            let swiftDataContext = ModelContext(modelContainer)
+            swiftDataContext.autosaveEnabled = false
 
             let start = Date()
-            let results = DataCleanupService.deduplicateAllModels(using: context)
+            let results = DataCleanupService.deduplicateAllModels(using: swiftDataContext)
 
             if !results.isEmpty {
                 do {
-                    try context.save()
+                    try swiftDataContext.save()
                     Self.logger.info("Post-import deduplication removed \(results.values.reduce(0, +)) duplicates")
                 } catch {
                     Self.logger.error("Post-import deduplication save failed: \(error.localizedDescription)")

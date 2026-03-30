@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreData
 
 struct DocumentImportSheet: View {
     let pdfURL: URL
@@ -8,11 +9,12 @@ struct DocumentImportSheet: View {
     let onSave: () -> Void
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.dismiss) private var dismiss
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: DocumentRepository {
-        DocumentRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        DocumentRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     @State private var title: String
@@ -65,11 +67,14 @@ struct DocumentImportSheet: View {
         let trimmedTitle = title.trimmed()
         guard !trimmedTitle.isEmpty else { return }
 
+        // Look up CDStudent by ID for the Core Data repository
+        let studentRepo = StudentRepository(context: managedObjectContext)
+        let cdStudent = studentRepo.fetchStudent(id: student.id)
         repository.createDocument(
             title: trimmedTitle,
             category: category,
             pdfData: pdfData,
-            student: student
+            student: cdStudent
         )
         _ = repository.save(reason: "Import document for student")
 

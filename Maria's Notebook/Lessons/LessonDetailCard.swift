@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 #if os(macOS)
@@ -16,6 +17,7 @@ struct LessonDetailCard: View {
     var initialMode: LessonDetailInitialMode = .normal
 
     @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     @State var isEditing = false

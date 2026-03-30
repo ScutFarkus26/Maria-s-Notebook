@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import CoreData
 
 // MARK: - Completion & Computed Helpers
 

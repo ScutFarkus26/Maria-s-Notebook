@@ -102,7 +102,7 @@ final class AppDependencies {
         if let container = _repositories {
             return container
         }
-        let container = RepositoryContainer(context: modelContext, saveCoordinator: nil)
+        let container = RepositoryContainer(context: coreDataStack.viewContext, saveCoordinator: nil)
         _repositories = container
         return container
     }

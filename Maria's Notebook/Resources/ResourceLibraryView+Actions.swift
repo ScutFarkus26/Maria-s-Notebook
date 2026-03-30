@@ -2,15 +2,16 @@
 // Data mutation actions, selection management, bulk operations, and drag-and-drop import.
 
 import SwiftUI
+import SwiftData
 import UniformTypeIdentifiers
+import CoreData
 
 extension ResourceLibraryView {
 
     // MARK: - Individual Actions
 
     func deleteResource(_ resource: Resource) {
-        let repo = ResourceRepository(context: modelContext)
-        repo.deleteResource(resource)
+        modelContext.delete(resource)
         modelContext.safeSave()
     }
 
@@ -69,9 +70,8 @@ extension ResourceLibraryView {
     }
 
     func bulkDelete() {
-        let repo = ResourceRepository(context: modelContext)
         for resource in selectedResources {
-            repo.deleteResource(resource)
+            modelContext.delete(resource)
         }
         modelContext.safeSave()
         exitSelectMode()
@@ -118,8 +118,7 @@ extension ResourceLibraryView {
             let bookmark = try ResourceFileStorage.makeBookmark(for: destURL)
             let thumbnail = ResourceThumbnailGenerator.generateThumbnail(from: destURL)
 
-            let repo = ResourceRepository(context: modelContext)
-            repo.createResource(
+            let resource = Resource(
                 title: title,
                 category: .other,
                 fileBookmark: bookmark,
@@ -127,6 +126,7 @@ extension ResourceLibraryView {
                 fileSizeBytes: fileSize,
                 thumbnailData: thumbnail
             )
+            modelContext.insert(resource)
             modelContext.safeSave()
         } catch {
             // Silently fail — resource wasn't imported

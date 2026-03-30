@@ -1,12 +1,14 @@
 import OSLog
 import SwiftData
 import SwiftUI
+import CoreData
 
 private let logger = Logger.students
 
 // swiftlint:disable:next type_body_length
 struct PresentationQuickActionsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dismiss) private var dismiss
     @Environment(SaveCoordinator.self) private var saveCoordinator

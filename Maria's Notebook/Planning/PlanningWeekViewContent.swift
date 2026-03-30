@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import CoreData
 
 /// Shared visual component for PlanningWeekView that works with both Mac and iOS data sources.
 /// This contains all the UI logic and presentation, but is data-agnostic.
@@ -11,10 +12,11 @@ struct PlanningWeekViewContent: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     var presentationRepository: PresentationRepository {
-        PresentationRepository(context: modelContext, saveCoordinator: saveCoordinator)
+        PresentationRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
     // Data provided by the platform-specific parent view
@@ -79,8 +81,10 @@ struct PlanningWeekViewContent: View {
     }
     
     @MainActor func planNextLesson(for la: LessonAssignment) {
-        // Fetch existing LessonAssignments for duplicate checking
-        let existingLessonAssignments = presentationRepository.fetchActiveAssignments()
+        // Fetch existing LessonAssignments via SwiftData (PlanNextLessonService expects SwiftData types)
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+        let fetch = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.stateRaw != presentedRaw })
+        let existingLessonAssignments = (try? modelContext.fetch(fetch)) ?? []
 
         let result = PlanNextLessonService.planNextLesson(
             for: la,
@@ -324,10 +328,9 @@ struct PlanningWeekViewContent: View {
     }
     
     private func handleAddNew() {
-        let newLA = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [])
-        modelContext.insert(newLA)
+        let newLA = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: managedObjectContext)
         presentationRepository.save(reason: "Creating new presentation")
-        activeSheet = .giveLessonDraft(newLA.id)
+        activeSheet = .giveLessonDraft(newLA.id ?? UUID())
         onRefreshNeeded?()
     }
 }

@@ -99,7 +99,7 @@ final class AppBootstrapper {
         state = .ready
 
         // 5.5. Initialize post-sync deduplication coordinator
-        DeduplicationCoordinator.shared.modelContainer = modelContainer
+        DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
         // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.

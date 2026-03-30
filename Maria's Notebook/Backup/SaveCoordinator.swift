@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CoreData
 import SwiftData
 
 @Observable
@@ -11,24 +12,24 @@ final class SaveCoordinator {
 
     /// When true, suppress presenting UI alerts on save failures (used in previews)
     var suppressAlerts: Bool = false
-    
+
     private let toastService: ToastService
-    
+
     init(toastService: ToastService = ToastService.shared) {
         self.toastService = toastService
     }
-    
-    // Weak reference wrapper to safely hold ModelContext references
+
+    // Weak reference wrapper to safely hold NSManagedObjectContext references
     private class WeakContextHolder {
-        weak var context: ModelContext?
+        weak var context: NSManagedObjectContext?
         let reason: String?
-        
-        init(context: ModelContext, reason: String?) {
+
+        init(context: NSManagedObjectContext, reason: String?) {
             self.context = context
             self.reason = reason
         }
     }
-    
+
     // Save batching to reduce database write contention
     private var pendingSaves: [ObjectIdentifier: WeakContextHolder] = [:]
     private var saveTimer: Timer?
@@ -37,12 +38,12 @@ final class SaveCoordinator {
     /// Schedule a batched save operation (debounced by 500ms).
     /// Multiple save requests for the same context within the debounce window are coalesced.
     /// - Parameters:
-    ///   - context: The `ModelContext` to save.
+    ///   - context: The `NSManagedObjectContext` to save.
     ///   - reason: Optional, short description of why the save is occurring.
-    func scheduleSave(_ context: ModelContext, reason: String? = nil) {
+    func scheduleSave(_ context: NSManagedObjectContext, reason: String? = nil) {
         let contextID = ObjectIdentifier(context)
         pendingSaves[contextID] = WeakContextHolder(context: context, reason: reason)
-        
+
         saveTimer?.invalidate()
         saveTimer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -50,26 +51,26 @@ final class SaveCoordinator {
             }
         }
     }
-    
+
     /// Execute all pending saves immediately
     private func executePendingSaves() {
         let saves = pendingSaves
         pendingSaves.removeAll()
-        
+
         for (_, holder) in saves {
             // Only save if context still exists
             guard let context = holder.context else { continue }
             save(context, reason: holder.reason)
         }
     }
-    
-    /// Perform a centralized SwiftData save with consistent error handling.
+
+    /// Perform a centralized save with consistent error handling.
     /// - Parameters:
-    ///   - context: The `ModelContext` to save.
+    ///   - context: The `NSManagedObjectContext` to save.
     ///   - reason: Optional, short description of why the save is occurring (shown to the user on failure).
     /// - Returns: `true` if the save succeeded; `false` if it failed and an alert was prepared.
     @discardableResult
-    func save(_ context: ModelContext, reason: String? = nil) -> Bool {
+    func save(_ context: NSManagedObjectContext, reason: String? = nil) -> Bool {
         // Avoid unnecessary writes if nothing changed
         if !context.hasChanges {
             return true
@@ -97,13 +98,8 @@ final class SaveCoordinator {
     }
 
     /// Perform a save and show a success toast if it succeeds.
-    /// - Parameters:
-    ///   - context: The `ModelContext` to save.
-    ///   - successMessage: Message to show in toast on success.
-    ///   - reason: Optional, short description of why the save is occurring (shown to the user on failure).
-    /// - Returns: `true` if the save succeeded; `false` if it failed.
     @discardableResult
-    func saveWithToast(_ context: ModelContext, successMessage: String, reason: String? = nil) -> Bool {
+    func saveWithToast(_ context: NSManagedObjectContext, successMessage: String, reason: String? = nil) -> Bool {
         let success = save(context, reason: reason)
         if success {
             toastService.showSuccess(successMessage)
@@ -112,17 +108,51 @@ final class SaveCoordinator {
     }
 
     /// Perform a save and show an info toast if it succeeds.
-    /// - Parameters:
-    ///   - context: The `ModelContext` to save.
-    ///   - infoMessage: Message to show in toast on success.
-    ///   - reason: Optional, short description of why the save is occurring (shown to the user on failure).
-    /// - Returns: `true` if the save succeeded; `false` if it failed.
     @discardableResult
-    func saveWithInfoToast(_ context: ModelContext, infoMessage: String, reason: String? = nil) -> Bool {
+    func saveWithInfoToast(_ context: NSManagedObjectContext, infoMessage: String, reason: String? = nil) -> Bool {
         let success = save(context, reason: reason)
         if success {
             toastService.showInfo(infoMessage)
         }
+        return success
+    }
+
+    // MARK: - Legacy SwiftData overloads (transition period — remove in Phase 4)
+
+    /// Legacy save accepting ModelContext. Delegates to ModelContext.save() directly.
+    @available(*, deprecated, message: "Migrate caller to NSManagedObjectContext")
+    @discardableResult
+    func save(_ context: ModelContext, reason: String? = nil) -> Bool {
+        do {
+            try context.save()
+            return true
+        } catch {
+            let ns = error as NSError
+            lastSaveError = error
+            var message = ns.localizedDescription
+            if let why = reason, !why.trimmed().isEmpty {
+                message = "\(why):\n\n\(message)"
+            }
+            lastSaveErrorMessage = message
+            if !suppressAlerts && !isShowingSaveError {
+                isShowingSaveError = true
+            }
+            return false
+        }
+    }
+
+    /// Legacy scheduleSave accepting ModelContext.
+    @available(*, deprecated, message: "Migrate caller to NSManagedObjectContext")
+    func scheduleSave(_ context: ModelContext, reason: String? = nil) {
+        save(context, reason: reason)
+    }
+
+    /// Legacy saveWithToast accepting ModelContext.
+    @available(*, deprecated, message: "Migrate caller to NSManagedObjectContext")
+    @discardableResult
+    func saveWithToast(_ context: ModelContext, successMessage: String, reason: String? = nil) -> Bool {
+        let success = save(context, reason: reason)
+        if success { toastService.showSuccess(successMessage) }
         return success
     }
 

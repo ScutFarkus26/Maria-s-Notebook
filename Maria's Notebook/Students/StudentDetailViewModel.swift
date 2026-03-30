@@ -7,6 +7,7 @@ import Foundation
 import OSLog
 import SwiftData
 import SwiftUI
+import CoreData
 
 /// View model backing StudentDetailView.
 /// Builds in-memory caches and exposes selection state for sheets.

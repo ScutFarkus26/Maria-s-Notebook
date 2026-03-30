@@ -3,6 +3,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreData
 
 extension QuickNewWorkItemSheet {
 
