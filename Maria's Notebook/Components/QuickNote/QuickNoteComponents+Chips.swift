@@ -35,7 +35,7 @@ struct QuickNoteLessonChip: View {
         .padding(.leading, 6)
         .padding(.trailing, 8)
         .padding(.vertical, 4)
-        .background(Color.indigo.opacity(0.1))
+        .background(Color.indigo.opacity(UIConstants.OpacityConstants.light))
         .clipShape(Capsule())
     }
 }

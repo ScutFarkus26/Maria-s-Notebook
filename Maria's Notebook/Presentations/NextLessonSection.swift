@@ -144,7 +144,7 @@ struct NextLessonSection: View {
     ) -> Color {
         if isDisabled { return Color.primary.opacity(0.03) }
         return viewModel.nextLessonAction == action
-            ? pillColor(for: action).opacity(0.12)
+            ? pillColor(for: action).opacity(UIConstants.OpacityConstants.medium)
             : Color.primary.opacity(0.05)
     }
 
@@ -152,10 +152,10 @@ struct NextLessonSection: View {
         for action: PostPresentationFormViewModel.NextLessonAction,
         isDisabled: Bool
     ) -> Color {
-        if isDisabled { return Color.primary.opacity(0.1) }
+        if isDisabled { return Color.primary.opacity(UIConstants.OpacityConstants.light) }
         return viewModel.nextLessonAction == action
             ? pillColor(for: action).opacity(0.4)
-            : Color.primary.opacity(0.15)
+            : Color.primary.opacity(UIConstants.OpacityConstants.accent)
     }
 
     // MARK: - No Next Lesson
@@ -190,7 +190,7 @@ struct NextLessonSection: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.blue.opacity(0.08))
+                .fill(Color.blue.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 }

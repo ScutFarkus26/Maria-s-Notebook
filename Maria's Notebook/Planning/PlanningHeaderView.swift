@@ -25,7 +25,7 @@ struct PlanningHeaderView: View {
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.primary.opacity(0.08), in: Capsule())
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.subtle), in: Capsule())
 
             Spacer(minLength: 0)
 

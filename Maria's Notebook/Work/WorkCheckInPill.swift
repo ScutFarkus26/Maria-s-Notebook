@@ -38,8 +38,8 @@ struct WorkCheckInPill: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.06)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1))
         .opacity(isDulled ? 0.5 : 1.0)
         .contentShape(Rectangle())
         .onTapGesture {

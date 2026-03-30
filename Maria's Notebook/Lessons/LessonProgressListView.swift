@@ -132,7 +132,7 @@ struct LessonProgressListView: View {
                                 .padding(.vertical, 8)
                                 .background(
                                     Capsule()
-                                        .fill(selectedSubject == nil ? Color.accentColor : Color.primary.opacity(0.08))
+                                        .fill(selectedSubject == nil ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                                 )
                         }
                         .buttonStyle(.plain)
@@ -151,7 +151,7 @@ struct LessonProgressListView: View {
                                             .fill(
                                                 selectedSubject == subject
                                                     ? Color.accentColor
-                                                    : Color.primary.opacity(0.08)
+                                                    : Color.primary.opacity(UIConstants.OpacityConstants.subtle)
                                             )
                                     )
                             }
@@ -188,7 +188,7 @@ struct LessonProgressListView: View {
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(Color.indigo.opacity(0.15))
+                        .fill(Color.indigo.opacity(UIConstants.OpacityConstants.accent))
                         .frame(width: 50, height: 50)
                     
                     Image(systemName: "book.fill")
@@ -241,7 +241,7 @@ struct LessonProgressListView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -290,7 +290,7 @@ struct LessonProgressListView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(color.opacity(0.12))
+                .fill(color.opacity(UIConstants.OpacityConstants.medium))
         )
     }
     

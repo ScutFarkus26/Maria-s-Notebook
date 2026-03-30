@@ -70,7 +70,7 @@ struct NoteTemplateManagementView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(0.1), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), style: StrokeStyle(lineWidth: 1, dash: [5]))
                         )
                     } else {
                         ForEach(customTemplates) { template in

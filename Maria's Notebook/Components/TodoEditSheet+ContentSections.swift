@@ -104,7 +104,7 @@ extension TodoEditSheet {
                     .buttonStyle(.plain)
                 }
                 .padding(12)
-                .background(Color.indigo.opacity(0.1))
+                .background(Color.indigo.opacity(UIConstants.OpacityConstants.light))
                 .cornerRadius(8)
             } else {
                 Button {
@@ -259,7 +259,7 @@ extension TodoEditSheet {
                         Spacer()
                     }
                     .padding(10)
-                    .background(Color.yellow.opacity(0.1))
+                    .background(Color.yellow.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(8)
                 }
             } else {

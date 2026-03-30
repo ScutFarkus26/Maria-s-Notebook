@@ -230,7 +230,7 @@ struct TodoStudentChip: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color.accentColor.opacity(0.15))
+        .background(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         .foregroundStyle(Color.accentColor)
         .clipShape(Capsule())
     }

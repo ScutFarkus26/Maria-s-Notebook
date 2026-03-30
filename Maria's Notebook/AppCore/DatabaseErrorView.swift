@@ -37,7 +37,7 @@ struct DatabaseErrorView: View {
                                 .font(.system(.caption, design: .monospaced))
                                 .padding()
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.secondary.opacity(0.1))
+                                .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
                                 .cornerRadius(8)
                                 .textSelection(.enabled)
                         }

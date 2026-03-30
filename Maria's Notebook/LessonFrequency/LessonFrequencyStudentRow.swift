@@ -103,7 +103,7 @@ struct LessonFrequencyStudentRow: View {
                 .padding(.vertical, 4)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(AppColors.color(forSubject: subject.subject).opacity(0.1))
+                        .fill(AppColors.color(forSubject: subject.subject).opacity(UIConstants.OpacityConstants.light))
                 )
             }
         }

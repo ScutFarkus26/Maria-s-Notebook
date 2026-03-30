@@ -17,7 +17,7 @@ struct ClassroomJobCard: View {
                     .font(.title3)
                     .foregroundStyle(job.color)
                     .frame(width: 32, height: 32)
-                    .background(job.color.opacity(0.12), in: Circle())
+                    .background(job.color.opacity(UIConstants.OpacityConstants.medium), in: Circle())
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(job.name)
@@ -41,7 +41,7 @@ struct ClassroomJobCard: View {
                         .padding(.vertical, 2)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(Color.secondary.opacity(0.1))
+                                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
                         )
                 }
 
@@ -115,7 +115,7 @@ struct ClassroomJobCard: View {
         .padding(.vertical, 4)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.06))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
         )
     }
 }

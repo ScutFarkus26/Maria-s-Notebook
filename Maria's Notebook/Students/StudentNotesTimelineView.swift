@@ -457,7 +457,7 @@ struct StudentNotesTimelineList: View {
                 Spacer()
             }
             .padding(.vertical, 16)
-            .background(Color.accentColor.opacity(0.08))
+            .background(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
             .cornerRadius(8)
         }
         .buttonStyle(.plain)

@@ -119,7 +119,7 @@ struct PresentationNotesSectionUnified: View {
                 .frame(minHeight: 140)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium), lineWidth: 1)
                 )
             } else if allUnifiedNotes.isEmpty && legacyNotes.trimmed().isEmpty {
                 Text("No notes yet. Tap + to add a note.")

@@ -82,7 +82,7 @@ struct MigrationDiagnosticsView: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(report.isClean ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                .fill(report.isClean ? Color.green.opacity(UIConstants.OpacityConstants.light) : Color.orange.opacity(UIConstants.OpacityConstants.light))
         )
     }
 
@@ -107,7 +107,7 @@ struct MigrationDiagnosticsView: View {
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.blue.opacity(0.1))
+                .fill(Color.blue.opacity(UIConstants.OpacityConstants.light))
         )
     }
 
@@ -142,7 +142,7 @@ struct MigrationDiagnosticsView: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.secondary.opacity(0.1))
+                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
         )
     }
 

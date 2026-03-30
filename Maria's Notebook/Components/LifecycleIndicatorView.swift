@@ -34,7 +34,7 @@ struct LifecycleIndicatorView: View {
                 Circle()
                     .fill(tokenBackground)
                     .overlay(
-                        Circle().stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
+                        Circle().stroke(Color.primary.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1.5)
                     )
                     .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
             }

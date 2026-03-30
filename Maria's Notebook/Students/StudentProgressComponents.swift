@@ -21,7 +21,7 @@ struct ProgressCardHeader: View {
             // Icon/indicator
             ZStack {
                 Circle()
-                    .fill(color.opacity(0.15))
+                    .fill(color.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 44, height: 44)
 
                 Image(systemName: iconName)
@@ -65,7 +65,7 @@ struct StatusBadge: View {
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         )
                         : LinearGradient(
-                            colors: [Color.secondary.opacity(0.15)],
+                            colors: [Color.secondary.opacity(UIConstants.OpacityConstants.accent)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         )
                 )
@@ -134,7 +134,7 @@ struct ProgressBarView: View {
             ZStack(alignment: .leading) {
                 // Background
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.secondary.opacity(0.15))
+                    .fill(Color.secondary.opacity(UIConstants.OpacityConstants.accent))
                     .frame(height: 12)
 
                 // Progress fill
@@ -164,7 +164,7 @@ struct ProgressBarView: View {
                             LinearGradient(
                                 colors: [
                                     Color.green.opacity(0.2),
-                                    Color.green.opacity(0.1),
+                                    Color.green.opacity(UIConstants.OpacityConstants.light),
                                     Color.green.opacity(0.2)
                                 ],
                                 startPoint: .leading,
@@ -282,7 +282,7 @@ struct NextItemBanner: View {
         .padding(.horizontal, 12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(color.opacity(0.08))
+                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 }
@@ -299,7 +299,7 @@ struct CompletionTrophyBanner: View {
             message: message,
             iconGradient: [.orange, .yellow],
             textGradient: [.green, .green.opacity(0.8)],
-            backgroundColor: .green.opacity(0.1),
+            backgroundColor: .green.opacity(UIConstants.OpacityConstants.light),
             fontWeight: .bold
         )
     }
@@ -316,7 +316,7 @@ struct EmptyStateBanner: View {
             message: message,
             iconColor: .secondary.opacity(0.7),
             textColor: .secondary,
-            backgroundColor: .secondary.opacity(0.08),
+            backgroundColor: .secondary.opacity(UIConstants.OpacityConstants.subtle),
             fontWeight: .medium
         )
     }
@@ -424,7 +424,7 @@ struct ProgressStatBadge: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(color.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(color.opacity(UIConstants.OpacityConstants.light)))
         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(color.opacity(0.2), lineWidth: 1))
     }
 }
@@ -470,7 +470,7 @@ struct NotesPreviewSection: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(color.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(color.opacity(UIConstants.OpacityConstants.subtle)))
     }
 }
 

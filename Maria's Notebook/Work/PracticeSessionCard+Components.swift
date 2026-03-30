@@ -27,7 +27,7 @@ extension PracticeSessionCard {
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .fill(behaviorColor(for: behavior).opacity(0.15))
+                    .fill(behaviorColor(for: behavior).opacity(UIConstants.OpacityConstants.accent))
             )
     }
 

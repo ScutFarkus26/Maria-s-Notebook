@@ -110,7 +110,7 @@ extension TodoMainView {
         .background(.regularMaterial)
         #endif
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .shadow(color: .black.opacity(UIConstants.OpacityConstants.accent), radius: 8, y: 2)
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
     }
@@ -328,7 +328,7 @@ extension TodoMainView {
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(config.color)
             .frame(width: 26, height: 26)
-            .background(config.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(config.color.opacity(UIConstants.OpacityConstants.accent), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
     func sectionIconConfig(for title: String) -> (icon: String, color: Color) {
@@ -355,7 +355,7 @@ extension TodoMainView {
                     .foregroundStyle(.quaternary)
             } else if let tag = selectedTag {
                 Circle()
-                    .fill(TodoTagHelper.tagColor(tag).color.opacity(0.12))
+                    .fill(TodoTagHelper.tagColor(tag).color.opacity(UIConstants.OpacityConstants.medium))
                     .frame(width: 64, height: 64)
                     .overlay {
                         Image(systemName: "tag")

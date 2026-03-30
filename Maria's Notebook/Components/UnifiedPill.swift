@@ -27,9 +27,9 @@ enum AppPill {
     static func background(isSelected: Bool, selectionStyle: SelectionStyle) -> some ShapeStyle {
         switch selectionStyle {
         case .accentOutline:
-            return AnyShapeStyle(Color.primary.opacity(0.06))
+            return AnyShapeStyle(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
         case .accentFill:
-            return AnyShapeStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.08))
+            return AnyShapeStyle(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
         }
     }
 

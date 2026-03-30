@@ -27,7 +27,7 @@ struct PresentationSummarySection: View {
                         .foregroundStyle(subjectColor)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(subjectColor.opacity(0.15))
+                                .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
                         )
                 }
             }
@@ -278,7 +278,7 @@ struct PresentationNotesSection: View {
                 .frame(minHeight: 140)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium), lineWidth: 1)
                 )
         }
         .frame(maxWidth: .infinity, alignment: .leading)

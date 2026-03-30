@@ -90,7 +90,7 @@ struct LessonPlanningSettingsView: View {
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(Color.primary.opacity(0.1))
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
                         )
 
                     if customSystemPrompt.isEmpty {

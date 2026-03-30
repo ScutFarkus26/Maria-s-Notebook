@@ -187,7 +187,7 @@ struct ObservationModeView: View {
         .padding(.vertical, 4)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.06))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
         )
     }
 

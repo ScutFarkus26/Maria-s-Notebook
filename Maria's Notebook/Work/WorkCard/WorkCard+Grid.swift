@@ -95,7 +95,7 @@ struct WorkCardGridContent: View {
         .padding(8)
         .frame(maxWidth: .infinity, minHeight: 60)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .onTapGesture { config.onOpen(config.work) }
@@ -158,7 +158,7 @@ struct WorkCardGridContent: View {
                 Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
             }
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.06)))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
         }
     }
 

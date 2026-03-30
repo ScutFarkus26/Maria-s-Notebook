@@ -84,11 +84,11 @@ struct DatabaseTotalSummary: View {
         .padding(SettingsStyle.compactPadding)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.accentColor.opacity(0.08))
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.accentColor.opacity(0.15))
+                .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

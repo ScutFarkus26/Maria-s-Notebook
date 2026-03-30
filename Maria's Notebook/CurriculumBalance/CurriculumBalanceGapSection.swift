@@ -35,7 +35,7 @@ struct CurriculumBalanceGapSection: View {
         }
         .padding()
         .background(
-            (gaps.isEmpty ? AppColors.success : AppColors.warning).opacity(0.1)
+            (gaps.isEmpty ? AppColors.success : AppColors.warning).opacity(UIConstants.OpacityConstants.light)
         )
         .cornerRadius(UIConstants.CornerRadius.large)
     }

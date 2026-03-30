@@ -131,7 +131,7 @@ struct LessonJourneyTimeline: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(0.1), lineWidth: 1.5)
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1.5)
         )
     }
 
@@ -241,7 +241,7 @@ struct LessonJourneyTimeline: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.purple.opacity(0.08))
+                .fill(Color.purple.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
     

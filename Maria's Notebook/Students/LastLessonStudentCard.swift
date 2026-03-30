@@ -68,11 +68,11 @@ struct LastLessonStudentCard: View {
         ZStack {
             Circle()
                 .fill(LinearGradient(
-                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                    colors: [.white.opacity(0.3), .white.opacity(UIConstants.OpacityConstants.light)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 ))
                 .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
-                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
 
             VStack(spacing: 2) {
                 if days < 0 {

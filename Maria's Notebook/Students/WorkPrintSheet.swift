@@ -34,7 +34,7 @@ struct WorkPrintSheet: View {
                 .scaleEffect(0.5)
                 .frame(width: 612 * 0.5, height: 792 * 0.5)
             }
-            .background(Color.gray.opacity(0.1))
+            .background(Color.gray.opacity(UIConstants.OpacityConstants.light))
 
             Divider()
 
@@ -75,7 +75,7 @@ struct WorkPrintSheet: View {
                 .scaleEffect(0.6)
                 .frame(width: 612 * 0.6, height: 792 * 0.6)
             }
-            .background(Color.gray.opacity(0.1))
+            .background(Color.gray.opacity(UIConstants.OpacityConstants.light))
 
             HStack {
                 Button("Cancel") {

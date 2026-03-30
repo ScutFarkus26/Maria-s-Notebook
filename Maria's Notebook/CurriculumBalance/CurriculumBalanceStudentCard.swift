@@ -162,7 +162,7 @@ struct CurriculumBalanceStudentCard: View {
             }
         }
         .padding(8)
-        .background(AppColors.warning.opacity(0.08))
+        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.subtle))
         .cornerRadius(8)
     }
 }

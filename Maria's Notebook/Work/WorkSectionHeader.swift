@@ -16,7 +16,7 @@ struct WorkSectionHeader: View {
         .padding(.bottom, 6)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color.primary.opacity(0.08))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                 .frame(height: 1)
         }
     }

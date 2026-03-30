@@ -142,7 +142,7 @@ struct StyledNotesTextField: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                    .strokeBorder(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1)
             )
     }
 }
@@ -214,7 +214,7 @@ struct SelectedStudentRow: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.green.opacity(0.1))
+                .fill(Color.green.opacity(UIConstants.OpacityConstants.light))
         )
     }
 }
@@ -301,7 +301,7 @@ struct LessonContextCard: View {
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.indigo.opacity(0.08))
+                        .fill(Color.indigo.opacity(UIConstants.OpacityConstants.subtle))
                 )
 
                 // Presentation info if available

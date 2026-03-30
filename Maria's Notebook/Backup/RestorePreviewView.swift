@@ -123,7 +123,7 @@ public struct RestorePreviewView: View {
                     .padding(8)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.yellow.opacity(0.08))
+                            .fill(Color.yellow.opacity(UIConstants.OpacityConstants.subtle))
                     )
                 }
             }
@@ -166,7 +166,7 @@ public struct RestorePreviewView: View {
         .padding(.vertical, 4)
         .background(
             Capsule(style: .continuous)
-                .fill(color.opacity(0.12))
+                .fill(color.opacity(UIConstants.OpacityConstants.medium))
         )
         .foregroundStyle(color)
     }

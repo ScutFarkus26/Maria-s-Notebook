@@ -383,7 +383,7 @@ extension UnifiedPresentationWorkflowPanel {
             }
         }
         .padding(12)
-        .cardBackground(color: Color.green.opacity(0.08), cornerRadius: 10)
+        .cardBackground(color: Color.green.opacity(UIConstants.OpacityConstants.subtle), cornerRadius: 10)
     }
 
     // MARK: - Existing Work Card
@@ -391,7 +391,7 @@ extension UnifiedPresentationWorkflowPanel {
     @ViewBuilder
     func existingWorkCard(work: WorkModel) -> some View {
         WorkflowCard(
-            backgroundColor: Color.blue.opacity(0.06),
+            backgroundColor: Color.blue.opacity(UIConstants.OpacityConstants.veryFaint),
             borderColor: Color.blue.opacity(0.2)
         ) {
             VStack(alignment: .leading, spacing: 12) {

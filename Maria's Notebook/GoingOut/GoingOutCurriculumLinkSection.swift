@@ -71,7 +71,7 @@ struct GoingOutCurriculumLinkSection: View {
                         .padding(.vertical, 4)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(AppColors.color(forSubject: lesson.subject).opacity(0.1))
+                                .fill(AppColors.color(forSubject: lesson.subject).opacity(UIConstants.OpacityConstants.light))
                         )
                     }
                 }

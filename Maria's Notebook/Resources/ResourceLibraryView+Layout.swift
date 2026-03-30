@@ -91,7 +91,7 @@ extension ResourceLibraryView {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 
@@ -137,7 +137,7 @@ extension ResourceLibraryView {
         .font(.caption.weight(.medium))
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
-        .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+        .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent)))
         .foregroundStyle(Color.accentColor)
     }
 
@@ -198,7 +198,7 @@ extension ResourceLibraryView {
     var dropOverlay: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.accentColor.opacity(0.08))
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
 

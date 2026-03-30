@@ -180,7 +180,7 @@ struct StudentTrackDetailView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [.yellow.opacity(0.1), .orange.opacity(0.05)],
+                        colors: [.yellow.opacity(UIConstants.OpacityConstants.light), .orange.opacity(0.05)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -207,7 +207,7 @@ struct StudentTrackDetailView: View {
             ZStack {
                 // Background circle
                 Circle()
-                    .stroke(Color.green.opacity(0.15), lineWidth: 12)
+                    .stroke(Color.green.opacity(UIConstants.OpacityConstants.accent), lineWidth: 12)
                     .frame(width: 100, height: 100)
 
                 // Progress circle
@@ -275,7 +275,7 @@ struct StudentTrackDetailView: View {
         .padding(.vertical, 10)
         .background(
             Capsule()
-                .fill(color.opacity(0.1))
+                .fill(color.opacity(UIConstants.OpacityConstants.light))
         )
     }
 

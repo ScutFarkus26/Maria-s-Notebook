@@ -128,7 +128,7 @@ extension TodoMainView {
                                 .foregroundStyle(filter.color)
                                 .frame(width: 28, height: 28)
                                 .background(
-                                    filter.color.opacity(0.15),
+                                    filter.color.opacity(UIConstants.OpacityConstants.accent),
                                     in: RoundedRectangle(cornerRadius: 7, style: .continuous)
                                 )
 
@@ -154,7 +154,7 @@ extension TodoMainView {
                     .buttonStyle(.plain)
                     .listRowBackground(
                         isActive
-                            ? Color.accentColor.opacity(0.1)
+                            ? Color.accentColor.opacity(UIConstants.OpacityConstants.light)
                             : Color.clear
                     )
                 }
@@ -314,7 +314,7 @@ extension TodoMainView {
         .buttonStyle(.plain)
         .listRowBackground(
             selectedTag == tag
-                ? Color.accentColor.opacity(0.15)
+                ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
                 : Color.clear
         )
         .dropDestination(for: String.self) { items, _ in

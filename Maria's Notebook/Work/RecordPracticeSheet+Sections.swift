@@ -158,7 +158,7 @@ extension RecordPracticeSheet {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                        .strokeBorder(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1)
                 )
         }
     }

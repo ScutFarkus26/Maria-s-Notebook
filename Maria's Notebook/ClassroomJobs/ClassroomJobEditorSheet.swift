@@ -49,7 +49,7 @@ struct ClassroomJobEditorSheet: View {
                                     .background(
                                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                                             .fill(selectedIcon == icon
-                                                  ? Color.accentColor.opacity(0.15)
+                                                  ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
                                                   : Color.clear)
                                     )
                                     .overlay(

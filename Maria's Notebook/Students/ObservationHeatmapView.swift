@@ -390,7 +390,7 @@ struct StudentObservationCard: View {
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

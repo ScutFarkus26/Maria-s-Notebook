@@ -51,7 +51,7 @@ struct StudentFilterView: View {
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             )
 
             Divider().padding(.top, 2)

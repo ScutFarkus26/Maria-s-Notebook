@@ -67,7 +67,7 @@ struct ScheduleDetailSheet: View {
                 .frame(width: 60, height: 60)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill((Color(hex: schedule.colorHex) ?? .blue).opacity(0.15))
+                        .fill((Color(hex: schedule.colorHex) ?? .blue).opacity(UIConstants.OpacityConstants.accent))
                 )
 
             VStack(alignment: .leading, spacing: 4) {

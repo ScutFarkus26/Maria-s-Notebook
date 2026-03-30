@@ -47,7 +47,7 @@ struct AIConnectionTestView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(
-                            (testSuccess ? AppColors.success : AppColors.destructive).opacity(0.1)
+                            (testSuccess ? AppColors.success : AppColors.destructive).opacity(UIConstants.OpacityConstants.light)
                         )
                 )
             }

@@ -140,7 +140,7 @@ struct StudentSelectionSheet: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.blue.opacity(0.1) : Color.secondary.opacity(0.05))
+                    .fill(isSelected ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.secondary.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)

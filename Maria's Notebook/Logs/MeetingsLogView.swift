@@ -205,7 +205,7 @@ struct MeetingsLogView: View {
                         .fill(
                             selectedAgeRanges.isEmpty
                                 ? Color.primary.opacity(0.05)
-                                : Color.accentColor.opacity(0.12)
+                                : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
                         )
                 )
                 .foregroundStyle(selectedAgeRanges.isEmpty ? Color.primary : Color.accentColor)

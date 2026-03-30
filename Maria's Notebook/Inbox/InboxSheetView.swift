@@ -186,7 +186,7 @@ public struct InboxSheetView: View {
                   // Empty list case: show placeholder near the top padding
                   let yTop = 10 + placeholderHeight / 2
                   RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.08))
+                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
                     .overlay(
                       RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
@@ -214,7 +214,7 @@ public struct InboxSheetView: View {
 
                   // Ghost placeholder
                   RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.08))
+                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
                     .overlay(
                       RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
@@ -234,7 +234,7 @@ public struct InboxSheetView: View {
                 // No insertion index yet, but we are targeted and empty: hint at top
                 let yTop = 10 + placeholderHeight / 2
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                  .fill(Color.accentColor.opacity(0.08))
+                  .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
                   .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                       .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
@@ -313,7 +313,7 @@ private struct InboxRow: View {
     }
     .background(
       RoundedRectangle(cornerRadius: 10, style: .continuous)
-        .fill(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+        .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.subtle) : Color.clear)
     )
     .contentShape(Rectangle())
     .background(

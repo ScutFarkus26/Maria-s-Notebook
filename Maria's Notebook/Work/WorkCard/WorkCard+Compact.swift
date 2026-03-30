@@ -55,7 +55,7 @@ private struct ParticipantChipView: View {
             .foregroundStyle(color)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(color.opacity(0.15))
+                    .fill(color.opacity(UIConstants.OpacityConstants.accent))
             )
         }
         .buttonStyle(.plain)

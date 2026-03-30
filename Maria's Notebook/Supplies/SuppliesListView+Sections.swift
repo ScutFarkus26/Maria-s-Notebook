@@ -79,7 +79,7 @@ extension SuppliesListView {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 

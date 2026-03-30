@@ -43,7 +43,7 @@ struct TodoTodayRow: View {
 
     private var checkboxView: some View {
         let borderColor: Color = todo.isCompleted ? .clear : priorityBorderColor
-        let fillColor: Color = todo.isCompleted ? Color.green.opacity(0.15) : .clear
+        let fillColor: Color = todo.isCompleted ? Color.green.opacity(UIConstants.OpacityConstants.accent) : .clear
 
         return Circle()
             .strokeBorder(borderColor, lineWidth: 1.5)

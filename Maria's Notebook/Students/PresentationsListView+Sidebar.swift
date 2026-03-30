@@ -106,6 +106,6 @@ extension PresentationsListView {
         #if os(macOS)
         .frame(width: 200)
         #endif
-        .background(Color.gray.opacity(0.08))
+        .background(Color.gray.opacity(UIConstants.OpacityConstants.subtle))
     }
 }

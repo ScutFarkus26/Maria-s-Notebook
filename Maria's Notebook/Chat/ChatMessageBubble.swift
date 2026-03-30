@@ -79,7 +79,7 @@ struct ChatMessageBubble: View {
         } else {
             LinearGradient(
                 colors: [
-                    Color.purple.opacity(0.06),
+                    Color.purple.opacity(UIConstants.OpacityConstants.veryFaint),
                     Color.blue.opacity(0.04)
                 ],
                 startPoint: .topLeading,
@@ -93,7 +93,7 @@ struct ChatMessageBubble: View {
         LinearGradient(
             colors: isUser
                 ? [Color.clear]
-                : [Color.purple.opacity(0.15), Color.blue.opacity(0.1)],
+                : [Color.purple.opacity(UIConstants.OpacityConstants.accent), Color.blue.opacity(UIConstants.OpacityConstants.light)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -101,7 +101,7 @@ struct ChatMessageBubble: View {
 
     /// Soft colored shadow for assistant bubbles
     private var assistantShadow: AppTheme.ShadowStyle {
-        AppTheme.ShadowStyle(color: .purple.opacity(0.06), radius: 8, x: 0, y: 3)
+        AppTheme.ShadowStyle(color: .purple.opacity(UIConstants.OpacityConstants.veryFaint), radius: 8, x: 0, y: 3)
     }
 
     // MARK: - Footer (timestamp + model badge)

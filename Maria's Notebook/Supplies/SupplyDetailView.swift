@@ -172,7 +172,7 @@ private extension SupplyDetailView {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(supply.status.color.opacity(0.15))
+                    .fill(supply.status.color.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 60, height: 60)
 
                 Image(systemName: supply.category.icon)
@@ -210,7 +210,7 @@ private extension SupplyDetailView {
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.blue.opacity(0.15))
+                        .fill(Color.blue.opacity(UIConstants.OpacityConstants.accent))
                 )
                 .foregroundStyle(.blue)
             } else if supply.needsReorder {
@@ -218,14 +218,14 @@ private extension SupplyDetailView {
                     .font(.caption.weight(.medium))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(AppColors.warning.opacity(0.15)))
+                    .background(Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent)))
                     .foregroundStyle(AppColors.warning)
             }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(supply.status.color.opacity(0.08))
+                .fill(supply.status.color.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 
@@ -269,7 +269,7 @@ private extension SupplyDetailView {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.primary.opacity(0.1))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.light))
 
                     RoundedRectangle(cornerRadius: 4)
                         .fill(supply.status.color)

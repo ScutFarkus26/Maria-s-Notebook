@@ -168,7 +168,7 @@ struct ResourceDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08))
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                     )
             } else {
                 VStack(spacing: 12) {
@@ -264,7 +264,7 @@ struct ResourceDetailView: View {
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    Capsule().fill(Color.accentColor.opacity(0.15))
+                                    Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
                                 )
                                 .foregroundStyle(Color.accentColor)
                         }

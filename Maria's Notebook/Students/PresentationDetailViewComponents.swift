@@ -154,7 +154,7 @@ struct ProficiencyStateRow: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
         )
     }
     

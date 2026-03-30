@@ -18,7 +18,7 @@ struct DevelopmentalTraitCard: View {
                 .foregroundStyle(characteristic.color)
                 .frame(width: 36, height: 36)
                 .background(
-                    characteristic.color.opacity(0.12),
+                    characteristic.color.opacity(UIConstants.OpacityConstants.medium),
                     in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                 )
 

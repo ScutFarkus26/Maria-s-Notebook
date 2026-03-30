@@ -82,7 +82,7 @@ struct StudentImportPreviewView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
             )
         }
     }
@@ -123,7 +123,7 @@ struct StudentImportPreviewView: View {
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.yellow.opacity(0.08))
+                        .fill(Color.yellow.opacity(UIConstants.OpacityConstants.subtle))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -160,7 +160,7 @@ struct StudentImportPreviewView: View {
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                         )
                     }
                 }
@@ -210,7 +210,7 @@ private struct StudentRowView: View {
                             .foregroundStyle(.tint)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                            .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
                     }
                     if let b = row.birthday {
                         Text("DOB: \(DateFormatters.isoDate.string(from: b))")
@@ -218,7 +218,7 @@ private struct StudentRowView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.primary.opacity(0.06)))
+                            .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
                     }
                     if let ds = row.dateStarted {
                         Text("Start: \(DateFormatters.isoDate.string(from: ds))")
@@ -226,7 +226,7 @@ private struct StudentRowView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.primary.opacity(0.06)))
+                            .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
                     }
                     if let onRemove {
                         Button(action: onRemove) {

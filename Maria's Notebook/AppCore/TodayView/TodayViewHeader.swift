@@ -82,7 +82,7 @@ extension TodayView {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
-                            Capsule().fill(Color.accentColor.opacity(0.12))
+                            Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                         )
                 }
                 .fixedSize()
@@ -182,6 +182,6 @@ extension TodayView {
             .textSelection(.disabled)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(color.opacity(0.12)))
+            .background(Capsule().fill(color.opacity(UIConstants.OpacityConstants.medium)))
     }
 }

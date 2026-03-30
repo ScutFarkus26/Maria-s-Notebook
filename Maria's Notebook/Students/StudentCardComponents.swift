@@ -27,7 +27,7 @@ struct DefaultStudentCard: View {
             .font(AppTheme.ScaledFont.captionSmallSemibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(Color.primary.opacity(0.08)))
+            .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
             .accessibilityLabel("Age: \(text)")
     }
 
@@ -57,7 +57,7 @@ struct DefaultStudentCard: View {
                 .fill(Color.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         )
@@ -121,7 +121,7 @@ struct AgeStudentCard: View {
             Circle()
                 .fill(LinearGradient(colors: [.mint, .cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
-                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
             Text(text)
                 .font(AppTheme.ScaledFont.titleXLarge)
                 .foregroundStyle(.white)

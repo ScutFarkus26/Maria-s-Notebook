@@ -175,7 +175,7 @@ struct TodoAnalyticsView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
-                        .background(AppColors.warning.opacity(0.1))
+                        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.light))
                         .cornerRadius(12)
                     }
                 }
@@ -216,7 +216,7 @@ private struct TodoStatCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(color.opacity(0.1))
+        .background(color.opacity(UIConstants.OpacityConstants.light))
         .cornerRadius(12)
     }
 }

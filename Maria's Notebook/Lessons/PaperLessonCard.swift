@@ -79,7 +79,7 @@ struct PaperLessonCard: View {
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.purple.opacity(0.12)))
+                        .background(Capsule().fill(Color.purple.opacity(UIConstants.OpacityConstants.medium)))
                         .foregroundStyle(.purple)
                 }
 
@@ -88,7 +88,7 @@ struct PaperLessonCard: View {
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.orange.opacity(0.12)))
+                        .background(Capsule().fill(Color.orange.opacity(UIConstants.OpacityConstants.medium)))
                         .foregroundStyle(.orange)
                 }
             }
@@ -147,7 +147,7 @@ struct PaperLessonCard: View {
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(AppColors.warning.opacity(0.15)))
+                    .background(Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent)))
                     .overlay(Capsule().stroke(AppColors.warning.opacity(0.4), lineWidth: 0.5))
                     .foregroundStyle(AppColors.warning)
                 }
@@ -208,8 +208,8 @@ struct PaperLessonCard: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(
                     colorScheme == .dark
-                        ? Color.white.opacity(0.12)
-                        : Color.black.opacity(0.08),
+                        ? Color.white.opacity(UIConstants.OpacityConstants.medium)
+                        : Color.black.opacity(UIConstants.OpacityConstants.subtle),
                     lineWidth: 1
                 )
 
@@ -253,7 +253,7 @@ struct PaperLessonCard: View {
                 LinearGradient(
                     colors: [
                         colorScheme == .dark
-                            ? Color.white.opacity(0.06)
+                            ? Color.white.opacity(UIConstants.OpacityConstants.veryFaint)
                             : Color.black.opacity(0.04),
                         colorScheme == .dark
                             ? Color.white.opacity(0.02)

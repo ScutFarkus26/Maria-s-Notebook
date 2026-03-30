@@ -110,7 +110,7 @@ extension RecordPracticeSheet {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.1))
+                    .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
             )
         }
         .buttonStyle(.plain)
@@ -154,7 +154,7 @@ extension RecordPracticeSheet {
                                             .fill(
                                                 durationMinutes == minutes
                                                     ? Color.accentColor
-                                                    : Color.primary.opacity(0.1)
+                                                    : Color.primary.opacity(UIConstants.OpacityConstants.light)
                                             )
                                     )
                             }

@@ -84,7 +84,7 @@ struct PresentationsDayColumn: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.primary.opacity(0.1)))
+                        .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.light)))
                 }
                 Spacer()
             }

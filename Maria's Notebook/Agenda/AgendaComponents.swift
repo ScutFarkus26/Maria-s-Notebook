@@ -142,7 +142,7 @@ struct AgendaWeekHeaderView<Actions: View>: View {
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.primary.opacity(0.12))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                 )
             HStack(spacing: 12) {
                 actions()
@@ -224,7 +224,7 @@ struct AgendaPeriodChipView: View {
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .fill(period.color.opacity(0.12))
+                    .fill(period.color.opacity(UIConstants.OpacityConstants.medium))
             )
             .fixedSize()
     }

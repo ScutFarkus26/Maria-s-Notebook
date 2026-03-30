@@ -103,7 +103,7 @@ struct CloudKitStatusSettingsView: View {
                     .buttonStyle(.borderless)
                 }
                 .padding(8)
-                .background(Color.red.opacity(0.1))
+                .background(Color.red.opacity(UIConstants.OpacityConstants.light))
                 .cornerRadius(8)
             }
         }
@@ -161,7 +161,7 @@ struct CloudKitStatusSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(6)
-                .background(AppColors.destructive.opacity(0.08))
+                .background(AppColors.destructive.opacity(UIConstants.OpacityConstants.subtle))
                 .cornerRadius(6)
             }
         }

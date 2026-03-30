@@ -33,7 +33,7 @@ struct CardContainer<Content: View>: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 }
@@ -75,7 +75,7 @@ struct PlaceholderTextArea: View {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08))
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                     )
                 if text.trimmed().isEmpty {
                     Text(placeholder)
@@ -158,7 +158,7 @@ struct LevelBadge: View {
     }
 
     private var bgColor: Color {
-        useWhiteBackground ? Color.white.opacity(0.18) : backgroundColor.opacity(0.12)
+        useWhiteBackground ? Color.white.opacity(0.18) : backgroundColor.opacity(UIConstants.OpacityConstants.medium)
     }
 
     var body: some View {
@@ -272,7 +272,7 @@ struct SectionHeaderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(iconColor?.opacity(0.08) ?? .clear)
+        .background(iconColor?.opacity(UIConstants.OpacityConstants.subtle) ?? .clear)
     }
 }
 
@@ -314,7 +314,7 @@ struct StudentFilterChip: View {
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? color.opacity(0.2) : Color.primary.opacity(0.06))
+                    .fill(isSelected ? color.opacity(0.2) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)

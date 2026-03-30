@@ -178,7 +178,7 @@ public struct BulkLessonsEntryView: View {
                         }
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }

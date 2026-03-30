@@ -83,7 +83,7 @@ struct SupplyRow: View {
                         .font(.caption2.weight(.medium))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.blue.opacity(0.15)))
+                        .background(Capsule().fill(Color.blue.opacity(UIConstants.OpacityConstants.accent)))
                         .foregroundStyle(.blue)
                 }
             }
@@ -111,21 +111,21 @@ struct SupplyRow: View {
                 .font(.caption2.weight(.medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(AppColors.warning.opacity(0.15)))
+                .background(Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent)))
                 .foregroundStyle(AppColors.warning)
         case .critical:
             Label("Critical", systemImage: "exclamationmark.circle.fill")
                 .font(.caption2.weight(.medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(AppColors.destructive.opacity(0.15)))
+                .background(Capsule().fill(AppColors.destructive.opacity(UIConstants.OpacityConstants.accent)))
                 .foregroundStyle(AppColors.destructive)
         case .outOfStock:
             Label("Out", systemImage: "xmark.circle.fill")
                 .font(.caption2.weight(.medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(AppColors.destructive.opacity(0.15)))
+                .background(Capsule().fill(AppColors.destructive.opacity(UIConstants.OpacityConstants.accent)))
                 .foregroundStyle(AppColors.destructive)
         }
     }

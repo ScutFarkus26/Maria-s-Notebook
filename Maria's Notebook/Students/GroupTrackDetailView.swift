@@ -275,7 +275,7 @@ private struct LessonStepRow: View {
                     .foregroundStyle(statusColor(for: state))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(statusColor(for: state).opacity(0.1), in: Capsule())
+                    .background(statusColor(for: state).opacity(UIConstants.OpacityConstants.light), in: Capsule())
             }
         }
         .contentShape(Rectangle())

@@ -62,7 +62,7 @@ struct UnplannedStudentsStrip: View {
 
             if expanded {
                 Divider()
-                    .overlay(Color.primary.opacity(0.06))
+                    .overlay(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(unplanned, id: \.id) { student in
@@ -78,7 +78,7 @@ struct UnplannedStudentsStrip: View {
                                         Capsule().fill(Color.primary.opacity(0.04))
                                     )
                                     .overlay(
-                                        Capsule().stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                                        Capsule().stroke(Color.primary.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
                                     )
                             }
                             .buttonStyle(.plain)
@@ -95,7 +95,7 @@ struct UnplannedStudentsStrip: View {
                 .fill(Color.primary.opacity(0.04))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                 )
         )
     }

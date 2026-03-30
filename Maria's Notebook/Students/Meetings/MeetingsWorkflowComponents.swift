@@ -177,7 +177,7 @@ struct MeetingThresholdPicker: View {
                     .padding(.vertical, 6)
                     .background(
                         Capsule()
-                            .fill(Color.accentColor.opacity(0.12))
+                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                     )
                     .foregroundStyle(.accent)
                 }
@@ -200,7 +200,7 @@ struct MeetingThresholdPicker: View {
                     .padding(.vertical, 6)
                     .background(
                         Capsule()
-                            .fill(showCompleted ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                            .fill(showCompleted ? Color.green.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                     )
                     .foregroundStyle(showCompleted ? .green : .secondary)
                 }
@@ -223,7 +223,7 @@ struct MeetingThresholdPicker: View {
                                     .frame(width: 28, height: 28)
                                     .background(
                                         Circle()
-                                            .fill(days == preset ? Color.accentColor : Color.primary.opacity(0.06))
+                                            .fill(days == preset ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                                     )
                                     .foregroundStyle(days == preset ? .white : .primary)
                             }
@@ -239,7 +239,7 @@ struct MeetingThresholdPicker: View {
                             Image(systemName: "minus")
                                 .font(.caption.weight(.medium))
                                 .frame(width: 24, height: 24)
-                                .background(Circle().fill(Color.primary.opacity(0.06)))
+                                .background(Circle().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
                         }
                         .buttonStyle(.plain)
                         .disabled(days <= 1)
@@ -255,7 +255,7 @@ struct MeetingThresholdPicker: View {
                             Image(systemName: "plus")
                                 .font(.caption.weight(.medium))
                                 .frame(width: 24, height: 24)
-                                .background(Circle().fill(Color.primary.opacity(0.06)))
+                                .background(Circle().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
                         }
                         .buttonStyle(.plain)
                         .disabled(days >= 90)

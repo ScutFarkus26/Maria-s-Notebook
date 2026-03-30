@@ -57,7 +57,7 @@ struct TestStudentsSettingsView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08))
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                 )
             HStack {
                 Spacer()

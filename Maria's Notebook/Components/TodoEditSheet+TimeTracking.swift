@@ -85,7 +85,7 @@ extension TodoEditSheet {
                     }
                 }
                 .padding(12)
-                .background(Color.blue.opacity(0.08))
+                .background(Color.blue.opacity(UIConstants.OpacityConstants.subtle))
                 .cornerRadius(10)
 
                 // Actual Time
@@ -157,7 +157,7 @@ extension TodoEditSheet {
                     }
                 }
                 .padding(12)
-                .background(Color.green.opacity(0.08))
+                .background(Color.green.opacity(UIConstants.OpacityConstants.subtle))
                 .cornerRadius(10)
 
                 // Time variance display

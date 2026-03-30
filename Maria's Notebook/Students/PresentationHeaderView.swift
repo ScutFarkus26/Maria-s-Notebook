@@ -45,7 +45,7 @@ struct PresentationHeaderView: View {
             .foregroundStyle(color)
             .background(
                 Capsule()
-                    .fill(color.opacity(0.15))
+                    .fill(color.opacity(UIConstants.OpacityConstants.accent))
             )
     }
 }

@@ -26,7 +26,7 @@ struct StudentChip: View {
         .foregroundStyle(subjectColor)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(subjectColor.opacity(0.15))
+                .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }
@@ -160,7 +160,7 @@ struct MoveStudentRow: View {
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.orange.opacity(0.1) : Color.clear)
+                    .fill(isSelected ? Color.orange.opacity(UIConstants.OpacityConstants.light) : Color.clear)
             )
         }
         .buttonStyle(.plain)

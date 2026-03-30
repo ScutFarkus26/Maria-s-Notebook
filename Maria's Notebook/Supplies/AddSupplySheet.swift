@@ -110,7 +110,7 @@ struct AddSupplySheet: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(category == cat ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05))
+                        .background(category == cat ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(0.05))
                         .foregroundStyle(category == cat ? Color.accentColor : .primary)
                         .clipShape(Capsule())
                     }
@@ -214,7 +214,7 @@ struct AddSupplySheet: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08))
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                 )
 
             Text("Add any notes about this supply (e.g., preferred brand, supplier).")

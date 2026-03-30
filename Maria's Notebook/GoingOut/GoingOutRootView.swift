@@ -141,7 +141,7 @@ struct GoingOutRootView: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                 }
         }
         .buttonStyle(.plain)

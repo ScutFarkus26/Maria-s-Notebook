@@ -201,7 +201,7 @@ struct TrackFilteredListView: View, Identifiable {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.orange.opacity(0.1))
+                .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -247,7 +247,7 @@ struct TrackFilteredListView: View, Identifiable {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.blue.opacity(0.1))
+                .fill(Color.blue.opacity(UIConstants.OpacityConstants.light))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -282,7 +282,7 @@ struct TrackFilteredListView: View, Identifiable {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.yellow.opacity(0.1))
+                .fill(Color.yellow.opacity(UIConstants.OpacityConstants.light))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)

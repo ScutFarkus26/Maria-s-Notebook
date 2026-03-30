@@ -61,7 +61,7 @@ struct TodoDetailView: View {
                                     .font(AppTheme.ScaledFont.captionSemibold)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
-                                    .background(Color.accentColor.opacity(0.12))
+                                    .background(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                                     .foregroundStyle(Color.accentColor)
                                     .clipShape(Capsule())
                             }
@@ -264,7 +264,7 @@ struct TodoDetailView: View {
                                     .foregroundStyle(.secondary)
                                     .padding(12)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.secondary.opacity(0.06))
+                                    .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint))
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                         }

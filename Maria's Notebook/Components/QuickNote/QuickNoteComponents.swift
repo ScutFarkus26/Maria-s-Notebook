@@ -40,7 +40,7 @@ struct QuickNoteStudentChip: View {
         .padding(.leading, 4)
         .padding(.trailing, 8)
         .padding(.vertical, 4)
-        .background(Color.secondary.opacity(0.1))
+        .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
         .clipShape(Capsule())
     }
 }
@@ -102,7 +102,7 @@ struct SuggestionsBar: View {
                             .padding(.vertical, 6)
                             .background(Material.regular)
                             .clipShape(Capsule())
-                            .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                            .shadow(color: .black.opacity(UIConstants.OpacityConstants.light), radius: 2, y: 1)
                         }
                         .buttonStyle(.plain)
                         .transition(.scale.combined(with: .opacity))

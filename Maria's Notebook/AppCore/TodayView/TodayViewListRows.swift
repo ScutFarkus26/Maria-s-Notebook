@@ -36,7 +36,7 @@ struct ReminderListRow: View {
 
     private var checkboxView: some View {
         let borderColor: Color = reminder.isCompleted ? .clear : .secondary.opacity(0.4)
-        let fillColor: Color = reminder.isCompleted ? Color.accentColor.opacity(0.15) : .clear
+        let fillColor: Color = reminder.isCompleted ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : .clear
 
         return Circle()
             .strokeBorder(borderColor, lineWidth: 1.5)
@@ -131,7 +131,7 @@ struct LessonListRow: View {
                         .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(Color.secondary.opacity(0.12))
+                                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.medium))
                         )
                 }
                 .buttonStyle(.plain)

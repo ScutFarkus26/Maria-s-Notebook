@@ -17,7 +17,7 @@ struct WorkItemCompactRow: View {
             // Status indicator
             ZStack {
                 Circle()
-                    .fill(work.status.color.opacity(0.15))
+                    .fill(work.status.color.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 36, height: 36)
 
                 Image(systemName: work.status.iconName)
@@ -57,7 +57,7 @@ struct WorkItemCompactRow: View {
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(work.status.color.opacity(0.12))
+                        .fill(work.status.color.opacity(UIConstants.OpacityConstants.medium))
                 )
         }
         .padding(10)
@@ -67,7 +67,7 @@ struct WorkItemCompactRow: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
         )
     }
 }

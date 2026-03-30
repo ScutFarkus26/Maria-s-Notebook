@@ -71,7 +71,7 @@ struct MeetingTemplateManagementView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(0.1), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), style: StrokeStyle(lineWidth: 1, dash: [5]))
                         )
                     } else {
                         ForEach(customTemplates) { template in
@@ -179,7 +179,7 @@ private struct MeetingTemplateCardRow: View {
                                 .fontWeight(.medium)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(AppColors.success.opacity(0.15)))
+                                .background(Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent)))
                                 .foregroundStyle(AppColors.success)
                         }
                     }
@@ -267,7 +267,7 @@ private struct MeetingTemplatePreviewSheet: View {
                                 .font(.subheadline.weight(.medium))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(Capsule().fill(AppColors.success.opacity(0.15)))
+                                .background(Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent)))
                                 .foregroundStyle(AppColors.success)
                         }
                         Spacer()

@@ -163,7 +163,7 @@ struct TodoLocationPickerView: View {
         .background(.regularMaterial)
         #endif
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .shadow(color: .black.opacity(UIConstants.OpacityConstants.accent), radius: 8, y: 2)
         .padding(.horizontal, 16)
         .padding(.bottom, selectedCoordinate != nil ? 80 : 16)
     }
@@ -204,7 +204,7 @@ struct TodoLocationPickerView: View {
         .background(.regularMaterial)
         #endif
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .shadow(color: .black.opacity(UIConstants.OpacityConstants.accent), radius: 8, y: 2)
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
     }

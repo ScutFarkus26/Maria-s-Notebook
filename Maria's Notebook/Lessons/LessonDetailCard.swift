@@ -83,7 +83,7 @@ struct LessonDetailCard: View {
                 .fill(cardBackgroundColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 10)
         )

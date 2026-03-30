@@ -154,7 +154,7 @@ struct AppleIntelligenceSheet: View {
                 .font(.subheadline.weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.accentColor.opacity(0.1))
+                .background(Color.accentColor.opacity(UIConstants.OpacityConstants.light))
                 .clipShape(Capsule())
                 .foregroundStyle(Color.accentColor)
             }

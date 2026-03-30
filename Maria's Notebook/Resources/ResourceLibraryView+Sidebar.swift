@@ -178,7 +178,7 @@ extension ResourceLibraryView {
                 .padding(.vertical, 6)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.08))
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                 )
                 .foregroundStyle(isSelected ? .white : .primary)
         }

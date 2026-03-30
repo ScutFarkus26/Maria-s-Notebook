@@ -322,7 +322,7 @@ struct PresentationPill: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(
-                                Capsule().fill(Color.accentColor.opacity(0.15))
+                                Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
                             )
                             .padding(6),
                         alignment: .topTrailing
@@ -401,7 +401,7 @@ struct PresentationPill: View {
                             .clipShape(Capsule())
                     }
             }
-            .overlay(Capsule().stroke(subjectColor.opacity(0.15), lineWidth: 1))
+            .overlay(Capsule().stroke(subjectColor.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1))
             .overlay(Capsule().stroke(Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0), lineWidth: 2))
             .overlay(mergeHighlightOverlay)
             .overlay(alignment: .trailing) { timeBadge }

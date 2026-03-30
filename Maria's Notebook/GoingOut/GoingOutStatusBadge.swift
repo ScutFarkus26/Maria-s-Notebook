@@ -19,7 +19,7 @@ struct GoingOutStatusBadge: View {
         .padding(.vertical, 4)
         .background(
             Capsule(style: .continuous)
-                .fill(status.color.opacity(0.12))
+                .fill(status.color.opacity(UIConstants.OpacityConstants.medium))
         )
     }
 }

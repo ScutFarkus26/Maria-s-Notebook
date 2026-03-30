@@ -61,7 +61,7 @@ extension StudentInsightsView {
                         .foregroundStyle(AppColors.warning)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(AppColors.warning.opacity(0.1))
+                        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.light))
                         .cornerRadius(8)
                 }
             }
@@ -287,7 +287,7 @@ extension StudentInsightsView {
             }
         }
         .padding()
-        .background(Color.red.opacity(0.1))
+        .background(Color.red.opacity(UIConstants.OpacityConstants.light))
         .cornerRadius(12)
     }
 

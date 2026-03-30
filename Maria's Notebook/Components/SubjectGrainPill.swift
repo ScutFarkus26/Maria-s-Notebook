@@ -349,7 +349,7 @@ struct SubjectGrainPill<Content: View>: View {
             }
             .overlay {
                 Capsule()
-                    .stroke(subjectColor.opacity(0.15), lineWidth: 1)
+                    .stroke(subjectColor.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
             }
             .clipShape(Capsule())
     }

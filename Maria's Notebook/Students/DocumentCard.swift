@@ -35,7 +35,7 @@ struct DocumentCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.1))
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
         )
         .contentShape(Rectangle())
         .onTapGesture {

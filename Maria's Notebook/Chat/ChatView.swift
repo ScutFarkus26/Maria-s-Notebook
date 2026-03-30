@@ -149,7 +149,7 @@ struct ChatView: View {
                 .padding(.vertical, AppTheme.Spacing.compact)
                 .background(
                     LinearGradient(
-                        colors: [Color.purple.opacity(0.06), Color.blue.opacity(0.04)],
+                        colors: [Color.purple.opacity(UIConstants.OpacityConstants.veryFaint), Color.blue.opacity(0.04)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -159,7 +159,7 @@ struct ChatView: View {
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                         .stroke(
                             LinearGradient(
-                                colors: [Color.purple.opacity(0.15), Color.blue.opacity(0.1)],
+                                colors: [Color.purple.opacity(UIConstants.OpacityConstants.accent), Color.blue.opacity(UIConstants.OpacityConstants.light)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
@@ -197,7 +197,7 @@ struct ChatView: View {
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [Color.purple.opacity(0.2), Color.blue.opacity(0.1), Color.clear],
+                                colors: [Color.purple.opacity(0.2), Color.blue.opacity(UIConstants.OpacityConstants.light), Color.clear],
                                 center: .center,
                                 startRadius: 20,
                                 endRadius: 80
@@ -308,7 +308,7 @@ struct ChatView: View {
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                             .fill(
                                 LinearGradient(
-                                    colors: [cardColor.opacity(0.08), cardColor.opacity(0.03)],
+                                    colors: [cardColor.opacity(UIConstants.OpacityConstants.subtle), cardColor.opacity(0.03)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -317,7 +317,7 @@ struct ChatView: View {
                                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                                     .stroke(
                                         LinearGradient(
-                                            colors: [cardColor.opacity(0.25), cardColor.opacity(0.1)],
+                                            colors: [cardColor.opacity(0.25), cardColor.opacity(UIConstants.OpacityConstants.light)],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         ),
@@ -325,7 +325,7 @@ struct ChatView: View {
                                     )
                             )
                     )
-                    .shadow(color: cardColor.opacity(0.08), radius: 6, x: 0, y: 3)
+                    .shadow(color: cardColor.opacity(UIConstants.OpacityConstants.subtle), radius: 6, x: 0, y: 3)
                 }
                 .buttonStyle(.plain)
                 .opacity(cardsAppeared ? 1 : 0)

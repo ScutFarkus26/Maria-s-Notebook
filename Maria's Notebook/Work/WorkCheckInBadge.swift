@@ -66,7 +66,7 @@ struct WorkCheckInSummary: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(status.color.opacity(0.12))
+                .fill(status.color.opacity(UIConstants.OpacityConstants.medium))
         )
     }
 }

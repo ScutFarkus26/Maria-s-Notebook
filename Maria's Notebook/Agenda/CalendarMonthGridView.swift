@@ -177,8 +177,8 @@ private struct DayCell: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(
                                     isNS
-                                        ? Color.red.opacity(0.15)
-                                        : (isToday(d) ? Color.primary.opacity(0.06) : Color.clear)
+                                        ? Color.red.opacity(UIConstants.OpacityConstants.accent)
+                                        : (isToday(d) ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : Color.clear)
                                 )
                         )
                 })

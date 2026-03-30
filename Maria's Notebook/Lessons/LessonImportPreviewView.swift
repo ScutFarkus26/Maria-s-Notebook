@@ -82,7 +82,7 @@ struct LessonImportPreviewView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
             )
         }
     }
@@ -123,7 +123,7 @@ struct LessonImportPreviewView: View {
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.yellow.opacity(0.08))
+                        .fill(Color.yellow.opacity(UIConstants.OpacityConstants.subtle))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -160,7 +160,7 @@ struct LessonImportPreviewView: View {
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                         )
                     }
                 }
@@ -217,7 +217,7 @@ private struct LessonRowView: View {
                             .padding(.vertical, 4)
                             .background(
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.primary.opacity(0.12))
+                                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                             )
                     }
                     if let onRemove {
@@ -239,7 +239,7 @@ private struct LessonRowView: View {
                             .font(AppTheme.ScaledFont.captionSemibold)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Capsule().fill(.tint).opacity(0.12))
+                            .background(Capsule().fill(.tint).opacity(UIConstants.OpacityConstants.medium))
                     }
                     if !row.subheading.isEmpty {
                         Text(row.subheading)
@@ -267,7 +267,7 @@ private struct LessonRowView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Capsule().fill(.tint).opacity(0.12))
+        .background(Capsule().fill(.tint).opacity(UIConstants.OpacityConstants.medium))
     }
 }
 

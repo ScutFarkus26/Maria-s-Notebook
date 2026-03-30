@@ -84,7 +84,7 @@ struct BirthdayStudentCard: View {
         .padding(.horizontal, 16)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
-        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+        .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
         .accessibilityHidden(true)
     }
 
@@ -96,7 +96,7 @@ struct BirthdayStudentCard: View {
             .padding(.horizontal, 18)
             .background(.ultraThinMaterial, in: Capsule())
             .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
             .bobbingAnimation(bob: $bob)
             .accessibilityHidden(true)
     }

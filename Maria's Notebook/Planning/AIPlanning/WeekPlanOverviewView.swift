@@ -64,7 +64,7 @@ struct WeekPlanOverviewView: View {
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 6)
-                .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                .background(.secondary.opacity(UIConstants.OpacityConstants.subtle), in: RoundedRectangle(cornerRadius: 6))
             
             if day.recommendations.isEmpty {
                 Text("No lessons")
@@ -129,7 +129,7 @@ struct WeekPlanOverviewView: View {
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
-                        .background(.secondary.opacity(0.1), in: Capsule())
+                        .background(.secondary.opacity(UIConstants.OpacityConstants.light), in: Capsule())
                 }
             }
             
@@ -215,14 +215,14 @@ struct WeekPlanOverviewView: View {
     }
     
     private func cardBackground(for rec: LessonRecommendation) -> some ShapeStyle {
-        if rec.decision == .accepted { return AnyShapeStyle(Color.green.opacity(0.06)) }
+        if rec.decision == .accepted { return AnyShapeStyle(Color.green.opacity(UIConstants.OpacityConstants.veryFaint)) }
         if rec.decision == .rejected { return AnyShapeStyle(Color.secondary.opacity(0.04)) }
         return AnyShapeStyle(Color.secondary.opacity(0.04))
     }
     
     private func cardBorder(for rec: LessonRecommendation) -> Color {
         if rec.decision == .accepted { return .green.opacity(0.3) }
-        if rec.decision == .rejected { return .secondary.opacity(0.1) }
-        return .secondary.opacity(0.1)
+        if rec.decision == .rejected { return .secondary.opacity(UIConstants.OpacityConstants.light) }
+        return .secondary.opacity(UIConstants.OpacityConstants.light)
     }
 }

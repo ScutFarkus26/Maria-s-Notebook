@@ -28,7 +28,7 @@ struct SyncHistoryLogView: View {
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(
-                                            Capsule().fill(typeColor(event.type).opacity(0.15))
+                                            Capsule().fill(typeColor(event.type).opacity(UIConstants.OpacityConstants.accent))
                                         )
                                         .foregroundStyle(typeColor(event.type))
                                     Text(event.message)

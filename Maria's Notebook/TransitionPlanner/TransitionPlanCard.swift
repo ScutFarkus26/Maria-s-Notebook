@@ -65,7 +65,7 @@ struct TransitionPlanCard: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule(style: .continuous)
-                        .fill(Color.secondary.opacity(0.15))
+                        .fill(Color.secondary.opacity(UIConstants.OpacityConstants.accent))
                     Capsule(style: .continuous)
                         .fill(viewModel.readinessPercentage(for: plan) >= 1.0
                               ? Color.green.gradient

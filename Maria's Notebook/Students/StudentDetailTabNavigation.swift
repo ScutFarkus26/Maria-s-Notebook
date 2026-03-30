@@ -156,7 +156,7 @@ private struct CompactPillButton: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                    .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.secondary.opacity(UIConstants.OpacityConstants.light))
             )
             .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         }

@@ -82,7 +82,7 @@ struct AIPlanningAssistantView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(.secondary.opacity(0.1), in: Capsule())
+                    .background(.secondary.opacity(UIConstants.OpacityConstants.light), in: Capsule())
             }
             
             Button("Done") { dismiss() }
@@ -246,7 +246,7 @@ struct AIPlanningAssistantView: View {
                 Text(message.content)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+                    .background(Color.accentColor.opacity(UIConstants.OpacityConstants.accent), in: RoundedRectangle(cornerRadius: 16))
                     .frame(maxWidth: 500, alignment: .trailing)
             }
             
@@ -255,7 +255,7 @@ struct AIPlanningAssistantView: View {
                 Text(message.content)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+                    .background(.secondary.opacity(UIConstants.OpacityConstants.subtle), in: RoundedRectangle(cornerRadius: 16))
                     .frame(maxWidth: 500, alignment: .leading)
                 
                 // Show week plan if this is a whole-class result
@@ -333,7 +333,7 @@ struct AIPlanningAssistantView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(12)
-        .background(AppColors.warning.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.light), in: RoundedRectangle(cornerRadius: 8))
     }
     
     // MARK: - Actions

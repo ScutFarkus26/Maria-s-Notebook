@@ -95,7 +95,7 @@ struct PlanningRecommendationCard: View {
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(AppColors.color(forSubject: recommendation.subject).opacity(0.15), in: Capsule())
+            .background(AppColors.color(forSubject: recommendation.subject).opacity(UIConstants.OpacityConstants.accent), in: Capsule())
             .foregroundStyle(AppColors.color(forSubject: recommendation.subject))
     }
     
@@ -106,7 +106,7 @@ struct PlanningRecommendationCard: View {
             .fontWeight(.semibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(confidenceColor.opacity(0.15), in: Capsule())
+            .background(confidenceColor.opacity(UIConstants.OpacityConstants.accent), in: Capsule())
             .foregroundStyle(confidenceColor)
     }
     
@@ -125,7 +125,7 @@ struct PlanningRecommendationCard: View {
     private var borderColor: Color {
         if isAccepted { return .green.opacity(0.4) }
         if isRejected { return .red.opacity(0.3) }
-        return .secondary.opacity(0.15)
+        return .secondary.opacity(UIConstants.OpacityConstants.accent)
     }
     
     private var actionButtons: some View {

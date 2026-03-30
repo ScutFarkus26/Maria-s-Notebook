@@ -113,7 +113,7 @@ struct BackupRestoreSettingsView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.small)
             .padding(.vertical, AppTheme.Spacing.statusPillVertical)
-            .background(Capsule().fill(Color.primary.opacity(0.08)))
+            .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
         }
         .buttonStyle(.plain)
     }
@@ -269,7 +269,7 @@ struct BackupRestoreSettingsView: View {
         .padding(.vertical, AppTheme.Spacing.small)
         .background(
             RoundedRectangle(cornerRadius: AppTheme.Spacing.small, style: .continuous)
-                .fill(color.opacity(0.1))
+                .fill(color.opacity(UIConstants.OpacityConstants.light))
         )
     }
 
@@ -294,7 +294,7 @@ struct BackupRestoreSettingsView: View {
         .padding(.vertical, AppTheme.Spacing.small)
         .background(
             RoundedRectangle(cornerRadius: AppTheme.Spacing.small, style: .continuous)
-                .fill(Color.green.opacity(0.12))
+                .fill(Color.green.opacity(UIConstants.OpacityConstants.medium))
         )
     }
 

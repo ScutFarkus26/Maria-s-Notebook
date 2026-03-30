@@ -80,7 +80,7 @@ extension QuickPracticeSessionSheet {
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(selectedPartnerIDs.contains(student.id) ? Color.blue.opacity(0.1) : Color.clear)
+                    .fill(selectedPartnerIDs.contains(student.id) ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -157,7 +157,7 @@ extension QuickPracticeSessionSheet {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                        .strokeBorder(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1)
                 )
         }
     }

@@ -37,11 +37,11 @@ struct EphemeralStoreWarningBanner: View {
     }
 
     private var backgroundColor: AnyShapeStyle {
-        isInMemoryMode ? AnyShapeStyle(Color.red.opacity(0.1)) : AnyShapeStyle(.ultraThinMaterial)
+        isInMemoryMode ? AnyShapeStyle(Color.red.opacity(UIConstants.OpacityConstants.light)) : AnyShapeStyle(.ultraThinMaterial)
     }
 
     private var borderColor: Color {
-        isInMemoryMode ? Color.red.opacity(0.3) : Color.primary.opacity(0.1)
+        isInMemoryMode ? Color.red.opacity(0.3) : Color.primary.opacity(UIConstants.OpacityConstants.light)
     }
 
     var body: some View {
@@ -140,7 +140,7 @@ struct CloudKitSyncWarningBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.yellow.opacity(0.12))
+        .background(Color.yellow.opacity(UIConstants.OpacityConstants.medium))
         .overlay(
             Rectangle()
                 .frame(height: 1)

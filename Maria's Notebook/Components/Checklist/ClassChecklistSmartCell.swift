@@ -24,13 +24,13 @@ struct ClassChecklistSmartCell: View {
             // Staleness tint background
             if isStale && displayStatus != .proficient && displayStatus != .empty {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.orange.opacity(0.1))
+                    .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
             }
 
             // Selection highlight background
             if isSelected {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.accentColor.opacity(0.15))
+                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
             }
 
             Color.clear.contentShape(Rectangle()) // Hit area

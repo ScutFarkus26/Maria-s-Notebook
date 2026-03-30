@@ -115,7 +115,7 @@ struct LessonsFilterChipBar: View {
     @ViewBuilder
     private var verticalDivider: some View {
         Rectangle()
-            .fill(Color.primary.opacity(0.1))
+            .fill(Color.primary.opacity(UIConstants.OpacityConstants.light))
             .frame(width: 1, height: 20)
             .padding(.horizontal, 4)
     }
@@ -144,7 +144,7 @@ struct FilterChip: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
-                Capsule().fill(isActive ? activeColor.opacity(0.15) : Color.primary.opacity(0.06))
+                Capsule().fill(isActive ? activeColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             )
             .overlay(
                 Capsule().stroke(isActive ? activeColor.opacity(0.5) : Color.clear, lineWidth: 1)

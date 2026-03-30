@@ -225,7 +225,7 @@ struct AIModelSettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(AppColors.warning.opacity(0.08))
+                .fill(AppColors.warning.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 }

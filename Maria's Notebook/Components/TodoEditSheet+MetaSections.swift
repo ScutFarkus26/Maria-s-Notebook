@@ -110,7 +110,7 @@ extension TodoEditSheet {
                             Image(systemName: "map")
                                 .font(.system(size: 16))
                                 .padding(8)
-                                .background(Color.blue.opacity(0.1))
+                                .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
@@ -149,7 +149,7 @@ extension TodoEditSheet {
                     }
                 }
                 .padding(12)
-                .background(Color.blue.opacity(0.08))
+                .background(Color.blue.opacity(UIConstants.OpacityConstants.subtle))
                 .cornerRadius(10)
             } else {
                 Text("Set a location-based reminder for this task")

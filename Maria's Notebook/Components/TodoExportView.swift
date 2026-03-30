@@ -238,7 +238,7 @@ private struct FormatOption: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? Color.blue.opacity(0.1) : Color.primary.opacity(0.04))
+                    .fill(isSelected ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)

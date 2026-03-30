@@ -17,7 +17,7 @@ struct GreatLessonCard: View {
                     .foregroundStyle(greatLesson.color)
                     .frame(width: 40, height: 40)
                     .background(
-                        greatLesson.color.opacity(0.12),
+                        greatLesson.color.opacity(UIConstants.OpacityConstants.medium),
                         in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                     )
 
@@ -65,7 +65,7 @@ struct GreatLessonCard: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(Color.primary.opacity(0.06))
+                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
 
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(greatLesson.color.gradient)

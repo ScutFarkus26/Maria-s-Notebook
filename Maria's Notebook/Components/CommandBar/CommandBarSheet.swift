@@ -94,8 +94,8 @@ struct CommandBarSheet: View {
                     .background(
                         Circle()
                             .fill(viewModel.speechService.isRecording
-                                  ? Color.red.opacity(0.15)
-                                  : Color.secondary.opacity(0.1))
+                                  ? Color.red.opacity(UIConstants.OpacityConstants.accent)
+                                  : Color.secondary.opacity(UIConstants.OpacityConstants.light))
                     )
             }
             .buttonStyle(.plain)
@@ -158,7 +158,7 @@ struct CommandBarSheet: View {
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                        .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 8))
                     }
                     .buttonStyle(.plain)
                 }
@@ -300,7 +300,7 @@ extension CommandBarSheet {
                 .foregroundStyle(command.intent.pieMenuAction.color)
                 .frame(width: 44, height: 44)
                 .background(
-                    command.intent.pieMenuAction.color.opacity(0.12),
+                    command.intent.pieMenuAction.color.opacity(UIConstants.OpacityConstants.medium),
                     in: RoundedRectangle(cornerRadius: 10)
                 )
 
@@ -315,7 +315,7 @@ extension CommandBarSheet {
             Spacer()
         }
         .padding(16)
-        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
     }
 
@@ -334,7 +334,7 @@ extension CommandBarSheet {
                             .font(.subheadline.weight(.medium))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(color.opacity(0.12), in: Capsule())
+                            .background(color.opacity(UIConstants.OpacityConstants.medium), in: Capsule())
                     }
                 }
             }

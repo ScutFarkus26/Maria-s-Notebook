@@ -146,7 +146,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                             .padding(.vertical, 6)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                    .fill(Color.primary.opacity(0.06))
+                                                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                                             )
                                     }
                                 }
@@ -186,7 +186,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                         .padding(10)
                                         .background(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.orange.opacity(0.1))
+                                                .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
                                         )
                                 }
                             }

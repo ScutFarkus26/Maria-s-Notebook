@@ -93,7 +93,7 @@ struct WorkCardPillContent: View {
                             .clipShape(Capsule())
                     }
             }
-            .overlay(Capsule().stroke(AppColors.color(forSubject: lessonSubject).opacity(0.15), lineWidth: 1))
+            .overlay(Capsule().stroke(AppColors.color(forSubject: lessonSubject).opacity(UIConstants.OpacityConstants.accent), lineWidth: 1))
         }
     }
 }

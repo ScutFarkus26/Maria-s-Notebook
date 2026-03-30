@@ -134,7 +134,7 @@ struct WorksAgendaView: View {
                                     .font(AppTheme.ScaledFont.captionSemibold)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(Color.primary.opacity(0.08), in: Capsule())
+                                    .background(Color.primary.opacity(UIConstants.OpacityConstants.subtle), in: Capsule())
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.top, 8)
@@ -185,7 +185,7 @@ struct WorksAgendaView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.secondary)
                             .padding(8)
-                            .background(Color.primary.opacity(0.1))
+                            .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
                             .clipShape(Circle())
                     }
                     #endif

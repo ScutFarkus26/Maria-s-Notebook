@@ -60,7 +60,7 @@ extension LessonDetailCard {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftPurpose)
                     .frame(minHeight: 60)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -72,7 +72,7 @@ extension LessonDetailCard {
                     .foregroundStyle(.tertiary)
                 TextEditor(text: $draftMaterials)
                     .frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -121,7 +121,7 @@ extension LessonDetailCard {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftWriteUp)
                     .frame(minHeight: 140)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -130,7 +130,7 @@ extension LessonDetailCard {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $draftTeacherNotes)
                     .frame(minHeight: 100)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
             }
 
             // Suggested Follow-Up Work (unified)
@@ -153,7 +153,7 @@ extension LessonDetailCard {
                     .foregroundStyle(.tertiary)
                 TextEditor(text: $draftSuggestedFollowUpWork)
                     .frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
 
                 // Structured sample works (with steps)
                 ForEach(lesson.sortedSampleWorks) { sw in

@@ -138,7 +138,7 @@ struct QuickPracticeSessionSheet: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill((workItem.kind ?? .practiceLesson).color.opacity(0.15))
+                        .fill((workItem.kind ?? .practiceLesson).color.opacity(UIConstants.OpacityConstants.accent))
                         .frame(width: 44, height: 44)
 
                     Image(systemName: (workItem.kind ?? .practiceLesson).iconName)
@@ -192,7 +192,7 @@ struct QuickPracticeSessionSheet: View {
                                             .fill(
                                                 durationMinutes == minutes
                                                     ? Color.accentColor
-                                                    : Color.primary.opacity(0.1)
+                                                    : Color.primary.opacity(UIConstants.OpacityConstants.light)
                                             )
                                     )
                             }

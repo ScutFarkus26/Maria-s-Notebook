@@ -38,7 +38,7 @@ struct StudentsChipsRow: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(subjectColor.opacity(0.15))
+                        .background(subjectColor.opacity(UIConstants.OpacityConstants.accent))
                         .clipShape(Capsule())
                     }
                 }

@@ -16,7 +16,7 @@ struct StudentNoteRowView: View {
             ZStack(alignment: .topTrailing) {
                 ZStack {
                     Circle()
-                        .fill(item.color.opacity(0.15))
+                        .fill(item.color.opacity(UIConstants.OpacityConstants.accent))
                         .frame(width: 40, height: 40)
 
                     Image(systemName: iconName(for: item.source))
@@ -113,7 +113,7 @@ struct StudentNoteRowView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(Color.secondary.opacity(0.1))
+                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
         )
     }
     

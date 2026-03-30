@@ -81,7 +81,7 @@ struct ObservationQuickTagBar: View {
             .padding(.vertical, 5)
             .background {
                 Capsule(style: .continuous)
-                    .fill(isSelected ? parsed.color.color : Color.primary.opacity(0.06))
+                    .fill(isSelected ? parsed.color.color : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             }
         }
         .buttonStyle(.plain)

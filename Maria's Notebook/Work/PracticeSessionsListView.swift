@@ -231,7 +231,7 @@ struct PracticeSessionsListView: View {
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(selectedStudent == nil ? Color.accentColor : Color.primary.opacity(0.1))
+                                    .fill(selectedStudent == nil ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
                             )
                         }
                         .buttonStyle(.plain)
@@ -267,7 +267,7 @@ struct PracticeSessionsListView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(selectedFilter == filter ? Color.blue : Color.primary.opacity(0.1))
+                    .fill(selectedFilter == filter ? Color.blue : Color.primary.opacity(UIConstants.OpacityConstants.light))
             )
         }
         .buttonStyle(.plain)
@@ -294,7 +294,7 @@ struct PracticeSessionsListView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(selectedStudent == student.id ? Color.accentColor : Color.primary.opacity(0.1))
+                    .fill(selectedStudent == student.id ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
             )
         }
         .buttonStyle(.plain)

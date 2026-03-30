@@ -53,7 +53,7 @@ extension LessonAssignmentDetailSheet {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
         )
         .contextMenu {
             Button {

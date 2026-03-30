@@ -155,7 +155,7 @@ struct TransitionPlanDetailView: View {
                         .padding(.vertical, 6)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(plan.status == status ? status.color : status.color.opacity(0.1))
+                                .fill(plan.status == status ? status.color : status.color.opacity(UIConstants.OpacityConstants.light))
                         )
                     }
                     .buttonStyle(.plain)

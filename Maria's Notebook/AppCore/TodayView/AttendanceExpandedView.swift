@@ -109,7 +109,7 @@ struct AttendanceExpandedView: View {
                         .monospacedDigit()
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                        .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
                 }
 
                 if viewModel.countTardy > 0 {

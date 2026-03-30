@@ -57,11 +57,11 @@ struct ObservationPromptCard: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .fill(Color.accentColor.opacity(0.06))
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .stroke(Color.accentColor.opacity(0.15))
+                .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

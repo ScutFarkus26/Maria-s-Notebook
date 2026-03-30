@@ -390,7 +390,7 @@ struct CacheDebugView: View {
             Text(coordinator.performanceSummary())
                 .font(.system(.caption, design: .monospaced))
                 .padding()
-                .background(Color.gray.opacity(0.1))
+                .background(Color.gray.opacity(UIConstants.OpacityConstants.light))
                 .cornerRadius(8)
         }
         .padding()

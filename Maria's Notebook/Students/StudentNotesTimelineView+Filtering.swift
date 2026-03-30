@@ -191,6 +191,6 @@ extension StudentNotesTimelineList {
         }
         .padding(.horizontal)
         .padding(.vertical, 6)
-        .background(Color.accentColor.opacity(0.08))
+        .background(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
     }
 }

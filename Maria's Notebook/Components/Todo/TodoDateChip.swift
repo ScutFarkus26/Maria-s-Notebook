@@ -124,9 +124,9 @@ struct TodoDateChip: View {
 
     private var chipBackground: some ShapeStyle {
         switch chipState {
-        case .overdue: return AnyShapeStyle(Color.red.opacity(0.1))
-        case .today: return AnyShapeStyle(Color.orange.opacity(0.1))
-        case .tomorrow: return AnyShapeStyle(Color.orange.opacity(0.06))
+        case .overdue: return AnyShapeStyle(Color.red.opacity(UIConstants.OpacityConstants.light))
+        case .today: return AnyShapeStyle(Color.orange.opacity(UIConstants.OpacityConstants.light))
+        case .tomorrow: return AnyShapeStyle(Color.orange.opacity(UIConstants.OpacityConstants.veryFaint))
         case .thisWeek: return AnyShapeStyle(Color.primary.opacity(0.04))
         case .future: return AnyShapeStyle(Color.clear)
         case .someday: return AnyShapeStyle(Color.clear)

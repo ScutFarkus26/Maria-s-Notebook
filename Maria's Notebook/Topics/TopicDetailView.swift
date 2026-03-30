@@ -150,7 +150,7 @@ private struct TopicBasicsSection: View {
                 Text("Issue")
                     .font(.caption).foregroundStyle(.secondary)
                 TextEditor(text: $issue).frame(minHeight: 120)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
             }
         }
     }
@@ -184,7 +184,7 @@ private struct TagsSection: View {
                                 Text(tag)
                                     .font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                                    .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
                             }
                         }
                     }
@@ -206,7 +206,7 @@ private struct ResolutionSection: View {
                 if addressed {
                     DatePicker("Addressed Date", selection: $addressedDate, displayedComponents: .date)
                     TextEditor(text: $resolution).frame(minHeight: 80)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
                 }
             }
         }
@@ -271,7 +271,7 @@ private struct ProposedSolutionsSection: View {
                 TextField("Proposed by (optional)", text: $newSolutionProposedBy)
                     .textFieldStyle(.roundedBorder)
                 TextEditor(text: $newSolutionDetails).frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
 
                 HStack {
                     Spacer()
@@ -349,7 +349,7 @@ private struct MeetingNotesSection: View {
                                 Text(reporterName).font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.blue.opacity(0.12)))
+                                    .background(Capsule().fill(Color.blue.opacity(UIConstants.OpacityConstants.medium)))
                             }
                             Text(n.body).font(.subheadline)
                             Spacer()
@@ -369,7 +369,7 @@ private struct MeetingNotesSection: View {
                 TextField("Speaker (optional)", text: $newNoteSpeaker)
                     .textFieldStyle(.roundedBorder)
                 TextEditor(text: $newNoteContent).frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
 
                 HStack {
                     Spacer()

@@ -78,7 +78,7 @@ struct IntroductionCard: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            Capsule().fill(subjectColor.opacity(0.1))
+                            Capsule().fill(subjectColor.opacity(UIConstants.OpacityConstants.light))
                         )
                     }
 
@@ -93,7 +93,7 @@ struct IntroductionCard: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            Capsule().fill(Color.primary.opacity(0.06))
+                            Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                         )
                     }
 
@@ -126,7 +126,7 @@ struct IntroductionCard: View {
             // Warm manila tint in dark mode
             if colorScheme == .dark {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.orange.opacity(0.06))
+                    .fill(Color.orange.opacity(UIConstants.OpacityConstants.veryFaint))
             }
 
             // Dashed border for folder feel
@@ -170,7 +170,7 @@ struct IntroductionCard: View {
                 // Close back to start
                 path.addLine(to: CGPoint(x: cornerRadius, y: 0))
             }
-            .fill(subjectColor.opacity(0.15))
+            .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
         }
         .allowsHitTesting(false)
     }

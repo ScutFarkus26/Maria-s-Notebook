@@ -131,7 +131,7 @@ struct GoingOutDetailView: View {
                     .padding(.vertical, 6)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(newStatus.color.opacity(0.1))
+                            .fill(newStatus.color.opacity(UIConstants.OpacityConstants.light))
                     )
                 }
                 .buttonStyle(.plain)
@@ -213,7 +213,7 @@ struct GoingOutDetailView: View {
                 .padding(.vertical, 6)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(goingOut.permissionStatus.color.opacity(0.12))
+                        .fill(goingOut.permissionStatus.color.opacity(UIConstants.OpacityConstants.medium))
                 )
             }
         }
@@ -328,7 +328,7 @@ private struct StudentChipsView: View {
                 .padding(.vertical, 4)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(Color.primary.opacity(0.06))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                 )
             }
         }

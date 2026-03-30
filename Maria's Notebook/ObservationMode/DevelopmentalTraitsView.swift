@@ -84,7 +84,7 @@ struct DevelopmentalTraitsView: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                 }
         }
         .buttonStyle(.plain)
@@ -163,7 +163,7 @@ struct DevelopmentalTraitsView: View {
                     .padding(.vertical, 2)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(trait.color.opacity(0.12))
+                            .fill(trait.color.opacity(UIConstants.OpacityConstants.medium))
                     )
                 }
             }

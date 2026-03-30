@@ -188,7 +188,7 @@ struct PracticePartnershipsView: View {
                         .padding(.vertical, 4)
                         .background(
                             Capsule()
-                                .fill(Color.green.opacity(0.1))
+                                .fill(Color.green.opacity(UIConstants.OpacityConstants.light))
                         )
                 }
                 .padding(.vertical, 4)
@@ -408,7 +408,7 @@ struct PracticePartnershipsSummaryCard: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(color.opacity(0.1))
+                .fill(color.opacity(UIConstants.OpacityConstants.light))
         )
     }
 }

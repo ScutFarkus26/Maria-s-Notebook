@@ -16,7 +16,7 @@ struct StickyLeftItem<Content: View>: View {
             content()
                 .offset(x: max(0, -minX))
                 // Add shadow when stuck to separate from content
-                .shadow(color: minX < 0 ? Color.black.opacity(0.1) : .clear, radius: 2, x: 2, y: 0)
+                .shadow(color: minX < 0 ? Color.black.opacity(UIConstants.OpacityConstants.light) : .clear, radius: 2, x: 2, y: 0)
         }
         .frame(width: width, height: height)
         .zIndex(99) // Keep above standard cells

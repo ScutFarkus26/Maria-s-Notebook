@@ -184,7 +184,7 @@ struct APIKeyInformationSheet: View {
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(12)
                     
                     // Step 2
@@ -199,7 +199,7 @@ struct APIKeyInformationSheet: View {
                             .font(.body)
                     }
                     .padding()
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(12)
                     
                     // Step 3
@@ -211,7 +211,7 @@ struct APIKeyInformationSheet: View {
                             .font(.body)
                     }
                     .padding()
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(12)
                     
                     Divider()
@@ -236,7 +236,7 @@ struct APIKeyInformationSheet: View {
                             .font(.subheadline)
                     }
                     .padding()
-                    .background(Color.green.opacity(0.1))
+                    .background(Color.green.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(12)
                     
                     // Privacy Note
@@ -252,7 +252,7 @@ struct APIKeyInformationSheet: View {
                             .font(.body)
                     }
                     .padding()
-                    .background(Color.purple.opacity(0.1))
+                    .background(Color.purple.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(12)
                 }
                 .padding()

@@ -143,7 +143,7 @@ struct MeetingContextPane: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(color.opacity(0.1))
+        .background(color.opacity(UIConstants.OpacityConstants.light))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 

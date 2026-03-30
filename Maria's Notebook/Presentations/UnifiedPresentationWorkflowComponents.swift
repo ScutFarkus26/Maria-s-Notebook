@@ -158,12 +158,12 @@ struct WorkflowTextField: View {
 struct WorkflowCard<Content: View>: View {
     let content: Content
     var backgroundColor: Color = Color.primary.opacity(0.04)
-    var borderColor: Color = Color.primary.opacity(0.1)
+    var borderColor: Color = Color.primary.opacity(UIConstants.OpacityConstants.light)
     var cornerRadius: CGFloat = 12
 
     init(
         backgroundColor: Color = Color.primary.opacity(0.04),
-        borderColor: Color = Color.primary.opacity(0.1),
+        borderColor: Color = Color.primary.opacity(UIConstants.OpacityConstants.light),
         cornerRadius: CGFloat = 12,
         @ViewBuilder content: () -> Content
     ) {
@@ -260,7 +260,7 @@ struct WorkflowDeleteButton: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(AppColors.destructive.opacity(0.1))
+                    .fill(AppColors.destructive.opacity(UIConstants.OpacityConstants.light))
             )
         }
         .buttonStyle(.plain)
@@ -302,7 +302,7 @@ struct WorkflowBadge: View {
         .padding(.vertical, 6)
         .background(
             Capsule()
-                .fill(color.opacity(0.15))
+                .fill(color.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

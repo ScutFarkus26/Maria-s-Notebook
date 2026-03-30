@@ -137,7 +137,7 @@ struct LessonsOutlineView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.secondary.opacity(0.1))
+                .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
                 .clipShape(Capsule())
         }
     }

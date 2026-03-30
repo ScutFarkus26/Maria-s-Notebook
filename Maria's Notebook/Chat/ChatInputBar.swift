@@ -38,7 +38,7 @@ struct ChatInputBar: View {
                         RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                             .stroke(
                                 LinearGradient(
-                                    colors: [.purple.opacity(0.15), .blue.opacity(0.15)],
+                                    colors: [.purple.opacity(UIConstants.OpacityConstants.accent), .blue.opacity(UIConstants.OpacityConstants.accent)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 ),

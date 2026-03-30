@@ -10,7 +10,7 @@ struct ProcedureRow: View {
             // Icon
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.12))
+                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                     .frame(width: 40, height: 40)
 
                 Image(systemName: procedure.displayIcon)

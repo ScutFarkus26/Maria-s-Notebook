@@ -152,7 +152,7 @@ struct LessonFrequencyView: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                 }
         }
         .buttonStyle(.plain)
@@ -220,7 +220,7 @@ private struct FrequencyStatCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(color.opacity(0.1))
+        .background(color.opacity(UIConstants.OpacityConstants.light))
         .cornerRadius(UIConstants.CornerRadius.large)
     }
 }

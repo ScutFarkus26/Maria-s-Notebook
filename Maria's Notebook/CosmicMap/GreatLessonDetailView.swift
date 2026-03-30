@@ -49,7 +49,7 @@ struct GreatLessonDetailView: View {
                 .font(.title)
                 .foregroundStyle(greatLesson.color)
                 .frame(width: 48, height: 48)
-                .background(greatLesson.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(greatLesson.color.opacity(UIConstants.OpacityConstants.medium), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(greatLesson.displayName)
@@ -128,7 +128,7 @@ struct GreatLessonDetailView: View {
                     .padding(.vertical, 3)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(Color.primary.opacity(0.06))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                     )
             }
         }

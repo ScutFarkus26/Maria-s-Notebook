@@ -78,8 +78,8 @@ extension TodoEditSheet {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(
                                     priority == priorityLevel
-                                        ? colorForPriority(priorityLevel).opacity(0.15)
-                                        : Color.secondary.opacity(0.1)
+                                        ? colorForPriority(priorityLevel).opacity(UIConstants.OpacityConstants.accent)
+                                        : Color.secondary.opacity(UIConstants.OpacityConstants.light)
                                 )
                         }
                         .overlay {

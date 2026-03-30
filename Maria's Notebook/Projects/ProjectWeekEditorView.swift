@@ -199,7 +199,7 @@ struct ProjectWeekEditorView: View, Identifiable {
                                     }
                                     .padding(.vertical, 4)
                                     Divider()
-                                        .opacity(0.15)
+                                        .opacity(UIConstants.OpacityConstants.accent)
                                 }
                             }
                         }

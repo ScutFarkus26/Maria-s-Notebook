@@ -19,7 +19,7 @@ struct SearchHighlightModifier: ViewModifier {
             .background(
                 isMatch
                     ? RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(AppColors.info.opacity(0.15))
+                        .fill(AppColors.info.opacity(UIConstants.OpacityConstants.accent))
                         .padding(-4)
                     : nil
             )

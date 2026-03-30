@@ -146,7 +146,7 @@ struct StudentHistoryTab: View {
         HStack(alignment: .center, spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.15))
+                    .fill(Color.purple.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 44, height: 44)
                 Image(systemName: "book.closed.fill")
                     .font(.title3)
@@ -178,7 +178,7 @@ struct StudentHistoryTab: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.purple.opacity(0.15), lineWidth: 1)
+                .strokeBorder(Color.purple.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
         )
     }
 
@@ -189,7 +189,7 @@ struct StudentHistoryTab: View {
             // Trophy/achievement icon
             ZStack {
                 Circle()
-                    .fill(accentColor.opacity(0.15))
+                    .fill(accentColor.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 48, height: 48)
 
                 Image(systemName: "trophy.fill")
@@ -231,7 +231,7 @@ struct StudentHistoryTab: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [accentColor.opacity(0.08), accentColor.opacity(0.03)],
+                        colors: [accentColor.opacity(UIConstants.OpacityConstants.subtle), accentColor.opacity(0.03)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )

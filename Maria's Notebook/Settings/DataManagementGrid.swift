@@ -147,7 +147,7 @@ struct DataManagementGrid: View {
         }
         .padding(.horizontal, AppTheme.Spacing.small + 2)
         .padding(.vertical, AppTheme.Spacing.sm)
-        .background(RoundedRectangle(cornerRadius: AppTheme.Spacing.small).fill(color.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: AppTheme.Spacing.small).fill(color.opacity(UIConstants.OpacityConstants.light)))
     }
 
     // MARK: - Backup Card
@@ -192,7 +192,7 @@ struct DataManagementGrid: View {
             .font(.caption2)
             .padding(.horizontal, AppTheme.Spacing.statusPillHorizontal)
             .padding(.vertical, AppTheme.Spacing.statusPillVertical)
-            .background(Capsule().fill(encryptBackups ? Color.green.opacity(0.15) : Color.primary.opacity(0.08)))
+            .background(Capsule().fill(encryptBackups ? Color.green.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
             .foregroundStyle(encryptBackups ? .green : .primary)
         }
         .buttonStyle(.plain)
@@ -354,7 +354,7 @@ struct DataManagementGrid: View {
         .padding(.vertical, AppTheme.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: AppTheme.Spacing.small, style: .continuous)
-                .fill(Color.green.opacity(0.12))
+                .fill(Color.green.opacity(UIConstants.OpacityConstants.medium))
         )
     }
 

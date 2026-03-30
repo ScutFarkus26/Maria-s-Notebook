@@ -50,11 +50,11 @@ struct WhatsNewBanner: View {
             .padding(SettingsStyle.compactPadding)
             .background(
                 RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.06))
+                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.15))
+                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
             )
             .transition(.opacity.combined(with: .move(edge: .top)))
         }

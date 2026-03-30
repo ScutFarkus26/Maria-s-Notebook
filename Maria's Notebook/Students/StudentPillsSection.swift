@@ -69,7 +69,7 @@ struct StudentPillsSection: View {
         .foregroundStyle(subjectColor)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(subjectColor.opacity(0.15))
+                .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

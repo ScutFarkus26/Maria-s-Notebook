@@ -27,7 +27,7 @@ enum CardStyle {
     static let strokeOpacity: Double = 0.06
     
     /// Standard card shadow
-    static let shadowColor = Color.black.opacity(0.06)
+    static let shadowColor = Color.black.opacity(UIConstants.OpacityConstants.veryFaint)
     static let shadowRadius: CGFloat = 3
     static let shadowOffset = CGSize(width: 0, height: 1)
 }

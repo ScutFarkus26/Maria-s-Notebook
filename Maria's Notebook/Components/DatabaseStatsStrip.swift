@@ -60,7 +60,7 @@ struct MTSummaryStrip: View {
                             .stroke(stat.tint.opacity(0.25), lineWidth: 1)
                     )
             )
-            .shadow(color: stat.tint.opacity(0.15), radius: 6, x: 0, y: 3)
+            .shadow(color: stat.tint.opacity(UIConstants.OpacityConstants.accent), radius: 6, x: 0, y: 3)
             .frame(width: 180, alignment: .leading)
             .accessibilityLabel("\(stat.title), \(stat.value)")
         }

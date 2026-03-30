@@ -37,7 +37,7 @@ struct SupplyHistorySection: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(transaction.quantityChange >= 0 ? Color.green.opacity(0.15) : Color.red.opacity(0.15))
+                    .fill(transaction.quantityChange >= 0 ? Color.green.opacity(UIConstants.OpacityConstants.accent) : Color.red.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 32, height: 32)
 
                 Image(systemName: transaction.quantityChange >= 0 ? "plus" : "minus")

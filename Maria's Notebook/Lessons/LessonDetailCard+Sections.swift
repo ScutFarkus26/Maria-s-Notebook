@@ -40,21 +40,21 @@ extension LessonDetailCard {
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                        .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
                 }
                 if !lesson.group.isEmpty {
                     Text(lesson.group)
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                        .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
                 }
                 if lesson.isStory {
                     Text("Story")
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.purple.opacity(0.12)))
+                        .background(Capsule().fill(Color.purple.opacity(UIConstants.OpacityConstants.medium)))
                         .foregroundStyle(.purple)
                 }
                 if lesson.source == .personal {
@@ -62,14 +62,14 @@ extension LessonDetailCard {
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.primary.opacity(0.08)))
+                        .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
                 }
                 if !lesson.ageRange.isEmpty {
                     Text(lesson.ageRange)
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.orange.opacity(0.15)))
+                        .background(Capsule().fill(Color.orange.opacity(UIConstants.OpacityConstants.accent)))
                 }
             }
         }

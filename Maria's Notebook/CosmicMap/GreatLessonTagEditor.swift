@@ -46,7 +46,7 @@ struct GreatLessonTagEditor: View {
                                 .foregroundStyle(gl.color)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    gl.color.opacity(0.12),
+                                    gl.color.opacity(UIConstants.OpacityConstants.medium),
                                     in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 )
 

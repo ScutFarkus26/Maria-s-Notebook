@@ -222,7 +222,7 @@ struct LessonProgressSection: View {
                 }
 
                 // Hairline divider
-                Divider().overlay(Color.white.opacity(0.06))
+                Divider().overlay(Color.white.opacity(UIConstants.OpacityConstants.veryFaint))
 
                 // Actions row
                 HStack(spacing: 12) {
@@ -457,7 +457,7 @@ private struct GlassCard<Content: View>: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                     .blendMode(.overlay)
             )
             .shadow(color: .black.opacity(0.25), radius: 20, y: 10)
@@ -513,7 +513,7 @@ private struct ActionPill: View {
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.06))
+                        .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.veryFaint))
                 )
         }
         .buttonStyle(.plain)

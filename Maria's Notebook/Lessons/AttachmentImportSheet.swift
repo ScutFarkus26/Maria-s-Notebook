@@ -140,7 +140,7 @@ struct ScopeOptionButton: View {
             .padding(10)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+                    .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.light) : Color.clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)

@@ -330,7 +330,7 @@ struct LessonSelectionRow: View {
                 Spacer()
             }
             .padding(8)
-            .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+            .background(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.light) : Color.clear)
             .cornerRadius(6)
         }
         .buttonStyle(.plain)

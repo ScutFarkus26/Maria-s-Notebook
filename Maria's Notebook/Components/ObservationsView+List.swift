@@ -71,7 +71,7 @@ extension ObservationsView {
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(Color.secondary.opacity(0.1))
+                                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
                         )
                 }
 
@@ -153,7 +153,7 @@ extension ObservationsView {
             .foregroundStyle(Color.accentColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+            .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
     }
 
     func firstLine(of text: String) -> String? {
