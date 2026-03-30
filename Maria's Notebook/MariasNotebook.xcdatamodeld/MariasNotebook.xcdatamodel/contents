@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23507" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" usedWithSwiftData="NO" userDefinedModelVersionIdentifier="">
+    <!-- ==================== Student ==================== -->
+    <entity name="Student" representedClassName="Student" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="firstName" attributeType="String" defaultValueString=""/>
+        <attribute name="lastName" attributeType="String" defaultValueString=""/>
+        <attribute name="nickname" optional="YES" attributeType="String"/>
+        <attribute name="birthday" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="levelRaw" attributeType="String" defaultValueString="Lower"/>
+        <attribute name="nextLessons" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="manualOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="dateStarted" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="enrollmentStatusRaw" attributeType="String" defaultValueString="enrolled"/>
+        <attribute name="dateWithdrawn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="documents" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Document" inverseName="student" inverseEntity="Document"/>
+    </entity>
+    <!-- ==================== Lesson ==================== -->
+    <entity name="Lesson" representedClassName="Lesson" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="subject" attributeType="String" defaultValueString=""/>
+        <attribute name="group" attributeType="String" defaultValueString=""/>
+        <attribute name="orderInGroup" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="sortIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="subheading" attributeType="String" defaultValueString=""/>
+        <attribute name="writeUp" attributeType="String" defaultValueString=""/>
+        <attribute name="suggestedFollowUpWork" attributeType="String" defaultValueString=""/>
+        <attribute name="materials" attributeType="String" defaultValueString=""/>
+        <attribute name="purpose" attributeType="String" defaultValueString=""/>
+        <attribute name="ageRange" attributeType="String" defaultValueString=""/>
+        <attribute name="teacherNotes" attributeType="String" defaultValueString=""/>
+        <attribute name="prerequisiteLessonIDs" attributeType="String" defaultValueString=""/>
+        <attribute name="relatedLessonIDs" attributeType="String" defaultValueString=""/>
+        <attribute name="greatLessonRaw" optional="YES" attributeType="String"/>
+        <attribute name="sourceRaw" attributeType="String" defaultValueString="album"/>
+        <attribute name="personalKindRaw" optional="YES" attributeType="String"/>
+        <attribute name="lessonFormatRaw" attributeType="String" defaultValueString="standard"/>
+        <attribute name="parentStoryID" optional="YES" attributeType="String"/>
+        <attribute name="defaultWorkKindRaw" optional="YES" attributeType="String"/>
+        <attribute name="pagesFileBookmark" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="pagesFileRelativePath" optional="YES" attributeType="String"/>
+        <attribute name="primaryAttachmentID" optional="YES" attributeType="String"/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="lesson" inverseEntity="Note"/>
+        <relationship name="lessonAssignments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAssignment" inverseName="lesson" inverseEntity="LessonAssignment"/>
+        <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAttachment" inverseName="lesson" inverseEntity="LessonAttachment"/>
+        <relationship name="sampleWorks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWork" inverseName="lesson" inverseEntity="SampleWork"/>
+    </entity>
+    <!-- ==================== LessonAttachment ==================== -->
+    <entity name="LessonAttachment" representedClassName="LessonAttachment" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="fileName" attributeType="String" defaultValueString=""/>
+        <attribute name="fileBookmark" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="fileRelativePath" attributeType="String" defaultValueString=""/>
+        <attribute name="attachedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fileType" attributeType="String" defaultValueString=""/>
+        <attribute name="fileSizeBytes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="scopeRaw" attributeType="String" defaultValueString="lesson"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="thumbnailData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="attachments" inverseEntity="Lesson"/>
+    </entity>
+    <!-- ==================== Note ==================== -->
+    <entity name="Note" representedClassName="Note" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="body" attributeType="String" defaultValueString=""/>
+        <attribute name="isPinned" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="general"/>
+        <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="includeInReport" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="needsFollowUp" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="imagePath" optional="YES" attributeType="String"/>
+        <attribute name="reportedBy" optional="YES" attributeType="String"/>
+        <attribute name="reporterName" optional="YES" attributeType="String"/>
+        <attribute name="scopeBlob" optional="YES" attributeType="Binary"/>
+        <attribute name="searchIndexStudentID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="scopeIsAll" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="notes" inverseEntity="Lesson"/>
+        <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="unifiedNotes" inverseEntity="WorkModel"/>
+        <relationship name="lessonAssignment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="LessonAssignment" inverseName="unifiedNotes" inverseEntity="LessonAssignment"/>
+        <relationship name="attendanceRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceRecord" inverseName="notes" inverseEntity="AttendanceRecord"/>
+        <relationship name="workCheckIn" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkCheckIn" inverseName="notes" inverseEntity="WorkCheckIn"/>
+        <relationship name="workCompletionRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkCompletionRecord" inverseName="notes" inverseEntity="WorkCompletionRecord"/>
+        <relationship name="studentMeeting" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudentMeeting" inverseName="notes" inverseEntity="StudentMeeting"/>
+        <relationship name="projectSession" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProjectSession" inverseName="noteItems" inverseEntity="ProjectSession"/>
+        <relationship name="communityTopic" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CommunityTopic" inverseName="unifiedNotes" inverseEntity="CommunityTopic"/>
+        <relationship name="reminder" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Reminder" inverseName="noteItems" inverseEntity="Reminder"/>
+        <relationship name="schoolDayOverride" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SchoolDayOverride" inverseName="notes" inverseEntity="SchoolDayOverride"/>
+        <relationship name="studentTrackEnrollment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudentTrackEnrollment" inverseName="richNotes" inverseEntity="StudentTrackEnrollment"/>
+        <relationship name="practiceSession" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="PracticeSession" inverseName="notes" inverseEntity="PracticeSession"/>
+        <relationship name="issue" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Issue" inverseName="notes" inverseEntity="Issue"/>
+        <relationship name="goingOut" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GoingOut" inverseName="observationNotes" inverseEntity="GoingOut"/>
+        <relationship name="transitionPlan" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TransitionPlan" inverseName="observationNotes" inverseEntity="TransitionPlan"/>
+        <relationship name="studentLinks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="NoteStudentLink" inverseName="note" inverseEntity="NoteStudentLink"/>
+    </entity>
+    <!-- ==================== NoteStudentLink ==================== -->
+    <entity name="NoteStudentLink" representedClassName="NoteStudentLink" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="noteID" attributeType="String" defaultValueString=""/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <relationship name="note" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Note" inverseName="studentLinks" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== NoteTemplate ==================== -->
+    <entity name="NoteTemplate" representedClassName="NoteTemplate" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="body" attributeType="String" defaultValueString=""/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="general"/>
+        <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isBuiltIn" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+    </entity>
+    <!-- ==================== MeetingTemplate ==================== -->
+    <entity name="MeetingTemplate" representedClassName="MeetingTemplate" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="reflectionPrompt" attributeType="String" defaultValueString=""/>
+        <attribute name="focusPrompt" attributeType="String" defaultValueString=""/>
+        <attribute name="requestsPrompt" attributeType="String" defaultValueString=""/>
+        <attribute name="guideNotesPrompt" attributeType="String" defaultValueString=""/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isBuiltIn" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+    </entity>
+    <!-- ==================== LessonPresentation ==================== -->
+    <entity name="LessonPresentation" representedClassName="LessonPresentation" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="lessonID" attributeType="String" defaultValueString=""/>
+        <attribute name="presentationID" optional="YES" attributeType="String"/>
+        <attribute name="trackID" optional="YES" attributeType="String"/>
+        <attribute name="trackStepID" optional="YES" attributeType="String"/>
+        <attribute name="stateRaw" attributeType="String" defaultValueString="presented"/>
+        <attribute name="presentedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastObservedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="masteredAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+    </entity>
+    <!-- ==================== LessonAssignment (Presentation) ==================== -->
+    <entity name="LessonAssignment" representedClassName="LessonAssignment" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="stateRaw" attributeType="String" defaultValueString="draft"/>
+        <attribute name="scheduledFor" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="scheduledForDay" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="presentedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lessonTitleSnapshot" optional="YES" attributeType="String"/>
+        <attribute name="lessonSubheadingSnapshot" optional="YES" attributeType="String"/>
+        <attribute name="needsPractice" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="needsAnotherPresentation" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="followUpWork" attributeType="String" defaultValueString=""/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="manuallyUnblocked" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lessonID" attributeType="String" defaultValueString=""/>
+        <attribute name="_studentIDsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="studentGroupKeyPersisted" attributeType="String" defaultValueString=""/>
+        <attribute name="trackID" optional="YES" attributeType="String"/>
+        <attribute name="trackStepID" optional="YES" attributeType="String"/>
+        <attribute name="migratedFromStudentLessonID" optional="YES" attributeType="String"/>
+        <attribute name="migratedFromPresentationID" optional="YES" attributeType="String"/>
+        <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="lessonAssignments" inverseEntity="Lesson"/>
+        <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="lessonAssignment" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== CalendarEvent ==================== -->
+    <entity name="CalendarEvent" representedClassName="CalendarEvent" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="startDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="isAllDay" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="eventKitEventID" optional="YES" attributeType="String"/>
+        <attribute name="eventKitCalendarID" optional="YES" attributeType="String"/>
+        <attribute name="lastSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== CommunityTopic ==================== -->
+    <entity name="CommunityTopic" representedClassName="CommunityTopic" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="issueDescription" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="addressedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="resolution" attributeType="String" defaultValueString=""/>
+        <attribute name="broughtBy" attributeType="String" defaultValueString=""/>
+        <attribute name="_tagsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <relationship name="proposedSolutions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ProposedSolution" inverseName="topic" inverseEntity="ProposedSolution"/>
+        <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="communityTopic" inverseEntity="Note"/>
+        <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CommunityAttachment" inverseName="topic" inverseEntity="CommunityAttachment"/>
+    </entity>
+    <!-- ==================== ProposedSolution ==================== -->
+    <entity name="ProposedSolution" representedClassName="ProposedSolution" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="details" attributeType="String" defaultValueString=""/>
+        <attribute name="proposedBy" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isAdopted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="topic" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CommunityTopic" inverseName="proposedSolutions" inverseEntity="CommunityTopic"/>
+    </entity>
+    <!-- ==================== CommunityAttachment ==================== -->
+    <entity name="CommunityAttachment" representedClassName="CommunityAttachment" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="filename" attributeType="String" defaultValueString=""/>
+        <attribute name="kindRaw" attributeType="String" defaultValueString="file"/>
+        <attribute name="data" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="topic" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CommunityTopic" inverseName="attachments" inverseEntity="CommunityTopic"/>
+    </entity>
+    <!-- ==================== DevelopmentSnapshot ==================== -->
+    <entity name="DevelopmentSnapshot" representedClassName="DevelopmentSnapshot" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="generatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lookbackDays" attributeType="Integer 64" defaultValueString="30" usesScalarValueType="YES"/>
+        <attribute name="analysisVersion" attributeType="String" defaultValueString="1.0"/>
+        <attribute name="overallProgress" attributeType="String" defaultValueString=""/>
+        <attribute name="keyStrengthsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="areasForGrowthData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="developmentalMilestonesData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="observedPatternsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="behavioralTrendsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="socialEmotionalInsightsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="recommendedNextLessonsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="suggestedPracticeFocusData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="interventionSuggestionsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="totalNotesAnalyzed" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="practiceSessionsAnalyzed" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="workCompletionsAnalyzed" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="averagePracticeQuality" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="independenceLevel" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="rawAnalysisJSON" attributeType="String" defaultValueString="" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="userNotes" attributeType="String" defaultValueString=""/>
+        <attribute name="isReviewed" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="sharedWithParents" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="sharedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== Document ==================== -->
+    <entity name="Document" representedClassName="Document" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="category" attributeType="String" defaultValueString=""/>
+        <attribute name="uploadDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="pdfData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <relationship name="student" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Student" inverseName="documents" inverseEntity="Student"/>
+    </entity>
+    <!-- ==================== GroupTrack ==================== -->
+    <entity name="GroupTrack" representedClassName="GroupTrack" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="subject" attributeType="String" defaultValueString=""/>
+        <attribute name="group" attributeType="String" defaultValueString=""/>
+        <attribute name="isSequential" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="isExplicitlyDisabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== Issue ==================== -->
+    <entity name="Issue" representedClassName="Issue" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="issueDescription" attributeType="String" defaultValueString=""/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="Other"/>
+        <attribute name="priorityRaw" attributeType="String" defaultValueString="Medium"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="Open"/>
+        <attribute name="_studentIDsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="resolvedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="resolutionSummary" optional="YES" attributeType="String"/>
+        <relationship name="actions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="IssueAction" inverseName="issue" inverseEntity="IssueAction"/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="issue" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== IssueAction ==================== -->
+    <entity name="IssueAction" representedClassName="IssueAction" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="issueID" attributeType="String" defaultValueString=""/>
+        <attribute name="actionTypeRaw" attributeType="String" defaultValueString="Note"/>
+        <attribute name="actionDescription" attributeType="String" defaultValueString=""/>
+        <attribute name="actionDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="_participantIDsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="nextSteps" optional="YES" attributeType="String"/>
+        <attribute name="followUpRequired" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="followUpDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="followUpCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="issue" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Issue" inverseName="actions" inverseEntity="Issue"/>
+    </entity>
+    <!-- ==================== NonSchoolDay ==================== -->
+    <entity name="NonSchoolDay" representedClassName="NonSchoolDay" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="reason" optional="YES" attributeType="String"/>
+    </entity>
+    <!-- ==================== PlanningRecommendation ==================== -->
+    <entity name="PlanningRecommendation" representedClassName="PlanningRecommendation" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lessonID" attributeType="String" defaultValueString=""/>
+        <attribute name="_studentIDsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="reasoning" attributeType="String" defaultValueString=""/>
+        <attribute name="confidence" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="priority" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="subjectContext" attributeType="String" defaultValueString=""/>
+        <attribute name="groupContext" attributeType="String" defaultValueString=""/>
+        <attribute name="planningSessionID" attributeType="String" defaultValueString=""/>
+        <attribute name="depthLevel" attributeType="String" defaultValueString=""/>
+        <attribute name="decisionRaw" optional="YES" attributeType="String"/>
+        <attribute name="decisionAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="teacherNote" optional="YES" attributeType="String"/>
+        <attribute name="outcomeRaw" optional="YES" attributeType="String"/>
+        <attribute name="outcomeRecordedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="presentationID" optional="YES" attributeType="String"/>
+    </entity>
+    <!-- ==================== Procedure ==================== -->
+    <entity name="Procedure" representedClassName="Procedure" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="summary" attributeType="String" defaultValueString=""/>
+        <attribute name="content" attributeType="String" defaultValueString=""/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="Other"/>
+        <attribute name="icon" attributeType="String" defaultValueString=""/>
+        <attribute name="relatedProcedureIDsRaw" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== Reminder ==================== -->
+    <entity name="Reminder" representedClassName="Reminder" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="dueDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="eventKitReminderID" optional="YES" attributeType="String"/>
+        <attribute name="eventKitCalendarID" optional="YES" attributeType="String"/>
+        <attribute name="lastSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="noteItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="reminder" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== Schedule ==================== -->
+    <entity name="Schedule" representedClassName="Schedule" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="colorHex" attributeType="String" defaultValueString="#007AFF"/>
+        <attribute name="icon" attributeType="String" defaultValueString="calendar"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="slots" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ScheduleSlot" inverseName="schedule" inverseEntity="ScheduleSlot"/>
+    </entity>
+    <!-- ==================== ScheduleSlot ==================== -->
+    <entity name="ScheduleSlot" representedClassName="ScheduleSlot" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="scheduleID" attributeType="String" defaultValueString=""/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="weekdayRaw" attributeType="String" defaultValueString="Monday"/>
+        <attribute name="timeString" optional="YES" attributeType="String"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="schedule" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Schedule" inverseName="slots" inverseEntity="Schedule"/>
+    </entity>
+    <!-- ==================== SchoolDayOverride ==================== -->
+    <entity name="SchoolDayOverride" representedClassName="SchoolDayOverride" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="schoolDayOverride" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== StudentTrackEnrollment ==================== -->
+    <entity name="StudentTrackEnrollment" representedClassName="StudentTrackEnrollment" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="trackID" attributeType="String" defaultValueString=""/>
+        <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <relationship name="richNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="studentTrackEnrollment" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== Supply ==================== -->
+    <entity name="Supply" representedClassName="Supply" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="Other"/>
+        <attribute name="location" attributeType="String" defaultValueString=""/>
+        <attribute name="currentQuantity" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="minimumThreshold" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="reorderAmount" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="unit" attributeType="String" defaultValueString="items"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isOnOrder" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="orderedQuantity" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="orderDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="transactions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SupplyTransaction" inverseName="supply" inverseEntity="SupplyTransaction"/>
+    </entity>
+    <!-- ==================== SupplyTransaction ==================== -->
+    <entity name="SupplyTransaction" representedClassName="SupplyTransaction" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="supplyID" attributeType="String" defaultValueString=""/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="quantityChange" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="reason" attributeType="String" defaultValueString=""/>
+        <relationship name="supply" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Supply" inverseName="transactions" inverseEntity="Supply"/>
+    </entity>
+    <!-- ==================== TodayAgendaOrder ==================== -->
+    <entity name="TodayAgendaOrder" representedClassName="TodayAgendaOrder" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="day" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="itemTypeRaw" attributeType="String" defaultValueString=""/>
+        <attribute name="itemID" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="position" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+    </entity>
+    <!-- ==================== TodoItem ==================== -->
+    <entity name="TodoItem" representedClassName="TodoItem" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="dueDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="scheduledDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isSomeday" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="repeatAfterCompletion" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="customIntervalDays" optional="YES" attributeType="Integer 64" usesScalarValueType="YES"/>
+        <attribute name="priorityRaw" attributeType="String" defaultValueString="None"/>
+        <attribute name="recurrenceRaw" attributeType="String" defaultValueString="None"/>
+        <attribute name="studentIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="linkedWorkItemID" optional="YES" attributeType="String"/>
+        <attribute name="attachmentPaths" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="estimatedMinutes" optional="YES" attributeType="Integer 64" usesScalarValueType="YES"/>
+        <attribute name="actualMinutes" optional="YES" attributeType="Integer 64" usesScalarValueType="YES"/>
+        <attribute name="reminderDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="notificationID" optional="YES" attributeType="String"/>
+        <attribute name="moodRaw" optional="YES" attributeType="String"/>
+        <attribute name="reflectionNotes" attributeType="String" defaultValueString=""/>
+        <attribute name="locationName" optional="YES" attributeType="String"/>
+        <attribute name="locationLatitude" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="locationLongitude" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="locationRadius" attributeType="Double" defaultValueString="100" usesScalarValueType="YES"/>
+        <attribute name="notifyOnEntry" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="notifyOnExit" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <relationship name="subtasks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TodoSubtask" inverseName="todo" inverseEntity="TodoSubtask"/>
+    </entity>
+    <!-- ==================== TodoSubtask ==================== -->
+    <entity name="TodoSubtask" representedClassName="TodoSubtask" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="todo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TodoItem" inverseName="subtasks" inverseEntity="TodoItem"/>
+    </entity>
+    <!-- ==================== TodoTemplate ==================== -->
+    <entity name="TodoTemplate" representedClassName="TodoTemplate" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="priorityRaw" attributeType="String" defaultValueString="None"/>
+        <attribute name="defaultEstimatedMinutes" optional="YES" attributeType="Integer 64" usesScalarValueType="YES"/>
+        <attribute name="defaultStudentIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="useCount" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+    </entity>
+    <!-- ==================== Track ==================== -->
+    <entity name="Track" representedClassName="Track" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TrackStep" inverseName="track" inverseEntity="TrackStep"/>
+    </entity>
+    <!-- ==================== TrackStep ==================== -->
+    <entity name="TrackStep" representedClassName="TrackStep" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lessonTemplateID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="steps" inverseEntity="Track"/>
+    </entity>
+    <!-- ==================== WorkModel ==================== -->
+    <entity name="WorkModel" representedClassName="WorkModel" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="workTypeRaw" attributeType="String" defaultValueString="Research"/>
+        <attribute name="studentLessonID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="kindRaw" optional="YES" attributeType="String"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="active"/>
+        <attribute name="assignedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastTouchedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dueAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="completionOutcomeRaw" optional="YES" attributeType="String"/>
+        <attribute name="legacyContractID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="lessonID" attributeType="String" defaultValueString=""/>
+        <attribute name="presentationID" optional="YES" attributeType="String"/>
+        <attribute name="trackID" optional="YES" attributeType="String"/>
+        <attribute name="trackStepID" optional="YES" attributeType="String"/>
+        <attribute name="scheduledNote" optional="YES" attributeType="String"/>
+        <attribute name="scheduledReasonRaw" optional="YES" attributeType="String"/>
+        <attribute name="sourceContextTypeRaw" optional="YES" attributeType="String"/>
+        <attribute name="sourceContextID" optional="YES" attributeType="String"/>
+        <attribute name="sampleWorkID" optional="YES" attributeType="String"/>
+        <attribute name="legacyStudentLessonID" optional="YES" attributeType="String"/>
+        <attribute name="checkInStyleRaw" optional="YES" attributeType="String"/>
+        <relationship name="participants" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkParticipantEntity" inverseName="work" inverseEntity="WorkParticipantEntity"/>
+        <relationship name="checkIns" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkCheckIn" inverseName="work" inverseEntity="WorkCheckIn"/>
+        <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkStep" inverseName="work" inverseEntity="WorkStep"/>
+        <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="work" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== WorkStep ==================== -->
+    <entity name="WorkStep" representedClassName="WorkStep" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="instructions" attributeType="String" defaultValueString=""/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="completionOutcomeRaw" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="steps" inverseEntity="WorkModel"/>
+    </entity>
+    <!-- ==================== WorkCheckIn ==================== -->
+    <entity name="WorkCheckIn" representedClassName="WorkCheckIn" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="workID" attributeType="String" defaultValueString=""/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="Scheduled"/>
+        <attribute name="purpose" attributeType="String" defaultValueString=""/>
+        <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="checkIns" inverseEntity="WorkModel"/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCheckIn" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== WorkParticipantEntity ==================== -->
+    <entity name="WorkParticipantEntity" representedClassName="WorkParticipantEntity" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="participants" inverseEntity="WorkModel"/>
+    </entity>
+    <!-- ==================== WorkCompletionRecord ==================== -->
+    <entity name="WorkCompletionRecord" representedClassName="WorkCompletionRecord" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="workID" attributeType="String" defaultValueString=""/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="completedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCompletionRecord" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== PracticeSession ==================== -->
+    <entity name="PracticeSession" representedClassName="PracticeSession" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="duration" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="studentIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="workItemIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="workStepID" optional="YES" attributeType="String"/>
+        <attribute name="sharedNotes" attributeType="String" defaultValueString=""/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="practiceQuality" optional="YES" attributeType="Integer 64" usesScalarValueType="YES"/>
+        <attribute name="independenceLevel" optional="YES" attributeType="Integer 64" usesScalarValueType="YES"/>
+        <attribute name="askedForHelp" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="helpedPeer" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="struggledWithConcept" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="madeBreakthrough" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="needsReteaching" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="readyForCheckIn" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="readyForAssessment" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="checkInScheduledFor" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="followUpActions" attributeType="String" defaultValueString=""/>
+        <attribute name="materialsUsed" attributeType="String" defaultValueString=""/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="practiceSession" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== SampleWork ==================== -->
+    <entity name="SampleWork" representedClassName="SampleWork" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="workKindRaw" attributeType="String" defaultValueString="practiceLesson"/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="sampleWorks" inverseEntity="Lesson"/>
+        <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWorkStep" inverseName="sampleWork" inverseEntity="SampleWorkStep"/>
+    </entity>
+    <!-- ==================== SampleWorkStep ==================== -->
+    <entity name="SampleWorkStep" representedClassName="SampleWorkStep" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="instructions" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="sampleWork" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SampleWork" inverseName="steps" inverseEntity="SampleWork"/>
+    </entity>
+    <!-- ==================== AttendanceRecord ==================== -->
+    <entity name="AttendanceRecord" representedClassName="AttendanceRecord" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="unmarked"/>
+        <attribute name="absenceReasonRaw" attributeType="String" defaultValueString="none"/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="attendanceRecord" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== GoingOut ==================== -->
+    <entity name="GoingOut" representedClassName="GoingOut" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="purpose" attributeType="String" defaultValueString=""/>
+        <attribute name="destination" attributeType="String" defaultValueString=""/>
+        <attribute name="proposedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="actualDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="proposed"/>
+        <attribute name="studentIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="curriculumLinkIDs" attributeType="String" defaultValueString=""/>
+        <attribute name="permissionStatusRaw" attributeType="String" defaultValueString="pending"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="followUpWork" attributeType="String" defaultValueString=""/>
+        <attribute name="supervisorName" attributeType="String" defaultValueString=""/>
+        <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="GoingOutChecklistItem" inverseName="goingOut" inverseEntity="GoingOutChecklistItem"/>
+        <relationship name="observationNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="goingOut" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== GoingOutChecklistItem ==================== -->
+    <entity name="GoingOutChecklistItem" representedClassName="GoingOutChecklistItem" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="goingOutID" attributeType="String" defaultValueString=""/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="assignedToStudentID" optional="YES" attributeType="String"/>
+        <relationship name="goingOut" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GoingOut" inverseName="checklistItems" inverseEntity="GoingOut"/>
+    </entity>
+    <!-- ==================== ClassroomJob ==================== -->
+    <entity name="ClassroomJob" representedClassName="ClassroomJob" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="jobDescription" attributeType="String" defaultValueString=""/>
+        <attribute name="icon" attributeType="String" defaultValueString="star"/>
+        <attribute name="colorRaw" attributeType="String" defaultValueString="blue"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="maxStudents" attributeType="Integer 64" defaultValueString="1" usesScalarValueType="YES"/>
+        <relationship name="assignments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="JobAssignment" inverseName="job" inverseEntity="JobAssignment"/>
+    </entity>
+    <!-- ==================== JobAssignment ==================== -->
+    <entity name="JobAssignment" representedClassName="JobAssignment" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="jobID" attributeType="String" defaultValueString=""/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="weekStartDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="job" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ClassroomJob" inverseName="assignments" inverseEntity="ClassroomJob"/>
+    </entity>
+    <!-- ==================== TransitionPlan ==================== -->
+    <entity name="TransitionPlan" representedClassName="TransitionPlan" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="fromLevelRaw" attributeType="String" defaultValueString="Lower Elementary"/>
+        <attribute name="toLevelRaw" attributeType="String" defaultValueString="Upper Elementary"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="notStarted"/>
+        <attribute name="targetDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TransitionChecklistItem" inverseName="transitionPlan" inverseEntity="TransitionChecklistItem"/>
+        <relationship name="observationNotes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Note" inverseName="transitionPlan" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== TransitionChecklistItem ==================== -->
+    <entity name="TransitionChecklistItem" representedClassName="TransitionChecklistItem" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="transitionPlanID" attributeType="String" defaultValueString=""/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="academic"/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <relationship name="transitionPlan" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TransitionPlan" inverseName="checklistItems" inverseEntity="TransitionPlan"/>
+    </entity>
+    <!-- ==================== Project ==================== -->
+    <entity name="Project" representedClassName="Project" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="bookTitle" optional="YES" attributeType="String"/>
+        <attribute name="memberStudentIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <relationship name="sharedTemplates" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ProjectAssignmentTemplate" inverseName="project" inverseEntity="ProjectAssignmentTemplate"/>
+        <relationship name="sessions" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ProjectSession" inverseName="project" inverseEntity="ProjectSession"/>
+    </entity>
+    <!-- ==================== ProjectAssignmentTemplate ==================== -->
+    <entity name="ProjectAssignmentTemplate" representedClassName="ProjectAssignmentTemplate" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="projectID" attributeType="String" defaultValueString=""/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="instructions" attributeType="String" defaultValueString=""/>
+        <attribute name="isShared" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="defaultLinkedLessonID" optional="YES" attributeType="String"/>
+        <relationship name="project" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Project" inverseName="sharedTemplates" inverseEntity="Project"/>
+    </entity>
+    <!-- ==================== ProjectSession ==================== -->
+    <entity name="ProjectSession" representedClassName="ProjectSession" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="projectID" attributeType="String" defaultValueString=""/>
+        <attribute name="meetingDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="chapterOrPages" optional="YES" attributeType="String"/>
+        <attribute name="agendaItemsJSON" attributeType="String" defaultValueString=""/>
+        <attribute name="templateWeekID" optional="YES" attributeType="String"/>
+        <attribute name="assignmentModeRaw" attributeType="String" defaultValueString="uniform"/>
+        <attribute name="minSelections" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="maxSelections" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="project" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Project" inverseName="sessions" inverseEntity="Project"/>
+        <relationship name="noteItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="projectSession" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== ProjectRole ==================== -->
+    <entity name="ProjectRole" representedClassName="ProjectRole" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="projectID" attributeType="String" defaultValueString=""/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="summary" attributeType="String" defaultValueString=""/>
+        <attribute name="instructions" attributeType="String" defaultValueString=""/>
+    </entity>
+    <!-- ==================== ProjectTemplateWeek ==================== -->
+    <entity name="ProjectTemplateWeek" representedClassName="ProjectTemplateWeek" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="projectID" attributeType="String" defaultValueString=""/>
+        <attribute name="weekIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="readingRange" attributeType="String" defaultValueString=""/>
+        <attribute name="agendaItemsJSON" attributeType="String" defaultValueString=""/>
+        <attribute name="linkedLessonIDsJSON" attributeType="String" defaultValueString=""/>
+        <attribute name="workInstructions" attributeType="String" defaultValueString=""/>
+        <attribute name="assignmentModeRaw" attributeType="String" defaultValueString="uniform"/>
+        <attribute name="minSelections" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="maxSelections" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="offeredWorksJSON" attributeType="String" defaultValueString=""/>
+        <relationship name="roleAssignments" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ProjectWeekRoleAssignment" inverseName="week" inverseEntity="ProjectWeekRoleAssignment"/>
+    </entity>
+    <!-- ==================== ProjectWeekRoleAssignment ==================== -->
+    <entity name="ProjectWeekRoleAssignment" representedClassName="ProjectWeekRoleAssignment" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="weekID" attributeType="String" defaultValueString=""/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="roleID" attributeType="String" defaultValueString=""/>
+        <relationship name="week" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProjectTemplateWeek" inverseName="roleAssignments" inverseEntity="ProjectTemplateWeek"/>
+    </entity>
+    <!-- ==================== Resource ==================== -->
+    <entity name="Resource" representedClassName="Resource" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="descriptionText" attributeType="String" defaultValueString=""/>
+        <attribute name="categoryRaw" attributeType="String" defaultValueString="Other"/>
+        <attribute name="fileBookmark" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="fileRelativePath" attributeType="String" defaultValueString=""/>
+        <attribute name="fileSizeBytes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="thumbnailData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lastViewedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="linkedLessonIDs" attributeType="String" defaultValueString=""/>
+        <attribute name="linkedSubjects" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== StudentMeeting ==================== -->
+    <entity name="StudentMeeting" representedClassName="StudentMeeting" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="completed" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="reflection" attributeType="String" defaultValueString=""/>
+        <attribute name="focus" attributeType="String" defaultValueString=""/>
+        <attribute name="requests" attributeType="String" defaultValueString=""/>
+        <attribute name="guideNotes" attributeType="String" defaultValueString=""/>
+        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="studentMeeting" inverseEntity="Note"/>
+    </entity>
+    <!-- ==================== ScheduledMeeting ==================== -->
+    <entity name="ScheduledMeeting" representedClassName="ScheduledMeeting" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== CalendarNote ==================== -->
+    <entity name="CalendarNote" representedClassName="CalendarNote" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="year" attributeType="Integer 64" defaultValueString="2026" usesScalarValueType="YES"/>
+        <attribute name="month" attributeType="Integer 64" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="day" attributeType="Integer 64" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="text" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== ClassroomMembership (NEW) ==================== -->
+    <entity name="ClassroomMembership" representedClassName="ClassroomMembership" syncable="YES" codeGenerationType="manual">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="classroomZoneID" attributeType="String" defaultValueString=""/>
+        <attribute name="roleRaw" attributeType="String" defaultValueString="leadGuide"/>
+        <attribute name="ownerIdentity" attributeType="String" defaultValueString=""/>
+        <attribute name="joinedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+</model>
