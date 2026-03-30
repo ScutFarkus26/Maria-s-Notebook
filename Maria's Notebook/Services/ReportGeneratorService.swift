@@ -128,12 +128,19 @@ struct ReportGeneratorService {
 
     // MARK: - Generate PDF
 
+    /// Enhanced PDF generation with optional AI narrative, attendance, and mastery data.
     // swiftlint:disable:next function_body_length
     func generatePDF(
         student: Student,
         notes: [Note],
         style: ReportStyle,
-        dateRange: ClosedRange<Date>
+        dateRange: ClosedRange<Date>,
+        aiNarrative: String? = nil,
+        attendanceRate: Double? = nil,
+        daysPresent: Int = 0,
+        totalSchoolDays: Int = 0,
+        masteryBreakdown: AIReportService.MasteryBreakdown? = nil,
+        lessonCount: Int = 0
     ) -> Data {
         let pageWidth: CGFloat = 612  // US Letter
         let pageHeight: CGFloat = 792
@@ -165,6 +172,37 @@ struct ReportGeneratorService {
             )
 
             currentY += 20
+
+            // Stats summary (attendance + mastery + lessons)
+            if attendanceRate != nil || masteryBreakdown != nil || lessonCount > 0 {
+                currentY = drawStatsSummary(
+                    attendanceRate: attendanceRate,
+                    daysPresent: daysPresent,
+                    totalSchoolDays: totalSchoolDays,
+                    mastery: masteryBreakdown,
+                    lessonCount: lessonCount,
+                    margin: margin,
+                    contentWidth: contentWidth,
+                    currentY: currentY,
+                    context: context
+                )
+                currentY += 16
+            }
+
+            // AI narrative summary
+            if let narrative = aiNarrative {
+                if currentY > pageHeight - margin - 200 {
+                    context.beginPage()
+                    currentY = margin
+                }
+                currentY = drawAINarrative(
+                    narrative: narrative,
+                    margin: margin,
+                    contentWidth: contentWidth,
+                    currentY: currentY
+                )
+                currentY += 20
+            }
 
             // Notes content
             let groupedNotes: [(String, [Note])]
@@ -229,7 +267,13 @@ struct ReportGeneratorService {
             student: student,
             notes: notes,
             style: style,
-            dateRange: dateRange
+            dateRange: dateRange,
+            aiNarrative: aiNarrative,
+            attendanceRate: attendanceRate,
+            daysPresent: daysPresent,
+            totalSchoolDays: totalSchoolDays,
+            masteryBreakdown: masteryBreakdown,
+            lessonCount: lessonCount
         )
 
         // Create PDF using CGContext
@@ -347,6 +391,107 @@ extension ReportGeneratorService {
         return y
     }
 
+    // swiftlint:disable:next function_parameter_count
+    private func drawStatsSummary(
+        attendanceRate: Double?,
+        daysPresent: Int,
+        totalSchoolDays: Int,
+        mastery: AIReportService.MasteryBreakdown?,
+        lessonCount: Int,
+        margin: CGFloat,
+        contentWidth: CGFloat,
+        currentY: CGFloat,
+        context: UIGraphicsPDFRendererContext
+    ) -> CGFloat {
+        var y = currentY
+
+        let sectionAttrs: [NSAttributedString.Key: Any] = [
+            .font: PlatformFont.boldSystemFont(ofSize: 13),
+            .foregroundColor: PlatformColor.label
+        ]
+        let valueAttrs: [NSAttributedString.Key: Any] = [
+            .font: PlatformFont.systemFont(ofSize: 11),
+            .foregroundColor: PlatformColor.label
+        ]
+
+        NSAttributedString(string: "Overview", attributes: sectionAttrs)
+            .draw(at: CGPoint(x: margin, y: y))
+        y += 20
+
+        var statLines: [String] = []
+        if let rate = attendanceRate {
+            statLines.append("Attendance: \(daysPresent)/\(totalSchoolDays) days (\(Int(rate * 100))%)")
+        }
+        if lessonCount > 0 {
+            statLines.append("Lessons Presented: \(lessonCount)")
+        }
+        if let m = mastery, m.total > 0 {
+            statLines.append(
+                "Mastery: \(m.proficient) mastered, \(m.practicing) practicing, " +
+                "\(m.presented) presented, \(m.readyForAssessment) ready for assessment"
+            )
+        }
+
+        for line in statLines {
+            let attrStr = NSAttributedString(string: "• \(line)", attributes: valueAttrs)
+            attrStr.draw(at: CGPoint(x: margin + 8, y: y))
+            y += 16
+        }
+
+        // Divider
+        let ctx = UIGraphicsGetCurrentContext()
+        ctx?.setStrokeColor(PlatformColor.separator.cgColor)
+        ctx?.setLineWidth(0.5)
+        ctx?.move(to: CGPoint(x: margin, y: y + 4))
+        ctx?.addLine(to: CGPoint(x: margin + contentWidth, y: y + 4))
+        ctx?.strokePath()
+        y += 8
+
+        return y
+    }
+
+    private func drawAINarrative(
+        narrative: String,
+        margin: CGFloat,
+        contentWidth: CGFloat,
+        currentY: CGFloat
+    ) -> CGFloat {
+        var y = currentY
+
+        let headingAttrs: [NSAttributedString.Key: Any] = [
+            .font: PlatformFont.boldSystemFont(ofSize: 13),
+            .foregroundColor: PlatformColor.label
+        ]
+        NSAttributedString(string: "Summary", attributes: headingAttrs)
+            .draw(at: CGPoint(x: margin, y: y))
+        y += 20
+
+        let bodyAttrs: [NSAttributedString.Key: Any] = [
+            .font: PlatformFont.systemFont(ofSize: 11),
+            .foregroundColor: PlatformColor.label
+        ]
+        let bodyString = NSAttributedString(string: narrative, attributes: bodyAttrs)
+        let rect = CGRect(x: margin, y: y, width: contentWidth, height: .greatestFiniteMagnitude)
+        let boundingRect = bodyString.boundingRect(
+            with: rect.size,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil
+        )
+        bodyString.draw(in: CGRect(x: margin, y: y, width: contentWidth, height: boundingRect.height))
+        y += boundingRect.height + 8
+
+        // Divider
+        let ctx = UIGraphicsGetCurrentContext()
+        ctx?.setStrokeColor(PlatformColor.separator.cgColor)
+        ctx?.setLineWidth(0.5)
+        ctx?.move(to: CGPoint(x: margin, y: y))
+        ctx?.addLine(to: CGPoint(x: margin + contentWidth, y: y))
+        ctx?.strokePath()
+        y += 4
+
+        return y
+    }
+
     private func drawFooter(
         pageWidth: CGFloat,
         pageHeight: CGFloat,
@@ -374,7 +519,13 @@ extension ReportGeneratorService {
         student: Student,
         notes: [Note],
         style: ReportStyle,
-        dateRange: ClosedRange<Date>
+        dateRange: ClosedRange<Date>,
+        aiNarrative: String?,
+        attendanceRate: Double?,
+        daysPresent: Int,
+        totalSchoolDays: Int,
+        masteryBreakdown: AIReportService.MasteryBreakdown?,
+        lessonCount: Int
     ) -> NSAttributedString {
         let result = NSMutableAttributedString()
         // swiftlint:disable line_length
@@ -387,6 +538,17 @@ extension ReportGeneratorService {
         let dateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.secondaryLabelColor]
         result.append(NSAttributedString(string: "\(rangeStart) - \(rangeEnd)\n\n", attributes: dateAttrs))
         result.append(NSAttributedString(string: "─────────────────────────────────────\n\n"))
+        appendStatsText(
+            to: result,
+            attendanceRate: attendanceRate,
+            daysPresent: daysPresent,
+            totalSchoolDays: totalSchoolDays,
+            mastery: masteryBreakdown,
+            lessonCount: lessonCount
+        )
+        if let narrative = aiNarrative {
+            appendNarrativeText(to: result, narrative: narrative)
+        }
         appendGroupedNotesText(to: result, notes: notes, style: style)
         // swiftlint:disable:next line_length
         let footerAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.secondaryLabelColor]
@@ -414,6 +576,57 @@ extension ReportGeneratorService {
                 // swiftlint:enable line_length
             }
         }
+    }
+
+    private func appendStatsText(
+        to result: NSMutableAttributedString,
+        attendanceRate: Double?,
+        daysPresent: Int,
+        totalSchoolDays: Int,
+        mastery: AIReportService.MasteryBreakdown?,
+        lessonCount: Int
+    ) {
+        guard attendanceRate != nil || mastery != nil || lessonCount > 0 else { return }
+
+        let headingAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.boldSystemFont(ofSize: 13),
+            .foregroundColor: NSColor.labelColor
+        ]
+        let valueAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.labelColor
+        ]
+
+        result.append(NSAttributedString(string: "Overview\n", attributes: headingAttrs))
+
+        if let rate = attendanceRate {
+            let line = "• Attendance: \(daysPresent)/\(totalSchoolDays) days (\(Int(rate * 100))%)\n"
+            result.append(NSAttributedString(string: line, attributes: valueAttrs))
+        }
+        if lessonCount > 0 {
+            result.append(NSAttributedString(string: "• Lessons Presented: \(lessonCount)\n", attributes: valueAttrs))
+        }
+        if let m = mastery, m.total > 0 {
+            let line = "• Mastery: \(m.proficient) mastered, \(m.practicing) practicing, " +
+                "\(m.presented) presented, \(m.readyForAssessment) ready for assessment\n"
+            result.append(NSAttributedString(string: line, attributes: valueAttrs))
+        }
+        result.append(NSAttributedString(string: "\n"))
+    }
+
+    private func appendNarrativeText(to result: NSMutableAttributedString, narrative: String) {
+        let headingAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.boldSystemFont(ofSize: 13),
+            .foregroundColor: NSColor.labelColor
+        ]
+        let bodyAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.labelColor
+        ]
+
+        result.append(NSAttributedString(string: "Summary\n", attributes: headingAttrs))
+        result.append(NSAttributedString(string: "\(narrative)\n\n", attributes: bodyAttrs))
+        result.append(NSAttributedString(string: "─────────────────────────────────────\n\n"))
     }
 
     private func createPDFPage(
