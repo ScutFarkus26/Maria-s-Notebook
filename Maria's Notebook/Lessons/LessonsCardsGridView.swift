@@ -322,7 +322,7 @@ struct LessonsCardsGridView: View {
     private func subheadingHeader(_ name: String) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 0.5)
-                .fill(Color.secondary.opacity(0.25))
+                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.quarter))
                 .frame(width: 3, height: 14)
 
             Text(name)

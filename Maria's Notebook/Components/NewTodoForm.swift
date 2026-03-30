@@ -143,7 +143,7 @@ struct NewTodoForm: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 14))
-                                .foregroundStyle(.red.opacity(0.7))
+                                .foregroundStyle(.red.opacity(UIConstants.OpacityConstants.prominent))
                         }
                         .buttonStyle(.plain)
                     }

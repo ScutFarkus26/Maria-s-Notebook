@@ -47,7 +47,7 @@ struct LessonCardContainer: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(
-                        isHover ? Color.accentColor.opacity(0.35) : Color.clear,
+                        isHover ? Color.accentColor.opacity(UIConstants.OpacityConstants.statusBg) : Color.clear,
                         style: StrokeStyle(lineWidth: 2, dash: [6, 6])
                     )
             )

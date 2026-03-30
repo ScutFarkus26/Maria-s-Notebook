@@ -27,7 +27,7 @@ struct UnderstandingLevelIndicator: View {
             }
         } else {
             Circle()
-                .fill(Color.secondary.opacity(0.2))
+                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
                 .frame(width: size, height: size)
                 .overlay(
                     Text("?")

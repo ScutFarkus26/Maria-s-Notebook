@@ -81,7 +81,7 @@ struct TodoExportView: View {
                             .font(.system(.caption, design: .monospaced))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
-                            .background(Color.primary.opacity(0.05))
+                            .background(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                             .cornerRadius(8)
                     }
                 }
@@ -238,7 +238,7 @@ private struct FormatOption: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.primary.opacity(0.04))
+                    .fill(isSelected ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.primary.opacity(UIConstants.OpacityConstants.trace))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)

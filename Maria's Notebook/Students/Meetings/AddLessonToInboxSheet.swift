@@ -161,7 +161,7 @@ struct AddLessonToInboxSheet: View {
                     .buttonStyle(.plain)
                 }
                 .padding(12)
-                .background(Color.primary.opacity(0.04))
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                 .cornerRadius(8)
             } else {
                 Text("Choose a lesson to add to the inbox.")

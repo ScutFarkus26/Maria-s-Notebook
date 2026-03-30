@@ -63,7 +63,7 @@ struct WorkItemCompactRow: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)

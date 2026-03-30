@@ -39,7 +39,7 @@ struct GreatLessonCard: View {
                 Text("\(data.lessonCount)")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundStyle(data.lessonCount > 0 ? greatLesson.color : Color.gray.opacity(0.5))
+                    .foregroundStyle(data.lessonCount > 0 ? greatLesson.color : Color.gray.opacity(UIConstants.OpacityConstants.half))
             }
 
             // Subject dots

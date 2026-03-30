@@ -94,7 +94,7 @@ extension ResourceLibraryView {
             }
             .padding(12)
         }
-        .background(Color.primary.opacity(0.02))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
     }
 
     func sidebarTagButton(tag: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
@@ -140,7 +140,7 @@ extension ResourceLibraryView {
 
                 Text("\(count)")
                     .font(.caption)
-                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                    .foregroundStyle(isSelected ? .white.opacity(UIConstants.OpacityConstants.heavy) : .secondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

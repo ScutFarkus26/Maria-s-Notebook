@@ -107,7 +107,7 @@ struct OpenWorkGrid: View {
                 .padding(.vertical, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(Color.gray.opacity(UIConstants.OpacityConstants.moderate))
                 )
         }
         .padding(.horizontal, 4)

@@ -7,9 +7,9 @@ extension View {
     /// Adds a platform-appropriate separator border.
     func borderSeparated() -> some View {
         #if os(macOS)
-        self.border(Color(nsColor: .separatorColor).opacity(0.5), width: 0.5)
+        self.border(Color(nsColor: .separatorColor).opacity(UIConstants.OpacityConstants.half), width: 0.5)
         #else
-        self.border(Color.gray.opacity(0.3), width: 0.5)
+        self.border(Color.gray.opacity(UIConstants.OpacityConstants.semi), width: 0.5)
         #endif
     }
 

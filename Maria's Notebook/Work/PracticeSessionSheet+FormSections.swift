@@ -69,7 +69,7 @@ extension PracticeSessionSheet {
                     .padding(12)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
             .onChange(of: hasLocation) { _, newValue in
@@ -118,7 +118,7 @@ extension PracticeSessionSheet {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
 }

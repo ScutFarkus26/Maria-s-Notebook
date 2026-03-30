@@ -143,7 +143,7 @@ struct ValidationErrorRow: View {
                 .font(.caption)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(severityColor.opacity(0.2))
+                .background(severityColor.opacity(UIConstants.OpacityConstants.moderate))
                 .foregroundStyle(severityColor)
                 .cornerRadius(4)
         }

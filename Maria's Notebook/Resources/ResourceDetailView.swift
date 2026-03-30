@@ -164,7 +164,7 @@ struct ResourceDetailView: View {
                 PDFThumbnailView(page: pdfPage)
                     .frame(maxWidth: .infinity)
                     .frame(height: 400)
-                    .background(Color.primary.opacity(0.03))
+                    .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -181,7 +181,7 @@ struct ResourceDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 300)
-                .background(Color.primary.opacity(0.03))
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }

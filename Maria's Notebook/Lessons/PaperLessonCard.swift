@@ -97,7 +97,7 @@ struct PaperLessonCard: View {
             if !lesson.subheading.isEmpty {
                 Text(lesson.subheading)
                     .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.primary.opacity(0.85))
+                    .foregroundStyle(.primary.opacity(UIConstants.OpacityConstants.nearSolid))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -134,7 +134,7 @@ struct PaperLessonCard: View {
                                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                         }
                     }
-                    .foregroundStyle(.secondary.opacity(0.7))
+                    .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.prominent))
                 }
 
                 // Status count badge
@@ -148,7 +148,7 @@ struct PaperLessonCard: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent)))
-                    .overlay(Capsule().stroke(AppColors.warning.opacity(0.4), lineWidth: 0.5))
+                    .overlay(Capsule().stroke(AppColors.warning.opacity(UIConstants.OpacityConstants.muted), lineWidth: 0.5))
                     .foregroundStyle(AppColors.warning)
                 }
             }
@@ -254,9 +254,9 @@ struct PaperLessonCard: View {
                     colors: [
                         colorScheme == .dark
                             ? Color.white.opacity(UIConstants.OpacityConstants.veryFaint)
-                            : Color.black.opacity(0.04),
+                            : Color.black.opacity(UIConstants.OpacityConstants.trace),
                         colorScheme == .dark
-                            ? Color.white.opacity(0.02)
+                            ? Color.white.opacity(UIConstants.OpacityConstants.ghost)
                             : Color.black.opacity(0.01)
                     ],
                     startPoint: .topTrailing,

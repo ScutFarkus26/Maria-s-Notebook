@@ -164,7 +164,7 @@ extension TodayView {
 
         Image(systemName: icon)
             .font(.system(size: 12))
-            .foregroundStyle(color.opacity(0.8))
+            .foregroundStyle(color.opacity(UIConstants.OpacityConstants.heavy))
             .frame(width: 20)
             .accessibilityHidden(true)
     }

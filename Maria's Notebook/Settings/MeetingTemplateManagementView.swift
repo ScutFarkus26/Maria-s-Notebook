@@ -164,7 +164,7 @@ private struct MeetingTemplateCardRow: View {
             HStack(spacing: 12) {
                 // Active indicator
                 Circle()
-                    .fill(template.isActive ? Color.green : Color.secondary.opacity(0.3))
+                    .fill(template.isActive ? Color.green : Color.secondary.opacity(UIConstants.OpacityConstants.semi))
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -239,7 +239,7 @@ private struct MeetingTemplateCardRow: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(
                         template.isActive
-                            ? AppColors.success.opacity(0.3)
+                            ? AppColors.success.opacity(UIConstants.OpacityConstants.semi)
                             : Color.primary.opacity(SettingsStyle.borderOpacity)
                     )
             )

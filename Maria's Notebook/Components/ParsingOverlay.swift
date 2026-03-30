@@ -7,7 +7,7 @@ public struct ParsingOverlay: View {
     public var body: some View {
         if isParsing {
             ZStack {
-                Color.black.opacity(0.2)
+                Color.black.opacity(UIConstants.OpacityConstants.moderate)
                     .ignoresSafeArea()
                 
                 VStack(spacing: 16) {

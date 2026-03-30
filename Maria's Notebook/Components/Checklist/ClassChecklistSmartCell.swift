@@ -60,7 +60,7 @@ struct ClassChecklistSmartCell: View {
                     .font(.title3)
             case .empty:
                 Circle()
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
+                    .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 2)
                     .frame(width: 16, height: 16)
             }
 

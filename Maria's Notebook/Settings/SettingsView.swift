@@ -147,7 +147,7 @@ struct SettingsView: View {
             .padding(8)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -175,7 +175,7 @@ struct SettingsView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
         }
-        .background(SettingsStyle.groupBackgroundColor.opacity(0.5))
+        .background(SettingsStyle.groupBackgroundColor.opacity(UIConstants.OpacityConstants.half))
         .onChange(of: searchText) { _, _ in
             let filtered = filteredCategories
             if filtered.count == 1, let match = filtered.first {

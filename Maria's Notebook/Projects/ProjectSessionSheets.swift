@@ -98,7 +98,7 @@ struct AddWorkOfferSheet: View {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $instructions)
                     .frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate)))
             }
 
             DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)

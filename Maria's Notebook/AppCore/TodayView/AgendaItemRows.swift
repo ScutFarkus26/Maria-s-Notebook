@@ -62,9 +62,9 @@ struct TodoTodayRow: View {
     private var priorityBorderColor: Color {
         switch todo.priority {
         case .high: return .red.opacity(0.6)
-        case .medium: return .orange.opacity(0.5)
-        case .low: return .blue.opacity(0.4)
-        case .none: return .secondary.opacity(0.4)
+        case .medium: return .orange.opacity(UIConstants.OpacityConstants.half)
+        case .low: return .blue.opacity(UIConstants.OpacityConstants.muted)
+        case .none: return .secondary.opacity(UIConstants.OpacityConstants.muted)
         }
     }
 
@@ -81,7 +81,7 @@ struct TodoTodayRow: View {
                         Text(todo.title)
                             .font(AppTheme.ScaledFont.callout)
                             .foregroundStyle(todo.isCompleted ? .tertiary : .primary)
-                            .strikethrough(todo.isCompleted, color: Color.secondary.opacity(0.5))
+                            .strikethrough(todo.isCompleted, color: Color.secondary.opacity(UIConstants.OpacityConstants.half))
                             .lineLimit(2)
 
                         HStack(spacing: 8) {
@@ -108,7 +108,7 @@ struct TodoTodayRow: View {
                             if todo.recurrence != .none {
                                 Image(systemName: SFSymbol.Action.arrowClockwise)
                                     .font(.system(size: 10))
-                                    .foregroundStyle(.purple.opacity(0.7))
+                                    .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                             }
 
                             if !todo.tags.isEmpty {

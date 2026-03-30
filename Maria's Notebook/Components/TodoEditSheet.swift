@@ -184,13 +184,13 @@ struct SubtaskRow: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 16))
-                    .foregroundStyle(.red.opacity(0.7))
+                    .foregroundStyle(.red.opacity(UIConstants.OpacityConstants.prominent))
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.primary.opacity(0.02))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
         .cornerRadius(8)
         .task {
             if subtask.title.isEmpty {

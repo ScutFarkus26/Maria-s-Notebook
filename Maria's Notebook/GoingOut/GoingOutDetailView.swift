@@ -288,7 +288,7 @@ struct GoingOutDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.03))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
                     )
                 }
             }

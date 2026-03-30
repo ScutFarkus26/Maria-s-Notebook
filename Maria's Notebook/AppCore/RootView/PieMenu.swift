@@ -105,7 +105,7 @@ struct PieMenuSegment: View {
                 .fill(
                     LinearGradient(
                         colors: isHighlighted
-                            ? [action.gradientColors[0].opacity(0.95), action.gradientColors[1].opacity(0.95)]
+                            ? [action.gradientColors[0].opacity(UIConstants.OpacityConstants.barelyTransparent), action.gradientColors[1].opacity(UIConstants.OpacityConstants.barelyTransparent)]
                             : [action.gradientColors[0].opacity(0.55), action.gradientColors[1].opacity(0.55)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -114,7 +114,7 @@ struct PieMenuSegment: View {
 
             slice
                 .strokeBorder(
-                    isHighlighted ? Color.white.opacity(0.95) : Color.white.opacity(0.35),
+                    isHighlighted ? Color.white.opacity(UIConstants.OpacityConstants.barelyTransparent) : Color.white.opacity(UIConstants.OpacityConstants.statusBg),
                     lineWidth: isHighlighted ? 2.4 : 1.2
                 )
 
@@ -126,7 +126,7 @@ struct PieMenuSegment: View {
             }
             .foregroundStyle(.white)
             .offset(iconOffset)
-            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+            .shadow(color: .black.opacity(UIConstants.OpacityConstants.moderate), radius: 2, x: 0, y: 1)
         }
         .scaleEffect(isExpanded ? (isHighlighted ? 1.08 : 1.0) : 0.2)
         .rotationEffect(.degrees(isExpanded ? 0 : 14))

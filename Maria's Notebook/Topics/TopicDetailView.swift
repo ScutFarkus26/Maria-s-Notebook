@@ -260,7 +260,7 @@ private struct ProposedSolutionsSection: View {
                             }
                         }
                         .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
                     }
                 }
 
@@ -308,7 +308,7 @@ private struct AttachmentsSection: View {
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
                         .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
                     }
                 }
 
@@ -360,7 +360,7 @@ private struct MeetingNotesSection: View {
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
                         .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
                     }
                 }
 

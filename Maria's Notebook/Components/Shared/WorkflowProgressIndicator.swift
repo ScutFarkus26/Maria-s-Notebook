@@ -52,7 +52,7 @@ struct WorkflowProgressIndicator: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color.secondary.opacity(0.2))
+                        .fill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
                         .frame(height: 6)
                     
                     RoundedRectangle(cornerRadius: 4, style: .continuous)

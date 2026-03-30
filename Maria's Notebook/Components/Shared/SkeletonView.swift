@@ -13,7 +13,7 @@ struct ShimmerModifier: ViewModifier {
                 LinearGradient(
                     colors: [
                         .clear,
-                        Color.white.opacity(0.4),
+                        Color.white.opacity(UIConstants.OpacityConstants.muted),
                         .clear
                     ],
                     startPoint: .leading,

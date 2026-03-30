@@ -103,7 +103,7 @@ struct WeekPlanOverviewView: View {
             }
         }
         .padding(10)
-        .background(.secondary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .background(.secondary.opacity(UIConstants.OpacityConstants.trace), in: RoundedRectangle(cornerRadius: 10))
     }
     
     // MARK: - Compact Lesson Card
@@ -194,7 +194,7 @@ struct WeekPlanOverviewView: View {
                     }
                 }
                 .padding(8)
-                .background(.purple.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+                .background(.purple.opacity(UIConstants.OpacityConstants.hint), in: RoundedRectangle(cornerRadius: 8))
             }
         }
     }
@@ -216,12 +216,12 @@ struct WeekPlanOverviewView: View {
     
     private func cardBackground(for rec: LessonRecommendation) -> some ShapeStyle {
         if rec.decision == .accepted { return AnyShapeStyle(Color.green.opacity(UIConstants.OpacityConstants.veryFaint)) }
-        if rec.decision == .rejected { return AnyShapeStyle(Color.secondary.opacity(0.04)) }
-        return AnyShapeStyle(Color.secondary.opacity(0.04))
+        if rec.decision == .rejected { return AnyShapeStyle(Color.secondary.opacity(UIConstants.OpacityConstants.trace)) }
+        return AnyShapeStyle(Color.secondary.opacity(UIConstants.OpacityConstants.trace))
     }
     
     private func cardBorder(for rec: LessonRecommendation) -> Color {
-        if rec.decision == .accepted { return .green.opacity(0.3) }
+        if rec.decision == .accepted { return .green.opacity(UIConstants.OpacityConstants.semi) }
         if rec.decision == .rejected { return .secondary.opacity(UIConstants.OpacityConstants.light) }
         return .secondary.opacity(UIConstants.OpacityConstants.light)
     }

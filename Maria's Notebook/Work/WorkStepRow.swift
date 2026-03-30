@@ -66,7 +66,7 @@ struct WorkStepRow: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(10)
-        .background(Color.primary.opacity(0.04))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         .cornerRadius(10)
         .contentShape(Rectangle())
         .onTapGesture { onEdit() }

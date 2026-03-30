@@ -37,7 +37,7 @@ struct SubjectDistributionChart: View {
             }
         }
         .padding()
-        .background(Color.primary.opacity(0.02))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
         .cornerRadius(UIConstants.CornerRadius.large)
     }
 
@@ -105,7 +105,7 @@ struct SubjectWeeklyTrendChart: View {
             }
         }
         .padding()
-        .background(Color.primary.opacity(0.02))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
         .cornerRadius(UIConstants.CornerRadius.large)
     }
 }

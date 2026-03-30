@@ -72,7 +72,7 @@ struct ChatMessageBubble: View {
     private var bubbleBackground: some View {
         if isUser {
             LinearGradient(
-                colors: [Color.blue, Color.purple, Color.pink.opacity(0.85)],
+                colors: [Color.blue, Color.purple, Color.pink.opacity(UIConstants.OpacityConstants.nearSolid)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -80,7 +80,7 @@ struct ChatMessageBubble: View {
             LinearGradient(
                 colors: [
                     Color.purple.opacity(UIConstants.OpacityConstants.veryFaint),
-                    Color.blue.opacity(0.04)
+                    Color.blue.opacity(UIConstants.OpacityConstants.trace)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing

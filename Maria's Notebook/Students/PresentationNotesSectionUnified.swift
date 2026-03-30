@@ -177,7 +177,7 @@ struct PresentationNotesSectionUnified: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
         .contextMenu {
             Button {

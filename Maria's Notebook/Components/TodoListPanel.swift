@@ -177,7 +177,7 @@ struct TodoListPanel: View {
                 HStack(spacing: 10) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(.blue.opacity(0.7))
+                        .foregroundStyle(.blue.opacity(UIConstants.OpacityConstants.prominent))
 
                     TextField("New To-Do", text: $newTodoTitle)
                         .textFieldStyle(.plain)
@@ -197,7 +197,7 @@ struct TodoListPanel: View {
                             } else {
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 16))
-                                    .foregroundStyle(.purple.opacity(0.7))
+                                    .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                             }
                         }
                         .buttonStyle(.plain)

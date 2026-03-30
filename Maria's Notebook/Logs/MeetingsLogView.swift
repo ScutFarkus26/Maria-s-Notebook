@@ -170,7 +170,7 @@ struct MeetingsLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             // Age Range Menu (multi-select)
@@ -204,7 +204,7 @@ struct MeetingsLogView: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(
                             selectedAgeRanges.isEmpty
-                                ? Color.primary.opacity(0.05)
+                                ? Color.primary.opacity(UIConstants.OpacityConstants.hint)
                                 : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
                         )
                 )
@@ -230,7 +230,7 @@ struct MeetingsLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             Spacer()
@@ -331,7 +331,7 @@ struct MeetingsLogView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
         .contentShape(Rectangle())
         .contextMenu {

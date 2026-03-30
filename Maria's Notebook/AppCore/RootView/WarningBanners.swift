@@ -41,7 +41,7 @@ struct EphemeralStoreWarningBanner: View {
     }
 
     private var borderColor: Color {
-        isInMemoryMode ? Color.red.opacity(0.3) : Color.primary.opacity(UIConstants.OpacityConstants.light)
+        isInMemoryMode ? Color.red.opacity(UIConstants.OpacityConstants.semi) : Color.primary.opacity(UIConstants.OpacityConstants.light)
     }
 
     var body: some View {
@@ -144,7 +144,7 @@ struct CloudKitSyncWarningBanner: View {
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundStyle(Color.yellow.opacity(0.3)),
+                .foregroundStyle(Color.yellow.opacity(UIConstants.OpacityConstants.semi)),
             alignment: .bottom
         )
         .accessibilityElement(children: .combine)

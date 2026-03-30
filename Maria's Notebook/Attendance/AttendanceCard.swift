@@ -33,7 +33,7 @@ struct AttendanceCard: View {
         case .tardy: return .blue
         case .absent: return .red
         case .leftEarly: return .purple
-        case .unmarked: return .gray.opacity(0.4)
+        case .unmarked: return .gray.opacity(UIConstants.OpacityConstants.muted)
         }
     }
 

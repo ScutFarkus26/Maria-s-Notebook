@@ -101,7 +101,7 @@ extension TodoEditSheet {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
-                        .background(Color.primary.opacity(0.04))
+                        .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)

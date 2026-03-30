@@ -107,7 +107,7 @@ struct ClassSubjectChecklistView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(Color.accentColor.opacity(0.05))
+                .background(Color.accentColor.opacity(UIConstants.OpacityConstants.hint))
 
                 Divider()
             } else {
@@ -144,12 +144,12 @@ struct ClassSubjectChecklistView: View {
                                             .padding(.leading)
                                         Spacer()
                                     }
-                                    .background(Color.secondary.opacity(0.05))
+                                    .background(Color.secondary.opacity(UIConstants.OpacityConstants.hint))
                                     .borderSeparated()
                                 }
 
                                 // Spacer for the rest of the group row
-                                Color.secondary.opacity(0.05)
+                                Color.secondary.opacity(UIConstants.OpacityConstants.hint)
                                     .frame(height: 30)
                                     .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
                                     .borderSeparated()

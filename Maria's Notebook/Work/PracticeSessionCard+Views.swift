@@ -39,7 +39,7 @@ extension PracticeSessionCard {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.03))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
             )
         })
         .buttonStyle(.plain)
@@ -128,11 +128,11 @@ extension PracticeSessionCard {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(session.isGroupSession ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                    .strokeBorder(session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear, lineWidth: 1)
             )
         })
         .buttonStyle(.plain)
@@ -155,7 +155,7 @@ extension PracticeSessionCard {
                 ForEach(students) { student in
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(Color.blue.opacity(0.2))
+                            .fill(Color.blue.opacity(UIConstants.OpacityConstants.moderate))
                             .frame(width: 8, height: 8)
 
                         Text(StudentFormatter.displayName(for: student))
@@ -274,7 +274,7 @@ extension PracticeSessionCard {
                     ForEach(workItems, id: \.id) { work in
                         HStack(spacing: 8) {
                             Circle()
-                                .fill(Color.green.opacity(0.2))
+                                .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
                                 .frame(width: 8, height: 8)
 
                             Text(work.title)
@@ -316,11 +316,11 @@ extension PracticeSessionCard {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(session.isGroupSession ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1.5)
+                .strokeBorder(session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear, lineWidth: 1.5)
         )
     }
 

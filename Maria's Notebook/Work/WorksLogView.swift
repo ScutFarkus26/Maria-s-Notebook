@@ -194,7 +194,7 @@ struct WorksLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             // Work Type Menu
@@ -218,7 +218,7 @@ struct WorksLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             // Status Menu (multi-select)
@@ -248,7 +248,7 @@ struct WorksLogView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             Spacer()

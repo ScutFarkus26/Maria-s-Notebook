@@ -42,8 +42,8 @@ extension TodoEditSheet {
                             .padding(.vertical, 8)
                             .background(
                                 selectedMood == mood
-                                    ? mood.color.opacity(0.2)
-                                    : Color.primary.opacity(0.04)
+                                    ? mood.color.opacity(UIConstants.OpacityConstants.moderate)
+                                    : Color.primary.opacity(UIConstants.OpacityConstants.trace)
                             )
                             .cornerRadius(8)
                             .overlay(
@@ -69,7 +69,7 @@ extension TodoEditSheet {
                     .font(AppTheme.ScaledFont.body)
                     .frame(minHeight: 80)
                     .padding(8)
-                    .background(Color.primary.opacity(0.04))
+                    .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     .cornerRadius(8)
                     .scrollContentBackground(.hidden)
 

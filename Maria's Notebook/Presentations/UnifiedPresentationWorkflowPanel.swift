@@ -120,7 +120,7 @@ struct UnifiedPresentationWorkflowPanel: View {
                 // Left Panel: Presentation
                 presentationPanel
                     .frame(width: geometry.size.width * 0.45)
-                    .background(Color.primary.opacity(0.02))
+                    .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
 
                 Divider()
 

@@ -26,7 +26,7 @@ enum TagColor: String, Codable, CaseIterable {
     }
     
     var lightColor: Color {
-        color.opacity(0.2)
+        color.opacity(UIConstants.OpacityConstants.moderate)
     }
 }
 

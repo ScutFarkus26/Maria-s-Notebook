@@ -55,7 +55,7 @@ struct WorkCheckInNoteEditor: View {
         TextEditor(text: $noteText)
             .font(AppTheme.ScaledFont.body)
             .frame(minHeight: 120)
-            .border(Color.primary.opacity(0.2), width: 1)
+            .border(Color.primary.opacity(UIConstants.OpacityConstants.moderate), width: 1)
 #else
         TextEditor(text: $noteText)
             .font(AppTheme.ScaledFont.body)

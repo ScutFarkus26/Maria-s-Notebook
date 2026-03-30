@@ -218,7 +218,7 @@ struct PrintStudentSectionContent: View {
         .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.black.opacity(0.02))
+                .fill(Color.black.opacity(UIConstants.OpacityConstants.ghost))
         )
     }
 }

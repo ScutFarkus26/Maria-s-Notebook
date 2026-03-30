@@ -111,7 +111,7 @@ struct TodoAnalyticsView: View {
                         }
                     }
                     .padding()
-                    .background(Color.primary.opacity(0.02))
+                    .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
                     .cornerRadius(12)
                     
                     // Tag Breakdown
@@ -132,7 +132,7 @@ struct TodoAnalyticsView: View {
                             }
                         }
                         .padding()
-                        .background(Color.primary.opacity(0.02))
+                        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
                         .cornerRadius(12)
                     }
                     
@@ -158,7 +158,7 @@ struct TodoAnalyticsView: View {
                             }
                         }
                         .padding()
-                        .background(Color.primary.opacity(0.02))
+                        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
                         .cornerRadius(12)
                     }
                     

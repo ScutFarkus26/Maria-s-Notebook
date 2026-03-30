@@ -30,7 +30,7 @@ struct WorkCardCompactContent: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
     }
 }

@@ -158,7 +158,7 @@ struct MeetingFormPane: View {
                     .padding(8)
                     .background(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)

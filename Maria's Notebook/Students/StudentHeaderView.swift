@@ -52,7 +52,7 @@ struct StudentHeaderView: View {
                         )
                     )
                     .frame(width: 120, height: 120)
-                    .shadow(color: Color.pink.opacity(0.25), radius: 24, x: 0, y: 10)
+                    .shadow(color: Color.pink.opacity(UIConstants.OpacityConstants.quarter), radius: 24, x: 0, y: 10)
 
                 Text(initials)
                     .font(AppTheme.ScaledFont.titleXLarge)

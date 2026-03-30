@@ -72,7 +72,7 @@ extension LessonAssignmentDetailSheet {
                     .padding(12)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.purple.opacity(0.05))
+                            .fill(Color.purple.opacity(UIConstants.OpacityConstants.hint))
                     )
                 }
             }

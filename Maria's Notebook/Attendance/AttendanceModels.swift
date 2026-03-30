@@ -23,11 +23,11 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
 
     var color: Color {
         switch self {
-        case .unmarked: return Color.gray.opacity(0.25)
-        case .present: return Color.green.opacity(0.35)
-        case .absent: return Color.red.opacity(0.35)
-        case .tardy: return Color.blue.opacity(0.35)
-        case .leftEarly: return Color.purple.opacity(0.35)
+        case .unmarked: return Color.gray.opacity(UIConstants.OpacityConstants.quarter)
+        case .present: return Color.green.opacity(UIConstants.OpacityConstants.statusBg)
+        case .absent: return Color.red.opacity(UIConstants.OpacityConstants.statusBg)
+        case .tardy: return Color.blue.opacity(UIConstants.OpacityConstants.statusBg)
+        case .leftEarly: return Color.purple.opacity(UIConstants.OpacityConstants.statusBg)
         }
     }
     

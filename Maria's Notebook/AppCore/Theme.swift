@@ -204,7 +204,7 @@ enum AppTheme {
         
         /// Strong shadow for modals and overlays
         static let strong = ShadowStyle(
-            color: .black.opacity(0.2),
+            color: .black.opacity(UIConstants.OpacityConstants.moderate),
             radius: 24,
             x: 0,
             y: 12

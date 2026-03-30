@@ -262,7 +262,7 @@ public struct BulkLessonsEntryView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(Color.primary.opacity(0.03))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 

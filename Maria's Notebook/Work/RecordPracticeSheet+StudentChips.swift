@@ -47,7 +47,7 @@ extension RecordPracticeSheet {
                 .padding(10)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                 )
 
                 if !searchResults.isEmpty {
@@ -75,7 +75,7 @@ extension RecordPracticeSheet {
                     }
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.03))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
                     )
                 }
             }
@@ -186,7 +186,7 @@ extension RecordPracticeSheet {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
             .buttonStyle(.plain)

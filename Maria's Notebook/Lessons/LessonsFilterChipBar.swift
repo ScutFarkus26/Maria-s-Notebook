@@ -31,7 +31,7 @@ struct LessonsFilterChipBar: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(Color.primary.opacity(0.02))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
     }
 
     // MARK: - Source Filter Chips
@@ -147,7 +147,7 @@ struct FilterChip: View {
                 Capsule().fill(isActive ? activeColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             )
             .overlay(
-                Capsule().stroke(isActive ? activeColor.opacity(0.5) : Color.clear, lineWidth: 1)
+                Capsule().stroke(isActive ? activeColor.opacity(UIConstants.OpacityConstants.half) : Color.clear, lineWidth: 1)
             )
             .foregroundStyle(isActive ? activeColor : .secondary)
         }

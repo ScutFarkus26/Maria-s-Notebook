@@ -35,7 +35,7 @@ struct ReminderListRow: View {
     }
 
     private var checkboxView: some View {
-        let borderColor: Color = reminder.isCompleted ? .clear : .secondary.opacity(0.4)
+        let borderColor: Color = reminder.isCompleted ? .clear : .secondary.opacity(UIConstants.OpacityConstants.muted)
         let fillColor: Color = reminder.isCompleted ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : .clear
 
         return Circle()
@@ -61,7 +61,7 @@ struct ReminderListRow: View {
                     Text(reminder.title)
                         .font(AppTheme.ScaledFont.callout)
                         .foregroundStyle(reminder.isCompleted ? .tertiary : .primary)
-                        .strikethrough(reminder.isCompleted, color: Color.secondary.opacity(0.5))
+                        .strikethrough(reminder.isCompleted, color: Color.secondary.opacity(UIConstants.OpacityConstants.half))
                     if let dueDate = reminder.dueDate {
                         Text(dueDate, style: .time)
                             .font(AppTheme.ScaledFont.caption)
@@ -280,7 +280,7 @@ struct ScheduledMeetingListRow: View {
             if showsLeadingIcon {
                 Image(systemName: "person.crop.circle.badge.clock")
                     .font(.system(size: 14))
-                    .foregroundStyle(.teal.opacity(0.8))
+                    .foregroundStyle(.teal.opacity(UIConstants.OpacityConstants.heavy))
                     .frame(width: 20)
             }
 

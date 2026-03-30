@@ -87,7 +87,7 @@ struct WorkCardPillContent: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background {
-                Capsule().fill(Color.primary.opacity(0.04))
+                Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     .overlay {
                         SubjectGrainBackground(subject: lessonSubject)
                             .clipShape(Capsule())

@@ -254,7 +254,7 @@ struct SyncStatusIndicator: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(health.color.opacity(0.2))
+                .fill(health.color.opacity(UIConstants.OpacityConstants.moderate))
                 .frame(width: 28, height: 28)
 
             Image(systemName: health.icon)

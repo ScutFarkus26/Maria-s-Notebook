@@ -210,7 +210,7 @@ struct WorkAgendaDayColumn: View {
                             }
                             .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
                                 GroupedWorkCheckInPill(group: group)
-                                    .opacity(0.9)
+                                    .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
                         } else {
                             WorkCheckInPill(checkIn: group.primary, isDulled: false) {
@@ -218,7 +218,7 @@ struct WorkAgendaDayColumn: View {
                             }
                             .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
                                 WorkCheckInPill(checkIn: group.primary, isDulled: false)
-                                    .opacity(0.9)
+                                    .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
                         }
                     case .lessonAssignment(let la):
@@ -230,7 +230,7 @@ struct WorkAgendaDayColumn: View {
                             enableMergeDrop: false,
                             showAgeIndicator: false
                         )
-                        .opacity(0.5)
+                        .opacity(UIConstants.OpacityConstants.half)
                         .draggable(UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation) {
                             PresentationPill(
                                 snapshot: la.snapshot(),

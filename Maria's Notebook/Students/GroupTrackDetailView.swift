@@ -191,7 +191,7 @@ struct GroupTrackDetailView: View {
                             }
                         }
                         .frame(height: 8)
-                        .background(Color.gray.opacity(0.2), in: RoundedRectangle(cornerRadius: 4))
+                        .background(Color.gray.opacity(UIConstants.OpacityConstants.moderate), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
             }
@@ -257,7 +257,7 @@ private struct LessonStepRow: View {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.body)
                     .foregroundStyle(progressState == .proficient ? .secondary : .primary)
-                    .strikethrough(progressState == .proficient, color: .secondary.opacity(0.5))
+                    .strikethrough(progressState == .proficient, color: .secondary.opacity(UIConstants.OpacityConstants.half))
 
                 if !lesson.subheading.isEmpty {
                     Text(lesson.subheading)

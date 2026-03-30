@@ -114,11 +114,11 @@ struct TodoDateChip: View {
         switch chipState {
         case .overdue: return .red
         case .today: return .orange
-        case .tomorrow: return .orange.opacity(0.8)
+        case .tomorrow: return .orange.opacity(UIConstants.OpacityConstants.heavy)
         case .thisWeek: return .secondary
         case .future: return .secondary.opacity(0.6)
         case .someday: return .secondary.opacity(0.6)
-        case .noDate: return .secondary.opacity(0.5)
+        case .noDate: return .secondary.opacity(UIConstants.OpacityConstants.half)
         }
     }
 
@@ -127,7 +127,7 @@ struct TodoDateChip: View {
         case .overdue: return AnyShapeStyle(Color.red.opacity(UIConstants.OpacityConstants.light))
         case .today: return AnyShapeStyle(Color.orange.opacity(UIConstants.OpacityConstants.light))
         case .tomorrow: return AnyShapeStyle(Color.orange.opacity(UIConstants.OpacityConstants.veryFaint))
-        case .thisWeek: return AnyShapeStyle(Color.primary.opacity(0.04))
+        case .thisWeek: return AnyShapeStyle(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         case .future: return AnyShapeStyle(Color.clear)
         case .someday: return AnyShapeStyle(Color.clear)
         case .noDate: return AnyShapeStyle(Color.clear)

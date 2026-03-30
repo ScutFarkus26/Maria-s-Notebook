@@ -95,7 +95,7 @@ struct PresentationsDayColumn: View {
                     .fill(Color.primary.opacity(isTargeted ? 0.08 : 0.04))
                 if isTargeted {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.accentColor.opacity(0.7), lineWidth: 2)
+                        .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 2)
                 }
 
                 ScrollView(.vertical, showsIndicators: true) {
@@ -122,7 +122,7 @@ struct PresentationsDayColumn: View {
                                                 snapshot: la.snapshot(), day: day,
                                                 targetLessonAssignmentID: la.id,
                                                 showTimeBadge: false, enableMergeDrop: true
-                                            ).opacity(0.85)
+                                            ).opacity(UIConstants.OpacityConstants.nearSolid)
                                         }
                                         .contextMenu {
                                             Button("Clear Schedule", systemImage: "xmark.circle") {

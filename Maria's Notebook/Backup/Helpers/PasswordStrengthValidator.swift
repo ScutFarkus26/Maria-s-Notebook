@@ -346,7 +346,7 @@ public struct PasswordStrengthIndicator: View {
             HStack(spacing: 4) {
                 ForEach(0..<5) { index in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(index <= result.strength.rawValue ? result.strength.color : Color.gray.opacity(0.3))
+                        .fill(index <= result.strength.rawValue ? result.strength.color : Color.gray.opacity(UIConstants.OpacityConstants.semi))
                         .frame(height: 4)
                 }
             }

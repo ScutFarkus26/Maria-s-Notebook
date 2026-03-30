@@ -231,7 +231,7 @@ extension StudentInsightsView {
             ForEach(items, id: \.self) { item in
                 HStack(alignment: .top, spacing: 8) {
                     Circle()
-                        .fill(color.opacity(0.3))
+                        .fill(color.opacity(UIConstants.OpacityConstants.semi))
                         .frame(width: 6, height: 6)
                         .padding(.top, 6)
 

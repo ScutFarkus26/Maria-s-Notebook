@@ -33,9 +33,9 @@ struct NotesSectionView: View {
     
     private var notesBackgroundColor: Color {
         #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor).opacity(0.5)
+        return Color(nsColor: .controlBackgroundColor).opacity(UIConstants.OpacityConstants.half)
         #else
-        return Color(uiColor: .secondarySystemBackground).opacity(0.5)
+        return Color(uiColor: .secondarySystemBackground).opacity(UIConstants.OpacityConstants.half)
         #endif
     }
 }

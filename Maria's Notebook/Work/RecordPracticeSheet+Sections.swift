@@ -154,7 +154,7 @@ extension RecordPracticeSheet {
                 .padding(8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -198,7 +198,7 @@ extension RecordPracticeSheet {
                 .padding(10)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                 )
                 .lineLimit(2...4)
             }
@@ -214,7 +214,7 @@ extension RecordPracticeSheet {
                     .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
         }

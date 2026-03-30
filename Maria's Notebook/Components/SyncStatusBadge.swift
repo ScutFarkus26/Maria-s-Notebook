@@ -22,7 +22,7 @@ struct SyncStatusBadge: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(syncService.syncHealth.color.opacity(0.2))
+                        .fill(syncService.syncHealth.color.opacity(UIConstants.OpacityConstants.moderate))
                         .frame(width: 28, height: 28)
 
                     Image(systemName: syncService.syncHealth.icon)

@@ -211,13 +211,13 @@ struct AttendanceLogView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color.primary.opacity(0.02))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
     }
 
     private func statBadge(count: Int, label: String, color: Color) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(color.opacity(0.35))
+                .fill(color.opacity(UIConstants.OpacityConstants.statusBg))
                 .frame(width: 10, height: 10)
             Text("\(count)")
                 .font(AppTheme.ScaledFont.bodySemibold)
@@ -259,7 +259,7 @@ struct AttendanceLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             // Status Menu (multi-select)
@@ -290,7 +290,7 @@ struct AttendanceLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             // Date Range Menu
@@ -313,7 +313,7 @@ struct AttendanceLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
             Spacer()
@@ -444,7 +444,7 @@ struct AttendanceLogView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
         .contentShape(Rectangle())
         .contextMenu {

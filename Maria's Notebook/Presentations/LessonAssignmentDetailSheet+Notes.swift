@@ -49,7 +49,7 @@ extension LessonAssignmentDetailSheet {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)

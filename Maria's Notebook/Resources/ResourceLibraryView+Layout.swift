@@ -87,7 +87,7 @@ extension ResourceLibraryView {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -190,7 +190,7 @@ extension ResourceLibraryView {
         .font(.caption)
         .padding(.horizontal, 24)
         .padding(.vertical, 8)
-        .background(Color.primary.opacity(0.03))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
     }
 
     // MARK: - Drop Overlay

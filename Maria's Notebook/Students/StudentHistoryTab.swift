@@ -126,7 +126,7 @@ struct StudentHistoryTab: View {
         VStack(spacing: 16) {
             Image(systemName: "star.circle")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary.opacity(0.4))
+                .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.muted))
 
             Text("No Completed Tracks Yet")
                 .font(.headline)
@@ -174,7 +174,7 @@ struct StudentHistoryTab: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.purple.opacity(0.05))
+                .fill(Color.purple.opacity(UIConstants.OpacityConstants.hint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -231,7 +231,7 @@ struct StudentHistoryTab: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [accentColor.opacity(UIConstants.OpacityConstants.subtle), accentColor.opacity(0.03)],
+                        colors: [accentColor.opacity(UIConstants.OpacityConstants.subtle), accentColor.opacity(UIConstants.OpacityConstants.whisper)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -239,7 +239,7 @@ struct StudentHistoryTab: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(accentColor.opacity(0.2), lineWidth: 1)
+                .strokeBorder(accentColor.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
         )
     }
 

@@ -127,7 +127,7 @@ struct LessonJourneyTimeline: View {
         .frame(width: 200)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -162,7 +162,7 @@ struct LessonJourneyTimeline: View {
         .frame(width: 200)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.blue.opacity(0.05))
+                .fill(Color.blue.opacity(UIConstants.OpacityConstants.hint))
         )
     }
 
@@ -193,14 +193,14 @@ struct LessonJourneyTimeline: View {
         .frame(width: 200)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.purple.opacity(0.05))
+                .fill(Color.purple.opacity(UIConstants.OpacityConstants.hint))
         )
     }
     
     @ViewBuilder
     private func connectorLine() -> some View {
         Rectangle()
-            .fill(Color.primary.opacity(0.2))
+            .fill(Color.primary.opacity(UIConstants.OpacityConstants.moderate))
             .frame(width: 2, height: 20)
             .padding(.leading, 8)
     }
@@ -221,7 +221,7 @@ struct LessonJourneyTimeline: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
     

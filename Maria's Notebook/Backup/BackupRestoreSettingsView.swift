@@ -246,7 +246,7 @@ struct BackupRestoreSettingsView: View {
         .padding(.vertical, AppTheme.Spacing.small + 2)
         .background(
             RoundedRectangle(cornerRadius: AppTheme.Spacing.small + 2, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
 

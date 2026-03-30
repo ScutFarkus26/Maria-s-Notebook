@@ -78,7 +78,7 @@ struct LessonImportPreviewView: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -127,7 +127,7 @@ struct LessonImportPreviewView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.yellow.opacity(0.25), lineWidth: 1)
+                        .stroke(Color.yellow.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 1)
                 )
             }
         }
@@ -156,7 +156,7 @@ struct LessonImportPreviewView: View {
                         .padding(10)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.primary.opacity(0.02))
+                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)

@@ -314,7 +314,7 @@ struct PresentationPill: View {
         Group {
             if isMergeTargeted {
                 Capsule()
-                    .stroke(Color.accentColor.opacity(0.9), lineWidth: 2)
+                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.almostOpaque), lineWidth: 2)
                     .overlay(
                         Text("Merge")
                             .font(.caption.weight(.semibold))
@@ -395,7 +395,7 @@ struct PresentationPill: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background {
-                Capsule().fill(Color.primary.opacity(0.04))
+                Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     .overlay {
                         SubjectGrainBackground(subject: lessonObject?.subject ?? "")
                             .clipShape(Capsule())

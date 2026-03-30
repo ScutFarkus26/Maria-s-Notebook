@@ -69,7 +69,7 @@ struct StudentsCardsGridView: View {
             }
             if isHover {
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.accentColor.opacity(0.35), style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.statusBg), style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
             }
         }
     }

@@ -59,7 +59,7 @@ struct DefaultStudentCard: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                 )
-                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.trace), radius: 6, x: 0, y: 2)
         )
         .studentCardRasterization()
     }
@@ -93,7 +93,7 @@ struct AgeStudentCard: View {
                 Group {
                     if SymbolSupportCache.hasStarFill {
                         Image(systemName: "star.fill")
-                            .foregroundStyle(.white.opacity(0.35))
+                            .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.statusBg))
                     } else {
                         Text("\u{2b50}\u{fe0f}")
                     }
@@ -120,7 +120,7 @@ struct AgeStudentCard: View {
         return ZStack {
             Circle()
                 .fill(LinearGradient(colors: [.mint, .cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
+                .overlay(Circle().stroke(Color.white.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 2))
                 .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
             Text(text)
                 .font(AppTheme.ScaledFont.titleXLarge)

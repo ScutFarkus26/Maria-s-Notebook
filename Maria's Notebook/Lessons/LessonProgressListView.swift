@@ -115,7 +115,7 @@ struct LessonProgressListView: View {
             .padding(10)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
             )
             
             // Subject filter
@@ -237,7 +237,7 @@ struct LessonProgressListView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.primary.opacity(0.03))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

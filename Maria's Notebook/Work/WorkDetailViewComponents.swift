@@ -82,7 +82,7 @@ struct WorkPlanItemRow: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
     }
 }
@@ -198,7 +198,7 @@ struct NoteRowView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -242,7 +242,7 @@ struct SaveCancelButtons: View {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
             .buttonStyle(.plain)
@@ -375,7 +375,7 @@ struct DetailSectionCard<Content: View, Trailing: View>: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
     }
 }

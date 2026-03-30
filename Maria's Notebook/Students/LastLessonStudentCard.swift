@@ -48,7 +48,7 @@ struct LastLessonStudentCard: View {
                     }
                 }
                 .font(.system(size: CGFloat(Int.random(in: 10...16))))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.semi))
                 .rotationEffect(.degrees(Double(Int.random(in: -20...20))))
                 .offset(x: CGFloat(Int.random(in: -140...140)), y: CGFloat(Int.random(in: -60...60)))
             }
@@ -68,10 +68,10 @@ struct LastLessonStudentCard: View {
         ZStack {
             Circle()
                 .fill(LinearGradient(
-                    colors: [.white.opacity(0.3), .white.opacity(UIConstants.OpacityConstants.light)],
+                    colors: [.white.opacity(UIConstants.OpacityConstants.semi), .white.opacity(UIConstants.OpacityConstants.light)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 ))
-                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 2))
+                .overlay(Circle().stroke(Color.white.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 2))
                 .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
 
             VStack(spacing: 2) {
@@ -89,7 +89,7 @@ struct LastLessonStudentCard: View {
                         .bobbingAnimation(bob: $bob)
                     Text(days == 1 ? "day" : "days")
                         .font(AppTheme.ScaledFont.bodySemibold)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.almostOpaque))
                 }
             }
         }

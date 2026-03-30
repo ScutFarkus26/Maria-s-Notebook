@@ -460,7 +460,7 @@ private struct GlassCard<Content: View>: View {
                     .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                     .blendMode(.overlay)
             )
-            .shadow(color: .black.opacity(0.25), radius: 20, y: 10)
+            .shadow(color: .black.opacity(UIConstants.OpacityConstants.quarter), radius: 20, y: 10)
     }
 }
 
@@ -486,7 +486,7 @@ private struct StatusChip: View {
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(tint.opacity(0.35), lineWidth: 1)
+                .strokeBorder(tint.opacity(UIConstants.OpacityConstants.statusBg), lineWidth: 1)
         )
         .contentTransition(.opacity)
         .adaptiveAnimation(.spring(response: 0.25, dampingFraction: 0.9), value: active)

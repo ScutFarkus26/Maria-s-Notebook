@@ -21,7 +21,7 @@ extension TodayView {
                 if !viewModel.overdueReminders.isEmpty {
                     Text("Overdue")
                         .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.red.opacity(0.8))
+                        .foregroundStyle(.red.opacity(UIConstants.OpacityConstants.heavy))
                         .textCase(.uppercase)
                         .tracking(0.5)
                         .listRowBackground(Color.clear)
@@ -114,7 +114,7 @@ extension TodayView {
             } else if let error = ReminderSyncService.shared.lastSyncError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
-                    .foregroundStyle(.orange.opacity(0.7))
+                    .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))
                     .help("Sync error: \(error)")
                     .accessibilityLabel("Sync error: \(error)")
             }
@@ -158,7 +158,7 @@ extension TodayView {
             } else if let error = CalendarSyncService.shared.lastSyncError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
-                    .foregroundStyle(.orange.opacity(0.7))
+                    .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))
                     .help("Sync error: \(error)")
                     .accessibilityLabel("Sync error: \(error)")
             }

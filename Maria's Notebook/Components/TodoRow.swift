@@ -163,7 +163,7 @@ struct TodoRow: View {
                 Text(todo.title)
                     .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                    .strikethrough(todo.isCompleted, color: .secondary.opacity(0.5))
+                    .strikethrough(todo.isCompleted, color: .secondary.opacity(UIConstants.OpacityConstants.half))
 
                 if !todo.notes.isEmpty {
                     Text(todo.notes)
@@ -180,7 +180,7 @@ struct TodoRow: View {
                             Text(assignedStudents.map(\.firstName).joined(separator: ", "))
                                 .font(AppTheme.ScaledFont.captionSemibold)
                         }
-                        .foregroundStyle(.blue.opacity(0.7))
+                        .foregroundStyle(.blue.opacity(UIConstants.OpacityConstants.prominent))
                     }
 
                     if todo.effectiveDate != nil || todo.isSomeday {
@@ -194,7 +194,7 @@ struct TodoRow: View {
                             Text(todo.recurrence.shortLabel)
                                 .font(AppTheme.ScaledFont.captionSemibold)
                         }
-                        .foregroundStyle(.purple.opacity(0.7))
+                        .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                     }
 
                     if let progressText = todo.subtasksProgressText {
@@ -204,7 +204,7 @@ struct TodoRow: View {
                             Text(progressText)
                                 .font(AppTheme.ScaledFont.captionSemibold)
                         }
-                        .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(0.7) : .secondary.opacity(0.5))
+                        .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(UIConstants.OpacityConstants.prominent) : .secondary.opacity(UIConstants.OpacityConstants.half))
                     }
                 }
                 .padding(.top, 2)
@@ -253,7 +253,7 @@ struct TodoRow: View {
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
-            .tint(.orange.opacity(0.8))
+            .tint(.orange.opacity(UIConstants.OpacityConstants.heavy))
         }
         .contentShape(Rectangle())
         .onTapGesture {

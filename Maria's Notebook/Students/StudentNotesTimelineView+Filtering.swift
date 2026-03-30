@@ -161,7 +161,7 @@ extension StudentNotesTimelineList {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .background(Color.primary.opacity(0.03))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
     }
 
     // MARK: - Active Filters Summary

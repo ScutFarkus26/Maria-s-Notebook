@@ -68,7 +68,7 @@ struct CardBackground: ViewModifier {
     let color: Color
     let cornerRadius: CGFloat
     
-    init(color: Color = Color.primary.opacity(0.03), cornerRadius: CGFloat = 12) {
+    init(color: Color = Color.primary.opacity(UIConstants.OpacityConstants.whisper), cornerRadius: CGFloat = 12) {
         self.color = color
         self.cornerRadius = cornerRadius
     }
@@ -82,7 +82,7 @@ struct CardBackground: ViewModifier {
 }
 
 extension View {
-    func cardBackground(color: Color = Color.primary.opacity(0.03), cornerRadius: CGFloat = 12) -> some View {
+    func cardBackground(color: Color = Color.primary.opacity(UIConstants.OpacityConstants.whisper), cornerRadius: CGFloat = 12) -> some View {
         modifier(CardBackground(color: color, cornerRadius: cornerRadius))
     }
 }

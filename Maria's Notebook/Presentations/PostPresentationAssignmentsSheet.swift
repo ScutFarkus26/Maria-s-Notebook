@@ -77,7 +77,7 @@ struct PostPresentationAssignmentsSheet: View {
                 }
             }
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
 
             // Per-student entries
             List {

@@ -43,7 +43,7 @@ struct ProgressDashboardCategoryRow: View {
             Image(systemName: "chevron.right")
                 .font(.caption2)
                 .fontWeight(.bold)
-                .foregroundStyle(subjectColor.opacity(0.5))
+                .foregroundStyle(subjectColor.opacity(UIConstants.OpacityConstants.half))
 
             Text(category.group)
                 .fontWeight(.medium)

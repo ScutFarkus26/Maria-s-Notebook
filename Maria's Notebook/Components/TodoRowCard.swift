@@ -71,7 +71,7 @@ struct TodoRowCard: View {
                     Text(todo.title)
                         .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                        .strikethrough(todo.isCompleted, color: .secondary.opacity(0.5))
+                        .strikethrough(todo.isCompleted, color: .secondary.opacity(UIConstants.OpacityConstants.half))
 
                     if !todo.notes.isEmpty {
                         Text(todo.notes)
@@ -93,7 +93,7 @@ struct TodoRowCard: View {
                                     Text(todo.recurrence.shortLabel)
                                         .font(AppTheme.ScaledFont.captionSemibold)
                                 }
-                                .foregroundStyle(.purple.opacity(0.7))
+                                .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                             }
 
                             if !todo.tags.isEmpty {
@@ -114,7 +114,7 @@ struct TodoRowCard: View {
                         Text(progressText)
                             .font(AppTheme.ScaledFont.captionSemibold)
                     }
-                    .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(0.7) : .secondary.opacity(0.5))
+                    .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(UIConstants.OpacityConstants.prominent) : .secondary.opacity(UIConstants.OpacityConstants.half))
                 }
             }
             .padding(.trailing, 16)
@@ -154,7 +154,7 @@ struct TodoRowCard: View {
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
-            .tint(.orange.opacity(0.8))
+            .tint(.orange.opacity(UIConstants.OpacityConstants.heavy))
 
             Button {
                 todo.scheduledDate = nextMonday()

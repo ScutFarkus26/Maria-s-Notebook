@@ -146,12 +146,12 @@ struct ProjectWeekEditorView: View, Identifiable {
                                             }
                                         } label: {
                                             Image(systemName: "xmark.circle.fill")
-                                                .foregroundStyle(.secondary.opacity(0.8))
+                                                .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.heavy))
                                         }
                                         .buttonStyle(.borderless)
                                     }
                                     .padding(8)
-                                    .background(Color.primary.opacity(0.04))
+                                    .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                                     .cornerRadius(8)
                                 }
                             }
@@ -261,7 +261,7 @@ struct ProjectWeekEditorView: View, Identifiable {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
 

@@ -152,7 +152,7 @@ struct ObservationModeView: View {
                         .padding(.vertical, 6)
                         .background(
                             Capsule(style: .continuous)
-                                .strokeBorder(Color.secondary.opacity(0.3), style: StrokeStyle(dash: [4, 3]))
+                                .strokeBorder(Color.secondary.opacity(UIConstants.OpacityConstants.semi), style: StrokeStyle(dash: [4, 3]))
                         )
                     }
                     .buttonStyle(.plain)
@@ -236,7 +236,7 @@ struct ObservationModeView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(viewModel.canSave ? Color.accentColor : Color.gray.opacity(0.3))
+                    .fill(viewModel.canSave ? Color.accentColor : Color.gray.opacity(UIConstants.OpacityConstants.semi))
             )
             .foregroundStyle(.white)
         }

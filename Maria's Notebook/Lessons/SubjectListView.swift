@@ -125,7 +125,7 @@ struct SubjectListRow: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [subjectColor.opacity(0.8), subjectColor]),
+                            gradient: Gradient(colors: [subjectColor.opacity(UIConstants.OpacityConstants.heavy), subjectColor]),
                             center: .center,
                             startRadius: 8,
                             endRadius: 24

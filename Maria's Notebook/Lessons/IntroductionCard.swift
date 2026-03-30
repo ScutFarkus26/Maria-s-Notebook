@@ -74,7 +74,7 @@ struct IntroductionCard: View {
                             Text(ageRange)
                                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                         }
-                        .foregroundStyle(subjectColor.opacity(0.8))
+                        .foregroundStyle(subjectColor.opacity(UIConstants.OpacityConstants.heavy))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(

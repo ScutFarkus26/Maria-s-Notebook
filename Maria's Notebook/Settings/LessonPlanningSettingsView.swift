@@ -86,7 +86,7 @@ struct LessonPlanningSettingsView: View {
                         .padding(6)
                         .background(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.primary.opacity(0.04))
+                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)

@@ -246,7 +246,7 @@ struct StudentCategoryRow: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
             )
         }
         .buttonStyle(.plain)

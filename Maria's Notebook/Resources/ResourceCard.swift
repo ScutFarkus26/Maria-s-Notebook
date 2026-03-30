@@ -60,7 +60,7 @@ struct ResourceCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -108,7 +108,7 @@ struct ResourceCard: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.primary.opacity(0.03))
+            .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         }
     }
 

@@ -14,7 +14,7 @@ private struct HoverableRowModifier: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isHovered ? Color.primary.opacity(0.04) : Color.clear)
+                    .fill(isHovered ? Color.primary.opacity(UIConstants.OpacityConstants.trace) : Color.clear)
             )
             .onHover { hovering in
                 _ = adaptiveWithAnimation(.easeInOut(duration: 0.15)) {

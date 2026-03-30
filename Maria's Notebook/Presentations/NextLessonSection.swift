@@ -36,7 +36,7 @@ struct NextLessonSection: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
 
@@ -142,10 +142,10 @@ struct NextLessonSection: View {
         for action: PostPresentationFormViewModel.NextLessonAction,
         isDisabled: Bool
     ) -> Color {
-        if isDisabled { return Color.primary.opacity(0.03) }
+        if isDisabled { return Color.primary.opacity(UIConstants.OpacityConstants.whisper) }
         return viewModel.nextLessonAction == action
             ? pillColor(for: action).opacity(UIConstants.OpacityConstants.medium)
-            : Color.primary.opacity(0.05)
+            : Color.primary.opacity(UIConstants.OpacityConstants.hint)
     }
 
     private func pillBorder(
@@ -154,7 +154,7 @@ struct NextLessonSection: View {
     ) -> Color {
         if isDisabled { return Color.primary.opacity(UIConstants.OpacityConstants.light) }
         return viewModel.nextLessonAction == action
-            ? pillColor(for: action).opacity(0.4)
+            ? pillColor(for: action).opacity(UIConstants.OpacityConstants.muted)
             : Color.primary.opacity(UIConstants.OpacityConstants.accent)
     }
 

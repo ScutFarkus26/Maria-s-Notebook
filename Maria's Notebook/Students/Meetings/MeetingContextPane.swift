@@ -290,6 +290,6 @@ struct MeetingContextPane: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color.primary.opacity(0.04))
+            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
     }
 }

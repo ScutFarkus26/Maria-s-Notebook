@@ -175,7 +175,7 @@ struct PracticeSessionsListView: View {
             }
         }
         .padding()
-        .background(Color.primary.opacity(0.03))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
     }
     
     private func statBox(value: String, label: String, icon: String, color: Color) -> some View {
@@ -245,7 +245,7 @@ struct PracticeSessionsListView: View {
             }
         }
         .padding(.vertical, 12)
-        .background(Color.primary.opacity(0.03))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
     }
     
     private func filterChip(_ filter: FilterType) -> some View {

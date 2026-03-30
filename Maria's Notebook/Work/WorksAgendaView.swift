@@ -230,7 +230,7 @@ struct WorksAgendaView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.primary.opacity(0.04))
+            .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
             .padding(.bottom, 8)

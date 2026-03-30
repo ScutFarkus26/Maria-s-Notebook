@@ -18,7 +18,7 @@ struct QuickNoteStudentChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(Color.accentColor.opacity(0.2))
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.moderate))
                 .frame(width: 20, height: 20)
                 .overlay {
                     Text(String(displayName.prefix(1)))

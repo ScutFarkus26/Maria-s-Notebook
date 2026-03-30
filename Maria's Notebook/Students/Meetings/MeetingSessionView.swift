@@ -59,7 +59,7 @@ struct MeetingSessionView: View {
                         lessonsByID: lessonsByID
                     )
                     .frame(width: min(geometry.size.width * 0.4, 400))
-                    .background(Color.primary.opacity(0.02))
+                    .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
 
                     Divider()
 

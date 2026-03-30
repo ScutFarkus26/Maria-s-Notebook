@@ -130,7 +130,7 @@ extension TodoEditSheet {
                             .font(AppTheme.ScaledFont.body)
                             .frame(minHeight: 120)
                             .padding(8)
-                            .background(Color.primary.opacity(0.04))
+                            .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                             .cornerRadius(8)
                             .scrollContentBackground(.hidden)
                     }

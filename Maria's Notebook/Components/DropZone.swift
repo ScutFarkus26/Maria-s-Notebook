@@ -74,7 +74,7 @@ struct DropZone: View {
             // Accent outline when targeted
             if isTargeted {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.7), lineWidth: 3)
+                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 3)
                     .allowsHitTesting(false)
             }
 
@@ -182,7 +182,7 @@ struct DropZone: View {
                 sourceLessonAssignmentID: la.id,
                 targetLessonAssignmentID: la.id
             )
-            .opacity(0.85)
+            .opacity(UIConstants.OpacityConstants.nearSolid)
         }
         .onTapGesture { onSelectLesson(la) }
         .contextMenu {

@@ -98,7 +98,7 @@ struct BackupSummaryView: View {
                             .font(.caption2.bold())
                             .padding(.horizontal, AppTheme.Spacing.sm)
                             .padding(.vertical, AppTheme.Spacing.xxsmall)
-                            .background(Color.red.opacity(0.8))
+                            .background(Color.red.opacity(UIConstants.OpacityConstants.heavy))
                             .foregroundStyle(.white)
                             .clipShape(Capsule())
                         Image(systemName: warningsExpanded ? "chevron.up" : "chevron.down")

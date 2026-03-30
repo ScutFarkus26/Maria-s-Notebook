@@ -195,7 +195,7 @@ struct QuickNoteSheet: View {
                 }
                 .padding()
                 .frame(width: 200)
-                .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                .background(Color(nsColor: .controlBackgroundColor).opacity(UIConstants.OpacityConstants.half))
                 
                 Divider()
                 
@@ -306,7 +306,7 @@ struct QuickNoteSheet: View {
                             }
                         }
                     )
-                    .background(Color(uiColor: .secondarySystemBackground).opacity(0.3))
+                    .background(Color(uiColor: .secondarySystemBackground).opacity(UIConstants.OpacityConstants.semi))
                     Divider()
                 }
 
@@ -323,7 +323,7 @@ struct QuickNoteSheet: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 4)
-                    .background(Color(uiColor: .secondarySystemBackground).opacity(0.3))
+                    .background(Color(uiColor: .secondarySystemBackground).opacity(UIConstants.OpacityConstants.semi))
                     Divider()
                 }
 
@@ -444,7 +444,7 @@ struct QuickNoteSheet: View {
             }
 
             // Divider
-            Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 1, height: 16)
+            Rectangle().fill(Color.secondary.opacity(UIConstants.OpacityConstants.semi)).frame(width: 1, height: 16)
 
             // Media & AI
             PhotosPicker(selection: $viewModel.selectedPhotoItem, matching: .images) {

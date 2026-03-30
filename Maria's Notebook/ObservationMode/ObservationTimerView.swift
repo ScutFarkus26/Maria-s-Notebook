@@ -37,7 +37,7 @@ struct ObservationTimerView: View {
         .padding(.vertical, 8)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
 }

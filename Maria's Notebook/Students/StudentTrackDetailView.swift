@@ -141,7 +141,7 @@ struct StudentTrackDetailView: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.yellow.opacity(0.3), .yellow.opacity(0.05), .clear],
+                            colors: [.yellow.opacity(UIConstants.OpacityConstants.semi), .yellow.opacity(UIConstants.OpacityConstants.hint), .clear],
                             center: .center,
                             startRadius: 20,
                             endRadius: 60
@@ -180,7 +180,7 @@ struct StudentTrackDetailView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [.yellow.opacity(UIConstants.OpacityConstants.light), .orange.opacity(0.05)],
+                        colors: [.yellow.opacity(UIConstants.OpacityConstants.light), .orange.opacity(UIConstants.OpacityConstants.hint)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -190,7 +190,7 @@ struct StudentTrackDetailView: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [.yellow.opacity(0.3), .orange.opacity(0.2)],
+                        colors: [.yellow.opacity(UIConstants.OpacityConstants.semi), .orange.opacity(UIConstants.OpacityConstants.moderate)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
@@ -318,7 +318,7 @@ struct StudentTrackDetailView: View {
         VStack(spacing: 12) {
             Image(systemName: "tray")
                 .font(.largeTitle)
-                .foregroundStyle(.secondary.opacity(0.5))
+                .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.half))
 
             Text("No lessons found")
                 .font(.subheadline)

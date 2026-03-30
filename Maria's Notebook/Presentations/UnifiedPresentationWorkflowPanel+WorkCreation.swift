@@ -213,7 +213,7 @@ extension UnifiedPresentationWorkflowPanel {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
     }
 
@@ -392,7 +392,7 @@ extension UnifiedPresentationWorkflowPanel {
     func existingWorkCard(work: WorkModel) -> some View {
         WorkflowCard(
             backgroundColor: Color.blue.opacity(UIConstants.OpacityConstants.veryFaint),
-            borderColor: Color.blue.opacity(0.2)
+            borderColor: Color.blue.opacity(UIConstants.OpacityConstants.moderate)
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 // Title

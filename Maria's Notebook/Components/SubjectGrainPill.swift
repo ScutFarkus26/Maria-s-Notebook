@@ -303,7 +303,7 @@ struct SubjectGrainBackground: View {
     var body: some View {
         ZStack {
             // Base: very faint subject color wash
-            subjectColor.opacity(0.04)
+            subjectColor.opacity(UIConstants.OpacityConstants.trace)
 
             // Layer 1: structural micro-pattern
             MicroPatternLayer(
@@ -341,7 +341,7 @@ struct SubjectGrainPill<Content: View>: View {
             .padding(.vertical, 8)
             .background {
                 Capsule()
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     .overlay {
                         SubjectGrainBackground(subject: subject)
                             .clipShape(Capsule())

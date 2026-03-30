@@ -22,7 +22,7 @@ extension UnifiedPresentationWorkflowPanel {
             )
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.primary.opacity(0.03))
+            .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
 
             Divider()
 
@@ -79,7 +79,7 @@ extension UnifiedPresentationWorkflowPanel {
                     Circle()
                         .fill(Color.accentColor)
                         .frame(width: 44, height: 44)
-                        .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+                        .shadow(color: .black.opacity(UIConstants.OpacityConstants.moderate), radius: 4, y: 2)
                 )
         }
     }
@@ -236,7 +236,7 @@ extension UnifiedPresentationWorkflowPanel {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
         .padding(.top, -4)
     }

@@ -138,7 +138,7 @@ struct StyledNotesTextField: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -246,7 +246,7 @@ struct StudentSelectorSearchBar: View {
             }
         }
         .padding(12)
-        .background(Color.primary.opacity(0.05))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.hint))
     }
 }
 
@@ -327,7 +327,7 @@ struct LessonContextCard: View {
                     .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.indigo.opacity(0.05))
+                            .fill(Color.indigo.opacity(UIConstants.OpacityConstants.hint))
                     )
                 }
             }
@@ -352,7 +352,7 @@ struct PracticeSessionBottomBar: View {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
             .buttonStyle(.plain)

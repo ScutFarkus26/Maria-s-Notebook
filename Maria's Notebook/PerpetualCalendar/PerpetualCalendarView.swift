@@ -259,7 +259,7 @@ private extension PerpetualCalendarView {
         return HStack(spacing: 4) {
             Text("\(day)")
                 .font(.system(.caption, design: .rounded).monospacedDigit())
-                .foregroundStyle(isToday ? Color.white : (isNoSchool ? Color.red.opacity(0.5) : Color.secondary))
+                .foregroundStyle(isToday ? Color.white : (isNoSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary))
                 .frame(width: 22, height: 22)
                 .background {
                     if isToday {
@@ -290,7 +290,7 @@ private extension PerpetualCalendarView {
     }
 
     func textStyle(isHoliday: Bool, isNoSchool: Bool) -> some ShapeStyle {
-        if isNoSchool { return AnyShapeStyle(.red.opacity(0.5)) }
+        if isNoSchool { return AnyShapeStyle(.red.opacity(UIConstants.OpacityConstants.half)) }
         if isHoliday { return AnyShapeStyle(.secondary) }
         return AnyShapeStyle(.primary)
     }

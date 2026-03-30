@@ -86,7 +86,7 @@ extension TodoEditSheet {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .strokeBorder(
                                     priority == priorityLevel
-                                        ? colorForPriority(priorityLevel).opacity(0.4)
+                                        ? colorForPriority(priorityLevel).opacity(UIConstants.OpacityConstants.muted)
                                         : Color.clear,
                                     lineWidth: 1.5
                                 )
@@ -156,7 +156,7 @@ extension TodoEditSheet {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color.primary.opacity(0.04))
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                 .cornerRadius(8)
             }
             .buttonStyle(.plain)

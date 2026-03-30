@@ -117,14 +117,14 @@ struct PlanningRecommendationCard: View {
     }
     
     private var cardBackground: some ShapeStyle {
-        if isAccepted { return AnyShapeStyle(Color.green.opacity(0.05)) }
-        if isRejected { return AnyShapeStyle(Color.red.opacity(0.05)) }
-        return AnyShapeStyle(Color.secondary.opacity(0.04))
+        if isAccepted { return AnyShapeStyle(Color.green.opacity(UIConstants.OpacityConstants.hint)) }
+        if isRejected { return AnyShapeStyle(Color.red.opacity(UIConstants.OpacityConstants.hint)) }
+        return AnyShapeStyle(Color.secondary.opacity(UIConstants.OpacityConstants.trace))
     }
     
     private var borderColor: Color {
-        if isAccepted { return .green.opacity(0.4) }
-        if isRejected { return .red.opacity(0.3) }
+        if isAccepted { return .green.opacity(UIConstants.OpacityConstants.muted) }
+        if isRejected { return .red.opacity(UIConstants.OpacityConstants.semi) }
         return .secondary.opacity(UIConstants.OpacityConstants.accent)
     }
     

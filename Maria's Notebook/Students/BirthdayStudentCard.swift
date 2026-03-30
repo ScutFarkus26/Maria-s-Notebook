@@ -25,7 +25,7 @@ struct BirthdayStudentCard: View {
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)
                     balloon
-                        .opacity(0.95)
+                        .opacity(UIConstants.OpacityConstants.barelyTransparent)
                 }
 
                 VStack(spacing: 10) {
@@ -78,12 +78,12 @@ struct BirthdayStudentCard: View {
                 .bobbingAnimation(bob: $bob)
             Text(daysUntil == 1 ? "day" : "days")
                 .font(AppTheme.ScaledFont.titleMedium)
-                .foregroundStyle(.white.opacity(0.95))
+                .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.barelyTransparent))
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
         .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+        .overlay(Capsule().stroke(Color.white.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 1))
         .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
         .accessibilityHidden(true)
     }
@@ -95,7 +95,7 @@ struct BirthdayStudentCard: View {
             .padding(.vertical, 10)
             .padding(.horizontal, 18)
             .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+            .overlay(Capsule().stroke(Color.white.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 1))
             .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.medium), radius: 8, x: 0, y: 4)
             .bobbingAnimation(bob: $bob)
             .accessibilityHidden(true)
@@ -167,8 +167,8 @@ struct BirthdayStudentCard: View {
             ForEach(0..<16, id: \.self) { _ in
                 Circle()
                     .fill(
-                        [Color.white.opacity(0.35), .yellow.opacity(0.35),
-                         .mint.opacity(0.35), .cyan.opacity(0.35)].randomElement()!
+                        [Color.white.opacity(UIConstants.OpacityConstants.statusBg), .yellow.opacity(UIConstants.OpacityConstants.statusBg),
+                         .mint.opacity(UIConstants.OpacityConstants.statusBg), .cyan.opacity(UIConstants.OpacityConstants.statusBg)].randomElement()!
                     )
                     .frame(width: CGFloat(Int.random(in: 4...8)), height: CGFloat(Int.random(in: 4...8)))
                     .offset(x: CGFloat(Int.random(in: -140...140)), y: CGFloat(Int.random(in: -60...60)))

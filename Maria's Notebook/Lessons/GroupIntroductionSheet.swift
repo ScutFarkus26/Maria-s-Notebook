@@ -85,7 +85,7 @@ struct GroupIntroductionSheet: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
     }
 

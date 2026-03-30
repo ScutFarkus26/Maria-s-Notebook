@@ -136,7 +136,7 @@ struct PracticePartnershipsView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .padding(.horizontal)
     }
@@ -173,7 +173,7 @@ struct PracticePartnershipsView: View {
             ForEach(Array(partnerships.enumerated()), id: \.offset) { _, partnership in
                 HStack {
                     Circle()
-                        .fill(Color.green.opacity(0.2))
+                        .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
                         .frame(width: 10, height: 10)
                     
                     Text(StudentFormatter.displayName(for: partnership.partner))
@@ -197,7 +197,7 @@ struct PracticePartnershipsView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .padding(.horizontal)
     }
@@ -356,7 +356,7 @@ struct PracticePartnershipsSummaryCard: View {
                         ForEach(Array(topPartners.enumerated()), id: \.offset) { _, partnership in
                             HStack {
                                 Circle()
-                                    .fill(Color.green.opacity(0.2))
+                                    .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
                                     .frame(width: 6, height: 6)
                                 
                                 Text(StudentFormatter.displayName(for: partnership.partner))
@@ -390,7 +390,7 @@ struct PracticePartnershipsSummaryCard: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
     }
     

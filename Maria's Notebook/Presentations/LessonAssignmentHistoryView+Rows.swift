@@ -112,7 +112,7 @@ extension LessonAssignmentHistoryView {
         .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         )
         .contextMenu {
             Button {
@@ -169,7 +169,7 @@ extension LessonAssignmentHistoryView {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
     }
 }

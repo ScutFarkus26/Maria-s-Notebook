@@ -186,7 +186,7 @@ struct ScheduleDetailSheet: View {
         .padding(.horizontal, 12)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
     }
 

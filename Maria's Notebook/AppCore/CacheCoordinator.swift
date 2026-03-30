@@ -438,7 +438,7 @@ struct CacheMetricRow: View {
             .font(.caption)
         }
         .padding()
-        .background(Color.gray.opacity(0.05))
+        .background(Color.gray.opacity(UIConstants.OpacityConstants.hint))
         .cornerRadius(8)
     }
 }

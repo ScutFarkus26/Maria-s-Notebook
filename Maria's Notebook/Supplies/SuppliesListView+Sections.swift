@@ -75,7 +75,7 @@ extension SuppliesListView {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)

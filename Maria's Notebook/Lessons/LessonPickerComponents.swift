@@ -222,7 +222,7 @@ struct StudentChipsList: View {
                     Text(displayName(student))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(subjectColor.opacity(0.2))
+                        .background(subjectColor.opacity(UIConstants.OpacityConstants.moderate))
                         .foregroundStyle(subjectColor)
                         .clipShape(Capsule())
                     Button {
@@ -255,7 +255,7 @@ struct StatusSection: View {
                         .font(.subheadline)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(subjectColor.opacity(0.2))
+                        .background(subjectColor.opacity(UIConstants.OpacityConstants.moderate))
                         .foregroundStyle(subjectColor)
                         .clipShape(Capsule())
                 }

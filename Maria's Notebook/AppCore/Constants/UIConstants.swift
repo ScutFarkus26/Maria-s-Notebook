@@ -71,28 +71,71 @@ enum UIConstants {
     
     // MARK: - Opacity Constants
     
-    /// Standardized opacity values for consistent visual hierarchy
+    /// Standardized opacity values for consistent visual hierarchy.
+    /// Use these tokens instead of hardcoded opacity values throughout the app.
     enum OpacityConstants {
+        /// 0.02 - Barely visible tint (ghost elements)
+        static let ghost: Double = 0.02
+
+        /// 0.03 - Whisper-level backgrounds
+        static let whisper: Double = 0.03
+
+        /// 0.04 - Trace-level tint (hover hints)
+        static let trace: Double = 0.04
+
+        /// 0.05 - Hint-level backgrounds (very subtle fills)
+        static let hint: Double = 0.05
+
         /// 0.06 - Very faint backgrounds (subtle cards, improved contrast)
         static let veryFaint: Double = 0.06
 
         /// 0.08 - Subtle borders and dividers (improved contrast)
         nonisolated static let subtle: Double = 0.08
-        
+
         /// 0.08 - Faint strokes and lines
         nonisolated static let faint: Double = 0.08
-        
+
         /// 0.1 - Light overlays
         nonisolated static let light: Double = 0.1
-        
+
         /// 0.12 - Medium accent backgrounds (status pills)
         nonisolated static let medium: Double = 0.12
-        
+
         /// 0.15 - Accent highlights (selected states)
         nonisolated static let accent: Double = 0.15
-        
+
+        /// 0.2 - Moderate overlays (disabled states, muted elements)
+        nonisolated static let moderate: Double = 0.2
+
+        /// 0.25 - Quarter opacity (secondary badges, soft shadows)
+        nonisolated static let quarter: Double = 0.25
+
+        /// 0.3 - Semi-transparent (borders, dividers with presence)
+        nonisolated static let semi: Double = 0.3
+
         /// 0.35 - Status backgrounds (more prominent)
         nonisolated static let statusBg: Double = 0.35
+
+        /// 0.4 - Muted elements (dashed borders, secondary fills)
+        nonisolated static let muted: Double = 0.4
+
+        /// 0.5 - Half opacity (dimmed text, overlays)
+        nonisolated static let half: Double = 0.5
+
+        /// 0.7 - Prominent (strong overlays, near-opaque)
+        nonisolated static let prominent: Double = 0.7
+
+        /// 0.8 - Heavy (scrim overlays, strong presence)
+        nonisolated static let heavy: Double = 0.8
+
+        /// 0.85 - Near-solid (modal backgrounds)
+        nonisolated static let nearSolid: Double = 0.85
+
+        /// 0.9 - Almost opaque (frosted backgrounds)
+        nonisolated static let almostOpaque: Double = 0.9
+
+        /// 0.95 - Barely transparent
+        nonisolated static let barelyTransparent: Double = 0.95
     }
     
     // MARK: - Card & Component Sizes

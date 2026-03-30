@@ -69,23 +69,23 @@ struct QuickNoteGlassButton: View {
             Circle()
                 .fill(
                     AngularGradient(
-                        colors: [.cyan.opacity(0.4), .pink.opacity(0.4), .mint.opacity(0.4), .cyan.opacity(0.4)],
+                        colors: [.cyan.opacity(UIConstants.OpacityConstants.muted), .pink.opacity(UIConstants.OpacityConstants.muted), .mint.opacity(UIConstants.OpacityConstants.muted), .cyan.opacity(UIConstants.OpacityConstants.muted)],
                         center: .center
                     )
                 )
                 .blur(radius: 12)
                 .frame(width: pieMenuRadius * 2 + 26, height: pieMenuRadius * 2 + 26)
                 .scaleEffect(sparklePhase ? 1.04 : 0.96)
-                .opacity(0.95)
+                .opacity(UIConstants.OpacityConstants.barelyTransparent)
                 .adaptiveAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: sparklePhase)
 
             ForEach(0..<6, id: \.self) { index in
                 Image(systemName: "sparkle")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.nearSolid))
                     .offset(orbitOffset(for: index, radius: pieMenuRadius + 20))
                     .rotationEffect(.degrees(sparklePhase ? 360 : 0))
-                    .opacity(0.8)
+                    .opacity(UIConstants.OpacityConstants.heavy)
                     .adaptiveAnimation(
                         .linear(duration: 2.6 + Double(index) * 0.2)
                             .repeatForever(autoreverses: false),
@@ -125,8 +125,8 @@ struct QuickNoteGlassButton: View {
                         .fill(
                             LinearGradient(
                                 colors: isPieMenuExpanded
-                                    ? [.pink.opacity(0.9), .orange.opacity(0.9)]
-                                    : [.blue.opacity(0.9), .teal.opacity(0.85)],
+                                    ? [.pink.opacity(UIConstants.OpacityConstants.almostOpaque), .orange.opacity(UIConstants.OpacityConstants.almostOpaque)]
+                                    : [.blue.opacity(UIConstants.OpacityConstants.almostOpaque), .teal.opacity(UIConstants.OpacityConstants.nearSolid)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -141,7 +141,7 @@ struct QuickNoteGlassButton: View {
                 )
                 .clipShape(Circle())
                 .shadow(
-                    color: .black.opacity(UIConstants.OpacityConstants.statusBg),
+                    color: .black.opacity(UIConstants.OpacityConstants.muted),
                     radius: AppTheme.Spacing.xsmall,
                     x: 0,
                     y: AppTheme.Spacing.xxsmall
@@ -157,8 +157,8 @@ struct QuickNoteGlassButton: View {
                         .fill(
                             LinearGradient(
                                 colors: isPieMenuExpanded
-                                    ? [.pink.opacity(0.9), .orange.opacity(0.9)]
-                                    : [.blue.opacity(0.9), .teal.opacity(0.85)],
+                                    ? [.pink.opacity(UIConstants.OpacityConstants.almostOpaque), .orange.opacity(UIConstants.OpacityConstants.almostOpaque)]
+                                    : [.blue.opacity(UIConstants.OpacityConstants.almostOpaque), .teal.opacity(UIConstants.OpacityConstants.nearSolid)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -166,7 +166,7 @@ struct QuickNoteGlassButton: View {
                 )
                 .clipShape(Circle())
                 .shadow(
-                    color: .black.opacity(UIConstants.OpacityConstants.statusBg),
+                    color: .black.opacity(UIConstants.OpacityConstants.muted),
                     radius: AppTheme.Spacing.xsmall,
                     x: 0,
                     y: AppTheme.Spacing.xxsmall

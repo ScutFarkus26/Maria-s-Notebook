@@ -61,7 +61,7 @@ struct StatusBadge: View {
                 .fill(
                     showCheck
                         ? LinearGradient(
-                            colors: [Color.green, Color.green.opacity(0.7)],
+                            colors: [Color.green, Color.green.opacity(UIConstants.OpacityConstants.prominent)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         )
                         : LinearGradient(
@@ -142,8 +142,8 @@ struct ProgressBarView: View {
                     .fill(
                         LinearGradient(
                             colors: isComplete
-                                ? [Color.green, Color.green.opacity(0.8)]
-                                : [color, color.opacity(0.7)],
+                                ? [Color.green, Color.green.opacity(UIConstants.OpacityConstants.heavy)]
+                                : [color, color.opacity(UIConstants.OpacityConstants.prominent)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -163,9 +163,9 @@ struct ProgressBarView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.green.opacity(0.2),
+                                    Color.green.opacity(UIConstants.OpacityConstants.moderate),
                                     Color.green.opacity(UIConstants.OpacityConstants.light),
-                                    Color.green.opacity(0.2)
+                                    Color.green.opacity(UIConstants.OpacityConstants.moderate)
                                 ],
                                 startPoint: .leading,
                                 endPoint: .trailing
@@ -204,12 +204,12 @@ struct StepDotsVisualization: View {
                     let isCompleted = step.map { completedStepIDs.contains($0.stepID) } ?? false
 
                     Circle()
-                        .fill(isCompleted ? color : Color.secondary.opacity(0.2))
+                        .fill(isCompleted ? color : Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
                         .frame(width: 8, height: 8)
                         .overlay {
                             if isCompleted {
                                 Circle()
-                                    .stroke(color.opacity(0.3), lineWidth: 2)
+                                    .stroke(color.opacity(UIConstants.OpacityConstants.semi), lineWidth: 2)
                                     .scaleEffect(1.3)
                             }
                         }
@@ -256,7 +256,7 @@ struct NextItemBanner: View {
         HStack(spacing: 12) {
             Image(systemName: iconName)
                 .font(.system(size: 14))
-                .foregroundStyle(color.opacity(0.7))
+                .foregroundStyle(color.opacity(UIConstants.OpacityConstants.prominent))
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -298,7 +298,7 @@ struct CompletionTrophyBanner: View {
             iconName: "trophy.fill",
             message: message,
             iconGradient: [.orange, .yellow],
-            textGradient: [.green, .green.opacity(0.8)],
+            textGradient: [.green, .green.opacity(UIConstants.OpacityConstants.heavy)],
             backgroundColor: .green.opacity(UIConstants.OpacityConstants.light),
             fontWeight: .bold
         )
@@ -314,7 +314,7 @@ struct EmptyStateBanner: View {
         StatusBannerView(
             iconName: iconName,
             message: message,
-            iconColor: .secondary.opacity(0.7),
+            iconColor: .secondary.opacity(UIConstants.OpacityConstants.prominent),
             textColor: .secondary,
             backgroundColor: .secondary.opacity(UIConstants.OpacityConstants.subtle),
             fontWeight: .medium
@@ -425,7 +425,7 @@ struct ProgressStatBadge: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(color.opacity(UIConstants.OpacityConstants.light)))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(color.opacity(0.2), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(color.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1))
     }
 }
 
@@ -455,7 +455,7 @@ struct NotesPreviewSection: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "note.text")
                 .font(.system(size: 14))
-                .foregroundStyle(color.opacity(0.7))
+                .foregroundStyle(color.opacity(UIConstants.OpacityConstants.prominent))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Notes")
@@ -494,7 +494,7 @@ struct ProgressCardContainer<Content: View>: View {
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(cardBackgroundColor)
-                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.hint), radius: 8, x: 0, y: 2)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)

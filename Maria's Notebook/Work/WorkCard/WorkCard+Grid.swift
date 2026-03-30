@@ -66,7 +66,7 @@ struct WorkCardGridContent: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
-                                .background(Capsule().fill(Color.red.opacity(0.85)))
+                                .background(Capsule().fill(Color.red.opacity(UIConstants.OpacityConstants.nearSolid)))
                                 .accessibilityLabel("Needs Attention")
                         }
                     }
@@ -94,7 +94,7 @@ struct WorkCardGridContent: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, minHeight: 60)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

@@ -13,10 +13,10 @@ enum ToastType {
 
     var backgroundColor: Color {
         switch self {
-        case .success: return Color.green.opacity(0.9)
-        case .info: return Color.black.opacity(0.85)
-        case .warning: return Color.orange.opacity(0.9)
-        case .error: return Color.red.opacity(0.9)
+        case .success: return Color.green.opacity(UIConstants.OpacityConstants.almostOpaque)
+        case .info: return Color.black.opacity(UIConstants.OpacityConstants.nearSolid)
+        case .warning: return Color.orange.opacity(UIConstants.OpacityConstants.almostOpaque)
+        case .error: return Color.red.opacity(UIConstants.OpacityConstants.almostOpaque)
         }
     }
 
@@ -239,7 +239,7 @@ struct ToastView: View {
                 .fill(toast.type.backgroundColor)
         )
         .foregroundStyle(.white)
-        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+        .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }

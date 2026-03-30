@@ -16,7 +16,7 @@ struct ChatInputBar: View {
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [.purple.opacity(0.3), .blue.opacity(0.2), .pink.opacity(0.3)],
+                        colors: [.purple.opacity(UIConstants.OpacityConstants.semi), .blue.opacity(UIConstants.OpacityConstants.moderate), .pink.opacity(UIConstants.OpacityConstants.semi)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -71,7 +71,7 @@ struct ChatInputBar: View {
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ))
-                        : AnyShapeStyle(Color.gray.opacity(0.3))
+                        : AnyShapeStyle(Color.gray.opacity(UIConstants.OpacityConstants.semi))
                 )
             }
             .padding(.horizontal, AppTheme.Spacing.medium)

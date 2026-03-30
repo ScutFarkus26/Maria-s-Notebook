@@ -25,7 +25,7 @@ struct StatePill: View {
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(tint.opacity(0.35), lineWidth: 1)
+                .strokeBorder(tint.opacity(UIConstants.OpacityConstants.statusBg), lineWidth: 1)
         )
     }
 }

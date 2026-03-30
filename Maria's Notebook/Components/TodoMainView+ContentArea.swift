@@ -366,7 +366,7 @@ extension TodoMainView {
                 let filter = selectedFilter ?? .inbox
                 Image(systemName: filter.icon)
                     .font(.system(size: 64, weight: .ultraLight))
-                    .foregroundStyle(filter.color.opacity(0.25))
+                    .foregroundStyle(filter.color.opacity(UIConstants.OpacityConstants.quarter))
             }
 
             VStack(spacing: 6) {

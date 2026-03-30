@@ -227,7 +227,7 @@ public struct InboxSheetView: View {
                   Capsule()
                     .fill(Color.accentColor)
                     .frame(width: placeholderWidth, height: 3)
-                    .shadow(color: Color.accentColor.opacity(0.3), radius: 4)
+                    .shadow(color: Color.accentColor.opacity(UIConstants.OpacityConstants.semi), radius: 4)
                     .position(x: proxy.size.width / 2, y: y)
                 }
               } else if isTargeted && orderedUnscheduledLessons.isEmpty {
@@ -248,7 +248,7 @@ public struct InboxSheetView: View {
         )
         .overlay(
           RoundedRectangle(cornerRadius: 8)
-            .stroke(isTargeted ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 2)
+            .stroke(isTargeted ? Color.accentColor.opacity(UIConstants.OpacityConstants.half) : Color.clear, lineWidth: 2)
         )
       }
     }
@@ -260,10 +260,10 @@ public struct InboxSheetView: View {
           .padding(.vertical, 8)
           .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-              .fill(Color.black.opacity(0.85))
+              .fill(Color.black.opacity(UIConstants.OpacityConstants.nearSolid))
           )
           .foregroundStyle(.white)
-          .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+          .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
           .transition(.move(edge: .top).combined(with: .opacity))
           .padding(.top, 8)
       }

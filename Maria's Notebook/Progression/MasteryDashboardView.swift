@@ -189,7 +189,7 @@ enum MasteryState {
 
     var color: Color {
         switch self {
-        case .notStarted: return .gray.opacity(0.3)
+        case .notStarted: return .gray.opacity(UIConstants.OpacityConstants.semi)
         case .presented: return .orange
         case .practicing: return .blue
         case .readyForAssessment: return .yellow

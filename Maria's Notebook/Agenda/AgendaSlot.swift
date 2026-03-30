@@ -56,7 +56,7 @@ struct AgendaSlot: View {
 
             if isTargeted {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.7), lineWidth: 3)
+                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 3)
                     .allowsHitTesting(false)
             }
 
@@ -155,7 +155,7 @@ struct AgendaSlot: View {
                 sourceLessonAssignmentID: la.id,
                 targetLessonAssignmentID: la.id
             )
-            .opacity(0.8)
+            .opacity(UIConstants.OpacityConstants.heavy)
         }
         .onTapGesture {
             onSelectLesson(la)

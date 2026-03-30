@@ -153,7 +153,7 @@ extension QuickPracticeSessionSheet {
                 .padding(8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.05))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -198,7 +198,7 @@ extension QuickPracticeSessionSheet {
                     .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
                     .lineLimit(2...4)
             }
@@ -215,7 +215,7 @@ extension QuickPracticeSessionSheet {
                     .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
         }
@@ -235,7 +235,7 @@ extension QuickPracticeSessionSheet {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(0.05))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
                     )
             }
             .buttonStyle(.plain)

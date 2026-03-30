@@ -20,7 +20,7 @@ struct ProgressionLessonRow: View {
 
                 if !node.isNext {
                     Rectangle()
-                        .fill(node.status.color.opacity(0.3))
+                        .fill(node.status.color.opacity(UIConstants.OpacityConstants.semi))
                         .frame(width: 2)
                         .frame(maxHeight: .infinity)
                 }

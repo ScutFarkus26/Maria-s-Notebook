@@ -84,7 +84,7 @@ struct StudentProgressTab: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     #endif
                     .cornerRadius(UIConstants.CornerRadius.large)
-                    .shadow(color: .purple.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .shadow(color: .purple.opacity(UIConstants.OpacityConstants.moderate), radius: 8, x: 0, y: 4)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, AppTheme.Spacing.xsmall)
@@ -217,7 +217,7 @@ struct StudentProgressTab: View {
             
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundStyle(.secondary.opacity(0.5))
+                .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.half))
         }
         .padding(AppTheme.Spacing.compact)
         .background(

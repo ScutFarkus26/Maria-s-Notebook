@@ -110,7 +110,7 @@ struct AddSupplySheet: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(category == cat ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(0.05))
+                        .background(category == cat ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.hint))
                         .foregroundStyle(category == cat ? Color.accentColor : .primary)
                         .clipShape(Capsule())
                     }
@@ -210,7 +210,7 @@ struct AddSupplySheet: View {
                 .padding(8)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.04))
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)

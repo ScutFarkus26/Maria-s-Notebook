@@ -153,7 +153,7 @@ struct LessonsOutlineView: View {
     ) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 1)
-                .fill(Color.secondary.opacity(0.3))
+                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.semi))
                 .frame(width: 3, height: 14)
             Text(name.isEmpty ? "Other" : name)
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
@@ -220,7 +220,7 @@ struct LessonsOutlineView: View {
         .jiggle(isActive: isJiggling, seed: lessonSeed)
         .listRowBackground(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
+                .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.moderate) : Color.clear)
                 .padding(.horizontal, 4)
         )
         .contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }

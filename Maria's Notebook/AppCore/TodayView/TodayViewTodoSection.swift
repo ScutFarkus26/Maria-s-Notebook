@@ -29,7 +29,7 @@ extension TodayView {
                 if !overdue.isEmpty {
                     Text("Overdue")
                         .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.red.opacity(0.8))
+                        .foregroundStyle(.red.opacity(UIConstants.OpacityConstants.heavy))
                         .textCase(.uppercase)
                         .tracking(0.5)
                         .listRowBackground(Color.clear)

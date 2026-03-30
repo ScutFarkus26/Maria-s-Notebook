@@ -21,7 +21,7 @@ struct LifecycleIndicatorView: View {
                 Circle()
                     .fill(Color.accentColor)
                     .overlay(
-                        Circle().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        Circle().stroke(Color.white.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 1)
                     )
             } else if isPlanned || (wasPresented && hasPending) {
                 Circle()
@@ -29,14 +29,14 @@ struct LifecycleIndicatorView: View {
                     .overlay(
                         Circle().stroke(Color.accentColor, lineWidth: 2)
                     )
-                    .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+                    .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.hint), radius: 1, x: 0, y: 1)
             } else {
                 Circle()
                     .fill(tokenBackground)
                     .overlay(
                         Circle().stroke(Color.primary.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1.5)
                     )
-                    .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+                    .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.hint), radius: 1, x: 0, y: 1)
             }
         }
         .accessibilityHidden(true)

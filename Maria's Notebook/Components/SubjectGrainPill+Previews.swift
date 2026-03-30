@@ -76,7 +76,7 @@ import SwiftUI
                         }
                         .overlay {
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(AppColors.color(forSubject: subject).opacity(0.2), lineWidth: 1)
+                                .stroke(AppColors.color(forSubject: subject).opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
                         }
 
                     Text(subject)

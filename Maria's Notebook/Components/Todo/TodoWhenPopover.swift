@@ -208,7 +208,7 @@ struct TodoWhenPopover: View {
                             .fontWeight(isSelected ? .bold : (isToday ? .semibold : .regular))
                             .foregroundStyle(
                                 isSelected ? .white :
-                                isPast ? .secondary.opacity(0.5) :
+                                isPast ? .secondary.opacity(UIConstants.OpacityConstants.half) :
                                 isToday ? .blue : .primary
                             )
                             .frame(width: 28, height: 28)

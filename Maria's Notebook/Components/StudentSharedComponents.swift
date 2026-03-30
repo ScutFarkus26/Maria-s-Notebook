@@ -29,7 +29,7 @@ struct CardContainer<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -71,7 +71,7 @@ struct PlaceholderTextArea: View {
                     .padding(8)
                     .background(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -314,7 +314,7 @@ struct StudentFilterChip: View {
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? color.opacity(0.2) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                    .fill(isSelected ? color.opacity(UIConstants.OpacityConstants.moderate) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)

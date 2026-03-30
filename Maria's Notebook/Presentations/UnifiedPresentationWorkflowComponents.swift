@@ -143,7 +143,7 @@ struct WorkflowTextField: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: axis == .horizontal ? 12 : 10)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: axis == .horizontal ? 12 : 10)
@@ -157,12 +157,12 @@ struct WorkflowTextField: View {
 
 struct WorkflowCard<Content: View>: View {
     let content: Content
-    var backgroundColor: Color = Color.primary.opacity(0.04)
+    var backgroundColor: Color = Color.primary.opacity(UIConstants.OpacityConstants.trace)
     var borderColor: Color = Color.primary.opacity(UIConstants.OpacityConstants.light)
     var cornerRadius: CGFloat = 12
 
     init(
-        backgroundColor: Color = Color.primary.opacity(0.04),
+        backgroundColor: Color = Color.primary.opacity(UIConstants.OpacityConstants.trace),
         borderColor: Color = Color.primary.opacity(UIConstants.OpacityConstants.light),
         cornerRadius: CGFloat = 12,
         @ViewBuilder content: () -> Content

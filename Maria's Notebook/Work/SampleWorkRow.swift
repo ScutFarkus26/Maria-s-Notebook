@@ -59,7 +59,7 @@ struct SampleWorkRow: View {
             }
         }
         .padding(10)
-        .background(Color.primary.opacity(0.04))
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
         .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
     }
 }

@@ -125,10 +125,10 @@ struct AttendanceStandaloneView: View {
                 .padding(.vertical, AppTheme.Spacing.small)
                 .background(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .fill(Color.black.opacity(0.85))
+                        .fill(Color.black.opacity(UIConstants.OpacityConstants.nearSolid))
                 )
                 .foregroundStyle(.white)
-                .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .padding(.top, 8)
         }

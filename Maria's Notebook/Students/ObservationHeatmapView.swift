@@ -350,13 +350,13 @@ struct StudentObservationCard: View {
     private var backgroundColor: Color {
         let days = observation.daysSinceLastObservation
         if days == Int.max {
-            return .red.opacity(0.3)
+            return .red.opacity(UIConstants.OpacityConstants.semi)
         } else if days > 7 {
-            return .red.opacity(0.3)
+            return .red.opacity(UIConstants.OpacityConstants.semi)
         } else if days >= 3 {
-            return .yellow.opacity(0.3)
+            return .yellow.opacity(UIConstants.OpacityConstants.semi)
         } else {
-            return .green.opacity(0.3)
+            return .green.opacity(UIConstants.OpacityConstants.semi)
         }
     }
     

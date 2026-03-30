@@ -57,7 +57,7 @@ struct MTSummaryStrip: View {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(stat.tint.opacity(0.25), lineWidth: 1)
+                            .stroke(stat.tint.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 1)
                     )
             )
             .shadow(color: stat.tint.opacity(UIConstants.OpacityConstants.accent), radius: 6, x: 0, y: 3)

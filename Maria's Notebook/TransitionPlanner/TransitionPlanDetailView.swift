@@ -112,7 +112,7 @@ struct TransitionPlanDetailView: View {
                 let pct = viewModel.readinessPercentage(for: plan)
                 ZStack {
                     Circle()
-                        .stroke(Color.secondary.opacity(0.2), lineWidth: 6)
+                        .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 6)
                     Circle()
                         .trim(from: 0, to: pct)
                         .stroke(
@@ -192,7 +192,7 @@ struct TransitionPlanDetailView: View {
                     HStack(spacing: 8) {
                         Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                             .font(.body)
-                            .foregroundStyle(item.isCompleted ? category.color : Color.secondary.opacity(0.4))
+                            .foregroundStyle(item.isCompleted ? category.color : Color.secondary.opacity(UIConstants.OpacityConstants.muted))
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(item.title)
@@ -261,7 +261,7 @@ struct TransitionPlanDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.03))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
                     )
                 }
             }

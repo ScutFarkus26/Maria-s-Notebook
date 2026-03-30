@@ -135,9 +135,9 @@ struct SupplyRow: View {
         case .healthy:
             return Color.primary.opacity(CardStyle.strokeOpacity)
         case .low:
-            return Color.orange.opacity(0.3)
+            return Color.orange.opacity(UIConstants.OpacityConstants.semi)
         case .critical, .outOfStock:
-            return Color.red.opacity(0.3)
+            return Color.red.opacity(UIConstants.OpacityConstants.semi)
         }
     }
 

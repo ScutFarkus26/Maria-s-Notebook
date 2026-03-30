@@ -48,7 +48,7 @@ struct TodoTemplatesView: View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text")
                 .font(.system(size: 60))
-                .foregroundStyle(.secondary.opacity(0.5))
+                .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.half))
             
             Text("No Templates")
                 .font(.title2.bold())

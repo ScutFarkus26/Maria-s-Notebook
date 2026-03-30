@@ -69,10 +69,10 @@ struct TopicRowView: View {
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.gray.opacity(0.2))
+                    .stroke(Color.gray.opacity(UIConstants.OpacityConstants.moderate))
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.primary.opacity(0.04))
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     )
             )
         }
