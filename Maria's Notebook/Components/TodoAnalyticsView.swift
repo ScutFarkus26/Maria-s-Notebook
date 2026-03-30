@@ -182,9 +182,7 @@ struct TodoAnalyticsView: View {
                 .padding()
             }
             .navigationTitle("Analytics")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

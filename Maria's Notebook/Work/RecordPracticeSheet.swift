@@ -155,9 +155,7 @@ struct RecordPracticeSheet: View {
                 }
             }
             .navigationTitle("Record Practice")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

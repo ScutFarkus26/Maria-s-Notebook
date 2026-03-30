@@ -35,9 +35,7 @@ struct ScheduleDetailSheet: View {
                 .padding(24)
             }
             .navigationTitle(schedule.name)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

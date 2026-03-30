@@ -37,9 +37,7 @@ extension StudentsView {
             NavigationStack {
                 rosterListContent
                     .navigationTitle("Students")
-#if os(iOS)
-                    .navigationBarTitleDisplayMode(.inline)
-#endif
+                    .inlineNavigationTitle()
             }
             .listStyle(.sidebar)
         }
@@ -51,9 +49,7 @@ extension StudentsView {
                 StudentDetailView(student: student)
                     .id(student.id)
                     .navigationTitle(student.fullName)
-#if os(iOS)
-                    .navigationBarTitleDisplayMode(.inline)
-#endif
+                    .inlineNavigationTitle()
             } else {
                 SelectStudentEmptyState()
             }

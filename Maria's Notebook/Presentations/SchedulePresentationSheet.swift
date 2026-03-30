@@ -127,9 +127,7 @@ struct SchedulePresentationSheet: View {
             }
             .padding()
             .navigationTitle("Plan Presentation")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

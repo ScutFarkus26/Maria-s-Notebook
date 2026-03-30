@@ -141,9 +141,7 @@ extension WorkDetailView {
                 .padding(AppTheme.Spacing.large)
             }
             .navigationTitle("Practice Session")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

@@ -45,6 +45,19 @@ extension Color {
     }
 }
 
+// MARK: - Navigation Bar
+
+extension View {
+    /// Applies inline navigation bar title display mode on iOS, no-op on macOS.
+    func inlineNavigationTitle() -> some View {
+        #if os(macOS)
+        self
+        #else
+        self.navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+}
+
 // MARK: - Sheet Presentation Sizing
 
 /// Sheet sizing options for platform-appropriate presentation

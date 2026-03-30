@@ -343,9 +343,7 @@ struct CustomTagSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Tag" : "New Tag")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

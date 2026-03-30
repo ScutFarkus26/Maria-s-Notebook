@@ -166,9 +166,7 @@ struct NoteTagPickerSheet: View {
                 }
             }
             .navigationTitle("Tags")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

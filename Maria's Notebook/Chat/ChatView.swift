@@ -24,9 +24,7 @@ struct ChatView: View {
                 }
             }
             .navigationTitle("Ask AI")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 // Model indicator in toolbar
                 #if os(macOS)

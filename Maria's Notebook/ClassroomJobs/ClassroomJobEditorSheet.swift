@@ -85,9 +85,7 @@ struct ClassroomJobEditorSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Job" : "New Job")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

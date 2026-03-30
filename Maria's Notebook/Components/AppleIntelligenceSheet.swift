@@ -92,9 +92,7 @@ struct AppleIntelligenceSheet: View {
                 }
             }
             .navigationTitle("AI Assistant")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }

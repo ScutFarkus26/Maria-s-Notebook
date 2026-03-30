@@ -28,9 +28,7 @@ public struct RestorePreviewView: View {
                 footer
             }
             .navigationTitle("Restore Preview")
-#if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-#endif
+            .inlineNavigationTitle()
         }
         .frame(minWidth: 420, minHeight: 520)
     }

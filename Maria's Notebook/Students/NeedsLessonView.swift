@@ -65,9 +65,7 @@ struct NeedsLessonView: View {
             #endif
         }
         .navigationTitle("Needs Lesson")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .task { reloadData() }
         .onChange(of: lessonAssignmentsForChange.count) { _, _ in
             reloadData()

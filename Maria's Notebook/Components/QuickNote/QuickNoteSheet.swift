@@ -357,7 +357,7 @@ struct QuickNoteSheet: View {
                 iOSAccessoryBar(students: students)
             }
             .navigationTitle("Quick Note")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

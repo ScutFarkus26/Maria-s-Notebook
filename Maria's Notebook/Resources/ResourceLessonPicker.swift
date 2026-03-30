@@ -109,9 +109,7 @@ struct ResourceLessonPicker: View {
         }
         .searchable(text: $searchText, prompt: "Search lessons")
         .navigationTitle("Link to Lessons")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
     }
 
     private func toggleLesson(_ id: UUID) {

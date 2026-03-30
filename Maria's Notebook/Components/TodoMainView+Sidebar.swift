@@ -336,9 +336,7 @@ extension TodoMainView {
                 }
             }
             .navigationTitle("New Tag Folder")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

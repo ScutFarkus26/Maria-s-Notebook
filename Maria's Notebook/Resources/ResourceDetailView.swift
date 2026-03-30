@@ -81,9 +81,7 @@ struct ResourceDetailView: View {
                 .padding(24)
             }
             .navigationTitle(resource.title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
@@ -391,9 +389,7 @@ struct ResourceDetailView: View {
                 }
             }
             .navigationTitle("Edit Resource")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

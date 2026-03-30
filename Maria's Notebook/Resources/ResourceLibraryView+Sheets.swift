@@ -21,9 +21,7 @@ extension ResourceLibraryView {
                 }
             }
             .navigationTitle("Set Category")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -48,9 +46,7 @@ extension ResourceLibraryView {
                 }
             }
             .navigationTitle("Add Tags")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -97,9 +93,7 @@ extension ResourceLibraryView {
                 }
             }
             .navigationTitle("Change Category")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

@@ -251,9 +251,7 @@ private struct AttachmentPreviewSheet: View {
         NavigationStack {
             QuickLookPreview(url: url)
                 .navigationTitle(url.lastPathComponent)
-                #if !os(macOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") { dismiss() }

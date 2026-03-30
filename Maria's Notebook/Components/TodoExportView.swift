@@ -108,9 +108,7 @@ struct TodoExportView: View {
                 .padding()
             }
             .navigationTitle("Export Todos")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

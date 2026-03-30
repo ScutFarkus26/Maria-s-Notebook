@@ -33,7 +33,7 @@ struct GroupListView: View {
         .navigationTitle(selectedSubject ?? "Groups")
         #if os(iOS)
         .environment(\.editMode, $editMode)
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         #endif
     }
 

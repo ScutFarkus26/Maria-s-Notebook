@@ -213,9 +213,7 @@ struct GroupTrackDetailView: View {
             }
         }
         .navigationTitle("\(subject) · \(group)")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
     }
 
     @ViewBuilder

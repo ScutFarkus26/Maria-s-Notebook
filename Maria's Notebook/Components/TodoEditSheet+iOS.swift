@@ -100,7 +100,7 @@ extension TodoEditSheet {
             }
             .background(Color(uiColor: .systemBackground))
             .navigationTitle("Edit Task")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { closeEditor() }

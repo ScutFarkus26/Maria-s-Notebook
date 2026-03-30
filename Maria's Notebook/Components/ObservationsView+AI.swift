@@ -217,7 +217,7 @@ extension ObservationsView {
                 }
                 .padding(20)
                 .navigationTitle("Pick a Day")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }
@@ -258,7 +258,7 @@ extension ObservationsView {
                 }
                 .padding(20)
                 .navigationTitle("Summary")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(isSummarizing ? "Stop" : "Close") { onCancel() }

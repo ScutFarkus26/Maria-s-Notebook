@@ -83,9 +83,7 @@ struct FindStudentsSheet: View {
             }
             .searchable(text: $searchText, prompt: "Search students")
             .navigationTitle("Find Students")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)

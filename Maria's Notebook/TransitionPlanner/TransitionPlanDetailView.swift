@@ -48,9 +48,7 @@ struct TransitionPlanDetailView: View {
             .padding(.bottom, 24)
         }
         .navigationTitle("Transition Plan")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }

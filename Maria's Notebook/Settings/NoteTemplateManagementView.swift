@@ -252,9 +252,7 @@ private struct NoteTemplatePreviewSheet: View {
                 .padding()
             }
             .navigationTitle(template.title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

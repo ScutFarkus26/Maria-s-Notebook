@@ -49,9 +49,7 @@ struct GroupTrackSettingsSheet: View {
                 }
             }
             .navigationTitle("Track Settings")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

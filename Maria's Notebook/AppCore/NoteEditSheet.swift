@@ -79,7 +79,7 @@ struct NoteEditSheet: View {
         NavigationStack {
             formContent
                 .navigationTitle("Note")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }

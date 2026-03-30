@@ -109,9 +109,7 @@ struct APIKeySettingsView: View {
             }
         }
         .navigationTitle("AI Settings")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .onAppear {
             loadCurrentKey()
         }
@@ -260,9 +258,7 @@ struct APIKeyInformationSheet: View {
                 .padding()
             }
             .navigationTitle("Getting an API Key")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

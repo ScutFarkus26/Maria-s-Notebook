@@ -53,9 +53,7 @@ struct ScheduledMeetingSessionSheet: View {
                     onComplete: onComplete
                 )
                 .navigationTitle("Meeting – \(student.firstName)")
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
+                .inlineNavigationTitle()
             } else {
                 ContentUnavailableView(
                     "Student Not Found",

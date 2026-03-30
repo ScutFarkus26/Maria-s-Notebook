@@ -41,9 +41,7 @@ struct MarkAsOrderedSheet: View {
                 }
             }
             .navigationTitle("Mark as Ordered")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -122,9 +120,7 @@ struct MarkAsReceivedSheet: View {
                 }
             }
             .navigationTitle("Mark as Received")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

@@ -46,7 +46,7 @@ extension TodayView {
                     NavigationStack {
                         EditTodoForm(todo: todo)
                             .navigationTitle("Edit Todo")
-                            .navigationBarTitleDisplayMode(.inline)
+                            .inlineNavigationTitle()
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) {
                                     Button("Done") {
@@ -63,9 +63,7 @@ extension TodayView {
                     NavigationStack {
                         NewTodoForm()
                             .navigationTitle("New Todo")
-                            #if !os(macOS)
-                            .navigationBarTitleDisplayMode(.inline)
-                            #endif
+                            .inlineNavigationTitle()
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) {
                                     Button("Cancel") {

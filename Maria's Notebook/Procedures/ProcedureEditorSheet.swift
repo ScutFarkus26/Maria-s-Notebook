@@ -344,9 +344,7 @@ struct IconPickerSheet: View {
                 .padding(AppTheme.Spacing.large)
             }
             .navigationTitle("Choose Icon")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

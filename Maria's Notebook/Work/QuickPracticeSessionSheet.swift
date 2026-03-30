@@ -127,9 +127,7 @@ struct QuickPracticeSessionSheet: View {
                 bottomBar
             }
             .navigationTitle("Quick Practice Entry")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
         }
     }
 

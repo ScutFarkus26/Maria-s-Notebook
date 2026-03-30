@@ -48,9 +48,7 @@ struct SyncHistoryLogView: View {
             }
         }
         .navigationTitle("Sync History")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .toolbar {
             if !logger.events.isEmpty {
                 ToolbarItem(placement: .destructiveAction) {

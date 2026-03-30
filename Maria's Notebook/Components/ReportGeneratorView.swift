@@ -128,9 +128,7 @@ struct ReportGeneratorView: View {
                 }
             }
             .navigationTitle("Generate Report")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -254,9 +252,7 @@ struct PDFPreviewView: View {
         NavigationStack {
             PDFKitView(data: pdfData)
                 .navigationTitle("\(studentName) Report")
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") {

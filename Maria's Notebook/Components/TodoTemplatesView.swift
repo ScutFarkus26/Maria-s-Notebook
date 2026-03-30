@@ -22,9 +22,7 @@ struct TodoTemplatesView: View {
                 }
             }
             .navigationTitle("Todo Templates")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -297,9 +295,7 @@ private struct TodoTemplateEditSheet: View {
                 }
             }
             .navigationTitle(template == nil ? "New Template" : "Edit Template")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

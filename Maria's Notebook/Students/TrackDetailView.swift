@@ -38,9 +38,7 @@ struct TrackDetailView: View {
             }
         }
         .navigationTitle(track.title.isEmpty ? "Track" : track.title)
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

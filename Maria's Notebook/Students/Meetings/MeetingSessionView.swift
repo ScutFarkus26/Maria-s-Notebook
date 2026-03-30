@@ -103,9 +103,7 @@ struct MeetingSessionView: View {
             }
         }
         .navigationTitle(StudentFormatter.displayName(for: student))
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
     }
 }
 

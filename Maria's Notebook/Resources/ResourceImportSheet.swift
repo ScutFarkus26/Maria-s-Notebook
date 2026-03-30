@@ -133,9 +133,7 @@ struct ResourceImportSheet: View {
                 }
             }
             .navigationTitle("Add Resource")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

@@ -26,9 +26,7 @@ extension PracticeSessionSheet {
                 }
             }
             .navigationTitle("Add Practice Partners")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

@@ -52,8 +52,6 @@ struct ResourceSubjectPicker: View {
             }
         }
         .navigationTitle("Link to Subjects")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
     }
 }

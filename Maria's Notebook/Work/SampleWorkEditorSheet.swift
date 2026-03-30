@@ -99,9 +99,7 @@ struct SampleWorkEditorSheet: View {
             }
             .formStyle(.grouped)
             .navigationTitle(isEditing ? "Edit Sample Work" : "Add Sample Work")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

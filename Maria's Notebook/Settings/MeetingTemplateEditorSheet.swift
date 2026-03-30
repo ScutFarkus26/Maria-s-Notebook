@@ -85,7 +85,7 @@ struct MeetingTemplateEditorSheet: View {
             }
             .navigationTitle(isEditing ? "Edit Template" : "New Template")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .scrollDismissesKeyboard(.interactively)
             #endif
             .toolbar {

@@ -147,7 +147,7 @@ struct TodayView: View {
             NavigationStack {
                 EditTodoForm(todo: todo)
                     .navigationTitle("Edit Todo")
-                    .navigationBarTitleDisplayMode(.inline)
+                    .inlineNavigationTitle()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Done") {
@@ -164,9 +164,7 @@ struct TodayView: View {
             NavigationStack {
                 NewTodoForm()
                     .navigationTitle("New Todo")
-                    #if !os(macOS)
-                    .navigationBarTitleDisplayMode(.inline)
-                    #endif
+                    .inlineNavigationTitle()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") {

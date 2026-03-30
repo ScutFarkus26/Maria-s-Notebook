@@ -252,9 +252,7 @@ struct PracticePartnershipsSheet: View {
         NavigationStack {
             PracticePartnershipsView(studentID: studentID)
                 .navigationTitle("\(studentName)'s Practice")
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") {

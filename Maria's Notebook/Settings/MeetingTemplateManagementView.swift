@@ -286,9 +286,7 @@ private struct MeetingTemplatePreviewSheet: View {
                 .padding()
             }
             .navigationTitle(template.name)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

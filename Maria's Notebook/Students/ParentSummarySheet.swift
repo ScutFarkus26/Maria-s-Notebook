@@ -35,9 +35,7 @@ struct ParentSummarySheet: View {
                 .padding()
             }
             .navigationTitle("Parent Summary")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {

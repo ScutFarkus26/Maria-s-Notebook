@@ -112,8 +112,6 @@ struct SyncConflictResolutionView: View {
             .padding(.vertical, 12)
         }
         .navigationTitle("Sync Details")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
     }
 }

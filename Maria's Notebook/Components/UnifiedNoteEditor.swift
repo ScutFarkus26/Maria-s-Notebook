@@ -200,7 +200,7 @@ struct UnifiedNoteEditor: View {
             }
             .dismissKeyboardOnScroll()
             .navigationTitle(contextTitle)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

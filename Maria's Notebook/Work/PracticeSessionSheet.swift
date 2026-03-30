@@ -143,9 +143,7 @@ struct PracticeSessionSheet: View {
                 bottomBar
             }
             .navigationTitle("Practice Session")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

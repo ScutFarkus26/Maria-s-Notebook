@@ -224,9 +224,7 @@ struct RootView: View {
             NavigationStack {
                 NewTodoForm(initialTitle: commandBarTodoTitle)
                     .navigationTitle("New Todo")
-                    #if !os(macOS)
-                    .navigationBarTitleDisplayMode(.inline)
-                    #endif
+                    .inlineNavigationTitle()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") {

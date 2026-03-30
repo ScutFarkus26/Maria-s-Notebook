@@ -56,9 +56,7 @@ struct SupplyDetailView: View {
                 .padding(.vertical, 16)
             }
             .navigationTitle(isEditing ? "Edit Supply" : supply.name)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if isEditing {

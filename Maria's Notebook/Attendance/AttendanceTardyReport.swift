@@ -74,9 +74,7 @@ struct AttendanceTardyReport: View {
                 }
             }
             .navigationTitle("Tardy Report")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

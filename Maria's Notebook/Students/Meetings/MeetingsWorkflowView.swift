@@ -209,9 +209,7 @@ struct MeetingsWorkflowView: View {
             }
         }
         .navigationTitle("Meetings")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .onAppear {
             loadCustomOrder()
         }

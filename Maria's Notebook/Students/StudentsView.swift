@@ -117,7 +117,7 @@ struct StudentsView: View {
                         iOSToolbarContent
                     }
                     .navigationTitle("Students")
-                    .navigationBarTitleDisplayMode(.inline)
+                    .inlineNavigationTitle()
                 }
             } else if mode == .roster || mode == .withdrawn {
                 // Three-pane layout for Roster/Withdrawn mode
@@ -136,7 +136,7 @@ struct StudentsView: View {
                             rosterListContent
                         }
                         .navigationTitle("Students")
-                        .navigationBarTitleDisplayMode(.inline)
+                        .inlineNavigationTitle()
                         .listStyle(.plain)
                         .toolbar {
                             toolbarContent
@@ -153,7 +153,7 @@ struct StudentsView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .navigationTitle("Students")
-                        .navigationBarTitleDisplayMode(.inline)
+                        .inlineNavigationTitle()
                         .toolbar {
                             toolbarContent
                         }

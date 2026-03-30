@@ -41,9 +41,7 @@ struct WorkStepEditorSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Step" : "Add Step")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

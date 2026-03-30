@@ -72,9 +72,7 @@ struct TrackFilteredListView: View, Identifiable {
                 .padding(.vertical, 16)
             }
             .navigationTitle(title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

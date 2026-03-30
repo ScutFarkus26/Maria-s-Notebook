@@ -205,7 +205,7 @@ struct SuggestionPreviewSheet: View {
             }
             .padding(20)
             .navigationTitle("Suggested Tags")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { onCancel() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Apply") { onApply(Array(selectedTags)) } }

@@ -117,9 +117,7 @@ struct IssueDetailSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Issue" : "New Issue")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -344,9 +342,7 @@ struct IssueActionSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Action" : "New Action")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

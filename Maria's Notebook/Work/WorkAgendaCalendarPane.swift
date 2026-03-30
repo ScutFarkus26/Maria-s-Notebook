@@ -299,9 +299,7 @@ struct GroupedCheckInDetailSheet: View {
                 }
             }
             .navigationTitle("\(group.checkIns.count) Students")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

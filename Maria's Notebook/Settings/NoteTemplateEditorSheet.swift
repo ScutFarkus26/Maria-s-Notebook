@@ -91,9 +91,7 @@ struct NoteTemplateEditorSheet: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Template" : "New Template")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

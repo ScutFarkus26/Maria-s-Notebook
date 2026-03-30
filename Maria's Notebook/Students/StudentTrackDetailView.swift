@@ -61,9 +61,7 @@ struct StudentTrackDetailView: View {
                 }
             }
             .navigationTitle(track.title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {

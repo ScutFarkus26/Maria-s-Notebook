@@ -35,9 +35,7 @@ struct MeetingDatePickerSheet: View {
                 Spacer()
             }
             .navigationTitle("Meeting with \(studentName)")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

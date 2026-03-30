@@ -105,9 +105,7 @@ struct ResourceTagPicker: View {
         }
         .searchable(text: $searchText, prompt: "Search tags")
         .navigationTitle("Tags")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .sheet(isPresented: $isShowingNewTag) {
             pendingTagName = ""
         } content: {

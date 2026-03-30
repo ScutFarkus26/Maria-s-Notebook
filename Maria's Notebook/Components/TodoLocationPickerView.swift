@@ -87,9 +87,7 @@ struct TodoLocationPickerView: View {
                 }
             }
             .navigationTitle("Choose Location")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

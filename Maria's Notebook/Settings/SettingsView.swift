@@ -67,9 +67,7 @@ struct SettingsView: View {
                 settingsContent
             }
         }
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
         .fileImporter(
             isPresented: $showingSettingsImporter,
             allowedContentTypes: [.json],
