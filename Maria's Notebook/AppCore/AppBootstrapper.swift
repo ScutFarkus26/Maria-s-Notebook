@@ -95,6 +95,9 @@ final class AppBootstrapper {
         Self.logger.info("Bootstrap: Initial phase complete in \(totalElapsed)")
         state = .ready
 
+        // 5.5. Initialize post-sync deduplication coordinator
+        DeduplicationCoordinator.shared.modelContainer = modelContainer
+
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
         // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.
         // Without this delay, background DB operations compete with @Query evaluations

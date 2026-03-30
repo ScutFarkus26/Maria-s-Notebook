@@ -230,6 +230,10 @@ extension CloudKitSyncStatusService {
 
         guard type != .setup else { return }
 
+        if type == .import {
+            DeduplicationCoordinator.shared.requestDeduplication()
+        }
+
         let now = Date()
         lastSuccessfulSync = now
         lastOperation = "\(typeDescription) completed"
