@@ -47,4 +47,34 @@ enum TestStudentsFilter {
             return set.contains(name) ? s.id : nil
         })
     }
+
+    // MARK: - Core Data Overloads
+
+    /// Returns true if the given CD student should be hidden.
+    static func isHidden(_ student: CDStudent, show: Bool? = nil, namesRaw: String? = nil) -> Bool {
+        let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
+        guard !set.isEmpty else { return false }
+        let name = student.fullName.normalizedForComparison()
+        return set.contains(name)
+    }
+
+    /// Filters out hidden students from the provided CD list.
+    static func filterVisible(_ students: [CDStudent], show: Bool? = nil, namesRaw: String? = nil) -> [CDStudent] {
+        let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
+        guard !set.isEmpty else { return students }
+        return students.filter { s in
+            let name = s.fullName.normalizedForComparison()
+            return !set.contains(name)
+        }
+    }
+
+    /// Computes the IDs of hidden students from the provided CD list.
+    static func hiddenIDs(from students: [CDStudent], show: Bool? = nil, namesRaw: String? = nil) -> Set<UUID> {
+        let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
+        guard !set.isEmpty else { return [] }
+        return Set(students.compactMap { s in
+            let name = s.fullName.normalizedForComparison()
+            return set.contains(name) ? s.id : nil
+        })
+    }
 }

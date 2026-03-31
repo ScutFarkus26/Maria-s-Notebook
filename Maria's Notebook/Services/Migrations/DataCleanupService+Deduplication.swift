@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import os
 
 // MARK: - Deduplication
@@ -9,10 +9,11 @@ extension DataCleanupService {
     // swiftlint:disable cyclomatic_complexity
     /// Deduplicate draft LessonAssignment records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
-    static func deduplicateDraftLessonAssignments(using context: ModelContext) {
+    static func deduplicateDraftLessonAssignments(using context: NSManagedObjectContext) {
         let draftRaw = LessonAssignmentState.draft.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.stateRaw == draftRaw })
-        let candidates = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "stateRaw == %@", draftRaw)
+        let candidates = context.safeFetch(request)
         guard !candidates.isEmpty else { return }
 
         // Group by (lessonID + sorted studentIDs)
@@ -25,10 +26,12 @@ extension DataCleanupService {
         for (_, group) in groups {
             guard group.count > 1 else { continue }
             guard let canonical = group.sorted(by: { lhs, rhs in
-                if lhs.createdAt != rhs.createdAt {
-                    return lhs.createdAt < rhs.createdAt
+                let lhsDate = lhs.createdAt ?? Date.distantPast
+                let rhsDate = rhs.createdAt ?? Date.distantPast
+                if lhsDate != rhsDate {
+                    return lhsDate < rhsDate
                 }
-                return lhs.id.uuidString < rhs.id.uuidString
+                return (lhs.id ?? UUID()).uuidString < (rhs.id ?? UUID()).uuidString
             }).first else { continue }
             let duplicates = group.filter { $0.id != canonical.id }
 
@@ -58,17 +61,16 @@ extension DataCleanupService {
 
     // MARK: - Generic Deduplication
 
-    /// Generic deduplication for any PersistentModel with an id property.
+    /// Generic deduplication for any NSManagedObject with an id property.
     /// Keeps the first instance encountered and deletes duplicates.
     /// Returns the number of duplicates removed.
     @discardableResult
-    static func deduplicate<T: PersistentModel & Identifiable>(
+    static func deduplicate<T: NSManagedObject>(
         _ type: T.Type,
-        using context: ModelContext,
+        using context: NSManagedObjectContext,
         merge: ((T, T) -> Void)? = nil
-    ) -> Int where T.ID == UUID {
-        let fetch = FetchDescriptor<T>()
-        // Fetch raw without deduplication to find actual duplicates in the database
+    ) -> Int {
+        let fetch = CDFetchRequest(T.self)
         let all: [T]
         do {
             all = try context.fetch(fetch)
@@ -77,24 +79,27 @@ extension DataCleanupService {
             return 0
         }
 
-        // Fast duplicate detection pass (avoids extra work if no duplicates exist)
+        // Fast duplicate detection pass
         var seen = Set<UUID>()
         var hasDuplicates = false
-        for item in all where !seen.insert(item.id).inserted {
-            hasDuplicates = true
-            break
+        for item in all {
+            let itemID = item.value(forKey: "id") as? UUID ?? UUID()
+            if !seen.insert(itemID).inserted {
+                hasDuplicates = true
+                break
+            }
         }
         guard hasDuplicates else { return 0 }
 
-        // Group by ID (only when duplicates exist)
+        // Group by ID
         var byID: [UUID: [T]] = [:]
         for item in all {
-            byID[item.id, default: []].append(item)
+            let itemID = item.value(forKey: "id") as? UUID ?? UUID()
+            byID[itemID, default: []].append(item)
         }
 
         var deletedCount = 0
 
-        // For each group with duplicates, keep the first and delete the rest
         for (_, items) in byID where items.count > 1 {
             guard let canonical = items.first else { continue }
             for duplicate in items.dropFirst() {
@@ -111,20 +116,24 @@ extension DataCleanupService {
         return deletedCount
     }
 
-    // MARK: - Merge Helpers
+    // MARK: - NSSet Merge Helper
 
-    static func mergeRelationship<T: Identifiable>(
-        from source: [T]?,
-        to destination: inout [T]?,
+    /// Merges NSSet-based to-many relationships from source into destination.
+    /// Re-parents each child by calling the setter, and adds to canonical's set.
+    static func mergeNSSetRelationship<T: NSManagedObject>(
+        from source: NSSet?,
+        addTo canonical: NSManagedObject,
+        relationshipKey: String,
+        existingIDs: inout Set<UUID>,
         setter: (T) -> Void
-    ) where T.ID == UUID {
-        guard let sourceItems = source, !sourceItems.isEmpty else { return }
-        if destination == nil { destination = [] }
-        var existingIDs = Set((destination ?? []).map(\.id))
-        for item in sourceItems {
-            setter(item)
-            if existingIDs.insert(item.id).inserted {
-                destination?.append(item)
+    ) {
+        guard let sourceSet = source as? Set<T>, !sourceSet.isEmpty else { return }
+        let mutableSet = canonical.mutableSetValue(forKey: relationshipKey)
+        for item in sourceSet {
+            let itemID = item.value(forKey: "id") as? UUID ?? UUID()
+            if existingIDs.insert(itemID).inserted {
+                setter(item)
+                mutableSet.add(item)
             }
         }
     }
@@ -132,49 +141,61 @@ extension DataCleanupService {
     // MARK: - Strong Deduplication (Data-Preserving Merges)
 
     @discardableResult
-    static func deduplicateStudentsStrong(using context: ModelContext) -> Int {
-        deduplicate(Student.self, using: context, merge: mergeStudent)
+    static func deduplicateStudentsStrong(using context: NSManagedObjectContext) -> Int {
+        deduplicate(CDStudent.self, using: context, merge: mergeStudent)
     }
 
     @discardableResult
-    static func deduplicateLessonsStrong(using context: ModelContext) -> Int {
-        deduplicate(Lesson.self, using: context, merge: mergeLesson)
+    static func deduplicateLessonsStrong(using context: NSManagedObjectContext) -> Int {
+        deduplicate(CDLesson.self, using: context, merge: mergeLesson)
     }
 
     @discardableResult
-    static func deduplicateLessonPresentationsStrong(using context: ModelContext) -> Int {
-        deduplicate(LessonPresentation.self, using: context, merge: mergeLessonPresentation)
+    static func deduplicateLessonPresentationsStrong(using context: NSManagedObjectContext) -> Int {
+        deduplicate(CDLessonPresentation.self, using: context, merge: mergeLessonPresentation)
     }
 
     @discardableResult
-    static func deduplicateWorkModelsStrong(using context: ModelContext) -> Int {
-        deduplicate(WorkModel.self, using: context) { canonical, duplicate in
+    static func deduplicateWorkModelsStrong(using context: NSManagedObjectContext) -> Int {
+        deduplicate(CDWorkModel.self, using: context) { canonical, duplicate in
             mergeWorkModel(canonical: canonical, duplicate: duplicate, context: context)
         }
     }
 
     @discardableResult
-    static func deduplicateNotesStrong(using context: ModelContext) -> Int {
-        deduplicate(Note.self, using: context, merge: mergeNote)
+    static func deduplicateNotesStrong(using context: NSManagedObjectContext) -> Int {
+        deduplicate(CDNote.self, using: context, merge: mergeNote)
     }
 
-    private static func mergeStudent(canonical: Student, duplicate: Student) {
+    private static func mergeStudent(canonical: CDStudent, duplicate: CDStudent) {
         if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
         if canonical.nickname == nil { canonical.nickname = duplicate.nickname }
         if canonical.dateStarted == nil { canonical.dateStarted = duplicate.dateStarted }
         if canonical.manualOrder == 0 && duplicate.manualOrder != 0 { canonical.manualOrder = duplicate.manualOrder }
 
-        if canonical.nextLessons.isEmpty {
-            canonical.nextLessons = duplicate.nextLessons
-        } else if !duplicate.nextLessons.isEmpty {
-            canonical.nextLessons = Array(Set(canonical.nextLessons).union(duplicate.nextLessons))
+        // nextLessons is a Transformable [String] stored as NSObject
+        let canonicalNext = canonical.nextLessonsArray
+        let duplicateNext = duplicate.nextLessonsArray
+        if canonicalNext.isEmpty && !duplicateNext.isEmpty {
+            canonical.nextLessons = duplicateNext as NSObject
+        } else if !canonicalNext.isEmpty && !duplicateNext.isEmpty {
+            let merged = Array(Set(canonicalNext).union(duplicateNext))
+            canonical.nextLessons = merged as NSObject
         }
 
-        mergeRelationship(from: duplicate.documents, to: &canonical.documents, setter: { $0.student = canonical })
+        // Merge documents relationship (NSSet)
+        var existingDocIDs = Set((canonical.documents as? Set<CDDocument>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.documents,
+            addTo: canonical,
+            relationshipKey: "documents",
+            existingIDs: &existingDocIDs,
+            setter: { (doc: CDDocument) in doc.student = canonical }
+        )
     }
 
-    private static func mergeLesson(canonical: Lesson, duplicate: Lesson) {
+    private static func mergeLesson(canonical: CDLesson, duplicate: CDLesson) {
         if canonical.name.isEmpty { canonical.name = duplicate.name }
         if canonical.subject.isEmpty { canonical.subject = duplicate.subject }
         if canonical.group.isEmpty { canonical.group = duplicate.group }
@@ -189,16 +210,26 @@ extension DataCleanupService {
         if canonical.personalKindRaw == nil { canonical.personalKindRaw = duplicate.personalKindRaw }
         if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
 
-        mergeRelationship(from: duplicate.notes, to: &canonical.notes, setter: { $0.lesson = canonical })
-        // Legacy relationship removed -- fully migrated to LessonAssignment
-        mergeRelationship(
+        var existingNoteIDs = Set((canonical.notes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.notes,
+            addTo: canonical,
+            relationshipKey: "notes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.lesson = canonical }
+        )
+
+        var existingLAIDs = Set((canonical.lessonAssignments as? Set<CDLessonAssignment>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
             from: duplicate.lessonAssignments,
-            to: &canonical.lessonAssignments,
-            setter: { $0.lesson = canonical }
+            addTo: canonical,
+            relationshipKey: "lessonAssignments",
+            existingIDs: &existingLAIDs,
+            setter: { (la: CDLessonAssignment) in la.lesson = canonical }
         )
     }
 
-    private static func mergeLessonPresentation(canonical: LessonPresentation, duplicate: LessonPresentation) {
+    private static func mergeLessonPresentation(canonical: CDLessonPresentation, duplicate: CDLessonPresentation) {
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
         if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
@@ -209,7 +240,7 @@ extension DataCleanupService {
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
     }
 
-    private static func mergeWorkModel(canonical: WorkModel, duplicate: WorkModel, context: ModelContext) {
+    private static func mergeWorkModel(canonical: CDWorkModel, duplicate: CDWorkModel, context: NSManagedObjectContext) {
         if canonical.title.isEmpty { canonical.title = duplicate.title }
         let dupNoteText = duplicate.latestUnifiedNoteText.trimmed()
         if canonical.latestUnifiedNoteText.trimmed().isEmpty && !dupNoteText.isEmpty {
@@ -230,17 +261,44 @@ extension DataCleanupService {
         if canonical.sourceContextID == nil { canonical.sourceContextID = duplicate.sourceContextID }
         if canonical.legacyStudentLessonID == nil { canonical.legacyStudentLessonID = duplicate.legacyStudentLessonID }
 
-        mergeRelationship(from: duplicate.participants, to: &canonical.participants, setter: { $0.work = canonical })
-        mergeRelationship(
-            from: duplicate.checkIns,
-            to: &canonical.checkIns,
-            setter: { $0.work = canonical; $0.workID = canonical.id.uuidString }
+        var existingParticipantIDs = Set((canonical.participants as? Set<CDWorkParticipantEntity>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.participants,
+            addTo: canonical,
+            relationshipKey: "participants",
+            existingIDs: &existingParticipantIDs,
+            setter: { (p: CDWorkParticipantEntity) in p.work = canonical }
         )
-        mergeRelationship(from: duplicate.steps, to: &canonical.steps, setter: { $0.work = canonical })
-        mergeRelationship(from: duplicate.unifiedNotes, to: &canonical.unifiedNotes, setter: { $0.work = canonical })
+
+        var existingCheckInIDs = Set((canonical.checkIns as? Set<CDWorkCheckIn>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.checkIns,
+            addTo: canonical,
+            relationshipKey: "checkIns",
+            existingIDs: &existingCheckInIDs,
+            setter: { (ci: CDWorkCheckIn) in ci.work = canonical; ci.workID = (canonical.id ?? UUID()).uuidString }
+        )
+
+        var existingStepIDs = Set((canonical.steps as? Set<CDWorkStep>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.steps,
+            addTo: canonical,
+            relationshipKey: "steps",
+            existingIDs: &existingStepIDs,
+            setter: { (step: CDWorkStep) in step.work = canonical }
+        )
+
+        var existingNoteIDs = Set((canonical.unifiedNotes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.unifiedNotes,
+            addTo: canonical,
+            relationshipKey: "unifiedNotes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.work = canonical }
+        )
     }
 
-    private static func mergeNote(canonical: Note, duplicate: Note) {
+    private static func mergeNote(canonical: CDNote, duplicate: CDNote) {
         if canonical.body.isEmpty { canonical.body = duplicate.body }
         if !canonical.isPinned && duplicate.isPinned { canonical.isPinned = true }
         if !canonical.includeInReport && duplicate.includeInReport { canonical.includeInReport = true }
@@ -253,12 +311,10 @@ extension DataCleanupService {
         // Merge relationships (parent entities)
         if canonical.lesson == nil { canonical.lesson = duplicate.lesson }
         if canonical.work == nil { canonical.work = duplicate.work }
-        // Legacy relationship removed -- fully migrated to LessonAssignment
         if canonical.lessonAssignment == nil { canonical.lessonAssignment = duplicate.lessonAssignment }
         if canonical.attendanceRecord == nil { canonical.attendanceRecord = duplicate.attendanceRecord }
         if canonical.workCheckIn == nil { canonical.workCheckIn = duplicate.workCheckIn }
         if canonical.workCompletionRecord == nil { canonical.workCompletionRecord = duplicate.workCompletionRecord }
-        // workPlanItem removed in Phase 6 - migrated to WorkCheckIn
         if canonical.studentMeeting == nil { canonical.studentMeeting = duplicate.studentMeeting }
         if canonical.projectSession == nil { canonical.projectSession = duplicate.projectSession }
         if canonical.communityTopic == nil { canonical.communityTopic = duplicate.communityTopic }
@@ -268,75 +324,75 @@ extension DataCleanupService {
             canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment
         }
 
-        mergeRelationship(
+        var existingLinkIDs = Set((canonical.studentLinks as? Set<CDNoteStudentLink>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
             from: duplicate.studentLinks,
-            to: &canonical.studentLinks,
-            setter: { $0.note = canonical; $0.noteID = canonical.id.uuidString }
+            addTo: canonical,
+            relationshipKey: "studentLinks",
+            existingIDs: &existingLinkIDs,
+            setter: { (link: CDNoteStudentLink) in
+                link.note = canonical
+                link.noteID = (canonical.id ?? UUID()).uuidString
+            }
         )
     }
 
     // MARK: - Deduplicate All Models
 
     /// Deduplicates all model types in the database.
-    /// CloudKit sync can create duplicate records with the same ID during merge conflicts.
-    /// This removes all duplicates, keeping one instance of each ID.
-    /// Returns a dictionary of model type names to the number of duplicates removed.
     @discardableResult
-    static func deduplicateAllModels(using context: ModelContext) -> [String: Int] {
+    static func deduplicateAllModels(using context: NSManagedObjectContext) -> [String: Int] {
         var results: [String: Int] = [:]
 
-        // Core models (most likely to have user-visible duplicates)
+        // Core models
         results["Student"] = deduplicateStudentsStrong(using: context)
         results["Lesson"] = deduplicateLessonsStrong(using: context)
-        // Legacy model removed -- fully migrated to LessonAssignment
-        results["LessonAssignment"] = deduplicate(LessonAssignment.self, using: context)
+        results["LessonAssignment"] = deduplicate(CDLessonAssignment.self, using: context)
         results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context)
 
         // Work-related models
         results["WorkModel"] = deduplicateWorkModelsStrong(using: context)
-        results["WorkCheckIn"] = deduplicate(WorkCheckIn.self, using: context)
-        results["WorkCompletionRecord"] = deduplicate(WorkCompletionRecord.self, using: context)
-        // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
-        results["WorkParticipantEntity"] = deduplicate(WorkParticipantEntity.self, using: context)
-        results["WorkStep"] = deduplicate(WorkStep.self, using: context)
+        results["WorkCheckIn"] = deduplicate(CDWorkCheckIn.self, using: context)
+        results["WorkCompletionRecord"] = deduplicate(CDWorkCompletionRecord.self, using: context)
+        results["WorkParticipantEntity"] = deduplicate(CDWorkParticipantEntity.self, using: context)
+        results["WorkStep"] = deduplicate(CDWorkStep.self, using: context)
 
         // Project models
-        results["Project"] = deduplicate(Project.self, using: context)
-        results["ProjectRole"] = deduplicate(ProjectRole.self, using: context)
-        results["ProjectSession"] = deduplicate(ProjectSession.self, using: context)
-        results["ProjectAssignmentTemplate"] = deduplicate(ProjectAssignmentTemplate.self, using: context)
-        results["ProjectTemplateWeek"] = deduplicate(ProjectTemplateWeek.self, using: context)
-        results["ProjectWeekRoleAssignment"] = deduplicate(ProjectWeekRoleAssignment.self, using: context)
+        results["Project"] = deduplicate(CDProject.self, using: context)
+        results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context)
+        results["ProjectSession"] = deduplicate(CDProjectSession.self, using: context)
+        results["ProjectAssignmentTemplate"] = deduplicate(CDProjectAssignmentTemplate.self, using: context)
+        results["ProjectTemplateWeek"] = deduplicate(CDProjectTemplateWeek.self, using: context)
+        results["ProjectWeekRoleAssignment"] = deduplicate(CDProjectWeekRoleAssignment.self, using: context)
 
         // Track models
-        results["Track"] = deduplicate(Track.self, using: context)
-        results["TrackStep"] = deduplicate(TrackStep.self, using: context)
-        results["GroupTrack"] = deduplicate(GroupTrack.self, using: context)
-        results["StudentTrackEnrollment"] = deduplicate(StudentTrackEnrollment.self, using: context)
+        results["Track"] = deduplicate(CDTrackEntity.self, using: context)
+        results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context)
+        results["GroupTrack"] = deduplicate(CDGroupTrackEntity.self, using: context)
+        results["StudentTrackEnrollment"] = deduplicate(CDStudentTrackEnrollmentEntity.self, using: context)
 
         // Notes and documents
         results["Note"] = deduplicateNotesStrong(using: context)
-        results["NoteTemplate"] = deduplicate(NoteTemplate.self, using: context)
-        results["NoteStudentLink"] = deduplicate(NoteStudentLink.self, using: context)
-        results["Document"] = deduplicate(Document.self, using: context)
+        results["NoteTemplate"] = deduplicate(CDNoteTemplateEntity.self, using: context)
+        results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context)
+        results["Document"] = deduplicate(CDDocument.self, using: context)
 
         // Attendance and calendar
-        results["AttendanceRecord"] = deduplicate(AttendanceRecord.self, using: context)
-        results["StudentMeeting"] = deduplicate(StudentMeeting.self, using: context)
-        results["MeetingTemplate"] = deduplicate(MeetingTemplate.self, using: context)
-        results["CalendarEvent"] = deduplicate(CalendarEvent.self, using: context)
-        results["NonSchoolDay"] = deduplicate(NonSchoolDay.self, using: context)
-        results["SchoolDayOverride"] = deduplicate(SchoolDayOverride.self, using: context)
+        results["AttendanceRecord"] = deduplicate(CDAttendanceRecord.self, using: context)
+        results["StudentMeeting"] = deduplicate(CDStudentMeeting.self, using: context)
+        results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context)
+        results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context)
+        results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context)
+        results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context)
 
         // Community models
-        results["CommunityTopic"] = deduplicate(CommunityTopic.self, using: context)
-        results["ProposedSolution"] = deduplicate(ProposedSolution.self, using: context)
-        results["CommunityAttachment"] = deduplicate(CommunityAttachment.self, using: context)
+        results["CommunityTopic"] = deduplicate(CDCommunityTopicEntity.self, using: context)
+        results["ProposedSolution"] = deduplicate(CDProposedSolutionEntity.self, using: context)
+        results["CommunityAttachment"] = deduplicate(CDCommunityAttachmentEntity.self, using: context)
 
         // Other models
-        results["Reminder"] = deduplicate(Reminder.self, using: context)
+        results["Reminder"] = deduplicate(CDReminder.self, using: context)
 
-        // Filter out zero counts for cleaner output
         return results.filter { $0.value > 0 }
     }
 }

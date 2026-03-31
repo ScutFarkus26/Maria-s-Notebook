@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Schema Migration Service
@@ -13,12 +13,12 @@ enum SchemaMigrationService {
     // MARK: - UUID to String Migrations
 
     /// Migrate AttendanceRecord.studentID from UUID to String format.
-    /// This must be called after the store is opened, as it uses ModelContext.
+    /// This must be called after the store is opened, as it uses NSManagedObjectContext.
     /// Idempotent: guarded by a UserDefaults flag.
-    static func migrateAttendanceRecordStudentIDToStringIfNeeded(using context: ModelContext) {
+    static func migrateAttendanceRecordStudentIDToStringIfNeeded(using context: NSManagedObjectContext) {
         let flagKey = "Migration.attendanceRecordStudentIDToString.v1"
         _ = MigrationFlag.runIfNeeded(key: flagKey) {
-            let fetch = FetchDescriptor<AttendanceRecord>()
+            let fetch = CDFetchRequest(CDAttendanceRecord.self)
             let records = context.safeFetch(fetch)
 
             for record in records {
@@ -42,10 +42,10 @@ enum SchemaMigrationService {
     /// Sets all existing GroupTrack records to isExplicitlyDisabled = false (they remain as tracks).
     /// New default behavior: All groups are tracks (sequential) unless explicitly disabled.
     /// Idempotent: guarded by a UserDefaults flag.
-    static func migrateGroupTracksToDefaultBehaviorIfNeeded(using context: ModelContext) {
+    static func migrateGroupTracksToDefaultBehaviorIfNeeded(using context: NSManagedObjectContext) {
         let flagKey = "Migration.groupTracksDefaultBehavior.v1"
         _ = MigrationFlag.runIfNeeded(key: flagKey) {
-            let tracks = context.safeFetch(FetchDescriptor<GroupTrack>())
+            let tracks = context.safeFetch(CDFetchRequest(CDGroupTrackEntity.self))
             var updated = 0
 
             for track in tracks where track.isExplicitlyDisabled {
@@ -64,30 +64,30 @@ enum SchemaMigrationService {
     /// Migrates Note and NoteTemplate records from the legacy categoryRaw field to the new tags array.
     /// Converts each category to a tag in "Name|Color" format using TagHelper.
     /// Idempotent: guarded by a UserDefaults flag, only updates records where tags is empty.
-    static func migrateNoteCategoryToTagsIfNeeded(using context: ModelContext) async {
+    static func migrateNoteCategoryToTagsIfNeeded(using context: NSManagedObjectContext) async {
         let flagKey = "Migration.noteCategoryToTags.v1"
         await MigrationFlag.runIfNeeded(key: flagKey) {
             // Migrate Notes
-            let notes = context.safeFetch(FetchDescriptor<Note>())
+            let notes = context.safeFetch(CDFetchRequest(CDNote.self))
             var notesChanged = 0
             for (index, note) in notes.enumerated() {
                 if index % 100 == 0 { await Task.yield() }
-                if note.tags.isEmpty {
+                if note.tagsArray.isEmpty {
                     let categoryRaw = note.legacyCategoryRaw
                     if !categoryRaw.isEmpty && categoryRaw != "general" {
-                        note.tags = [TagHelper.tagFromNoteCategory(categoryRaw)]
+                        note.tagsArray = [TagHelper.tagFromNoteCategory(categoryRaw)]
                         notesChanged += 1
                     }
                 }
             }
 
             // Migrate NoteTemplates
-            let templates = context.safeFetch(FetchDescriptor<NoteTemplate>())
+            let templates = context.safeFetch(CDFetchRequest(CDNoteTemplateEntity.self))
             var templatesChanged = 0
-            for template in templates where template.tags.isEmpty {
+            for template in templates where template.tagsArray.isEmpty {
                 let categoryRaw = template.legacyCategoryRaw
                 if !categoryRaw.isEmpty && categoryRaw != "general" {
-                    template.tags = [TagHelper.tagFromNoteCategory(categoryRaw)]
+                    template.tagsArray = [TagHelper.tagFromNoteCategory(categoryRaw)]
                     templatesChanged += 1
                 }
             }

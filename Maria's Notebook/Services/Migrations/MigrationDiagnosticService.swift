@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -13,11 +14,16 @@ import OSLog
 /// and identifying any records that may have issues.
 @MainActor
 final class MigrationDiagnosticService {
-    private let context: ModelContext
+    private let context: NSManagedObjectContext
     private let logger = Logger.app(category: "MigrationDiagnostics")
 
-    init(context: ModelContext) {
+    init(context: NSManagedObjectContext) {
         self.context = context
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    convenience init(context: ModelContext) {
+        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
     }
 
     // MARK: - Public API
@@ -30,8 +36,8 @@ final class MigrationDiagnosticService {
         logger.info("Starting migration diagnostics...")
 
         // 1. Count all records
-        let lessonAssignments = fetchAll(LessonAssignment.self)
-        let notes = fetchAll(Note.self)
+        let lessonAssignments = fetchAll(CDLessonAssignment.self)
+        let notes = fetchAll(CDNote.self)
 
         report.counts = RecordCounts(
             lessonAssignments: lessonAssignments.count,
@@ -57,7 +63,7 @@ final class MigrationDiagnosticService {
 
             if !issues.isEmpty {
                 report.lessonAssignmentIssues.append(LessonAssignmentIssue(
-                    id: la.id,
+                    id: la.id ?? UUID(),
                     state: la.state.rawValue,
                     issues: issues,
                     migratedFromStudentLessonID: la.migratedFromStudentLessonID,
@@ -76,7 +82,7 @@ final class MigrationDiagnosticService {
                     report.duplicateMigrations.append(DuplicateMigration(
                         sourceType: "LegacyAssignment",
                         sourceID: slID,
-                        lessonAssignmentID: la.id
+                        lessonAssignmentID: la.id ?? UUID()
                     ))
                 }
                 seenLegacyIDs.insert(slID)
@@ -86,7 +92,7 @@ final class MigrationDiagnosticService {
                     report.duplicateMigrations.append(DuplicateMigration(
                         sourceType: "Presentation",
                         sourceID: pID,
-                        lessonAssignmentID: la.id
+                        lessonAssignmentID: la.id ?? UUID()
                     ))
                 }
                 seenPresentationIDs.insert(pID)
@@ -106,9 +112,9 @@ final class MigrationDiagnosticService {
 
     // MARK: - Private Helpers
 
-    private func fetchAll<T: PersistentModel>(_ type: T.Type) -> [T] {
+    private func fetchAll<T: NSManagedObject>(_ type: T.Type) -> [T] {
         do {
-            return try context.fetch(FetchDescriptor<T>())
+            return try context.fetch(CDFetchRequest(T.self))
         } catch {
             logger.warning("Failed to fetch \(type, privacy: .public): \(error.localizedDescription)")
             return []

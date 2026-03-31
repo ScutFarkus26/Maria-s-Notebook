@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Follow-Up Inbox Item
@@ -82,12 +82,12 @@ struct FollowUpInboxEngine {
 
     // MARK: - Helper Methods
 
-    private static func safeFetch<T>(
-        _ descriptor: FetchDescriptor<T>, modelContext: ModelContext,
-        context: String = #function
+    private static func safeFetch<T: NSManagedObject>(
+        _ request: NSFetchRequest<T>, context: NSManagedObjectContext,
+        label: String = #function
     ) -> [T] {
         do {
-            return try modelContext.fetch(descriptor)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
             return []
@@ -111,31 +111,31 @@ struct FollowUpInboxEngine {
 
     /// Bundles shared lookup data used across all follow-up rules.
     private struct ComputeContext {
-        let lessonsByID: [UUID: Lesson]
-        let studentsByID: [UUID: Student]
-        let lasByID: [UUID: LessonAssignment]
-        let openWorkModels: [WorkModel]
-        let checkInsByWorkID: [UUID: [WorkCheckIn]]
-        let notesByWorkID: [UUID: [Note]]
+        let lessonsByID: [UUID: CDLesson]
+        let studentsByID: [UUID: CDStudent]
+        let lasByID: [UUID: CDLessonAssignment]
+        let openWorkModels: [CDWorkModel]
+        let checkInsByWorkID: [UUID: [CDWorkCheckIn]]
+        let notesByWorkID: [UUID: [CDNote]]
         let nonSchoolDaysSet: Set<Date>
         let schoolDayOverridesSet: Set<Date>
         let constants: Constants
-        let modelContext: ModelContext
+        let context: NSManagedObjectContext
     }
 
     // MARK: - Main Entry Point
 
     static func computeItems(
-        lessons: [Lesson],
-        students: [Student],
-        lessonAssignments: [LessonAssignment],
-        modelContext: ModelContext,
+        lessons: [CDLesson],
+        students: [CDStudent],
+        lessonAssignments: [CDLessonAssignment],
+        context: NSManagedObjectContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
         let ctx = buildContext(
             lessons: lessons, students: students,
             lessonAssignments: lessonAssignments,
-            modelContext: modelContext, constants: constants
+            context: context, constants: constants
         )
 
         var results: [FollowUpInboxItem] = []
@@ -153,63 +153,71 @@ struct FollowUpInboxEngine {
     // MARK: - Context Builder
 
     private static func buildContext(
-        lessons: [Lesson], students: [Student],
-        lessonAssignments: [LessonAssignment],
-        modelContext: ModelContext, constants: Constants
+        lessons: [CDLesson], students: [CDStudent],
+        lessonAssignments: [CDLessonAssignment],
+        context: NSManagedObjectContext, constants: Constants
     ) -> ComputeContext {
-        let lessonsByID = lessons.toDictionary(by: \.id)
-        let studentsByID = students.toDictionary(by: \.id)
-        let lasByID = lessonAssignments.toDictionary(by: \.id)
-        let openWorkModels = fetchOpenWorkModels(modelContext: modelContext)
-        let (nsdSet, sdoSet) = fetchSchoolDaySets(modelContext: modelContext)
-        let checkInsByWorkID = openWorkModels.reduce(into: [UUID: [WorkCheckIn]]()) {
-            $0[$1.id] = $1.checkIns ?? []
+        let lessonsByID = lessons.toDictionary(by: { $0.id ?? UUID() })
+        let studentsByID = students.toDictionary(by: { $0.id ?? UUID() })
+        let lasByID = lessonAssignments.toDictionary(by: { $0.id ?? UUID() })
+        let openWorkModels = fetchOpenWorkModels(context: context)
+        let (nsdSet, sdoSet) = fetchSchoolDaySets(context: context)
+        let checkInsByWorkID = openWorkModels.reduce(into: [UUID: [CDWorkCheckIn]]()) {
+            $0[$1.id ?? UUID()] = ($1.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
         }
-        let notesByWorkID = openWorkModels.reduce(into: [UUID: [Note]]()) {
-            $0[$1.id] = $1.unifiedNotes ?? []
+        let notesByWorkID = openWorkModels.reduce(into: [UUID: [CDNote]]()) {
+            $0[$1.id ?? UUID()] = ($1.unifiedNotes?.allObjects as? [CDNote]) ?? []
         }
         return ComputeContext(
             lessonsByID: lessonsByID, studentsByID: studentsByID, lasByID: lasByID,
             openWorkModels: openWorkModels, checkInsByWorkID: checkInsByWorkID,
             notesByWorkID: notesByWorkID, nonSchoolDaysSet: nsdSet,
             schoolDayOverridesSet: sdoSet, constants: constants,
-            modelContext: modelContext
+            context: context
         )
     }
 
-    private static func fetchOpenWorkModels(modelContext: ModelContext) -> [WorkModel] {
+    private static func fetchOpenWorkModels(context: NSManagedObjectContext) -> [CDWorkModel] {
         let completeRaw = WorkStatus.complete.rawValue
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { work in work.statusRaw != completeRaw },
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        return safeFetch(descriptor, modelContext: modelContext, context: "computeItems")
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "statusRaw != %@", completeRaw)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        return safeFetch(request, context: context, label: "computeItems")
             .filter(\.isOpen)
     }
 
     private static func fetchSchoolDaySets(
-        modelContext: ModelContext
+        context: NSManagedObjectContext
     ) -> (nonSchoolDays: Set<Date>, overrides: Set<Date>) {
         let nonSchoolDays = safeFetch(
-            FetchDescriptor<NonSchoolDay>(), modelContext: modelContext, context: "computeItems"
+            CDFetchRequest(CDNonSchoolDay.self), context: context, label: "computeItems"
         )
-        let nsdSet = Set(nonSchoolDays.map { AppCalendar.startOfDay($0.date) })
+        let nsdSet = Set(nonSchoolDays.compactMap { $0.date }.map { AppCalendar.startOfDay($0) })
         let overrides = safeFetch(
-            FetchDescriptor<SchoolDayOverride>(), modelContext: modelContext, context: "computeItems"
+            CDFetchRequest(CDSchoolDayOverride.self), context: context, label: "computeItems"
         )
-        let sdoSet = Set(overrides.map { AppCalendar.startOfDay($0.date) })
+        let sdoSet = Set(overrides.compactMap { $0.date }.map { AppCalendar.startOfDay($0) })
         return (nsdSet, sdoSet)
     }
 
     // MARK: - Shared Helpers
 
     private static func childDisplayName(
-        for ids: [UUID], studentsByID: [UUID: Student]
+        for ids: [UUID], studentsByID: [UUID: CDStudent]
     ) -> (UUID?, String) {
         if ids.count == 1, let id = ids.first, let s = studentsByID[id] {
-            return (id, StudentFormatter.displayName(for: s))
+            return (id, cdStudentDisplayName(s))
         }
         return (nil, ids.isEmpty ? "Student" : "Group")
+    }
+
+    /// Formats a CDStudent display name in "FirstName L." format,
+    /// mirroring StudentFormatter.displayName for Core Data entities.
+    private static func cdStudentDisplayName(_ student: CDStudent) -> String {
+        let parts = student.fullName.split(separator: " ")
+        guard let first = parts.first else { return student.fullName }
+        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
+        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
     private static func isNonSchoolDay(
@@ -276,29 +284,73 @@ struct FollowUpInboxEngine {
         }
     }
 
-    /// Resolves display fields (childID, childName, lessonTitle) for a WorkModel.
+    /// Computes school days since the last meaningful touch on a CDWorkModel.
+    /// Mirrors WorkAgingPolicy.lastMeaningfulTouchDate logic for Core Data entities.
+    private static func daysSinceLastTouch(
+        for work: CDWorkModel,
+        checkIns: [CDWorkCheckIn],
+        notes: [CDNote],
+        ctx: ComputeContext
+    ) -> Int {
+        let today = AppCalendar.startOfDay(Date())
+
+        // 1) Explicit lastTouchedAt (highest priority)
+        if let lastTouched = work.lastTouchedAt {
+            let start = AppCalendar.startOfDay(lastTouched)
+            return schoolDaysSince(start, ctx: ctx)
+        }
+
+        // 2) Most recent past completed check-in date
+        let pastCheckInDates: [Date] = checkIns
+            .filter { $0.status == .completed }
+            .compactMap { $0.date }
+            .map { AppCalendar.startOfDay($0) }
+            .filter { $0 <= today }
+        let latestCheckIn = pastCheckInDates.max()
+
+        // 3) Most recent note timestamp
+        let latestNote: Date? = notes.map {
+            let updated = $0.updatedAt ?? Date.distantPast
+            let created = $0.createdAt ?? Date.distantPast
+            return max(updated, created)
+        }.max()
+
+        // 4) Status change timestamp (completedAt)
+        let statusChange: Date? = work.completedAt.map { AppCalendar.startOfDay($0) }
+
+        // 5) Fallbacks
+        let assigned = AppCalendar.startOfDay(work.assignedAt ?? work.createdAt ?? Date())
+
+        let touchDate = latestCheckIn ?? latestNote ?? statusChange ?? assigned
+        return schoolDaysSince(touchDate, ctx: ctx)
+    }
+
+    /// Resolves display fields (childID, childName, lessonTitle) for a CDWorkModel.
     /// Shared by Rules 2/3 and Rule 4 to avoid duplication.
     private static func resolveWorkDisplayFields(
-        work: WorkModel, ctx: ComputeContext
+        work: CDWorkModel, ctx: ComputeContext
     ) -> WorkDisplayFields {
-        let participantIDs: [UUID] = (work.participants ?? []).compactMap {
+        let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+        let participantIDs: [UUID] = participants.compactMap {
             UUID(uuidString: $0.studentID)
         }
         let studentIDs: [UUID] = {
             if !participantIDs.isEmpty { return participantIDs }
-            if let laID = work.presentationID?.asUUID, let la = ctx.lasByID[laID] {
-                return la.resolvedStudentIDs
+            if let presIDString = work.presentationID,
+               let presUUID = UUID(uuidString: presIDString),
+               let la = ctx.lasByID[presUUID] {
+                return la.studentUUIDs
             }
             return []
         }()
         let studentName: String = {
             if let firstID = studentIDs.first, let s = ctx.studentsByID[firstID] {
-                return StudentFormatter.displayName(for: s)
+                return cdStudentDisplayName(s)
             }
             return "Student"
         }()
         let lessonTitle: String = {
-            if let lessonUUID = work.lessonID.asUUID, let l = ctx.lessonsByID[lessonUUID] {
+            if let lessonUUID = UUID(uuidString: work.lessonID), let l = ctx.lessonsByID[lessonUUID] {
                 return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
             }
             let trimmed = work.title.trimmed()
@@ -324,23 +376,26 @@ struct FollowUpInboxEngine {
     // MARK: - Rule 1: Lesson Follow-Up
 
     private static func computeLessonFollowUpItems(
-        ctx: ComputeContext, lessonAssignments: [LessonAssignment]
+        ctx: ComputeContext, lessonAssignments: [CDLessonAssignment]
     ) -> [FollowUpInboxItem] {
         var results: [FollowUpInboxItem] = []
         let presented = lessonAssignments.filter { $0.isPresented || $0.presentedAt != nil }
 
         // Build lookup sets from WorkModels to exclude lessons with any follow-up work
-        let workByPresID: Set<UUID> = Set(ctx.openWorkModels.compactMap { $0.presentationID?.asUUID })
+        let workByPresID: Set<UUID> = Set(ctx.openWorkModels.compactMap {
+            $0.presentationID.flatMap { UUID(uuidString: $0) }
+        })
         let workByLessonKey: Set<String> = Set(ctx.openWorkModels.map { work in
             "\(work.studentID.lowercased())|\(work.lessonID.lowercased())"
         })
 
         for la in presented {
-            let presentedDate = la.presentedAt ?? la.createdAt
+            guard let laID = la.id else { continue }
+            let presentedDate = la.presentedAt ?? la.createdAt ?? Date()
             let days = schoolDaysSince(presentedDate, ctx: ctx)
 
-            let hasFollowUpWork = workByPresID.contains(la.id) ||
-                la.resolvedStudentIDs.map { sid in
+            let hasFollowUpWork = workByPresID.contains(laID) ||
+                la.studentUUIDs.map { sid in
                     "\(sid.uuidString.lowercased())|\(la.lessonID.lowercased())"
                 }.contains(where: { workByLessonKey.contains($0) })
             guard !hasFollowUpWork else { continue }
@@ -348,14 +403,18 @@ struct FollowUpInboxEngine {
             let threshold = ctx.constants.lessonFollowUpOverdueDays
             guard let bucket = computeBucket(days: days, threshold: threshold) else { continue }
 
-            let lessonTitle = ctx.lessonsByID[uuidString: la.lessonID]
-                .map { LessonFormatter.titleOrFallback($0.name, fallback: "Lesson") } ?? "Lesson"
-            let (cid, cname) = childDisplayName(for: la.resolvedStudentIDs, studentsByID: ctx.studentsByID)
+            let lessonTitle: String = {
+                if let lessonUUID = la.lessonIDUUID, let l = ctx.lessonsByID[lessonUUID] {
+                    return LessonFormatter.titleOrFallback(l.name, fallback: "Lesson")
+                }
+                return "Lesson"
+            }()
+            let (cid, cname) = childDisplayName(for: la.studentUUIDs, studentsByID: ctx.studentsByID)
             let status = formatStatusText(
                 bucket: bucket, days: days, threshold: threshold, suffix: "since presented"
             )
             results.append(FollowUpInboxItem(
-                id: "lessonFollowUp:\(la.id.uuidString)", underlyingID: la.id,
+                id: "lessonFollowUp:\(laID.uuidString)", underlyingID: laID,
                 childID: cid, childName: cname, title: lessonTitle, kind: .lessonFollowUp,
                 statusText: status, ageDays: days, bucket: bucket
             ))
@@ -372,16 +431,18 @@ struct FollowUpInboxEngine {
         var addedWorkIDs: Set<UUID> = []
 
         for work in ctx.openWorkModels {
+            guard let workID = work.id else { continue }
             let status = work.status
             let isActive = status == .active
             let isReview = status == .review
             guard isActive || isReview else { continue }
 
-            let workCheckIns = ctx.checkInsByWorkID[work.id] ?? []
-            let workNotes = ctx.notesByWorkID[work.id] ?? []
-            let days = WorkAgingPolicy.daysSinceLastTouch(
-                for: work, modelContext: ctx.modelContext,
-                checkIns: workCheckIns, notes: workNotes
+            let workCheckIns = ctx.checkInsByWorkID[workID] ?? []
+            let workNotes = ctx.notesByWorkID[workID] ?? []
+            let days = daysSinceLastTouch(
+                for: work,
+                checkIns: workCheckIns, notes: workNotes,
+                ctx: ctx
             )
 
             let threshold = isActive ? ctx.constants.workStaleOverdueDays : ctx.constants.reviewStaleDays
@@ -393,11 +454,11 @@ struct FollowUpInboxEngine {
                 bucket: bucket, days: days, threshold: threshold, suffix: "since touched"
             )
             results.append(FollowUpInboxItem(
-                id: "\(kind.rawValue):\(work.id.uuidString)", underlyingID: work.id,
+                id: "\(kind.rawValue):\(workID.uuidString)", underlyingID: workID,
                 childID: fields.childID, childName: fields.childName, title: fields.lessonTitle, kind: kind,
                 statusText: statusText, ageDays: days, bucket: bucket
             ))
-            addedWorkIDs.insert(work.id)
+            addedWorkIDs.insert(workID)
         }
         return (results, addedWorkIDs)
     }
@@ -410,23 +471,25 @@ struct FollowUpInboxEngine {
         var results: [FollowUpInboxItem] = []
 
         for work in ctx.openWorkModels {
+            guard let workID = work.id else { continue }
             let status = work.status
             guard status == .active || status == .review else { continue }
-            guard !addedWorkIDs.contains(work.id) else { continue }
+            guard !addedWorkIDs.contains(workID) else { continue }
 
-            let workCheckIns = ctx.checkInsByWorkID[work.id] ?? []
+            let workCheckIns = ctx.checkInsByWorkID[workID] ?? []
             let hasScheduledCheckIns = workCheckIns.contains { $0.status == .scheduled }
             guard !hasScheduledCheckIns && work.dueAt == nil else { continue }
 
             let fields = resolveWorkDisplayFields(work: work, ctx: ctx)
-            let days = WorkAgingPolicy.daysSinceLastTouch(
-                for: work, modelContext: ctx.modelContext,
-                checkIns: workCheckIns, notes: []
+            let days = daysSinceLastTouch(
+                for: work,
+                checkIns: workCheckIns, notes: [],
+                ctx: ctx
             )
             let statusText = "Needs scheduling • \(days)d since touched"
             let kind: FollowUpInboxItem.Kind = status == .active ? .workCheckIn : .workReview
             results.append(FollowUpInboxItem(
-                id: "inbox:\(work.id.uuidString)", underlyingID: work.id,
+                id: "inbox:\(workID.uuidString)", underlyingID: workID,
                 childID: fields.childID, childName: fields.childName, title: fields.lessonTitle, kind: kind,
                 statusText: statusText, ageDays: days, bucket: .inbox
             ))
@@ -440,10 +503,10 @@ struct FollowUpInboxEngine {
     /// This is used by the student checklist tab to get work items for that student.
     static func computeItems(
         for studentID: UUID,
-        lessons: [Lesson],
-        students: [Student],
-        lessonAssignments: [LessonAssignment],
-        modelContext: ModelContext,
+        lessons: [CDLesson],
+        students: [CDStudent],
+        lessonAssignments: [CDLessonAssignment],
+        context: NSManagedObjectContext,
         constants: Constants = Constants()
     ) -> [FollowUpInboxItem] {
         // Get all items and filter by student
@@ -451,7 +514,7 @@ struct FollowUpInboxEngine {
             lessons: lessons,
             students: students,
             lessonAssignments: lessonAssignments,
-            modelContext: modelContext,
+            context: context,
             constants: constants
         )
 

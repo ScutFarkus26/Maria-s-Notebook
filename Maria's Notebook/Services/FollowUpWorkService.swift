@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Service for automatically generating follow-up work from presentations
@@ -8,105 +8,102 @@ struct FollowUpWorkService {
     private static let logger = Logger.inbox
 
     // MARK: - Work Generation
-    
+
     /// Generates work items from a presentation based on its follow-up flags
     /// - Parameters:
-    ///   - presentation: The presentation to generate work from
-    ///   - context: SwiftData model context for creating and saving work
+    ///   - presentation: The CDLessonAssignment (presentation) to generate work from
+    ///   - context: Core Data managed object context for creating and saving work
     /// - Returns: Array of generated work items
     @MainActor
     static func generateWorkFromPresentation(
-        _ presentation: Presentation,
-        context: ModelContext
-    ) -> [WorkModel] {
-        var workItems: [WorkModel] = []
-        
+        _ presentation: CDLessonAssignment,
+        context: NSManagedObjectContext
+    ) -> [CDWorkModel] {
+        var workItems: [CDWorkModel] = []
+
         guard let lesson = presentation.lesson else {
             return workItems
         }
-        
+
         let studentIDs = presentation.studentUUIDs
-        
+
         // Generate practice work if needed
         if presentation.needsPractice {
             for studentID in studentIDs {
-                let work = WorkModel(
-                    title: "Practice: \(lesson.name)",
-                    kind: .practiceLesson,
-                    status: .active,
-                    studentID: studentID.uuidString,
-                    lessonID: presentation.lessonID,
-                    presentationID: presentation.id.uuidString
-                )
-                context.insert(work)
+                let work = CDWorkModel(context: context)
+                work.title = "Practice: \(lesson.name)"
+                work.kind = .practiceLesson
+                work.status = .active
+                work.studentID = studentID.uuidString
+                work.lessonID = presentation.lessonID
+                work.presentationID = presentation.id?.uuidString
                 workItems.append(work)
             }
         }
-        
+
         // Generate follow-up work if specified
         if !presentation.followUpWork.isEmpty {
             for studentID in studentIDs {
-                let work = WorkModel(
-                    title: presentation.followUpWork,
-                    kind: .followUpAssignment,
-                    status: .active,
-                    studentID: studentID.uuidString,
-                    lessonID: presentation.lessonID,
-                    presentationID: presentation.id.uuidString
-                )
-                context.insert(work)
+                let work = CDWorkModel(context: context)
+                work.title = presentation.followUpWork
+                work.kind = .followUpAssignment
+                work.status = .active
+                work.studentID = studentID.uuidString
+                work.lessonID = presentation.lessonID
+                work.presentationID = presentation.id?.uuidString
                 workItems.append(work)
             }
         }
-        
+
         // Note: needsAnotherPresentation doesn't create work items
         // It's a flag for the teacher to re-present the lesson
-        
+
         return workItems
     }
-    
+
     /// Generates work items for multiple presentations in batch
     /// - Parameters:
     ///   - presentations: Array of presentations to process
-    ///   - context: SwiftData model context
+    ///   - context: Core Data managed object context
     /// - Returns: Dictionary mapping presentation IDs to generated work items
     @MainActor
     static func batchGenerateWork(
-        from presentations: [Presentation],
-        context: ModelContext
-    ) -> [UUID: [WorkModel]] {
-        var results: [UUID: [WorkModel]] = [:]
-        
+        from presentations: [CDLessonAssignment],
+        context: NSManagedObjectContext
+    ) -> [UUID: [CDWorkModel]] {
+        var results: [UUID: [CDWorkModel]] = [:]
+
         for presentation in presentations {
+            guard let presID = presentation.id else { continue }
             let work = generateWorkFromPresentation(presentation, context: context)
             if !work.isEmpty {
-                results[presentation.id] = work
+                results[presID] = work
             }
         }
-        
+
         return results
     }
-    
+
     // MARK: - Analysis
-    
+
     /// Analyzes a presentation to determine what follow-up actions are needed
     /// - Parameter presentation: The presentation to analyze
     /// - Returns: Follow-up recommendations
-    nonisolated static func analyzePresentation(_ presentation: Presentation) -> PresentationFollowUp {
+    nonisolated static func analyzePresentation(_ presentation: CDLessonAssignment) -> PresentationFollowUp {
         var actions: [FollowUpAction] = []
-        
+
         if presentation.needsPractice {
             actions.append(.createPracticeWork)
         }
-        
+
         if presentation.needsAnotherPresentation {
             actions.append(.scheduleRepresentation)
         }
-        
+
         if !presentation.followUpWork.isEmpty {
             actions.append(.createFollowUpWork(description: presentation.followUpWork))
         }
-        
+
         let priority: FollowUpPriority
         if presentation.needsAnotherPresentation {
             priority = .high
@@ -117,78 +114,82 @@ struct FollowUpWorkService {
         } else {
             priority = .none
         }
-        
+
         return PresentationFollowUp(
-            presentationID: presentation.id,
+            presentationID: presentation.id ?? UUID(),
             actions: actions,
             priority: priority,
             notes: presentation.notes
         )
     }
-    
+
     /// Finds all presentations that need follow-up work
     /// - Parameters:
-    ///   - context: SwiftData model context
+    ///   - context: Core Data managed object context
     ///   - includeScheduled: Whether to include scheduled (not yet presented) presentations
     /// - Returns: Array of presentations needing follow-up
     @MainActor
     static func findPresentationsNeedingFollowUp(
-        in context: ModelContext,
+        in context: NSManagedObjectContext,
         includeScheduled: Bool = false
-    ) -> [Presentation] {
-        let stateFilter = includeScheduled ? [PresentationState.presented, .scheduled] : [.presented]
-        
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { presentation in
-                (presentation.needsPractice ||
-                 presentation.needsAnotherPresentation ||
-                 !presentation.followUpWork.isEmpty) &&
-                stateFilter.contains { $0.rawValue == presentation.stateRaw }
-            },
-            sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
+    ) -> [CDLessonAssignment] {
+        let request = CDFetchRequest(CDLessonAssignment.self)
+
+        let stateValues: [String]
+        if includeScheduled {
+            stateValues = [LessonAssignmentState.presented.rawValue, LessonAssignmentState.scheduled.rawValue]
+        } else {
+            stateValues = [LessonAssignmentState.presented.rawValue]
+        }
+
+        let statePredicate = NSPredicate(format: "stateRaw IN %@", stateValues)
+        let needsFollowUp = NSPredicate(
+            format: "needsPractice == YES OR needsAnotherPresentation == YES OR followUpWork != %@", ""
         )
-        
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [statePredicate, needsFollowUp])
+        request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
+
         do {
-            return try context.fetch(descriptor)
+            return try context.fetch(request)
         } catch {
             Self.logger.warning("Failed to fetch presentations needing follow-up: \(error.localizedDescription)")
             return []
         }
     }
-    
+
     /// Checks if a presentation already has work generated for it
     /// - Parameters:
     ///   - presentation: The presentation to check
-    ///   - context: SwiftData model context
+    ///   - context: Core Data managed object context
     /// - Returns: True if work items exist for this presentation
     @MainActor
     static func hasGeneratedWork(
-        for presentation: Presentation,
-        in context: ModelContext
+        for presentation: CDLessonAssignment,
+        in context: NSManagedObjectContext
     ) -> Bool {
-        let relatedWork = presentation.fetchRelatedWork(from: context)
+        let relatedWork = fetchRelatedWork(for: presentation, in: context)
         return !relatedWork.isEmpty
     }
-    
+
     /// Suggests work based on presentation analysis and existing work
     /// - Parameters:
     ///   - presentation: The presentation to analyze
-    ///   - context: SwiftData model context
+    ///   - context: Core Data managed object context
     /// - Returns: Suggested work items (not yet created in database)
     @MainActor
     static func suggestWork(
-        for presentation: Presentation,
-        in context: ModelContext
+        for presentation: CDLessonAssignment,
+        in context: NSManagedObjectContext
     ) -> [WorkSuggestion] {
         var suggestions: [WorkSuggestion] = []
-        
+
         guard let lesson = presentation.lesson else {
             return suggestions
         }
-        
-        let existingWork = presentation.fetchRelatedWork(from: context)
+
+        let existingWork = fetchRelatedWork(for: presentation, in: context)
         let existingKinds = Set(existingWork.compactMap(\.kind))
-        
+
         // Suggest practice work if needed and not already created
         if presentation.needsPractice && !existingKinds.contains(.practiceLesson) {
             for studentID in presentation.studentUUIDs {
@@ -200,7 +201,7 @@ struct FollowUpWorkService {
                 ))
             }
         }
-        
+
         // Suggest follow-up work if specified and not already created
         if !presentation.followUpWork.isEmpty && !existingKinds.contains(.followUpAssignment) {
             for studentID in presentation.studentUUIDs {
@@ -212,8 +213,22 @@ struct FollowUpWorkService {
                 ))
             }
         }
-        
+
         return suggestions
+    }
+
+    // MARK: - Private Helpers
+
+    /// Fetches work items related to a presentation (by presentationID).
+    private static func fetchRelatedWork(
+        for presentation: CDLessonAssignment,
+        in context: NSManagedObjectContext
+    ) -> [CDWorkModel] {
+        guard let presID = presentation.id else { return [] }
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "presentationID == %@", presID.uuidString)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        return context.safeFetch(request)
     }
 }
 
@@ -225,7 +240,7 @@ struct PresentationFollowUp {
     let actions: [FollowUpAction]
     let priority: FollowUpPriority
     let notes: String
-    
+
     var hasActions: Bool {
         !actions.isEmpty
     }
@@ -236,7 +251,7 @@ enum FollowUpAction: Equatable {
     case createPracticeWork
     case createFollowUpWork(description: String)
     case scheduleRepresentation
-    
+
     var description: String {
         switch self {
         case .createPracticeWork:
@@ -247,7 +262,7 @@ enum FollowUpAction: Equatable {
             return "Schedule another presentation"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .createPracticeWork:
@@ -266,11 +281,11 @@ enum FollowUpPriority: Int, Comparable {
     case low = 1
     case medium = 2
     case high = 3
-    
+
     static func < (lhs: FollowUpPriority, rhs: FollowUpPriority) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
-    
+
     var label: String {
         switch self {
         case .none: return "No Action Needed"
@@ -279,7 +294,7 @@ enum FollowUpPriority: Int, Comparable {
         case .high: return "High Priority"
         }
     }
-    
+
     var color: String {
         switch self {
         case .none: return "gray"
@@ -296,40 +311,41 @@ struct WorkSuggestion {
     let kind: WorkKind
     let studentID: UUID
     let reason: String
-    
-    /// Creates a WorkModel from this suggestion
+
+    /// Creates a CDWorkModel from this suggestion
     func createWorkModel(
         lessonID: String,
-        presentationID: String
-    ) -> WorkModel {
-        WorkModel(
-            title: title,
-            kind: kind,
-            status: .active,
-            studentID: studentID.uuidString,
-            lessonID: lessonID,
-            presentationID: presentationID
-        )
+        presentationID: String,
+        context: NSManagedObjectContext
+    ) -> CDWorkModel {
+        let work = CDWorkModel(context: context)
+        work.title = title
+        work.kind = kind
+        work.status = .active
+        work.studentID = studentID.uuidString
+        work.lessonID = lessonID
+        work.presentationID = presentationID
+        return work
     }
 }
 
 // MARK: - Convenience Extensions
 
-extension Presentation {
+extension CDLessonAssignment {
     /// Generates and saves follow-up work for this presentation
     @MainActor
-    func generateFollowUpWork(in context: ModelContext) -> [WorkModel] {
+    func generateFollowUpWork(in context: NSManagedObjectContext) -> [CDWorkModel] {
         FollowUpWorkService.generateWorkFromPresentation(self, context: context)
     }
-    
+
     /// Analyzes this presentation for follow-up needs
     nonisolated func analyzeFollowUp() -> PresentationFollowUp {
         FollowUpWorkService.analyzePresentation(self)
     }
-    
+
     /// Gets suggested work items (not yet created)
     @MainActor
-    func getSuggestedWork(from context: ModelContext) -> [WorkSuggestion] {
+    func getSuggestedWork(from context: NSManagedObjectContext) -> [WorkSuggestion] {
         FollowUpWorkService.suggestWork(for: self, in: context)
     }
 }

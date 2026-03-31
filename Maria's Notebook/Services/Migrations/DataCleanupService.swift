@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Data Cleanup Service
@@ -13,7 +13,7 @@ enum DataCleanupService {
 
     /// Runs all data cleanup operations in sequence.
     /// Safe to call repeatedly - each operation is idempotent.
-    static func runAllCleanupOperations(using context: ModelContext) async {
+    static func runAllCleanupOperations(using context: NSManagedObjectContext) async {
         // Run comprehensive deduplication first since other cleanups depend on valid data
         _ = deduplicateAllModels(using: context)
         await cleanOrphanedStudentIDs(using: context)

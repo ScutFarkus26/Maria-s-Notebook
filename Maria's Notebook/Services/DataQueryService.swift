@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 
 /// Centralized service for common data queries with optional caching.
@@ -9,39 +10,44 @@ import SwiftData
 ///
 /// Usage:
 /// ```swift
-/// let service = DataQueryService(context: modelContext)
+/// let service = DataQueryService(context: managedObjectContext)
 /// let students = service.fetchAllStudents()
 /// let lessons = service.fetchLessonsDictionary()
 /// ```
 @MainActor
 final class DataQueryService {
-    private let context: ModelContext
+    private let context: NSManagedObjectContext
 
     // MARK: - Caches
 
-    private var studentsCache: [Student]?
-    private var lessonsCache: [UUID: Lesson]?
-    private var studentsByIDCache: [UUID: Student]?
+    private var studentsCache: [CDStudent]?
+    private var lessonsCache: [UUID: CDLesson]?
+    private var studentsByIDCache: [UUID: CDStudent]?
 
     // MARK: - Initialization
 
-    init(context: ModelContext) {
+    init(context: NSManagedObjectContext) {
         self.context = context
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    convenience init(context: ModelContext) {
+        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
     }
 
     // MARK: - Students
 
     /// Fetch all students, optionally filtering out test students and/or withdrawn students.
-    func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = false) -> [Student] {
+    func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = false) -> [CDStudent] {
         if let cached = studentsCache {
             var result = cached
             if excludeWithdrawn { result = result.filter(\.isEnrolled) }
             return excludeTest ? TestStudentsFilter.filterVisible(result) : result
         }
 
-        var descriptor = FetchDescriptor<Student>()
-        descriptor.fetchLimit = 1000 // Safety limit for cache population
-        let students = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDStudent.self)
+        request.fetchLimit = 1000 // Safety limit for cache population
+        let students = context.safeFetch(request)
         studentsCache = students
 
         var result = students
@@ -50,7 +56,7 @@ final class DataQueryService {
     }
 
     /// Fetch students by ID set.
-    func fetchStudents(ids: Set<UUID>) -> [Student] {
+    func fetchStudents(ids: Set<UUID>) -> [CDStudent] {
         guard !ids.isEmpty else { return [] }
 
         // Try to use cache if available
@@ -59,37 +65,50 @@ final class DataQueryService {
         }
 
         // PERFORMANCE: Fetch all students and filter with Set lookup (O(1) per check)
-        // SwiftData #Predicate doesn't support capturing local Set variables
-        var descriptor = FetchDescriptor<Student>()
-        descriptor.fetchLimit = 1000 // Safety limit
-        let allStudents = context.safeFetch(descriptor)
+        // NSPredicate doesn't efficiently support IN with large local Set variables
+        let request = CDFetchRequest(CDStudent.self)
+        request.fetchLimit = 1000 // Safety limit
+        let allStudents = context.safeFetch(request)
         // ids is already a Set, so .contains() is O(1)
-        return allStudents.filter { ids.contains($0.id) }
+        return allStudents.filter { id in
+            guard let studentID = id.id else { return false }
+            return ids.contains(studentID)
+        }
     }
 
     /// Fetch a single student by ID.
-    func fetchStudent(id: UUID) -> Student? {
+    func fetchStudent(id: UUID) -> CDStudent? {
         if let cache = studentsByIDCache {
             return cache[id]
         }
 
-        var descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { $0.id == id }
-        )
-        descriptor.fetchLimit = 1
-        return context.safeFetch(descriptor).first
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return context.safeFetch(request).first
     }
 
     /// Get students as a dictionary keyed by ID.
-    func fetchStudentsDictionary() -> [UUID: Student] {
+    func fetchStudentsDictionary() -> [UUID: CDStudent] {
         if let cached = studentsByIDCache {
             return cached
         }
 
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent crash on "Duplicate values for key"
-        let students = fetchAllStudents().uniqueByID
-        let dict = students.toDictionary(by: \.id)
+        let allStudents = fetchAllStudents()
+        var seen = Set<UUID>()
+        let students = allStudents.filter { s in
+            guard let id = s.id else { return false }
+            return seen.insert(id).inserted
+        }
+        let dict = Dictionary(
+            students.compactMap { s -> (UUID, CDStudent)? in
+                guard let id = s.id else { return nil }
+                return (id, s)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
         studentsByIDCache = dict
         return dict
     }
@@ -97,21 +116,27 @@ final class DataQueryService {
     // MARK: - Lessons
 
     /// Fetch all lessons.
-    func fetchAllLessons() -> [Lesson] {
+    func fetchAllLessons() -> [CDLesson] {
         if let cached = lessonsCache {
             return Array(cached.values)
         }
 
-        var descriptor = FetchDescriptor<Lesson>()
-        descriptor.fetchLimit = 2000 // Safety limit for lesson library cache
-        let lessons = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLesson.self)
+        request.fetchLimit = 2000 // Safety limit for lesson library cache
+        let lessons = context.safeFetch(request)
         // Use uniquingKeysWith to handle CloudKit sync duplicates
-        lessonsCache = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        lessonsCache = Dictionary(
+            lessons.compactMap { l -> (UUID, CDLesson)? in
+                guard let id = l.id else { return nil }
+                return (id, l)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
         return lessons
     }
 
     /// Fetch lessons by ID set.
-    func fetchLessons(ids: Set<UUID>) -> [Lesson] {
+    func fetchLessons(ids: Set<UUID>) -> [CDLesson] {
         guard !ids.isEmpty else { return [] }
 
         // Try to use cache if available
@@ -120,34 +145,42 @@ final class DataQueryService {
         }
 
         // PERFORMANCE: Fetch all lessons and filter with Set lookup (O(1) per check)
-        // SwiftData #Predicate doesn't support capturing local Set variables
-        let allLessons = context.safeFetch(FetchDescriptor<Lesson>())
+        // NSPredicate doesn't efficiently support IN with large local Set variables
+        let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         // ids is already a Set, so .contains() is O(1)
-        return allLessons.filter { ids.contains($0.id) }
+        return allLessons.filter { lesson in
+            guard let lessonID = lesson.id else { return false }
+            return ids.contains(lessonID)
+        }
     }
 
     /// Fetch a single lesson by ID.
-    func fetchLesson(id: UUID) -> Lesson? {
+    func fetchLesson(id: UUID) -> CDLesson? {
         if let cache = lessonsCache {
             return cache[id]
         }
 
-        var descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate { $0.id == id }
-        )
-        descriptor.fetchLimit = 1
-        return context.safeFetch(descriptor).first
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return context.safeFetch(request).first
     }
 
     /// Get lessons as a dictionary keyed by ID.
-    func fetchLessonsDictionary() -> [UUID: Lesson] {
+    func fetchLessonsDictionary() -> [UUID: CDLesson] {
         if let cached = lessonsCache {
             return cached
         }
 
-        let lessons = context.safeFetch(FetchDescriptor<Lesson>())
+        let lessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         // Use uniquingKeysWith to handle CloudKit sync duplicates
-        let dict = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let dict = Dictionary(
+            lessons.compactMap { l -> (UUID, CDLesson)? in
+                guard let id = l.id else { return nil }
+                return (id, l)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
         lessonsCache = dict
         return dict
     }
@@ -155,20 +188,20 @@ final class DataQueryService {
     // MARK: - LessonAssignments
 
     /// Fetch all presented lesson assignments (stateRaw == presented or presentedAt != nil).
-    func fetchPresentedLessonAssignments() -> [LessonAssignment] {
+    func fetchPresentedLessonAssignments() -> [CDLessonAssignment] {
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.stateRaw == presentedRaw }
-        )
-        var results = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "stateRaw == %@", presentedRaw)
+        var results = context.safeFetch(request)
 
         // Also fetch those with presentedAt but not in presented state
-        let existingIDs = Set(results.map(\.id))
-        let notPresentedDescriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.stateRaw != presentedRaw }
-        )
-        let notPresented = context.safeFetch(notPresentedDescriptor)
-        let withPresentedAt = notPresented.filter { $0.presentedAt != nil && !existingIDs.contains($0.id) }
+        let existingIDs = Set(results.compactMap(\.id))
+        let notPresentedRequest = CDFetchRequest(CDLessonAssignment.self)
+        notPresentedRequest.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw)
+        let notPresented = context.safeFetch(notPresentedRequest)
+        let withPresentedAt = notPresented.filter { la in
+            la.presentedAt != nil && !existingIDs.contains(la.id ?? UUID())
+        }
 
         results.append(contentsOf: withPresentedAt)
         return results
@@ -176,48 +209,42 @@ final class DataQueryService {
 
     /// Fetch lesson assignments for a specific student.
     /// Note: studentIDs is stored as JSON and is transient, so we fetch all and filter in memory.
-    func fetchLessonAssignments(for studentID: UUID) -> [LessonAssignment] {
+    func fetchLessonAssignments(for studentID: UUID) -> [CDLessonAssignment] {
         let studentIDString = studentID.uuidString
-        let allAssignments = context.safeFetch(FetchDescriptor<LessonAssignment>())
+        let allAssignments = context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
         return allAssignments.filter { $0.studentIDs.contains(studentIDString) }
     }
 
     /// Fetch lesson assignments in a date range.
-    func fetchLessonAssignments(from startDate: Date, to endDate: Date) -> [LessonAssignment] {
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { la in
-                la.scheduledForDay >= startDate && la.scheduledForDay < endDate
-            },
-            sortBy: [SortDescriptor(\.scheduledForDay)]
+    func fetchLessonAssignments(from startDate: Date, to endDate: Date) -> [CDLessonAssignment] {
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(
+            format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+            startDate as NSDate, endDate as NSDate
         )
-        return context.safeFetch(descriptor)
+        request.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
+        return context.safeFetch(request)
     }
 
     // MARK: - WorkModels
 
     /// Fetch work models by status.
-    func fetchWorkModels(status: WorkStatus? = nil) -> [WorkModel] {
+    func fetchWorkModels(status: WorkStatus? = nil) -> [CDWorkModel] {
+        let request = CDFetchRequest(CDWorkModel.self)
         if let status {
-            let statusRaw = status.rawValue
-            let descriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate { $0.statusRaw == statusRaw }
-            )
-            return context.safeFetch(descriptor)
-        } else {
-            return context.safeFetch(FetchDescriptor<WorkModel>())
+            request.predicate = NSPredicate(format: "statusRaw == %@", status.rawValue)
         }
+        return context.safeFetch(request)
     }
 
     /// Fetch active or review work models.
-    func fetchOpenWorkModels() -> [WorkModel] {
-        let activeRaw = WorkStatus.active.rawValue
-        let reviewRaw = WorkStatus.review.rawValue
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { work in
-                work.statusRaw == activeRaw || work.statusRaw == reviewRaw
-            }
+    func fetchOpenWorkModels() -> [CDWorkModel] {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(
+            format: "statusRaw == %@ OR statusRaw == %@",
+            WorkStatus.active.rawValue, WorkStatus.review.rawValue
         )
-        return context.safeFetch(descriptor)
+        return context.safeFetch(request)
     }
 
     // MARK: - Cache Management

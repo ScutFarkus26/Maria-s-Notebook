@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Provides batch operations for notes, work items, and lesson assignments.
@@ -15,18 +15,18 @@ enum BatchOperationService {
         start: Date,
         end: Date,
         tag: String,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Int {
-        let descriptor = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> {
-                $0.createdAt >= start && $0.createdAt <= end
-            }
+        let request = CDFetchRequest(CDNote.self)
+        request.predicate = NSPredicate(
+            format: "createdAt >= %@ AND createdAt <= %@",
+            start as NSDate, end as NSDate
         )
-        let notes = context.safeFetch(descriptor)
+        let notes = context.safeFetch(request)
         var count = 0
         for note in notes {
-            if !note.tags.contains(tag) {
-                note.tags.append(tag)
+            if !note.tagsArray.contains(tag) {
+                note.tagsArray.append(tag)
                 count += 1
             }
         }
@@ -42,16 +42,16 @@ enum BatchOperationService {
     static func tagNotesForStudent(
         studentID: UUID,
         tag: String,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Int {
-        let notes = context.safeFetch(FetchDescriptor<Note>())
+        let notes = context.safeFetch(CDFetchRequest(CDNote.self))
         let studentNotes = notes.filter {
             $0.searchIndexStudentID == studentID || $0.scopeIsAll
         }
         var count = 0
         for note in studentNotes {
-            if !note.tags.contains(tag) {
-                note.tags.append(tag)
+            if !note.tagsArray.contains(tag) {
+                note.tagsArray.append(tag)
                 count += 1
             }
         }
@@ -67,10 +67,10 @@ enum BatchOperationService {
     static func markNotesForReport(
         noteIDs: Set<UUID>,
         include: Bool,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Int {
-        let notes = context.safeFetch(FetchDescriptor<Note>())
-        let matching = notes.filter { noteIDs.contains($0.id) }
+        let notes = context.safeFetch(CDFetchRequest(CDNote.self))
+        let matching = notes.filter { noteIDs.contains($0.id ?? UUID()) }
         var count = 0
         for note in matching {
             if note.includeInReport != include {
@@ -92,15 +92,13 @@ enum BatchOperationService {
     static func assignWorkToStudents(
         title: String,
         studentIDs: [UUID],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Int {
         var count = 0
         for studentID in studentIDs {
-            let work = WorkModel(
-                title: title,
-                studentID: studentID.uuidString
-            )
-            context.insert(work)
+            let work = CDWorkModel(context: context)
+            work.title = title
+            work.studentID = studentID.uuidString
             count += 1
         }
         if count > 0 {
@@ -116,15 +114,15 @@ enum BatchOperationService {
     @discardableResult
     static func scheduleLessonsForStudents(
         lessonStudentPairs: [(lessonID: UUID, studentIDs: [UUID])],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Int {
         var count = 0
         for pair in lessonStudentPairs {
-            let assignment = PresentationFactory.makeDraft(
+            _ = PresentationFactory.makeDraft(
                 lessonID: pair.lessonID,
-                studentIDs: pair.studentIDs
+                studentIDs: pair.studentIDs,
+                context: context
             )
-            context.insert(assignment)
             count += 1
         }
         if count > 0 {

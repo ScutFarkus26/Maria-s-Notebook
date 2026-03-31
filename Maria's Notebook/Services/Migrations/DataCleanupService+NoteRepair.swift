@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import os
 
 // MARK: - Note Repair
@@ -10,10 +10,10 @@ extension DataCleanupService {
 
     /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
     /// Specifically targets Attendance, WorkCompletion, and StudentMeeting notes.
-    static func repairScopeForContextualNotes(using context: ModelContext) async {
+    static func repairScopeForContextualNotes(using context: NSManagedObjectContext) async {
         let flagKey = "Repair.noteScopes.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
-            let notes = context.safeFetch(FetchDescriptor<Note>())
+            let notes = context.safeFetch(CDFetchRequest(CDNote.self))
             var changed = 0
 
             for note in notes {
@@ -47,7 +47,7 @@ extension DataCleanupService {
 
     /// Clean up orphaned note images that are no longer referenced by any Note.
     /// This should be run after note deletions to reclaim disk space.
-    static func cleanupOrphanedNoteImages(using context: ModelContext) {
+    static func cleanupOrphanedNoteImages(using context: NSManagedObjectContext) {
         do {
             let photosDir = try PhotoStorageService.photosDirectory()
             let fm = FileManager.default
@@ -57,7 +57,7 @@ extension DataCleanupService {
             let imageFilenames = Set(files.map(\.lastPathComponent))
 
             // Get all image paths referenced by notes
-            let notesFetch = FetchDescriptor<Note>()
+            let notesFetch = CDFetchRequest(CDNote.self)
             let notes = context.safeFetch(notesFetch)
             let referencedPaths = Set(notes.compactMap(\.imagePath))
 
@@ -80,24 +80,21 @@ extension DataCleanupService {
 
     /// Create NoteStudentLink records for existing notes with multi-student scope.
     /// This enables efficient database-level queries instead of in-memory filtering.
-    static func createNoteStudentLinksForExistingNotes(using context: ModelContext) {
-        let fetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { note in
-                note.scopeIsAll == false && note.searchIndexStudentID == nil
-            }
-        )
+    static func createNoteStudentLinksForExistingNotes(using context: NSManagedObjectContext) {
+        let fetch = CDFetchRequest(CDNote.self)
+        fetch.predicate = NSPredicate(format: "scopeIsAll == NO AND searchIndexStudentID == nil")
         let notes = context.safeFetch(fetch)
 
         var createdCount = 0
 
         for note in notes {
             // Skip if links already exist
-            guard (note.studentLinks ?? []).isEmpty else { continue }
+            guard (note.studentLinks?.count ?? 0) == 0 else { continue }
 
             // Sync the student links based on current scope
             note.syncStudentLinks(in: context)
 
-            if !(note.studentLinks ?? []).isEmpty {
+            if (note.studentLinks?.count ?? 0) > 0 {
                 createdCount += 1
             }
         }
@@ -113,10 +110,10 @@ extension DataCleanupService {
     /// Backfills scopeIsAll and searchIndexStudentID for notes that predate the search index.
     /// After this runs, the scope getter no longer needs to self-heal these fields on read.
     /// Guarded by MigrationFlag so it only runs once.
-    static func backfillNoteSearchIndex(using context: ModelContext) {
+    static func backfillNoteSearchIndex(using context: NSManagedObjectContext) {
         let flagKey = "Backfill.noteSearchIndex.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
-            let notes = context.safeFetch(FetchDescriptor<Note>())
+            let notes = context.safeFetch(CDFetchRequest(CDNote.self))
             var repaired = 0
 
             for note in notes {
@@ -156,8 +153,8 @@ extension DataCleanupService {
     /// This ensures data integrity when scheduledForDay gets out of sync with scheduledFor
     /// (e.g., during bulk imports or when didSet doesn't fire during initialization).
     /// Safe to call repeatedly - it's idempotent and only fixes mismatched records.
-    static func repairDenormalizedScheduledForDay(using context: ModelContext) async {
-        let fetch = FetchDescriptor<LessonAssignment>()
+    static func repairDenormalizedScheduledForDay(using context: NSManagedObjectContext) async {
+        let fetch = CDFetchRequest(CDLessonAssignment.self)
         let assignments = context.safeFetch(fetch)
         var repaired = 0
 

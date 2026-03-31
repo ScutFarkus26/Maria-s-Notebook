@@ -1,5 +1,6 @@
 // swiftlint:disable file_length
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -12,10 +13,16 @@ import OSLog
 final class ChatContextAssembler {
     private static let logger = Logger.ai
 
-    private let context: ModelContext
+    private let context: NSManagedObjectContext
 
-    init(context: ModelContext) {
+    init(context: NSManagedObjectContext) {
         self.context = context
+    }
+
+    /// Deprecated bridge: accepts a SwiftData ModelContext but uses the shared Core Data stack instead.
+    @available(*, deprecated, message: "Use init(context: NSManagedObjectContext) instead")
+    init(context: ModelContext) {
+        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
     }
 
     // MARK: - Tier 1: Classroom Snapshot
@@ -51,7 +58,7 @@ final class ChatContextAssembler {
 
     // MARK: - Classroom Snapshot Helpers
 
-    private func appendRosterSection(_ lines: inout [String], students: [Student]) {
+    private func appendRosterSection(_ lines: inout [String], students: [CDStudent]) {
         lines.append("--- Student Roster ---")
         for student in students.sorted(by: { $0.firstName < $1.firstName }) {
             let age = ageString(for: student.birthday)
@@ -63,7 +70,7 @@ final class ChatContextAssembler {
         lines.append("")
     }
 
-    private func appendSubjectsSection(_ lines: inout [String], lessons: [Lesson]) {
+    private func appendSubjectsSection(_ lines: inout [String], lessons: [CDLesson]) {
         let subjects = Set(lessons.map(\.subject)).filter { !$0.isEmpty }.sorted()
         if !subjects.isEmpty {
             lines.append("--- Subjects ---")
@@ -74,7 +81,7 @@ final class ChatContextAssembler {
 
     private func appendWeeklyActivitySection(
         _ lines: inout [String], weekStart: Date,
-        lessonsDict: [UUID: Lesson], studentsDict: [UUID: Student]
+        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
     ) {
         let recentPresentations = fetchPresentations(from: weekStart, to: Date(), state: .presented)
         let nextWeek = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
@@ -116,7 +123,7 @@ final class ChatContextAssembler {
     }
 
     private func appendOpenWorkSection(
-        _ lines: inout [String], queryService: DataQueryService, studentsDict: [UUID: Student]
+        _ lines: inout [String], queryService: DataQueryService, studentsDict: [UUID: CDStudent]
     ) {
         let openWork = queryService.fetchOpenWorkModels()
         lines.append("Open work items: \(openWork.count)")
@@ -134,7 +141,7 @@ final class ChatContextAssembler {
     }
 
     private func appendCompletedWorkSection(
-        _ lines: inout [String], weekStart: Date, studentsDict: [UUID: Student]
+        _ lines: inout [String], weekStart: Date, studentsDict: [UUID: CDStudent]
     ) {
         let recentCompleted = fetchRecentCompletedWork(since: weekStart)
         guard !recentCompleted.isEmpty else { return }
@@ -160,7 +167,7 @@ final class ChatContextAssembler {
         lines.append("")
     }
 
-    private func appendTodosSection(_ lines: inout [String], studentsDict: [UUID: Student]) {
+    private func appendTodosSection(_ lines: inout [String], studentsDict: [UUID: CDStudent]) {
         let openTodos = fetchOpenTodos()
         guard !openTodos.isEmpty else { return }
         lines.append("--- Teacher Todos ---")
@@ -168,7 +175,7 @@ final class ChatContextAssembler {
             var line = "  • \(todo.title)"
             if todo.priority != .none { line += " [\(todo.priority.rawValue)]" }
             if let due = todo.dueDate { line += " (due \(formattedDate(due)))" }
-            if !todo.studentIDs.isEmpty {
+            if !todo.studentIDsArray.isEmpty {
                 let names = todo.studentUUIDs.compactMap { studentsDict[$0]?.firstName }
                 if !names.isEmpty { line += " — \(names.joined(separator: ", "))" }
             }
@@ -202,7 +209,8 @@ final class ChatContextAssembler {
         let studentsDict = queryService.fetchStudentsDictionary()
 
         for student in matched.prefix(3) {
-            newMentionedIDs.insert(student.id)
+            guard let studentID = student.id else { continue }
+            newMentionedIDs.insert(studentID)
             appendStudentDetail(
                 &lines, student: student, queryService: queryService,
                 lessonsDict: lessonsDict, studentsDict: studentsDict
@@ -215,8 +223,8 @@ final class ChatContextAssembler {
     // MARK: - Question Context Helpers
 
     private func appendStudentDetail(
-        _ lines: inout [String], student: Student, queryService: DataQueryService,
-        lessonsDict: [UUID: Lesson], studentsDict: [UUID: Student]
+        _ lines: inout [String], student: CDStudent, queryService: DataQueryService,
+        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
     ) {
         lines.append("")
         lines.append("--- \(student.firstName) \(student.lastName) ---")
@@ -233,10 +241,11 @@ final class ChatContextAssembler {
     }
 
     private func appendStudentPresentations(
-        _ lines: inout [String], student: Student,
-        lessonsDict: [UUID: Lesson], studentsDict: [UUID: Student]
+        _ lines: inout [String], student: CDStudent,
+        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
     ) {
-        let studentPresentations = fetchPresentationsForStudent(studentID: student.id, limit: 10)
+        guard let studentID = student.id else { return }
+        let studentPresentations = fetchPresentationsForStudent(studentID: studentID, limit: 10)
         guard !studentPresentations.isEmpty else { return }
         lines.append("Recent presentations (last \(studentPresentations.count)):")
         for pres in studentPresentations {
@@ -251,19 +260,21 @@ final class ChatContextAssembler {
             if !pres.followUpWork.isEmpty { line += " → follow-up: \(pres.followUpWork.prefix(80))" }
             lines.append(line)
             if !pres.notes.isEmpty { lines.append("    Notes: \(pres.notes.prefix(120))") }
-            for note in (pres.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
+            let presNotes = (pres.unifiedNotes?.allObjects as? [CDNote]) ?? []
+            for note in presNotes.prefix(2) where !note.body.isEmpty {
                 lines.append("    Observation: \(note.body.prefix(120))")
             }
-            let otherStudents = pres.studentUUIDs.filter { $0 != student.id }
+            let otherStudents = pres.studentUUIDs.filter { $0 != studentID }
                 .compactMap { studentsDict[$0]?.firstName }
             if !otherStudents.isEmpty { lines.append("    Also with: \(otherStudents.joined(separator: ", "))") }
         }
     }
 
     private func appendStudentActiveWork(
-        _ lines: inout [String], student: Student, queryService: DataQueryService
+        _ lines: inout [String], student: CDStudent, queryService: DataQueryService
     ) {
-        let studentIDString = student.id.uuidString
+        guard let studentID = student.id else { return }
+        let studentIDString = studentID.uuidString
         let studentWork = queryService.fetchOpenWorkModels().filter { $0.studentID == studentIDString }
         guard !studentWork.isEmpty else { return }
         lines.append("Active work (\(studentWork.count)):")
@@ -275,15 +286,17 @@ final class ChatContextAssembler {
             if let assigned = work.assignedAt as Date? { line += " assigned \(formattedDate(assigned))" }
             if let due = work.dueAt { line += " due \(formattedDate(due))" }
             lines.append(line)
-            for note in (work.unifiedNotes ?? []).prefix(2) where !note.body.isEmpty {
+            let workNotes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
+            for note in workNotes.prefix(2) where !note.body.isEmpty {
                 lines.append("    Note: \(note.body.prefix(100))")
             }
         }
     }
 
-    private func appendStudentCompletedWork(_ lines: inout [String], student: Student) {
+    private func appendStudentCompletedWork(_ lines: inout [String], student: CDStudent) {
+        guard let studentID = student.id else { return }
         let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        let completedWork = fetchCompletedWorkForStudent(studentID: student.id.uuidString, since: monthStart)
+        let completedWork = fetchCompletedWorkForStudent(studentID: studentID.uuidString, since: monthStart)
         guard !completedWork.isEmpty else { return }
         lines.append("Completed work (last 30 days):")
         for work in completedWork.prefix(5) {
@@ -295,8 +308,9 @@ final class ChatContextAssembler {
         }
     }
 
-    private func appendStudentNotes(_ lines: inout [String], student: Student) {
-        let recentNotes = fetchRecentNotes(for: student.id, limit: 5)
+    private func appendStudentNotes(_ lines: inout [String], student: CDStudent) {
+        guard let studentID = student.id else { return }
+        let recentNotes = fetchRecentNotes(for: studentID, limit: 5)
         guard !recentNotes.isEmpty else { return }
         lines.append("Recent notes:")
         for note in recentNotes {
@@ -308,10 +322,11 @@ final class ChatContextAssembler {
         }
     }
 
-    private func appendStudentAttendance(_ lines: inout [String], student: Student) {
+    private func appendStudentAttendance(_ lines: inout [String], student: CDStudent) {
+        guard let studentID = student.id else { return }
         let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         let attendance = fetchAttendanceRecords(from: monthStart, to: Date())
-            .filter { $0.studentID == student.id.uuidString }
+            .filter { $0.studentID == studentID.uuidString }
         let presentCount = attendance.filter { $0.status == .present }.count
         let absentCount = attendance.filter { $0.status == .absent }.count
         let tardyCount = attendance.filter { $0.status == .tardy }.count
@@ -325,8 +340,9 @@ final class ChatContextAssembler {
         }
     }
 
-    private func appendStudentTodos(_ lines: inout [String], student: Student) {
-        let studentTodos = fetchTodosForStudent(studentID: student.id)
+    private func appendStudentTodos(_ lines: inout [String], student: CDStudent) {
+        guard let studentID = student.id else { return }
+        let studentTodos = fetchTodosForStudent(studentID: studentID)
         guard !studentTodos.isEmpty else { return }
         lines.append("Todos for \(student.firstName):")
         for todo in studentTodos.prefix(5) {
@@ -341,19 +357,19 @@ final class ChatContextAssembler {
 
     /// Fuzzy-matches student names in the question text.
     /// Supports: first name, nickname, "FirstName LastInitial" (e.g., "Etty D").
-    private func matchStudents(in question: String, from students: [Student]) -> [Student] {
+    private func matchStudents(in question: String, from students: [CDStudent]) -> [CDStudent] {
         let lowered = question.lowercased()
-        var matched: [Student] = []
+        var matched: [CDStudent] = []
         var matchedIDs: Set<UUID> = []
 
         for student in students {
-            guard !matchedIDs.contains(student.id) else { continue }
+            guard let studentID = student.id, !matchedIDs.contains(studentID) else { continue }
 
             // Check "firstName lastInitial" pattern (e.g., "Etty D")
             let firstLast = "\(student.firstName.lowercased()) \(student.lastName.prefix(1).lowercased())"
             if lowered.contains(firstLast) {
                 matched.append(student)
-                matchedIDs.insert(student.id)
+                matchedIDs.insert(studentID)
                 continue
             }
 
@@ -361,7 +377,7 @@ final class ChatContextAssembler {
             let firstName = student.firstName.lowercased()
             if matchesWholeWord(firstName, in: lowered) {
                 matched.append(student)
-                matchedIDs.insert(student.id)
+                matchedIDs.insert(studentID)
                 continue
             }
 
@@ -369,7 +385,7 @@ final class ChatContextAssembler {
             if let nickname = student.nickname?.lowercased(), !nickname.isEmpty,
                matchesWholeWord(nickname, in: lowered) {
                 matched.append(student)
-                matchedIDs.insert(student.id)
+                matchedIDs.insert(studentID)
             }
         }
 
@@ -388,134 +404,109 @@ final class ChatContextAssembler {
     private func fetchPresentations(
         from startDate: Date, to endDate: Date,
         state: LessonAssignmentState
-    ) -> [LessonAssignment] {
+    ) -> [CDLessonAssignment] {
         let stateRaw = state.rawValue
         if state == .presented {
-            let descriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate { pres in
-                    pres.stateRaw == stateRaw && pres.presentedAt != nil
-                },
-                sortBy: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)]
-            )
-            return context.safeFetch(descriptor).filter { pres in
+            let request = CDFetchRequest(CDLessonAssignment.self)
+            request.predicate = NSPredicate(format: "stateRaw == %@ AND presentedAt != nil", stateRaw)
+            request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
+            return context.safeFetch(request).filter { pres in
                 guard let presentedAt = pres.presentedAt else { return false }
                 return presentedAt >= startDate && presentedAt <= endDate
             }
         } else {
-            let descriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate { pres in
-                    pres.stateRaw == stateRaw
-                },
-                sortBy: [SortDescriptor(\LessonAssignment.scheduledForDay)]
-            )
-            return context.safeFetch(descriptor).filter { pres in
-                pres.scheduledForDay >= startDate && pres.scheduledForDay <= endDate
+            let request = CDFetchRequest(CDLessonAssignment.self)
+            request.predicate = NSPredicate(format: "stateRaw == %@", stateRaw)
+            request.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
+            return context.safeFetch(request).filter { pres in
+                guard let day = pres.scheduledForDay else { return false }
+                return day >= startDate && day <= endDate
             }
         }
     }
 
-    private func fetchPresentationsForStudent(studentID: UUID, limit: Int) -> [LessonAssignment] {
+    private func fetchPresentationsForStudent(studentID: UUID, limit: Int) -> [CDLessonAssignment] {
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { pres in
-                pres.stateRaw == presentedRaw
-            },
-            sortBy: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)]
-        )
-        let allPresented = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "stateRaw == %@", presentedRaw)
+        request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
+        let allPresented = context.safeFetch(request)
         let studentIDString = studentID.uuidString
         return Array(allPresented.filter { $0.studentIDs.contains(studentIDString) }.prefix(limit))
     }
 
-    private func fetchAttendanceRecords(from startDate: Date, to endDate: Date) -> [AttendanceRecord] {
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate { record in
-                record.date >= startDate && record.date <= endDate
-            }
-        )
-        return context.safeFetch(descriptor)
+    private func fetchAttendanceRecords(from startDate: Date, to endDate: Date) -> [CDAttendanceRecord] {
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDate as NSDate, endDate as NSDate)
+        return context.safeFetch(request)
     }
 
-    private func fetchRecentNotes(for studentID: UUID, limit: Int) -> [Note] {
-        let descriptor = FetchDescriptor<Note>(
-            predicate: #Predicate { note in
-                note.searchIndexStudentID == studentID
-            },
-            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-        )
-        var limited = descriptor
-        limited.fetchLimit = limit
-        return context.safeFetch(limited)
+    private func fetchRecentNotes(for studentID: UUID, limit: Int) -> [CDNote] {
+        let request = CDFetchRequest(CDNote.self)
+        request.predicate = NSPredicate(format: "searchIndexStudentID == %@", studentID as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        request.fetchLimit = limit
+        return context.safeFetch(request)
     }
 
-    private func fetchRecentClassNotes(limit: Int) -> [Note] {
-        let descriptor = FetchDescriptor<Note>(
-            predicate: #Predicate { note in
-                note.scopeIsAll == true
-            },
-            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-        )
-        var limited = descriptor
-        limited.fetchLimit = limit
-        return context.safeFetch(limited)
+    private func fetchRecentClassNotes(limit: Int) -> [CDNote] {
+        let request = CDFetchRequest(CDNote.self)
+        request.predicate = NSPredicate(format: "scopeIsAll == YES")
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        request.fetchLimit = limit
+        return context.safeFetch(request)
     }
 
-    private func fetchRecentCompletedWork(since date: Date) -> [WorkModel] {
+    private func fetchRecentCompletedWork(since date: Date) -> [CDWorkModel] {
         let completeRaw = WorkStatus.complete.rawValue
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { work in
-                work.statusRaw == completeRaw
-            },
-            sortBy: [SortDescriptor(\WorkModel.completedAt, order: .reverse)]
-        )
-        return context.safeFetch(descriptor).filter { work in
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "statusRaw == %@", completeRaw)
+        request.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
+        return context.safeFetch(request).filter { work in
             guard let completedAt = work.completedAt else { return false }
             return completedAt >= date
         }
     }
 
-    private func fetchCompletedWorkForStudent(studentID: String, since date: Date) -> [WorkModel] {
+    private func fetchCompletedWorkForStudent(studentID: String, since date: Date) -> [CDWorkModel] {
         let completeRaw = WorkStatus.complete.rawValue
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { work in
-                work.statusRaw == completeRaw && work.studentID == studentID
-            },
-            sortBy: [SortDescriptor(\WorkModel.completedAt, order: .reverse)]
-        )
-        return context.safeFetch(descriptor).filter { work in
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "statusRaw == %@ AND studentID == %@", completeRaw, studentID)
+        request.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
+        return context.safeFetch(request).filter { work in
             guard let completedAt = work.completedAt else { return false }
             return completedAt >= date
         }
     }
 
-    private func fetchOpenTodos() -> [TodoItem] {
-        let descriptor = FetchDescriptor<TodoItem>(
-            predicate: #Predicate { todo in
-                todo.isCompleted == false
-            },
-            sortBy: [SortDescriptor(\TodoItem.orderIndex)]
-        )
-        return context.safeFetch(descriptor)
+    private func fetchOpenTodos() -> [CDTodoItemEntity] {
+        let request = CDFetchRequest(CDTodoItemEntity.self)
+        request.predicate = NSPredicate(format: "isCompleted == NO")
+        request.sortDescriptors = [NSSortDescriptor(key: "orderIndex", ascending: true)]
+        return context.safeFetch(request)
     }
 
-    private func fetchTodosForStudent(studentID: UUID) -> [TodoItem] {
-        // TodoItem stores studentIDs as [String], so we fetch all open and filter
+    private func fetchTodosForStudent(studentID: UUID) -> [CDTodoItemEntity] {
+        // TodoItem stores studentIDs as Transformable [String], so we fetch all open and filter
         let studentIDString = studentID.uuidString
-        let descriptor = FetchDescriptor<TodoItem>(
-            predicate: #Predicate { todo in
-                todo.isCompleted == false
-            }
-        )
-        return context.safeFetch(descriptor).filter { $0.studentIDs.contains(studentIDString) }
+        let request = CDFetchRequest(CDTodoItemEntity.self)
+        request.predicate = NSPredicate(format: "isCompleted == NO")
+        return context.safeFetch(request).filter { $0.studentIDsArray.contains(studentIDString) }
     }
 
     // MARK: - Formatting
+
+    private func formattedDate(_ date: Date?) -> String {
+        guard let date else { return "Unknown" }
+        return DateFormatters.mediumDate.string(from: date)
+    }
 
     private func formattedDate(_ date: Date) -> String {
         DateFormatters.mediumDate.string(from: date)
     }
 
-    private func ageString(for birthday: Date) -> String {
+    private func ageString(for birthday: Date?) -> String {
+        guard let birthday else { return "Unknown" }
         let components = Calendar.current.dateComponents([.year, .month], from: birthday, to: Date())
         let years = components.year ?? 0
         let months = components.month ?? 0

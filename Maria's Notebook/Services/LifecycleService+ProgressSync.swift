@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import os
 
 // MARK: - Progress Synchronization
@@ -9,22 +9,28 @@ extension LifecycleService {
     /// Synchronizes student progress by updating LessonPresentation records from LessonAssignment and WorkModel data.
     /// This ensures all presented/completed lessons are properly tracked in the progress system.
     /// - Parameters:
-    ///   - context: The ModelContext to operate on
+    ///   - context: The NSManagedObjectContext to operate on
     /// - Returns: A tuple with counts of (presentations created/updated, presentations marked as proficient)
-    static func syncAllStudentProgress(context: ModelContext) throws -> (presentationsUpdated: Int, proficient: Int) {
+    static func syncAllStudentProgress(context: NSManagedObjectContext) throws -> (presentationsUpdated: Int, proficient: Int) {
         // 1. Fetch presented lesson assignments
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let allLessonAssignments = try context.fetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.stateRaw == presentedRaw })
-        )
+        let laRequest = CDFetchRequest(CDLessonAssignment.self)
+        laRequest.predicate = NSPredicate(format: "stateRaw == %@", presentedRaw)
+        let allLessonAssignments = try context.fetch(laRequest)
 
         // 2. Fetch students for orphan cleaning
-        let allStudents = try context.fetch(FetchDescriptor<Student>())
-        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        let allStudents = try context.fetch(CDFetchRequest(CDStudent.self))
+        let validStudentIDs = Set(allStudents.compactMap { $0.id?.uuidString })
 
         // 3. Build lesson lookup (deduplication: CloudKit sync can create duplicate records)
-        let allLessons = try context.fetch(FetchDescriptor<Lesson>())
-        let lessonsByID = Dictionary(allLessons.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        let allLessons = try context.fetch(CDFetchRequest(CDLesson.self))
+        let lessonsByID = Dictionary(
+            allLessons.compactMap { lesson -> (String, CDLesson)? in
+                guard let id = lesson.id?.uuidString else { return nil }
+                return (id, lesson)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         // 4. Create GroupTracks for all subject/group combinations
         try createGroupTracks(from: allLessons, context: context)
@@ -39,8 +45,8 @@ extension LifecycleService {
 
         // 6. Save and check work completion
         try context.save()
-        let allWorkModels = try context.fetch(FetchDescriptor<WorkModel>())
-        let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
+        let allWorkModels = try context.fetch(CDFetchRequest(CDWorkModel.self))
+        let allLessonPresentations = try context.fetch(CDFetchRequest(CDLessonPresentation.self))
         let proficientCount = updateCompletionFromWorkModels(
             allWorkModels, allLessonAssignments: allLessonAssignments,
             allLessonPresentations: allLessonPresentations
@@ -53,7 +59,7 @@ extension LifecycleService {
     // MARK: - Phase Helpers
 
     /// Creates GroupTrack records for all unique subject/group combinations found in lessons.
-    private static func createGroupTracks(from allLessons: [Lesson], context: ModelContext) throws {
+    private static func createGroupTracks(from allLessons: [CDLesson], context: NSManagedObjectContext) throws {
         var uniqueSubjectGroups: Set<String> = []
         for lesson in allLessons {
             let subject = lesson.subject.trimmed()
@@ -64,12 +70,12 @@ extension LifecycleService {
             guard !uniqueSubjectGroups.contains(key) else { continue }
             uniqueSubjectGroups.insert(key)
 
-            if GroupTrackService.isTrack(subject: subject, group: group, modelContext: context) {
+            if GroupTrackService.isTrack(subject: subject, group: group, context: context) {
                 do {
-                    _ = try GroupTrackService.getOrCreateGroupTrack(
+                    _ = try GroupTrackService.cdGetOrCreateGroupTrack(
                         subject: subject,
                         group: group,
-                        modelContext: context
+                        context: context
                     )
                 } catch {
                     // swiftlint:disable:next line_length
@@ -83,10 +89,10 @@ extension LifecycleService {
     /// Syncs LessonPresentation records for a single LessonAssignment, including track enrollment.
     /// Returns the number of presentation records updated.
     private static func syncPresentationsForAssignment(
-        _ la: LessonAssignment,
-        lessonsByID: [String: Lesson],
+        _ la: CDLessonAssignment,
+        lessonsByID: [String: CDLesson],
         validStudentIDs: Set<String>,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) throws -> Int {
         var updated = 0
 
@@ -98,10 +104,10 @@ extension LifecycleService {
               !la.lessonID.isEmpty,
               UUID(uuidString: la.lessonID) != nil else { return 0 }
 
-        let presentedAt = la.presentedAt ?? la.createdAt
+        let presentedAt = la.presentedAt ?? la.createdAt ?? Date()
 
         // Get lesson - try relationship first, then lookup
-        let lesson: Lesson?
+        let lesson: CDLesson?
         if let relationshipLesson = la.lesson {
             lesson = relationshipLesson
         } else {
@@ -110,7 +116,7 @@ extension LifecycleService {
 
         guard lesson != nil else {
             // swiftlint:disable:next line_length
-            logger.warning("Skipping LessonAssignment \(la.id, privacy: .public): lesson not found for lessonID \(la.lessonID, privacy: .public)")
+            logger.warning("Skipping LessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public): lesson not found for lessonID \(la.lessonID, privacy: .public)")
             return 0
         }
 
@@ -127,7 +133,7 @@ extension LifecycleService {
 
     /// Records presentation and updates presentationIDs; falls back to direct upsert on failure.
     private static func recordPresentationWithFallback(
-        _ la: LessonAssignment, lesson: Lesson?, presentedAt: Date, context: ModelContext
+        _ la: CDLessonAssignment, lesson: CDLesson?, presentedAt: Date, context: NSManagedObjectContext
     ) throws -> Int {
         do {
             if la.lesson == nil, let lesson {
@@ -136,8 +142,8 @@ extension LifecycleService {
             let (updatedLA, _) = try recordPresentationAndExplodeWork(
                 from: la, presentedAt: presentedAt, modelContext: context
             )
-            let assignmentIDStr = updatedLA.id.uuidString
-            let allLessonPresentations = try context.fetch(FetchDescriptor<LessonPresentation>())
+            let assignmentIDStr = updatedLA.id?.uuidString ?? ""
+            let allLessonPresentations = try context.fetch(CDFetchRequest(CDLessonPresentation.self))
             for studentIDStr in la.studentIDs {
                 if let lp = allLessonPresentations.first(where: {
                     $0.lessonID == la.lessonID && $0.studentID == studentIDStr && $0.presentationID == nil
@@ -148,7 +154,7 @@ extension LifecycleService {
             return la.studentIDs.count
         } catch {
             // swiftlint:disable:next line_length
-            logger.warning("Failed to process LessonAssignment \(la.id, privacy: .public): \(error.localizedDescription)")
+            logger.warning("Failed to process LessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public): \(error.localizedDescription)")
             for studentIDStr in la.studentIDs {
                 try upsertLessonPresentationByLessonAndStudent(
                     lessonID: la.lessonID, studentID: studentIDStr, presentedAt: presentedAt, context: context
@@ -160,25 +166,27 @@ extension LifecycleService {
 
     /// Auto-enrolls students in a track if the lesson belongs to one, and stamps trackID on presentations.
     private static func enrollInTrackIfNeeded(
-        lesson: Lesson, studentIDs: [String], lessonID: String, context: ModelContext
+        lesson: CDLesson, studentIDs: [String], lessonID: String, context: NSManagedObjectContext
     ) throws {
         let subject = lesson.subject.trimmed()
         let group = lesson.group.trimmed()
         guard !subject.isEmpty && !group.isEmpty else { return }
-        guard GroupTrackService.isTrack(subject: subject, group: group, modelContext: context) else { return }
+        guard GroupTrackService.isTrack(subject: subject, group: group, context: context) else { return }
 
         do {
-            _ = try GroupTrackService.getOrCreateGroupTrack(subject: subject, group: group, modelContext: context)
+            _ = try GroupTrackService.getOrCreateTrack(subject: subject, group: group, context: context)
         } catch {
             // swiftlint:disable:next line_length
             logger.warning("Failed to create/get GroupTrack for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
         }
 
-        GroupTrackService.autoEnrollInTrackIfNeeded(lesson: lesson, studentIDs: studentIDs, modelContext: context)
+        GroupTrackService.autoEnrollInTrackIfNeeded(
+            lessonSubject: subject, lessonGroup: group, studentIDs: studentIDs, context: context
+        )
 
         let trackID = "\(subject)|\(group)"
         let presentations = safeFetch(
-            FetchDescriptor<LessonPresentation>(), using: context, caller: "syncAllStudentProgress"
+            CDFetchRequest(CDLessonPresentation.self), using: context, caller: "syncAllStudentProgress"
         )
         for studentIDStr in studentIDs {
             if let lp = presentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentIDStr }) {
@@ -190,9 +198,9 @@ extension LifecycleService {
     /// Checks WorkModel completion status and updates proficiency on matching LessonPresentation records.
     /// Returns the number of newly proficient records.
     private static func updateCompletionFromWorkModels(
-        _ allWorkModels: [WorkModel],
-        allLessonAssignments: [LessonAssignment],
-        allLessonPresentations: [LessonPresentation]
+        _ allWorkModels: [CDWorkModel],
+        allLessonAssignments: [CDLessonAssignment],
+        allLessonPresentations: [CDLessonPresentation]
     ) -> Int {
         var proficientCount = 0
 
@@ -200,12 +208,12 @@ extension LifecycleService {
             let isWorkCompleted = work.status == .complete || work.completedAt != nil
 
             guard let workPresentationID = work.presentationID else { continue }
-            guard let la = allLessonAssignments.first(where: { $0.id.uuidString == workPresentationID }) else {
+            guard let la = allLessonAssignments.first(where: { $0.id?.uuidString == workPresentationID }) else {
                 continue
             }
 
             let lessonIDStr = la.lessonID
-            let participants = work.participants ?? []
+            let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
 
             if participants.isEmpty {
                 if isWorkCompleted {
@@ -241,7 +249,7 @@ extension LifecycleService {
     /// Marks a single LessonPresentation as proficient if not already. Returns 1 if updated, 0 otherwise.
     private static func markProficientIfNeeded(
         lessonID: String, studentID: String, achievedAt: Date,
-        in presentations: [LessonPresentation]
+        in presentations: [CDLessonPresentation]
     ) -> Int {
         if let lp = presentations.first(where: {
             $0.lessonID == lessonID && $0.studentID == studentID

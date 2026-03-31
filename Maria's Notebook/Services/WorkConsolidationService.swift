@@ -1,11 +1,11 @@
 import Foundation
-import SwiftData
+import CoreData
 
-/// Service for consolidating duplicate WorkModel records.
+/// Service for consolidating duplicate CDWorkModel records.
 /// Duplicates are identified by matching title, studentLessonID, and workType.
 @MainActor
 struct WorkConsolidationService {
-    let context: ModelContext
+    let context: NSManagedObjectContext
 
     struct ConsolidationResult {
         let groupsConsolidated: Int
@@ -19,8 +19,8 @@ struct WorkConsolidationService {
         var totalMerged = 0
         var errors: [String] = []
 
-        let descriptor = FetchDescriptor<WorkModel>()
-        let allWorks = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDWorkModel.self)
+        let allWorks = context.safeFetch(request)
 
         guard !allWorks.isEmpty else {
             return ConsolidationResult(groupsConsolidated: 0, totalMerged: 0, errors: [])
@@ -39,7 +39,7 @@ struct WorkConsolidationService {
             groupsConsolidated += 1
             totalMerged += (group.count - 1)
 
-            guard let canonical = group.min(by: { $0.createdAt < $1.createdAt }) else {
+            guard let canonical = group.min(by: { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }) else {
                 errors.append("Failed to find canonical work in group")
                 continue
             }
@@ -56,10 +56,8 @@ struct WorkConsolidationService {
             }
         }
 
-        do {
-            try context.save()
-        } catch {
-            errors.append("Failed to save changes: \(error.localizedDescription)")
+        if !context.safeSave() {
+            errors.append("Failed to save changes")
         }
 
         return ConsolidationResult(groupsConsolidated: groupsConsolidated, totalMerged: totalMerged, errors: errors)
@@ -68,18 +66,18 @@ struct WorkConsolidationService {
     // MARK: - Merge Helpers
 
     /// Merges participants from duplicates into the canonical work, preserving earliest completion dates.
-    private func mergeParticipants(into canonical: WorkModel, from duplicates: [WorkModel]) {
+    private func mergeParticipants(into canonical: CDWorkModel, from duplicates: [CDWorkModel]) {
         var allParticipantIDs = Set<String>()
         for work in [canonical] + duplicates {
-            if let participants = work.participants {
-                for participant in participants {
-                    allParticipantIDs.insert(participant.studentID)
-                }
+            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            for participant in parts {
+                allParticipantIDs.insert(participant.studentID)
             }
         }
         guard !allParticipantIDs.isEmpty else { return }
 
-        let existingParticipantIDs = Set((canonical.participants ?? []).map(\.studentID))
+        let existingParts = (canonical.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+        let existingParticipantIDs = Set(existingParts.map(\.studentID))
 
         for participantID in allParticipantIDs {
             if !existingParticipantIDs.contains(participantID) {
@@ -91,15 +89,15 @@ struct WorkConsolidationService {
     }
 
     private func addNewParticipant(
-        _ participantID: String, into canonical: WorkModel, from duplicates: [WorkModel]
+        _ participantID: String, into canonical: CDWorkModel, from duplicates: [CDWorkModel]
     ) {
         guard let studentUUID = UUID(uuidString: participantID) else { return }
 
         // Collect earliest completion date from all duplicates
         var completedAt: Date?
         for duplicate in duplicates {
-            if let dupParticipants = duplicate.participants,
-               let dupParticipant = dupParticipants.first(where: { $0.studentID == participantID }),
+            let dupParts = (duplicate.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            if let dupParticipant = dupParts.first(where: { $0.studentID == participantID }),
                let dupCompletedAt = dupParticipant.completedAt {
                 if let existing = completedAt {
                     completedAt = min(existing, dupCompletedAt)
@@ -109,24 +107,24 @@ struct WorkConsolidationService {
             }
         }
 
-        let newParticipant = WorkParticipantEntity(
-            studentID: studentUUID, completedAt: completedAt, work: canonical
-        )
-        if canonical.participants == nil { canonical.participants = [] }
-        canonical.participants?.append(newParticipant)
+        let newParticipant = CDWorkParticipantEntity(context: context)
+        newParticipant.studentID = studentUUID.uuidString
+        newParticipant.completedAt = completedAt
+        newParticipant.work = canonical
+        canonical.addToParticipants(newParticipant)
     }
 
     private func mergeExistingParticipantDates(
-        _ participantID: String, canonical: WorkModel, duplicates: [WorkModel]
+        _ participantID: String, canonical: CDWorkModel, duplicates: [CDWorkModel]
     ) {
-        let canonicalParts = canonical.participants ?? []
+        let canonicalParts = (canonical.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         guard let existingParticipant = canonicalParts.first(
             where: { $0.studentID == participantID }
         ) else { return }
 
         for duplicate in duplicates {
-            if let dupParticipants = duplicate.participants,
-               let dupParticipant = dupParticipants.first(where: { $0.studentID == participantID }),
+            let dupParts = (duplicate.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            if let dupParticipant = dupParts.first(where: { $0.studentID == participantID }),
                let dupCompletedAt = dupParticipant.completedAt {
                 if let existingCompletedAt = existingParticipant.completedAt {
                     if dupCompletedAt < existingCompletedAt {
@@ -140,7 +138,7 @@ struct WorkConsolidationService {
     }
 
     /// Merges note text from duplicates into the canonical work.
-    private func mergeNotes(into canonical: WorkModel, from duplicates: [WorkModel]) {
+    private func mergeNotes(into canonical: CDWorkModel, from duplicates: [CDWorkModel]) {
         let canonicalNoteText = canonical.latestUnifiedNoteText.trimmed()
         if canonicalNoteText.isEmpty {
             // Use first non-empty note from duplicates
@@ -168,28 +166,30 @@ struct WorkConsolidationService {
     }
 
     /// Re-parents check-ins and unified notes from duplicates to the canonical work.
-    private func mergeCheckInsAndUnifiedNotes(into canonical: WorkModel, from duplicates: [WorkModel]) {
+    private func mergeCheckInsAndUnifiedNotes(into canonical: CDWorkModel, from duplicates: [CDWorkModel]) {
         for duplicate in duplicates {
-            if let dupCheckIns = duplicate.checkIns {
-                if canonical.checkIns == nil { canonical.checkIns = [] }
-                for checkIn in dupCheckIns {
-                    checkIn.work = canonical
-                    canonical.checkIns?.append(checkIn)
-                }
+            let dupCheckIns = (duplicate.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+            for checkIn in dupCheckIns {
+                checkIn.work = canonical
+                canonical.addToCheckIns(checkIn)
             }
         }
 
-        let notesToMove = duplicates.flatMap { $0.unifiedNotes ?? [] }
+        let notesToMove = duplicates.flatMap { ($0.unifiedNotes?.allObjects as? [CDNote]) ?? [] }
         for note in notesToMove {
             note.work = canonical
         }
     }
 
     /// Merges dates: earliest assignedAt, earliest dueAt, most recent lastTouchedAt.
-    private func mergeDates(into canonical: WorkModel, from duplicates: [WorkModel]) {
+    private func mergeDates(into canonical: CDWorkModel, from duplicates: [CDWorkModel]) {
         for duplicate in duplicates {
-            if duplicate.assignedAt < canonical.assignedAt {
-                canonical.assignedAt = duplicate.assignedAt
+            if let dupAssignedAt = duplicate.assignedAt, let canonicalAssignedAt = canonical.assignedAt {
+                if dupAssignedAt < canonicalAssignedAt {
+                    canonical.assignedAt = dupAssignedAt
+                }
+            } else if let dupAssignedAt = duplicate.assignedAt, canonical.assignedAt == nil {
+                canonical.assignedAt = dupAssignedAt
             }
             if let dupDueAt = duplicate.dueAt {
                 if let canonicalDueAt = canonical.dueAt {
@@ -209,7 +209,7 @@ struct WorkConsolidationService {
     }
 
     /// If any duplicate is completed but canonical is not, transfer completion status.
-    private func mergeCompletionStatus(into canonical: WorkModel, from duplicates: [WorkModel]) {
+    private func mergeCompletionStatus(into canonical: CDWorkModel, from duplicates: [CDWorkModel]) {
         for duplicate in duplicates {
             if duplicate.completedAt != nil && canonical.completedAt == nil {
                 canonical.completedAt = duplicate.completedAt

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import os
 
 // MARK: - Orphan Cleanup
@@ -10,11 +10,11 @@ extension DataCleanupService {
 
     /// Cleans orphaned student IDs from LessonAssignment records.
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
-    /// when using manual ID management instead of SwiftData relationships.
+    /// when using manual ID management instead of Core Data relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
-    static func cleanOrphanedStudentIDs(using context: ModelContext) async {
+    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext) async {
         // Fetch all students to build valid ID set
-        let studentFetch = FetchDescriptor<Student>()
+        let studentFetch = CDFetchRequest(CDStudent.self)
         let allStudents = context.safeFetch(studentFetch)
 
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
@@ -23,9 +23,9 @@ extension DataCleanupService {
             return
         }
 
-        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        let validStudentIDs = Set(allStudents.map { ($0.id ?? UUID()).uuidString })
 
-        let laFetch = FetchDescriptor<LessonAssignment>()
+        let laFetch = CDFetchRequest(CDLessonAssignment.self)
         let allLAs = context.safeFetch(laFetch)
 
         var cleaned = 0
@@ -37,9 +37,6 @@ extension DataCleanupService {
 
             if cleanedIDs.count != originalIDs.count {
                 la.studentIDs = cleanedIDs
-                la.students = la.students.filter { student in
-                    validStudentIDs.contains(student.cloudKitKey)
-                }
                 cleaned += 1
             }
         }
@@ -51,11 +48,11 @@ extension DataCleanupService {
 
     /// Cleans orphaned student IDs from WorkModel records.
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
-    /// when using manual ID management instead of SwiftData relationships.
+    /// when using manual ID management instead of Core Data relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
-    static func cleanOrphanedWorkStudentIDs(using context: ModelContext) async {
+    static func cleanOrphanedWorkStudentIDs(using context: NSManagedObjectContext) async {
         // Fetch all students to build valid ID set
-        let studentFetch = FetchDescriptor<Student>()
+        let studentFetch = CDFetchRequest(CDStudent.self)
         let allStudents = context.safeFetch(studentFetch)
 
         // Guard against empty student list - if fetch failed, bail out to prevent mass deletion
@@ -64,10 +61,10 @@ extension DataCleanupService {
             return
         }
 
-        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        let validStudentIDs = Set(allStudents.map { ($0.id ?? UUID()).uuidString })
 
         // Fetch all WorkModels
-        let workFetch = FetchDescriptor<WorkModel>()
+        let workFetch = CDFetchRequest(CDWorkModel.self)
         let allWorks = context.safeFetch(workFetch)
 
         var cleaned = 0
@@ -84,15 +81,11 @@ extension DataCleanupService {
             }
 
             // Check work.participants - remove any with orphaned studentIDs
-            if let participants = work.participants, !participants.isEmpty {
-                let validParticipants = participants.filter { participant in
-                    validStudentIDs.contains(participant.studentID)
-                }
+            if let participantsSet = work.participants as? Set<CDWorkParticipantEntity>, !participantsSet.isEmpty {
+                let orphanedParticipants = participantsSet.filter { !validStudentIDs.contains($0.studentID) }
 
-                if validParticipants.count != participants.count {
-                    work.participants = validParticipants.isEmpty ? nil : validParticipants
-                    // Delete orphaned participants from context
-                    for participant in participants where !validStudentIDs.contains(participant.studentID) {
+                if !orphanedParticipants.isEmpty {
+                    for participant in orphanedParticipants {
                         context.delete(participant)
                     }
                     modified = true

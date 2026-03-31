@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Coordinates post-sync deduplication with debouncing to prevent rapid-fire runs.
@@ -33,28 +32,26 @@ final class DeduplicationCoordinator {
         guard !isRunning, let container = persistentContainer else { return }
         isRunning = true
 
-        // Get ModelContainer on MainActor before detaching
-        let modelContainer = AppBootstrapping.getSharedModelContainer()
+        let bgContext = container.newBackgroundContext()
+        bgContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
 
         Task.detached(priority: .utility) { [weak self] in
-            // DataCleanupService still uses SwiftData ModelContext during transition
-            let swiftDataContext = ModelContext(modelContainer)
-            swiftDataContext.autosaveEnabled = false
+            await bgContext.perform {
+                let start = Date()
+                let results = DataCleanupService.deduplicateAllModels(using: bgContext)
 
-            let start = Date()
-            let results = DataCleanupService.deduplicateAllModels(using: swiftDataContext)
-
-            if !results.isEmpty {
-                do {
-                    try swiftDataContext.save()
-                    Self.logger.info("Post-import deduplication removed \(results.values.reduce(0, +)) duplicates")
-                } catch {
-                    Self.logger.error("Post-import deduplication save failed: \(error.localizedDescription)")
+                if !results.isEmpty {
+                    do {
+                        try bgContext.save()
+                        Self.logger.info("Post-import deduplication removed \(results.values.reduce(0, +)) duplicates")
+                    } catch {
+                        Self.logger.error("Post-import deduplication save failed: \(error.localizedDescription)")
+                    }
                 }
-            }
 
-            let elapsed = Date().timeIntervalSince(start)
-            Self.logger.debug("Post-import deduplication completed in \(String(format: "%.2f", elapsed))s")
+                let elapsed = Date().timeIntervalSince(start)
+                Self.logger.debug("Post-import deduplication completed in \(String(format: "%.2f", elapsed))s")
+            }
 
             await MainActor.run { [weak self] in
                 self?.isRunning = false

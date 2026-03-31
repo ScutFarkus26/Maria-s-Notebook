@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -16,12 +17,17 @@ import OSLog
 final class DatabaseAnalysisService {
     private static let logger = Logger.ai
 
-    private let modelContext: ModelContext
+    private let modelContext: NSManagedObjectContext
     private let mcpClient: MCPClientProtocol
 
-    init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+    init(modelContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
         self.modelContext = modelContext
         self.mcpClient = mcpClient
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    convenience init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+        self.init(modelContext: AppBootstrapping.getSharedCoreDataStack().viewContext, mcpClient: mcpClient)
     }
 
     // MARK: - Public API
@@ -101,11 +107,12 @@ final class DatabaseAnalysisService {
         )
     }
 
-    private func serializeStudents(_ students: [Student]) -> String {
+    private func serializeStudents(_ students: [CDStudent]) -> String {
         guard !students.isEmpty else { return "" }
         var lines = ["=== STUDENTS (\(students.count)) ==="]
         for s in students.sorted(by: { $0.firstName < $1.firstName }) {
-            let age = Calendar.current.dateComponents([.year, .month], from: s.birthday, to: Date())
+            let birthday = s.birthday ?? Date()
+            let age = Calendar.current.dateComponents([.year, .month], from: birthday, to: Date())
             let ageStr = "\(age.year ?? 0)y\(age.month ?? 0)m"
             let started = s.dateStarted?.formatted(date: .numeric, time: .omitted) ?? "?"
             let name = "\(s.firstName) \(s.lastName.prefix(1))"
@@ -115,8 +122,12 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeLessons(cutoff: Date?) -> String {
-        let descriptor = FetchDescriptor<Lesson>(sortBy: [SortDescriptor(\.subject), SortDescriptor(\.sortIndex)])
-        let lessons = (try? modelContext.fetch(descriptor)) ?? []
+        let request: NSFetchRequest<CDLesson> = CDFetchRequest(CDLesson.self)
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "subject", ascending: true),
+            NSSortDescriptor(key: "sortIndex", ascending: true)
+        ]
+        let lessons = modelContext.safeFetch(request)
         guard !lessons.isEmpty else { return "" }
 
         var lines = ["=== LESSONS (\(lessons.count)) ==="]
@@ -132,8 +143,9 @@ final class DatabaseAnalysisService {
     }
 
     private func serializePresentations(cutoff: Date?) -> String {
-        let descriptor = FetchDescriptor<LessonAssignment>(sortBy: [SortDescriptor(\.presentedAt, order: .reverse)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
+        let request: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
+        let all = modelContext.safeFetch(request)
         let presentations = cutoff.map { date in all.filter { ($0.presentedAt ?? .distantPast) >= date } } ?? all
         guard !presentations.isEmpty else { return "" }
 
@@ -152,14 +164,15 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeNotes(cutoff: Date?) -> String {
-        let descriptor = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
-        let notes = cutoff.map { date in all.filter { $0.createdAt >= date } } ?? all
+        let request: NSFetchRequest<CDNote> = CDFetchRequest(CDNote.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        let all = modelContext.safeFetch(request)
+        let notes = cutoff.map { date in all.filter { ($0.createdAt ?? .distantPast) >= date } } ?? all
         guard !notes.isEmpty else { return "" }
 
         var lines = ["=== NOTES (\(notes.count)) ==="]
         for n in notes.prefix(1000) { // Cap
-            let date = n.createdAt.formatted(date: .numeric, time: .omitted)
+            let date = (n.createdAt ?? Date()).formatted(date: .numeric, time: .omitted)
             let category = n.category.rawValue
             let body = String(n.body.prefix(200)).replacingOccurrences(of: "\n", with: " ")
             lines.append("\(date)|\(category)|\(body)")
@@ -168,14 +181,15 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeWork(cutoff: Date?) -> String {
-        let descriptor = FetchDescriptor<WorkModel>(sortBy: [SortDescriptor(\.assignedAt, order: .reverse)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
-        let work = cutoff.map { date in all.filter { $0.assignedAt >= date } } ?? all
+        let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "assignedAt", ascending: false)]
+        let all = modelContext.safeFetch(request)
+        let work = cutoff.map { date in all.filter { ($0.assignedAt ?? .distantPast) >= date } } ?? all
         guard !work.isEmpty else { return "" }
 
         var lines = ["=== WORK (\(work.count)) ==="]
         for w in work.prefix(500) {
-            let assigned = w.assignedAt.formatted(date: .numeric, time: .omitted)
+            let assigned = (w.assignedAt ?? Date()).formatted(date: .numeric, time: .omitted)
             let status = w.status.rawValue
             let outcome = w.completionOutcome?.rawValue ?? ""
             lines.append("\(w.title)|\(status)|\(assigned)|\(outcome)")
@@ -184,13 +198,14 @@ final class DatabaseAnalysisService {
     }
 
     private func serializeAttendance(cutoff: Date?) -> String {
-        let descriptor = FetchDescriptor<AttendanceRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
-        let records = cutoff.map { date in all.filter { $0.date >= date } } ?? all
+        let request: NSFetchRequest<CDAttendanceRecord> = CDFetchRequest(CDAttendanceRecord.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        let all = modelContext.safeFetch(request)
+        let records = cutoff.map { date in all.filter { ($0.date ?? .distantPast) >= date } } ?? all
         guard !records.isEmpty else { return "" }
 
         // Summarize instead of listing every record
-        let totalDays = Set(records.map { Calendar.current.startOfDay(for: $0.date) }).count
+        let totalDays = Set(records.compactMap { $0.date.map { Calendar.current.startOfDay(for: $0) } }).count
         let absent = records.filter { $0.status == .absent }.count
         let tardy = records.filter { $0.status == .tardy }.count
         let present = records.filter { $0.status == .present }.count

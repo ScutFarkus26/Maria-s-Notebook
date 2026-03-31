@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -7,17 +8,25 @@ import OSLog
 final class ChatService {
     private static let logger = Logger.ai
 
-    private let modelContext: ModelContext
+    private let modelContext: NSManagedObjectContext
     private let mcpClient: MCPClientProtocol
     private let contextAssembler: ChatContextAssembler
 
     /// Maximum conversation messages to include in API requests (to stay within token budget).
     private let maxHistoryMessages = 10
 
-    init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+    init(modelContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
         self.modelContext = modelContext
         self.mcpClient = mcpClient
         self.contextAssembler = ChatContextAssembler(context: modelContext)
+    }
+
+    /// Deprecated bridge: accepts a SwiftData ModelContext but uses the shared Core Data stack instead.
+    @available(*, deprecated, message: "Use init(modelContext: NSManagedObjectContext, mcpClient:) instead")
+    init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+        self.modelContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        self.mcpClient = mcpClient
+        self.contextAssembler = ChatContextAssembler(context: self.modelContext)
     }
 
     // MARK: - Session Management

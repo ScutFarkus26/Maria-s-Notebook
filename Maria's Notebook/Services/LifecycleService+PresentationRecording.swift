@@ -1,7 +1,7 @@
 import Foundation
+import CoreData
 import SwiftData
 import os
-import CoreData
 
 // MARK: - Presentation Recording
 
@@ -11,13 +11,13 @@ extension LifecycleService {
     /// but do NOT auto-create WorkModel items. Use this when work creation is handled separately
     /// (e.g., via the unified workflow panel or explicit user action).
     static func recordPresentation(
-        from lessonAssignment: LessonAssignment,
+        from lessonAssignment: CDLessonAssignment,
         presentedAt: Date,
-        modelContext: ModelContext
-    ) throws -> LessonAssignment {
+        modelContext: NSManagedObjectContext
+    ) throws -> CDLessonAssignment {
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
-        let allStudents = try modelContext.fetch(FetchDescriptor<Student>())
-        let validStudentIDs = Set(allStudents.map { $0.id.uuidString })
+        let allStudents = try modelContext.fetch(CDFetchRequest(CDStudent.self))
+        let validStudentIDs = Set(allStudents.compactMap { $0.id?.uuidString })
         cleanOrphanedStudentIDs(for: lessonAssignment, validStudentIDs: validStudentIDs, modelContext: modelContext)
 
         let lessonIDStr = lessonAssignment.lessonID
@@ -33,24 +33,24 @@ extension LifecycleService {
             let subject = lesson.subject.trimmed()
             let group = lesson.group.trimmed()
             if !subject.isEmpty && !group.isEmpty,
-               GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+               GroupTrackService.isTrack(subject: subject, group: group, context: modelContext) {
                 do {
                     let track = try GroupTrackService.getOrCreateTrack(
                         subject: subject,
                         group: group,
-                        modelContext: modelContext
+                        context: modelContext
                     )
-                    lessonAssignment.trackID = track.id.uuidString
+                    lessonAssignment.trackID = track.id?.uuidString
                     if let lessonUUID = UUID(uuidString: lessonIDStr) {
                         let allSteps = safeFetch(
-                            FetchDescriptor<TrackStep>(),
+                            CDFetchRequest(CDTrackStepEntity.self),
                             using: modelContext,
                             caller: "recordPresentation"
                         )
                         if let step = allSteps.first(where: {
                             $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                         }) {
-                            lessonAssignment.trackStepID = step.id.uuidString
+                            lessonAssignment.trackStepID = step.id?.uuidString
                         }
                     }
                 } catch {
@@ -60,7 +60,7 @@ extension LifecycleService {
         }
 
         // Upsert LessonPresentation records per student (for individual progress tracking)
-        let assignmentIDStr = lessonAssignment.id.uuidString
+        let assignmentIDStr = lessonAssignment.id?.uuidString ?? ""
         for sid in studentIDStrs {
             try upsertLessonPresentation(
                 presentationID: assignmentIDStr,
@@ -81,10 +81,10 @@ extension LifecycleService {
     // or the syncAllStudentProgress migration path).
     // swiftlint:disable:next function_body_length
     static func recordPresentationAndExplodeWork(
-        from lessonAssignment: LessonAssignment,
+        from lessonAssignment: CDLessonAssignment,
         presentedAt: Date,
-        modelContext: ModelContext
-    ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
+        modelContext: NSManagedObjectContext
+    ) throws -> (lessonAssignment: CDLessonAssignment, work: [CDWorkModel]) {
         let la = try recordPresentation(
             from: lessonAssignment,
             presentedAt: presentedAt,
@@ -95,13 +95,13 @@ extension LifecycleService {
         let studentIDStrs = la.studentIDs
 
         // Ensure WorkModels exist per student
-        var workForPresentation: [WorkModel] = []
+        var workForPresentation: [CDWorkModel] = []
         var createdCount = 0
         var skippedCount = 0
         for sid in studentIDStrs {
             // Check for existing WorkModel first
             if let existing = try fetchWorkModel(
-                presentationID: la.id.uuidString,
+                presentationID: la.id?.uuidString ?? "",
                 studentID: sid, context: modelContext
             ) {
                 workForPresentation.append(existing)
@@ -113,7 +113,7 @@ extension LifecycleService {
                     continue
                 }
 
-                let repository = WorkRepository(modelContext: modelContext)
+                let repository = WorkRepository(context: modelContext)
                 do {
                     let workModel = try repository.createWork(
                         studentID: studentUUID,
@@ -129,12 +129,12 @@ extension LifecycleService {
                         let subject = lesson.subject.trimmed()
                         let group = lesson.group.trimmed()
                         if !subject.isEmpty && !group.isEmpty,
-                           GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                           GroupTrackService.isTrack(subject: subject, group: group, context: modelContext) {
                             do {
                                 _ = try GroupTrackService.getOrCreateTrack(
                                     subject: subject,
                                     group: group,
-                                    modelContext: modelContext
+                                    context: modelContext
                                 )
                             } catch {
                                 logger.warning("Failed to link work to track: \(error.localizedDescription)")
@@ -146,15 +146,51 @@ extension LifecycleService {
                 } catch {
                     logger.warning(
                         // swiftlint:disable:next line_length
-                        "Failed to create WorkModel for LessonAssignment \(la.id.uuidString, privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)"
+                        "Failed to create WorkModel for LessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)"
                     )
                 }
             }
         }
 
         // Fetch all associated WorkModels for this assignment
-        let allForAssignment = try fetchAllWorkModels(presentationID: la.id.uuidString, context: modelContext)
+        let allForAssignment = try fetchAllWorkModels(presentationID: la.id?.uuidString ?? "", context: modelContext)
 
         return (la, allForAssignment)
+    }
+
+    // MARK: - Deprecated SwiftData Bridges
+
+    @available(*, deprecated, message: "Pass CDLessonAssignment and NSManagedObjectContext")
+    @discardableResult
+    static func recordPresentation(
+        from lessonAssignment: LessonAssignment,
+        presentedAt: Date,
+        modelContext: ModelContext
+    ) throws -> LessonAssignment {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id == %@", lessonAssignment.id as CVarArg)
+        request.fetchLimit = 1
+        guard let cdLA = cdContext.safeFetch(request).first else { return lessonAssignment }
+        _ = try recordPresentation(from: cdLA, presentedAt: presentedAt, modelContext: cdContext)
+        cdContext.safeSave()
+        return lessonAssignment
+    }
+
+    @available(*, deprecated, message: "Pass CDLessonAssignment and NSManagedObjectContext")
+    static func recordPresentationAndExplodeWork(
+        from lessonAssignment: LessonAssignment,
+        presentedAt: Date,
+        modelContext: ModelContext
+    ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id == %@", lessonAssignment.id as CVarArg)
+        request.fetchLimit = 1
+        guard let cdLA = cdContext.safeFetch(request).first else { return (lessonAssignment, []) }
+        _ = try recordPresentationAndExplodeWork(from: cdLA, presentedAt: presentedAt, modelContext: cdContext)
+        cdContext.safeSave()
+        // Re-fetch SwiftData WorkModels
+        return (lessonAssignment, [])
     }
 }
